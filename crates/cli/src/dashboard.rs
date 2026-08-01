@@ -51,6 +51,7 @@ use crate::{
     },
 };
 
+mod mvp_status_api;
 mod rendering;
 mod server;
 mod trader_terminal_api;
