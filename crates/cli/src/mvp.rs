@@ -26,7 +26,9 @@ use std::{
 use anyhow::{Context, ensure};
 
 use crate::{
+    artifacts::atomic_write_json,
     dashboard::run_dashboard_command,
+    mvp_contract::{MVP_IDENTITY_CONTRACT_PATH, MvpIdentityContract},
     opt::{DashboardCommand, DashboardOpt, DashboardServeOpt, MvpCommand, MvpOpt, MvpServeOpt},
     supervisor::{
         RegisterNodeRequest, StartNodeRequest, StopNodeRequest, SupervisorProcessState,
@@ -43,6 +45,7 @@ struct MvpRuntime {
     node_id: String,
     registry_path: PathBuf,
     artifact_root: PathBuf,
+    identity_contract_path: PathBuf,
 }
 
 impl MvpRuntime {
@@ -62,6 +65,9 @@ impl MvpRuntime {
             "ntpro-node 二进制 '{}' 不存在；请先执行 cargo build -p nautilus-cli --bins，或通过 --ntpro-node-bin 指定路径",
             ntpro_node_bin.display()
         );
+
+        let identity_contract = MvpIdentityContract::load(&opt.config, &opt.node_id)?;
+        let identity_contract_path = opt.workspace.join(MVP_IDENTITY_CONTRACT_PATH);
 
         let registry_path = opt.workspace.join(REGISTRY_PATH);
         let artifact_root = opt.workspace.join(NODE_ARTIFACT_ROOT).join(&opt.node_id);
@@ -101,8 +107,21 @@ impl MvpRuntime {
             node_id: opt.node_id.clone(),
             registry_path,
             artifact_root,
+            identity_contract_path,
         };
-        if let Err(readiness_error) = runtime.prepare_observability(startup_timeout) {
+        let startup_result = runtime
+            .prepare_observability(startup_timeout)
+            .and_then(|()| {
+                atomic_write_json(&runtime.identity_contract_path, &identity_contract).with_context(
+                    || {
+                        format!(
+                            "写入 MVP 身份合同 '{}' 失败",
+                            runtime.identity_contract_path.display()
+                        )
+                    },
+                )
+            });
+        if let Err(readiness_error) = startup_result {
             let cleanup_result = runtime.stop(node_shutdown_timeout);
             return match cleanup_result {
                 Ok(()) => Err(readiness_error),
@@ -203,10 +222,11 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
     let runtime = MvpRuntime::start(&opt, ntpro_node_bin.clone())?;
 
     println!(
-        "mvp.serve status=ok node_id={} registry={} artifact_root={} dashboard_url=http://{}/dashboard external_venue_connection=false real_orders_submitted=false",
+        "mvp.serve status=ok node_id={} registry={} artifact_root={} identity_contract={} dashboard_url=http://{}/dashboard external_venue_connection=false real_orders_submitted=false",
         runtime.node_id,
         runtime.registry_path.display(),
         runtime.artifact_root.display(),
+        runtime.identity_contract_path.display(),
         opt.bind,
     );
 
@@ -305,7 +325,25 @@ mod tests {
         let config = root.join("node.toml");
         fs::write(
             &config,
-            "[node]\nnode_id = \"config-node\"\n[strategy]\nstrategy_id = \"strategy-alpha\"\n",
+            r#"[node]
+node_id = "strategy-instance-alpha"
+
+[strategy]
+strategy_id = "strategy-alpha"
+
+[market]
+venue = "SANDBOX"
+
+[execution]
+venue = "SANDBOX"
+
+[mvp]
+strategy_version = "v1"
+backtest_run_id = "backtest-alpha-001"
+backtest_result_ref = "artifact://backtests/backtest-alpha-001/summary.json"
+account_id = "SANDBOX-001"
+environment = "sandbox"
+"#,
         )
         .expect("fixture config must be written");
         MvpServeOpt {
@@ -365,6 +403,24 @@ mod tests {
         assert!(events.contains("phase=mvp_start status=ok"));
         assert!(!record.last_known_status.external_venue_connection);
         assert!(!record.last_known_status.real_orders_submitted);
+        let identity_contract: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&runtime.identity_contract_path)
+                .expect("MVP identity contract should be readable"),
+        )
+        .expect("MVP identity contract should be valid JSON");
+        assert_eq!(
+            identity_contract["schema_version"],
+            crate::mvp_contract::MVP_IDENTITY_CONTRACT_SCHEMA_VERSION
+        );
+        assert_eq!(identity_contract["identities"]["node_id"], "mvp-node-001");
+        assert_eq!(
+            identity_contract["identities"]["strategy_instance_id"],
+            "strategy-instance-alpha"
+        );
+        assert_eq!(
+            identity_contract["boundaries"]["order_submission_allowed"],
+            false
+        );
 
         runtime
             .stop(Duration::from_secs(2))
@@ -422,6 +478,37 @@ mod tests {
             SupervisorProcessState::Stopped
         );
         drop(listener);
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mvp_identity_contract_write_failure_stops_started_node() {
+        let _guard = process_test_guard();
+        let root = temp_root("identity-contract-write-failure");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_options(&root, fixture_node);
+        fs::create_dir_all(&opt.workspace).expect("MVP workspace should be created");
+        fs::write(opt.workspace.join("mvp"), "blocks contract directory")
+            .expect("contract parent blocker should be written");
+
+        let error = MvpRuntime::start(
+            &opt,
+            opt.ntpro_node_bin
+                .clone()
+                .expect("fixture node path should be present"),
+        )
+        .expect_err("identity contract write failure must stop startup");
+        assert!(format!("{error:#}").contains("写入 MVP 身份合同"));
+
+        let store = SupervisorRegistryStore::new(opt.workspace.join(REGISTRY_PATH));
+        let registry = store
+            .load()
+            .expect("registry should load after identity contract failure");
+        assert_eq!(
+            registry.nodes["mvp-node-001"].process.state,
+            SupervisorProcessState::Stopped
+        );
         fs::remove_dir_all(root).expect("temporary MVP root should be removed");
     }
 

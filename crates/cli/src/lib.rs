@@ -62,6 +62,7 @@ mod database;
 mod endpoint_classifier;
 mod live;
 mod mvp;
+mod mvp_contract;
 pub mod opt;
 mod process;
 mod sandbox;

@@ -7,6 +7,13 @@ strategy_id = "ema_cross_btcusdt_v1"
 strategy_package = "builtin"
 strategy_runtime = "ema_cross_demo"
 
+[mvp]
+strategy_version = "v1"
+backtest_run_id = "ema-cross-btcusdt-baseline-v1"
+backtest_result_ref = "artifact://backtests/ema-cross-btcusdt-baseline-v1/summary.json"
+account_id = "SANDBOX-001"
+environment = "sandbox"
+
 [market]
 venue = "BINANCE_TESTNET"
 symbols = ["BTCUSDT.BINANCE"]
