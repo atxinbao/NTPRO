@@ -33,8 +33,29 @@ impl Fixture {
         let registry_path = root.join("supervisor/registry.json");
         let artifact_root = root.join("nodes/mvp-node-001");
         let config_path = root.join("node.toml");
-        fs::write(&config_path, "[node]\nnode_id = \"mvp-strategy-001\"\n")
-            .expect("fixture config should be written");
+        fs::write(
+            &config_path,
+            r#"[node]
+node_id = "mvp-strategy-001"
+
+[strategy]
+strategy_id = "ema-cross"
+
+[market]
+venue = "BINANCE"
+
+[execution]
+venue = "BINANCE"
+
+[mvp]
+strategy_version = "sha256:strategy-v1"
+backtest_run_id = "backtest-001"
+backtest_result_ref = "artifact://backtests/backtest-001.json"
+account_id = "acct-sandbox-001"
+environment = "sandbox"
+"#,
+        )
+        .expect("fixture config should be written");
         let store = SupervisorRegistryStore::new(&registry_path);
         let record = store
             .register_node(RegisterNodeRequest {
@@ -170,6 +191,18 @@ impl Fixture {
     fn write_status(&self) {
         write_json(&self.root.join(MVP_STATUS_CONTRACT_PATH), &self.status);
     }
+
+    fn write_healthy_read_model(&self, now_unix_ms: u64) -> Value {
+        let value = healthy_read_model(now_unix_ms);
+        fs::create_dir_all(
+            self.read_model_path
+                .parent()
+                .expect("read model parent should exist"),
+        )
+        .expect("read model parent should be created");
+        write_json(&self.read_model_path, &value);
+        value
+    }
 }
 
 impl Drop for Fixture {
@@ -225,6 +258,33 @@ fn shared_status_projects_one_fact_set_for_both_portals() {
     );
     assert_eq!(serialized["boundaries"]["raw_event_store_exposed"], false);
     assert_eq!(serialized["boundaries"]["raw_venue_payload_exposed"], false);
+}
+
+#[test]
+fn valid_read_model_projects_available_business_summary() {
+    let now = 1_800_000_000_000;
+    let fixture = Fixture::new("available-business", now);
+    fixture.write_healthy_read_model(now);
+
+    let response = project_mvp_shared_status(&fixture.state, now)
+        .expect("healthy read model should produce shared status");
+    assert_eq!(
+        response.business.availability,
+        MvpBusinessAvailability::Available
+    );
+    assert_eq!(response.business.health, HealthStatus::Healthy);
+    assert_eq!(
+        response.business.readiness_status.value.as_deref(),
+        Some("ready_readonly_artifact")
+    );
+    assert_eq!(
+        response.business.account.status.value.as_deref(),
+        Some("healthy")
+    );
+    assert_eq!(
+        response.business.positions.status.value.as_deref(),
+        Some("healthy")
+    );
 }
 
 #[test]
@@ -430,6 +490,190 @@ fn read_model_account_or_venue_mismatch_is_not_projected() {
         response.business.account.status.availability,
         DashboardAvailability::Unknown
     );
+}
+
+#[test]
+fn component_account_mismatch_is_not_projected() {
+    let now = 1_800_000_000_000;
+    let fixture = Fixture::new("component-account", now);
+    let mut read_model = fixture.write_healthy_read_model(now);
+    read_model["components"]["account"]["data"]["account_id"] = json!("different-account");
+    read_model["components"]["positions"]["data"]["account_id"] = json!("different-account");
+    write_json(&fixture.read_model_path, &read_model);
+
+    let response = project_mvp_shared_status(&fixture.state, now)
+        .expect("component identity mismatch should be represented");
+    assert_eq!(
+        response.business.availability,
+        MvpBusinessAvailability::IdentityMismatch
+    );
+    assert_eq!(response.business.health, HealthStatus::Error);
+    assert_eq!(
+        response.business.account.status.availability,
+        DashboardAvailability::Unknown
+    );
+}
+
+#[test]
+fn stale_component_cannot_keep_available_healthy_projection() {
+    let now = 1_800_000_000_000;
+    let fixture = Fixture::new("stale-component", now);
+    let mut read_model = fixture.write_healthy_read_model(now);
+    let stale_ns = u128::from(now - 2_001) * 1_000_000;
+    read_model["components"]["account"]["freshness"]["as_of_unix_ns"] = json!(stale_ns.to_string());
+    write_json(&fixture.read_model_path, &read_model);
+
+    let response = project_mvp_shared_status(&fixture.state, now)
+        .expect("stale component should remain queryable with stale semantics");
+    assert_eq!(
+        response.business.availability,
+        MvpBusinessAvailability::Stale
+    );
+    assert_eq!(response.business.health, HealthStatus::Stale);
+    assert_eq!(
+        response.business.account.freshness_status.value.as_deref(),
+        Some("stale")
+    );
+    assert_eq!(
+        response
+            .business
+            .positions
+            .freshness_status
+            .value
+            .as_deref(),
+        Some("fresh")
+    );
+}
+
+#[test]
+fn invalid_read_model_and_true_boundary_fail_closed() {
+    let now = 1_800_000_000_000;
+    let fixture = Fixture::new("invalid-read-model", now);
+    fs::create_dir_all(
+        fixture
+            .read_model_path
+            .parent()
+            .expect("read model parent should exist"),
+    )
+    .expect("read model parent should be created");
+    fs::write(&fixture.read_model_path, "{").expect("invalid read model should be written");
+    let response = project_mvp_shared_status(&fixture.state, now)
+        .expect("invalid read model should be represented");
+    assert_eq!(
+        response.business.availability,
+        MvpBusinessAvailability::Error
+    );
+    assert_eq!(
+        response.business.readiness_status.value.as_deref(),
+        Some("fail_closed")
+    );
+
+    let mut read_model = healthy_read_model(now);
+    read_model["capability_boundary"]["production_order_submission_allowed"] = json!(true);
+    write_json(&fixture.read_model_path, &read_model);
+    let response = project_mvp_shared_status(&fixture.state, now)
+        .expect("true read model boundary should be represented");
+    assert_eq!(
+        response.business.availability,
+        MvpBusinessAvailability::Error
+    );
+    assert_eq!(response.business.health, HealthStatus::Error);
+}
+
+#[test]
+fn config_projection_drift_fails_closed() {
+    let now = 1_800_000_000_000;
+    let fixture = Fixture::new("config-drift", now);
+    let config_path = fixture.root.join("node.toml");
+    let config = fs::read_to_string(&config_path).expect("fixture config should be readable");
+    fs::write(
+        &config_path,
+        config.replace("acct-sandbox-001", "different-account"),
+    )
+    .expect("drifted config should be written");
+
+    let error = project_mvp_shared_status(&fixture.state, now)
+        .expect_err("config identity drift must fail closed");
+    assert_eq!(error.kind, SharedStatusErrorKind::IdentityMismatch);
+    assert_eq!(error.field, "config_projection");
+}
+
+#[test]
+fn coordinated_registry_path_escape_fails_closed() {
+    let now = 1_800_000_000_000;
+    let mut fixture = Fixture::new("registry-escape", now);
+    let escaped_root = fixture.root.with_extension("outside");
+    fs::create_dir_all(&escaped_root).expect("escaped artifact root should be created");
+    let mut registry: Value = serde_json::from_str(
+        &fs::read_to_string(&fixture.state.registry_path)
+            .expect("fixture registry should be readable"),
+    )
+    .expect("fixture registry should be valid JSON");
+    let record = &mut registry["nodes"]["mvp-node-001"];
+    record["artifact_root"] = json!(escaped_root.display().to_string());
+    for (field, name) in [
+        ("status_path", "status.json"),
+        ("metrics_path", "metrics.json"),
+    ] {
+        record[field] = json!(escaped_root.join(name).display().to_string());
+    }
+    let escaped_read_model = escaped_root.join("v0_21/unified_read_model_snapshot.json");
+    fixture.status.provenance.node_status_path =
+        escaped_root.join("status.json").display().to_string();
+    fixture.status.provenance.node_metrics_path =
+        escaped_root.join("metrics.json").display().to_string();
+    fixture.status.provenance.unified_read_model_path = escaped_read_model.display().to_string();
+    write_json(&fixture.state.registry_path, &registry);
+    fixture.write_status();
+
+    let error = project_mvp_shared_status(&fixture.state, now)
+        .expect_err("registry path escape must fail closed");
+    assert_eq!(error.kind, SharedStatusErrorKind::Invalid);
+    assert_eq!(error.field, "artifact_root_containment");
+    fs::remove_dir_all(escaped_root).expect("escaped fixture should be removed");
+}
+
+fn healthy_read_model(now_unix_ms: u64) -> Value {
+    let mut value = crate::dashboard::tests::healthy_trader_terminal_read_model_artifact();
+    let now_unix_ns = (u128::from(now_unix_ms) * 1_000_000).to_string();
+    value["snapshot_identity"]["account_id"] = json!("acct-sandbox-001");
+    value["snapshot_identity"]["venue"] = json!("BINANCE");
+    value["components"]["account"]["data"]["account_id"] = json!("acct-sandbox-001");
+    value["components"]["positions"]["data"]["account_id"] = json!("acct-sandbox-001");
+    set_freshness(&mut value["freshness"], &now_unix_ns);
+    for component in [
+        "account",
+        "positions",
+        "orders",
+        "fills",
+        "risk",
+        "lifecycle_status",
+        "operation_entry",
+        "v25_monitoring_observability",
+        "v25_alert_taxonomy_routing",
+        "v25_incident_lifecycle",
+        "v25_runbook_audit",
+        "v25_dr_preview_drill",
+        "v26_permission_boundary",
+        "v26_operation_audit",
+        "v26_deployment_provenance",
+        "v26_upgrade_rollback",
+        "v26_stability_slo",
+    ] {
+        set_freshness(
+            &mut value["components"][component]["freshness"],
+            &now_unix_ns,
+        );
+    }
+    value
+}
+
+fn set_freshness(freshness: &mut Value, now_unix_ns: &str) {
+    freshness["status"] = json!("fresh");
+    freshness["observed_age_ms"] = json!(0);
+    freshness["max_age_ms"] = json!(2_000);
+    freshness["as_of_unix_ns"] = json!(now_unix_ns);
+    freshness["checked_at_unix_ns"] = json!(now_unix_ns);
 }
 
 fn write_json(path: &Path, value: &impl Serialize) {

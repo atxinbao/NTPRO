@@ -25,6 +25,8 @@ GET /api/mvp/v1/status
   零仓位；
 - `business.availability=stale|error|identity_mismatch` 时不得继续使用旧业务摘要作
   实时决策；
+- 调用方不得绕过共享接口直接信任组件自报 freshness；接口会按顶层和组件原始
+  时间戳重新计算时效，并对账户串线、配置漂移和 workspace 路径逃逸 fail closed；
 - `trading_readiness.status` 在当前 MVP 中始终为 `blocked`。
 
 ## 兼容性

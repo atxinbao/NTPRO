@@ -8416,7 +8416,7 @@ fn v220_boundary_value(runtime: &TraderTerminalReadModelStatus, field: &str) -> 
     }
 }
 
-fn healthy_trader_terminal_read_model_artifact() -> Value {
+pub(super) fn healthy_trader_terminal_read_model_artifact() -> Value {
     let components = json!({
         "account": read_model_component("healthy", &json!({
             "summary_status": "ready",

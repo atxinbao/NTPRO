@@ -149,7 +149,7 @@ fn project_mvp_shared_status(
     validate_identity_contract(&identity)?;
     let mut status = load_contract::<MvpStatusContract>(&status_path, "status_contract")?;
     validate_status_contract(&status, &identity, &identity_path, &state.registry_path)?;
-    validate_runtime_provenance(&status, &identity, &state.registry_path)?;
+    validate_runtime_provenance(&status, &identity, &state.registry_path, &workspace)?;
     refresh_contract_freshness(&mut status, now_unix_ms)?;
 
     let snapshot = load_dashboard_snapshot(state).map_err(|_| SharedStatusError {
@@ -201,6 +201,7 @@ fn validate_runtime_provenance(
     status: &MvpStatusContract,
     identity: &MvpIdentityContract,
     registry_path: &Path,
+    workspace: &Path,
 ) -> Result<(), SharedStatusError> {
     let registry = SupervisorRegistryStore::new(registry_path)
         .load()
@@ -209,6 +210,11 @@ fn validate_runtime_provenance(
             source: "supervisor_registry",
             field: "registry",
         })?;
+    let workspace = canonical_path(workspace, "workspace")?;
+    let registry_path_canonical = canonical_path(registry_path, "registry")?;
+    if registry_path_canonical != workspace.join("supervisor/registry.json") {
+        return Err(invalid("supervisor_registry", "workspace_containment"));
+    }
     let record = registry
         .nodes
         .get(&identity.identities.node_id)
@@ -217,6 +223,35 @@ fn validate_runtime_provenance(
             source: "supervisor_registry",
             field: "node_id",
         })?;
+    let expected_artifact_root = workspace.join("nodes").join(&identity.identities.node_id);
+    if canonical_path(&record.artifact_root, "artifact_root")? != expected_artifact_root {
+        return Err(invalid("supervisor_registry", "artifact_root_containment"));
+    }
+    let identity_config_path = canonical_path(
+        Path::new(&identity.provenance.config_path),
+        "identity_config_path",
+    )?;
+    let registry_config_path = canonical_path(&record.config_path, "registry_config_path")?;
+    if identity_config_path != registry_config_path {
+        return Err(SharedStatusError {
+            kind: SharedStatusErrorKind::IdentityMismatch,
+            source: "identity_contract",
+            field: "config_path",
+        });
+    }
+    let config_identity =
+        MvpIdentityContract::load(&record.config_path, &identity.identities.node_id)
+            .map_err(|_| invalid("identity_contract", "config_projection"))?;
+    if config_identity.contract_id != identity.contract_id
+        || config_identity.identities != identity.identities
+        || config_identity.boundaries != identity.boundaries
+    {
+        return Err(SharedStatusError {
+            kind: SharedStatusErrorKind::IdentityMismatch,
+            source: "identity_contract",
+            field: "config_projection",
+        });
+    }
     let expected_read_model = record
         .artifact_root
         .join("v0_21/unified_read_model_snapshot.json");
@@ -227,6 +262,14 @@ fn validate_runtime_provenance(
         return Err(invalid("status_contract", "runtime_provenance"));
     }
     Ok(())
+}
+
+fn canonical_path(path: &Path, field: &'static str) -> Result<PathBuf, SharedStatusError> {
+    fs::canonicalize(path).map_err(|_| SharedStatusError {
+        kind: SharedStatusErrorKind::Unavailable,
+        source: "supervisor_registry",
+        field,
+    })
 }
 
 fn mvp_workspace_root(registry_path: &Path) -> Result<PathBuf, SharedStatusError> {
@@ -477,28 +520,20 @@ fn business_summary(
         return MvpBusinessReadModelSummary::identity_mismatch();
     }
 
-    let Some(as_of_unix_ns) = value
-        .pointer("/freshness/as_of_unix_ns")
-        .and_then(Value::as_str)
-        .and_then(|value| value.parse::<u128>().ok())
-    else {
-        return summary.fail_closed("read_model_freshness_timestamp_invalid");
-    };
-    let Some(max_age_ms) = value
-        .pointer("/freshness/max_age_ms")
-        .and_then(Value::as_u64)
-    else {
-        return summary.fail_closed("read_model_freshness_threshold_invalid");
-    };
-    if max_age_ms == 0 {
-        return summary.fail_closed("read_model_freshness_threshold_invalid");
+    for component in ["account", "positions"] {
+        let component_account_id = value
+            .pointer(&format!("/components/{component}/data/account_id"))
+            .and_then(Value::as_str);
+        if component_account_id != Some(identity.identities.account_id.as_str()) {
+            return MvpBusinessReadModelSummary::identity_mismatch();
+        }
     }
-    let now_unix_ns = u128::from(now_unix_ms) * 1_000_000;
-    if as_of_unix_ns > now_unix_ns + u128::from(MAX_CLOCK_SKEW_MS) * 1_000_000 {
-        return summary.fail_closed("read_model_freshness_timestamp_in_future");
-    }
-    let age_ms = now_unix_ns.saturating_sub(as_of_unix_ns) / 1_000_000;
-    if age_ms > u128::from(max_age_ms)
+
+    let top_freshness = match assess_read_model_freshness(&value, "/freshness", now_unix_ms) {
+        Ok(assessment) => assessment,
+        Err(reason) => return summary.fail_closed(reason),
+    };
+    if top_freshness == ReadModelFreshnessAssessment::Stale
         && matches!(
             summary.availability,
             MvpBusinessAvailability::Available | MvpBusinessAvailability::Stale
@@ -506,7 +541,81 @@ fn business_summary(
     {
         summary.mark_stale("read_model_freshness_threshold_exceeded");
     }
+    for (component, projection) in [
+        ("account", BusinessComponent::Account),
+        ("positions", BusinessComponent::Positions),
+        ("orders", BusinessComponent::Orders),
+        ("fills", BusinessComponent::Fills),
+        ("risk", BusinessComponent::Risk),
+        ("lifecycle_status", BusinessComponent::Lifecycle),
+    ] {
+        let pointer = format!("/components/{component}/freshness");
+        let assessment = match assess_read_model_freshness(&value, &pointer, now_unix_ms) {
+            Ok(assessment) => assessment,
+            Err(reason) => return summary.fail_closed(reason),
+        };
+        if assessment == ReadModelFreshnessAssessment::Stale {
+            summary.mark_component_stale(projection, component);
+        }
+    }
     summary
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ReadModelFreshnessAssessment {
+    Fresh,
+    Stale,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BusinessComponent {
+    Account,
+    Positions,
+    Orders,
+    Fills,
+    Risk,
+    Lifecycle,
+}
+
+fn assess_read_model_freshness(
+    value: &Value,
+    pointer: &str,
+    now_unix_ms: u64,
+) -> Result<ReadModelFreshnessAssessment, &'static str> {
+    let freshness = value
+        .pointer(pointer)
+        .ok_or("read_model_freshness_missing")?;
+    let as_of_unix_ns = freshness
+        .get("as_of_unix_ns")
+        .and_then(Value::as_str)
+        .and_then(|value| value.parse::<u128>().ok())
+        .ok_or("read_model_freshness_timestamp_invalid")?;
+    let checked_at_unix_ns = freshness
+        .get("checked_at_unix_ns")
+        .and_then(Value::as_str)
+        .and_then(|value| value.parse::<u128>().ok())
+        .ok_or("read_model_freshness_checked_at_invalid")?;
+    let max_age_ms = freshness
+        .get("max_age_ms")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or("read_model_freshness_threshold_invalid")?;
+    if checked_at_unix_ns < as_of_unix_ns {
+        return Err("read_model_freshness_order_invalid");
+    }
+    let now_unix_ns = u128::from(now_unix_ms) * 1_000_000;
+    let max_future_ns = u128::from(MAX_CLOCK_SKEW_MS) * 1_000_000;
+    if as_of_unix_ns > now_unix_ns + max_future_ns
+        || checked_at_unix_ns > now_unix_ns + max_future_ns
+    {
+        return Err("read_model_freshness_timestamp_in_future");
+    }
+    let age_ms = now_unix_ns.saturating_sub(as_of_unix_ns) / 1_000_000;
+    Ok(if age_ms > u128::from(max_age_ms) {
+        ReadModelFreshnessAssessment::Stale
+    } else {
+        ReadModelFreshnessAssessment::Fresh
+    })
 }
 
 impl MvpBusinessReadModelSummary {
@@ -641,6 +750,24 @@ impl MvpBusinessReadModelSummary {
         ] {
             component.freshness_status = DashboardValue::available("stale".to_string());
         }
+    }
+
+    fn mark_component_stale(&mut self, component: BusinessComponent, name: &str) {
+        self.availability = MvpBusinessAvailability::Stale;
+        self.health = HealthStatus::Stale;
+        self.readiness_status = DashboardValue::available("stale_artifact".to_string());
+        self.diagnostic = DashboardValue::available(format!(
+            "read_model_component_freshness_threshold_exceeded:{name}"
+        ));
+        let component = match component {
+            BusinessComponent::Account => &mut self.account,
+            BusinessComponent::Positions => &mut self.positions,
+            BusinessComponent::Orders => &mut self.orders,
+            BusinessComponent::Fills => &mut self.fills,
+            BusinessComponent::Risk => &mut self.risk,
+            BusinessComponent::Lifecycle => &mut self.lifecycle,
+        };
+        component.freshness_status = DashboardValue::available("stale".to_string());
     }
 }
 
