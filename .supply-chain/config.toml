@@ -1146,8 +1146,9 @@ version = "0.8.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.event-listener]]
-version = "5.4.1"
+version = "5.4.2"
 criteria = "safe-to-deploy"
+notes = "Security patch update for RUSTSEC-2026-0221; exemption pending independent source audit"
 
 [[exemptions.event-listener-strategy]]
 version = "0.5.4"
