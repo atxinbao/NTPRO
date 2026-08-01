@@ -28,7 +28,10 @@ use anyhow::{Context, ensure};
 use crate::{
     artifacts::atomic_write_json,
     dashboard::run_dashboard_command,
-    mvp_contract::{MVP_IDENTITY_CONTRACT_PATH, MvpIdentityContract},
+    mvp_contract::{
+        MVP_IDENTITY_CONTRACT_PATH, MVP_STATUS_CONTRACT_PATH, MvpIdentityContract,
+        MvpStatusContract,
+    },
     opt::{DashboardCommand, DashboardOpt, DashboardServeOpt, MvpCommand, MvpOpt, MvpServeOpt},
     supervisor::{
         RegisterNodeRequest, StartNodeRequest, StopNodeRequest, SupervisorProcessState,
@@ -45,7 +48,9 @@ struct MvpRuntime {
     node_id: String,
     registry_path: PathBuf,
     artifact_root: PathBuf,
+    identity_contract: MvpIdentityContract,
     identity_contract_path: PathBuf,
+    status_contract_path: PathBuf,
 }
 
 impl MvpRuntime {
@@ -68,6 +73,7 @@ impl MvpRuntime {
 
         let identity_contract = MvpIdentityContract::load(&opt.config, &opt.node_id)?;
         let identity_contract_path = opt.workspace.join(MVP_IDENTITY_CONTRACT_PATH);
+        let status_contract_path = opt.workspace.join(MVP_STATUS_CONTRACT_PATH);
 
         let registry_path = opt.workspace.join(REGISTRY_PATH);
         let artifact_root = opt.workspace.join(NODE_ARTIFACT_ROOT).join(&opt.node_id);
@@ -107,19 +113,25 @@ impl MvpRuntime {
             node_id: opt.node_id.clone(),
             registry_path,
             artifact_root,
+            identity_contract,
             identity_contract_path,
+            status_contract_path,
         };
         let startup_result = runtime
             .prepare_observability(startup_timeout)
             .and_then(|()| {
-                atomic_write_json(&runtime.identity_contract_path, &identity_contract).with_context(
-                    || {
+                atomic_write_json(&runtime.identity_contract_path, &runtime.identity_contract)
+                    .with_context(|| {
                         format!(
                             "写入 MVP 身份合同 '{}' 失败",
                             runtime.identity_contract_path.display()
                         )
-                    },
-                )
+                    })
+            })
+            .and_then(|()| {
+                runtime
+                    .write_status_contract()
+                    .context("初始化 MVP 四轴状态合同失败")
             });
         if let Err(readiness_error) = startup_result {
             let cleanup_result = runtime.stop(node_shutdown_timeout);
@@ -197,7 +209,45 @@ impl MvpRuntime {
                 );
             }
         }
+        if self.identity_contract_path.is_file() {
+            self.write_status_contract()
+                .context("更新 MVP 停止状态合同失败")?;
+        }
         Ok(())
+    }
+
+    fn write_status_contract(&self) -> anyhow::Result<MvpStatusContract> {
+        let status_error = self
+            .store
+            .refresh_status_from_artifact(&self.node_id)
+            .err()
+            .map(|error| format!("{error:#}"));
+        let metrics_result = self.store.node_metrics(&self.node_id);
+        let metrics_error = metrics_result
+            .as_ref()
+            .err()
+            .map(|error| format!("{error:#}"));
+        let registry = self.store.load()?;
+        let record = registry
+            .nodes
+            .get(&self.node_id)
+            .with_context(|| format!("MVP 节点 '{}' 未出现在注册表中", self.node_id))?;
+        let contract = MvpStatusContract::from_runtime(
+            &self.identity_contract,
+            &self.identity_contract_path,
+            &self.registry_path,
+            record,
+            metrics_result.as_ref().ok(),
+            status_error.as_deref(),
+            metrics_error.as_deref(),
+        );
+        atomic_write_json(&self.status_contract_path, &contract).with_context(|| {
+            format!(
+                "写入 MVP 四轴状态合同 '{}' 失败",
+                self.status_contract_path.display()
+            )
+        })?;
+        Ok(contract)
     }
 }
 
@@ -219,14 +269,17 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
         .unwrap_or_else(default_ntpro_node_bin_path);
     let stop_timeout =
         duration_from_millis("node_shutdown_timeout_ms", opt.node_shutdown_timeout_ms)?;
+    let status_refresh_interval =
+        duration_from_millis("node_heartbeat_interval_ms", opt.node_heartbeat_interval_ms)?;
     let runtime = MvpRuntime::start(&opt, ntpro_node_bin.clone())?;
 
     println!(
-        "mvp.serve status=ok node_id={} registry={} artifact_root={} identity_contract={} dashboard_url=http://{}/dashboard external_venue_connection=false real_orders_submitted=false",
+        "mvp.serve status=ok node_id={} registry={} artifact_root={} identity_contract={} status_contract={} dashboard_url=http://{}/dashboard external_venue_connection=false real_orders_submitted=false",
         runtime.node_id,
         runtime.registry_path.display(),
         runtime.artifact_root.display(),
         runtime.identity_contract_path.display(),
+        runtime.status_contract_path.display(),
         opt.bind,
     );
 
@@ -239,12 +292,21 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
         }),
     });
     tokio::pin!(dashboard);
+    let mut status_refresh = tokio::time::interval(status_refresh_interval);
+    status_refresh.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
-    let serve_result = tokio::select! {
-        result = &mut dashboard => result.context("MVP Dashboard 服务已退出"),
-        result = tokio::signal::ctrl_c() => {
-            result.context("等待 MVP Ctrl-C 终止信号失败")?;
-            Ok(())
+    let serve_result = loop {
+        tokio::select! {
+            result = &mut dashboard => break result.context("MVP Dashboard 服务已退出"),
+            result = tokio::signal::ctrl_c() => {
+                result.context("等待 MVP Ctrl-C 终止信号失败")?;
+                break Ok(());
+            }
+            _ = status_refresh.tick() => {
+                if let Err(error) = runtime.write_status_contract() {
+                    break Err(error.context("刷新 MVP 四轴状态合同失败"));
+                }
+            }
         }
     };
     let stop_result = runtime.stop(stop_timeout).context("MVP 退出时停止节点失败");
@@ -421,6 +483,78 @@ environment = "sandbox"
             identity_contract["boundaries"]["order_submission_allowed"],
             false
         );
+        let status_contract: MvpStatusContract = serde_json::from_str(
+            &fs::read_to_string(&runtime.status_contract_path)
+                .expect("MVP status contract should be readable"),
+        )
+        .expect("MVP status contract should be valid JSON");
+        assert_eq!(
+            status_contract.schema_version,
+            crate::mvp_contract::MVP_STATUS_CONTRACT_SCHEMA_VERSION
+        );
+        assert_eq!(
+            status_contract.research.status,
+            crate::mvp_contract::MvpResearchStatus::ReferenceBound
+        );
+        assert_eq!(
+            status_contract.research.freshness,
+            crate::mvp_contract::MvpStatusFreshness::Unknown
+        );
+        assert!(
+            status_contract
+                .research
+                .reasons
+                .contains(&"research_acceptance_not_claimed".to_string())
+        );
+        assert_eq!(
+            status_contract.runtime.status,
+            crate::mvp_contract::MvpRuntimeStatus::Running
+        );
+        assert_eq!(
+            status_contract.technical_health.status,
+            crate::mvp_contract::MvpTechnicalHealth::Healthy
+        );
+        assert_eq!(
+            status_contract.trading_readiness.status,
+            crate::mvp_contract::MvpTradingReadiness::Blocked
+        );
+        assert_eq!(
+            status_contract.trading_readiness.availability,
+            crate::mvp_contract::MvpStatusAvailability::Missing
+        );
+        assert!(
+            status_contract
+                .trading_readiness
+                .reasons
+                .contains(&"missing_unified_read_model".to_string())
+        );
+        assert!(status_contract.boundaries.read_only_product_contract);
+        assert!(
+            !status_contract
+                .boundaries
+                .http_success_implies_technical_health
+        );
+        assert!(
+            !status_contract
+                .boundaries
+                .process_alive_implies_technical_health
+        );
+        assert!(
+            !status_contract
+                .boundaries
+                .backtest_reference_implies_research_accepted
+        );
+        assert!(
+            !status_contract
+                .boundaries
+                .backtest_complete_implies_trading_readiness
+        );
+        assert!(!status_contract.boundaries.order_submission_allowed);
+        assert!(!status_contract.boundaries.order_mutation_allowed);
+        assert!(!status_contract.boundaries.automatic_retry_allowed);
+        assert!(!status_contract.boundaries.automatic_remediation_allowed);
+        assert!(!status_contract.boundaries.external_venue_connection);
+        assert!(!status_contract.boundaries.real_orders_submitted);
 
         runtime
             .stop(Duration::from_secs(2))
@@ -432,6 +566,19 @@ environment = "sandbox"
         assert_eq!(
             stopped.nodes["mvp-node-001"].process.state,
             SupervisorProcessState::Stopped
+        );
+        let stopped_contract: MvpStatusContract = serde_json::from_str(
+            &fs::read_to_string(&runtime.status_contract_path)
+                .expect("stopped MVP status contract should be readable"),
+        )
+        .expect("stopped MVP status contract should be valid JSON");
+        assert_eq!(
+            stopped_contract.runtime.status,
+            crate::mvp_contract::MvpRuntimeStatus::Stopped
+        );
+        assert_eq!(
+            stopped_contract.technical_health.status,
+            crate::mvp_contract::MvpTechnicalHealth::NotRunning
         );
 
         let restarted = MvpRuntime::start(&opt, fixture_node)
@@ -505,6 +652,133 @@ environment = "sandbox"
         let registry = store
             .load()
             .expect("registry should load after identity contract failure");
+        assert_eq!(
+            registry.nodes["mvp-node-001"].process.state,
+            SupervisorProcessState::Stopped
+        );
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mvp_missing_metrics_degrades_health_while_process_remains_running() {
+        let _guard = process_test_guard();
+        let root = temp_root("missing-metrics");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_options(&root, fixture_node.clone());
+        let runtime =
+            MvpRuntime::start(&opt, fixture_node).expect("MVP runtime should start fixture node");
+        let metrics_path = runtime.artifact_root.join("metrics.json");
+        fs::remove_file(&metrics_path).expect("metrics fixture should be removed");
+
+        let contract = runtime
+            .write_status_contract()
+            .expect("missing metrics should produce a fail-closed contract");
+        assert_eq!(
+            contract.runtime.status,
+            crate::mvp_contract::MvpRuntimeStatus::Running
+        );
+        assert_eq!(
+            contract.technical_health.status,
+            crate::mvp_contract::MvpTechnicalHealth::Degraded
+        );
+        assert_eq!(
+            contract.technical_health.availability,
+            crate::mvp_contract::MvpStatusAvailability::Missing
+        );
+        assert!(
+            contract
+                .technical_health
+                .reasons
+                .contains(&"process_alive_not_sufficient_for_technical_health".to_string())
+        );
+
+        runtime
+            .stop(Duration::from_secs(2))
+            .expect("MVP runtime should stop with missing metrics");
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mvp_invalid_status_is_unhealthy_and_never_running_by_inference() {
+        let _guard = process_test_guard();
+        let root = temp_root("invalid-status");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_options(&root, fixture_node.clone());
+        let runtime =
+            MvpRuntime::start(&opt, fixture_node).expect("MVP runtime should start fixture node");
+        let status_path = runtime.artifact_root.join("status.json");
+        let valid_status = fs::read_to_string(&status_path)
+            .expect("valid running status should be readable before corruption");
+        fs::write(&status_path, "not-json").expect("status fixture should be corrupted");
+
+        let contract = runtime
+            .write_status_contract()
+            .expect("invalid status should produce an unhealthy contract");
+        assert_eq!(
+            contract.runtime.status,
+            crate::mvp_contract::MvpRuntimeStatus::Unknown
+        );
+        assert_eq!(
+            contract.runtime.availability,
+            crate::mvp_contract::MvpStatusAvailability::Error
+        );
+        assert_eq!(
+            contract.technical_health.status,
+            crate::mvp_contract::MvpTechnicalHealth::Unhealthy
+        );
+        assert_eq!(
+            contract.technical_health.availability,
+            crate::mvp_contract::MvpStatusAvailability::Error
+        );
+
+        fs::write(&status_path, &valid_status).expect("valid running status should be restored");
+        let mut registry = runtime
+            .store
+            .load()
+            .expect("registry should load for test cleanup");
+        let record = registry
+            .nodes
+            .get_mut(&runtime.node_id)
+            .expect("fixture node should remain registered");
+        record.process.state = SupervisorProcessState::Running;
+        record.status_artifact = crate::supervisor::RegistryArtifactState::Available;
+        record.last_known_status = serde_json::from_str(&valid_status)
+            .expect("restored running status should deserialize");
+        runtime
+            .store
+            .save(&registry)
+            .expect("restored registry should save");
+        runtime
+            .stop(Duration::from_secs(2))
+            .expect("fixture node should rewrite a valid stopped status");
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mvp_status_contract_write_failure_stops_started_node() {
+        let _guard = process_test_guard();
+        let root = temp_root("status-contract-write-failure");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_options(&root, fixture_node);
+        fs::create_dir_all(opt.workspace.join(MVP_STATUS_CONTRACT_PATH))
+            .expect("status contract blocker directory should be created");
+
+        let error = MvpRuntime::start(
+            &opt,
+            opt.ntpro_node_bin
+                .clone()
+                .expect("fixture node path should be present"),
+        )
+        .expect_err("status contract write failure must stop startup");
+        assert!(format!("{error:#}").contains("初始化 MVP 四轴状态合同失败"));
+
+        let store = SupervisorRegistryStore::new(opt.workspace.join(REGISTRY_PATH));
+        let registry = store
+            .load()
+            .expect("registry should load after status contract failure");
         assert_eq!(
             registry.nodes["mvp-node-001"].process.state,
             SupervisorProcessState::Stopped

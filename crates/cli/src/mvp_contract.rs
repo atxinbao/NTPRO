@@ -22,10 +22,18 @@ use std::{
 };
 
 use anyhow::{Context, ensure};
+use nautilus_live::status::LifecycleStatus;
 use serde::{Deserialize, Serialize};
+
+use crate::supervisor::{
+    NodeMetrics, RegistryArtifactState, SupervisorNodeRecord, SupervisorProcessState,
+};
 
 pub(crate) const MVP_IDENTITY_CONTRACT_SCHEMA_VERSION: &str = "ntpro.mvp_identity_contract.v1";
 pub(crate) const MVP_IDENTITY_CONTRACT_PATH: &str = "mvp/identity_contract.json";
+pub(crate) const MVP_STATUS_CONTRACT_SCHEMA_VERSION: &str = "ntpro.mvp_status_contract.v1";
+pub(crate) const MVP_STATUS_CONTRACT_PATH: &str = "mvp/status_contract.json";
+const UNIFIED_READ_MODEL_RELATIVE_PATH: &str = "v0_21/unified_read_model_snapshot.json";
 const SANDBOX_ENVIRONMENT: &str = "sandbox";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -59,6 +67,103 @@ pub(crate) struct MvpIdentityProvenance {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct MvpIdentityBoundaries {
     pub read_only_product_contract: bool,
+    pub external_venue_connection: bool,
+    pub order_submission_allowed: bool,
+    pub order_mutation_allowed: bool,
+    pub automatic_retry_allowed: bool,
+    pub automatic_remediation_allowed: bool,
+    pub real_orders_submitted: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct MvpStatusContract {
+    pub schema_version: String,
+    pub identity_contract_id: String,
+    pub research: MvpStatusAxis<MvpResearchStatus>,
+    pub runtime: MvpStatusAxis<MvpRuntimeStatus>,
+    pub technical_health: MvpStatusAxis<MvpTechnicalHealth>,
+    pub trading_readiness: MvpStatusAxis<MvpTradingReadiness>,
+    pub provenance: MvpStatusProvenance,
+    pub boundaries: MvpStatusBoundaries,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct MvpStatusAxis<T> {
+    pub status: T,
+    pub availability: MvpStatusAvailability,
+    pub freshness: MvpStatusFreshness,
+    pub source_refs: Vec<String>,
+    pub observed_at_unix_ms: u64,
+    pub reasons: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MvpStatusAvailability {
+    Available,
+    Missing,
+    Error,
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MvpStatusFreshness {
+    Fresh,
+    Stale,
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MvpResearchStatus {
+    ReferenceBound,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MvpRuntimeStatus {
+    Running,
+    Stopped,
+    Transitioning,
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MvpTechnicalHealth {
+    Healthy,
+    Degraded,
+    Unhealthy,
+    NotRunning,
+    Unknown,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MvpTradingReadiness {
+    Blocked,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct MvpStatusProvenance {
+    pub identity_contract_path: String,
+    pub supervisor_registry_path: String,
+    pub node_status_path: String,
+    pub node_metrics_path: String,
+    pub unified_read_model_path: String,
+    pub generated_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct MvpStatusBoundaries {
+    pub read_only_product_contract: bool,
+    pub http_success_implies_technical_health: bool,
+    pub process_alive_implies_technical_health: bool,
+    pub backtest_reference_implies_research_accepted: bool,
+    pub backtest_complete_implies_trading_readiness: bool,
     pub external_venue_connection: bool,
     pub order_submission_allowed: bool,
     pub order_mutation_allowed: bool,
@@ -169,6 +274,366 @@ impl MvpIdentityContract {
                 real_orders_submitted: false,
             },
         })
+    }
+}
+
+impl MvpStatusContract {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_runtime(
+        identity: &MvpIdentityContract,
+        identity_contract_path: &Path,
+        registry_path: &Path,
+        record: &SupervisorNodeRecord,
+        metrics: Option<&NodeMetrics>,
+        status_error: Option<&str>,
+        metrics_error: Option<&str>,
+    ) -> Self {
+        let observed_at_unix_ms = unix_time_ms();
+        let unified_read_model_path = record.artifact_root.join(UNIFIED_READ_MODEL_RELATIVE_PATH);
+        let runtime = runtime_axis(record, status_error, observed_at_unix_ms);
+        let technical_health = technical_health_axis(
+            record,
+            metrics,
+            status_error,
+            metrics_error,
+            observed_at_unix_ms,
+        );
+        let trading_readiness =
+            trading_readiness_axis(&unified_read_model_path, observed_at_unix_ms);
+
+        Self {
+            schema_version: MVP_STATUS_CONTRACT_SCHEMA_VERSION.to_string(),
+            identity_contract_id: identity.contract_id.clone(),
+            research: MvpStatusAxis {
+                status: MvpResearchStatus::ReferenceBound,
+                availability: MvpStatusAvailability::Available,
+                freshness: MvpStatusFreshness::Unknown,
+                source_refs: vec![identity.identities.backtest_result_ref.clone()],
+                observed_at_unix_ms,
+                reasons: vec![
+                    "backtest_reference_bound".to_string(),
+                    "backtest_result_not_verified_by_runtime".to_string(),
+                    "research_acceptance_not_claimed".to_string(),
+                ],
+                error: None,
+            },
+            runtime,
+            technical_health,
+            trading_readiness,
+            provenance: MvpStatusProvenance {
+                identity_contract_path: identity_contract_path.display().to_string(),
+                supervisor_registry_path: registry_path.display().to_string(),
+                node_status_path: record.status_path.display().to_string(),
+                node_metrics_path: record.metrics_path.display().to_string(),
+                unified_read_model_path: unified_read_model_path.display().to_string(),
+                generated_at_unix_ms: observed_at_unix_ms,
+            },
+            boundaries: MvpStatusBoundaries {
+                read_only_product_contract: true,
+                http_success_implies_technical_health: false,
+                process_alive_implies_technical_health: false,
+                backtest_reference_implies_research_accepted: false,
+                backtest_complete_implies_trading_readiness: false,
+                external_venue_connection: false,
+                order_submission_allowed: false,
+                order_mutation_allowed: false,
+                automatic_retry_allowed: false,
+                automatic_remediation_allowed: false,
+                real_orders_submitted: false,
+            },
+        }
+    }
+}
+
+fn runtime_axis(
+    record: &SupervisorNodeRecord,
+    status_error: Option<&str>,
+    observed_at_unix_ms: u64,
+) -> MvpStatusAxis<MvpRuntimeStatus> {
+    let source_refs = vec![
+        record.pid_path.display().to_string(),
+        record.status_path.display().to_string(),
+    ];
+    if let Some(error) = status_error {
+        return MvpStatusAxis {
+            status: MvpRuntimeStatus::Unknown,
+            availability: MvpStatusAvailability::Error,
+            freshness: MvpStatusFreshness::Unknown,
+            source_refs,
+            observed_at_unix_ms,
+            reasons: vec!["node_status_read_failed".to_string()],
+            error: Some(error.to_string()),
+        };
+    }
+
+    let (status, availability, freshness, mut reasons) = match record.process.state {
+        SupervisorProcessState::Running
+            if record.status_artifact == RegistryArtifactState::Available
+                && record.last_known_status.lifecycle_state == LifecycleStatus::Running =>
+        {
+            (
+                MvpRuntimeStatus::Running,
+                MvpStatusAvailability::Available,
+                MvpStatusFreshness::Fresh,
+                vec!["supervisor_process_and_node_lifecycle_running".to_string()],
+            )
+        }
+        SupervisorProcessState::Running
+            if matches!(
+                record.last_known_status.lifecycle_state,
+                LifecycleStatus::Starting
+                    | LifecycleStatus::Pausing
+                    | LifecycleStatus::Paused
+                    | LifecycleStatus::Resuming
+                    | LifecycleStatus::Stopping
+            ) =>
+        {
+            (
+                MvpRuntimeStatus::Transitioning,
+                MvpStatusAvailability::Available,
+                MvpStatusFreshness::Fresh,
+                vec!["node_lifecycle_transition_in_progress".to_string()],
+            )
+        }
+        SupervisorProcessState::Running => (
+            MvpRuntimeStatus::Unknown,
+            artifact_availability(record.status_artifact),
+            artifact_freshness(record.status_artifact),
+            vec!["process_alive_without_confirmed_running_lifecycle".to_string()],
+        ),
+        SupervisorProcessState::Stopped | SupervisorProcessState::NotStarted => (
+            MvpRuntimeStatus::Stopped,
+            MvpStatusAvailability::Available,
+            MvpStatusFreshness::Fresh,
+            vec!["supervisor_process_not_running".to_string()],
+        ),
+        SupervisorProcessState::Stale => {
+            let availability = if record.status_artifact == RegistryArtifactState::Invalid {
+                MvpStatusAvailability::Error
+            } else {
+                MvpStatusAvailability::Unknown
+            };
+            (
+                MvpRuntimeStatus::Unknown,
+                availability,
+                MvpStatusFreshness::Stale,
+                vec!["supervisor_process_state_stale".to_string()],
+            )
+        }
+        SupervisorProcessState::Unknown => (
+            MvpRuntimeStatus::Unknown,
+            MvpStatusAvailability::Unknown,
+            MvpStatusFreshness::Unknown,
+            vec!["supervisor_process_state_unknown".to_string()],
+        ),
+    };
+    let error = (record.status_artifact == RegistryArtifactState::Invalid).then(|| {
+        record
+            .last_known_status
+            .last_error
+            .clone()
+            .unwrap_or_else(|| "invalid node status artifact".to_string())
+    });
+    if error.is_some() {
+        reasons.push("node_status_artifact_invalid".to_string());
+    }
+    MvpStatusAxis {
+        status,
+        availability,
+        freshness,
+        source_refs,
+        observed_at_unix_ms,
+        reasons,
+        error,
+    }
+}
+
+fn technical_health_axis(
+    record: &SupervisorNodeRecord,
+    metrics: Option<&NodeMetrics>,
+    status_error: Option<&str>,
+    metrics_error: Option<&str>,
+    observed_at_unix_ms: u64,
+) -> MvpStatusAxis<MvpTechnicalHealth> {
+    let mut reasons = Vec::new();
+    let effective_metrics_error = (record.metrics_artifact != RegistryArtifactState::Missing)
+        .then_some(metrics_error)
+        .flatten();
+    let mut errors = [status_error, effective_metrics_error]
+        .into_iter()
+        .flatten()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    if let Some(error) = record.last_known_status.last_error.as_ref() {
+        errors.push(error.clone());
+    }
+    if let Some(error) = metrics.and_then(|value| value.last_error_summary.as_ref()) {
+        errors.push(error.clone());
+    }
+
+    let boundary_violation = record.last_known_status.external_venue_connection
+        || record.last_known_status.real_orders_submitted
+        || metrics
+            .is_some_and(|value| value.external_venue_connection || value.real_orders_submitted);
+    if boundary_violation {
+        reasons.push("mvp_trading_boundary_violation".to_string());
+    }
+
+    let availability = combined_artifact_availability(
+        record.status_artifact,
+        record.metrics_artifact,
+        !errors.is_empty(),
+    );
+    let freshness = combined_artifact_freshness(
+        record.process.state,
+        record.status_artifact,
+        record.metrics_artifact,
+    );
+    let metrics_lifecycle = metrics.map(|value| value.lifecycle_state);
+    let status = if boundary_violation
+        || !errors.is_empty()
+        || record.last_known_status.lifecycle_state == LifecycleStatus::Error
+        || metrics_lifecycle == Some(LifecycleStatus::Error)
+        || matches!(record.status_artifact, RegistryArtifactState::Invalid)
+        || matches!(record.metrics_artifact, RegistryArtifactState::Invalid)
+    {
+        reasons.push("runtime_evidence_reports_error".to_string());
+        MvpTechnicalHealth::Unhealthy
+    } else if matches!(
+        record.process.state,
+        SupervisorProcessState::Stopped | SupervisorProcessState::NotStarted
+    ) {
+        reasons.push("cleanly_stopped_runtime_is_not_running".to_string());
+        MvpTechnicalHealth::NotRunning
+    } else if record.process.state == SupervisorProcessState::Running
+        && record.status_artifact == RegistryArtifactState::Available
+        && record.metrics_artifact == RegistryArtifactState::Available
+        && record.last_known_status.lifecycle_state == LifecycleStatus::Running
+        && metrics_lifecycle == Some(LifecycleStatus::Running)
+    {
+        reasons.push("status_and_metrics_confirm_runtime_health".to_string());
+        MvpTechnicalHealth::Healthy
+    } else if record.process.state == SupervisorProcessState::Unknown
+        && record.status_artifact == RegistryArtifactState::Unknown
+        && record.metrics_artifact == RegistryArtifactState::Unknown
+    {
+        reasons.push("technical_health_evidence_unknown".to_string());
+        MvpTechnicalHealth::Unknown
+    } else {
+        reasons.push("technical_health_evidence_incomplete_or_stale".to_string());
+        MvpTechnicalHealth::Degraded
+    };
+
+    if record.process.state == SupervisorProcessState::Running {
+        reasons.push("process_alive_not_sufficient_for_technical_health".to_string());
+    }
+
+    MvpStatusAxis {
+        status,
+        availability,
+        freshness,
+        source_refs: vec![
+            record.status_path.display().to_string(),
+            record.metrics_path.display().to_string(),
+        ],
+        observed_at_unix_ms,
+        reasons,
+        error: (!errors.is_empty()).then(|| errors.join("; ")),
+    }
+}
+
+fn trading_readiness_axis(
+    unified_read_model_path: &Path,
+    observed_at_unix_ms: u64,
+) -> MvpStatusAxis<MvpTradingReadiness> {
+    let (availability, reasons) = if unified_read_model_path.exists() {
+        (
+            MvpStatusAvailability::Available,
+            vec![
+                "unified_read_model_present_but_not_validated_by_mvp_status_contract".to_string(),
+                "read_only_mvp_never_implies_trading_permission".to_string(),
+            ],
+        )
+    } else {
+        (
+            MvpStatusAvailability::Missing,
+            vec![
+                "missing_unified_read_model".to_string(),
+                "trading_readiness_fail_closed".to_string(),
+            ],
+        )
+    };
+    MvpStatusAxis {
+        status: MvpTradingReadiness::Blocked,
+        availability,
+        freshness: MvpStatusFreshness::Unknown,
+        source_refs: vec![unified_read_model_path.display().to_string()],
+        observed_at_unix_ms,
+        reasons,
+        error: None,
+    }
+}
+
+fn artifact_availability(state: RegistryArtifactState) -> MvpStatusAvailability {
+    match state {
+        RegistryArtifactState::Available | RegistryArtifactState::Stale => {
+            MvpStatusAvailability::Available
+        }
+        RegistryArtifactState::Missing => MvpStatusAvailability::Missing,
+        RegistryArtifactState::Invalid => MvpStatusAvailability::Error,
+        RegistryArtifactState::Unknown => MvpStatusAvailability::Unknown,
+    }
+}
+
+fn artifact_freshness(state: RegistryArtifactState) -> MvpStatusFreshness {
+    match state {
+        RegistryArtifactState::Available => MvpStatusFreshness::Fresh,
+        RegistryArtifactState::Stale => MvpStatusFreshness::Stale,
+        RegistryArtifactState::Missing
+        | RegistryArtifactState::Invalid
+        | RegistryArtifactState::Unknown => MvpStatusFreshness::Unknown,
+    }
+}
+
+fn combined_artifact_availability(
+    status: RegistryArtifactState,
+    metrics: RegistryArtifactState,
+    has_error: bool,
+) -> MvpStatusAvailability {
+    if has_error
+        || matches!(status, RegistryArtifactState::Invalid)
+        || matches!(metrics, RegistryArtifactState::Invalid)
+    {
+        MvpStatusAvailability::Error
+    } else if matches!(status, RegistryArtifactState::Missing)
+        || matches!(metrics, RegistryArtifactState::Missing)
+    {
+        MvpStatusAvailability::Missing
+    } else if matches!(status, RegistryArtifactState::Unknown)
+        || matches!(metrics, RegistryArtifactState::Unknown)
+    {
+        MvpStatusAvailability::Unknown
+    } else {
+        MvpStatusAvailability::Available
+    }
+}
+
+fn combined_artifact_freshness(
+    process: SupervisorProcessState,
+    status: RegistryArtifactState,
+    metrics: RegistryArtifactState,
+) -> MvpStatusFreshness {
+    if process == SupervisorProcessState::Stale
+        || status == RegistryArtifactState::Stale
+        || metrics == RegistryArtifactState::Stale
+    {
+        MvpStatusFreshness::Stale
+    } else if status == RegistryArtifactState::Available
+        && metrics == RegistryArtifactState::Available
+    {
+        MvpStatusFreshness::Fresh
+    } else {
+        MvpStatusFreshness::Unknown
     }
 }
 
