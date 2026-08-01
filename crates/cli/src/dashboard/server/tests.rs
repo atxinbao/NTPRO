@@ -143,6 +143,56 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
 }
 
 #[tokio::test]
+async fn mvp_shared_status_route_is_get_only() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("test listener must bind");
+    let addr = listener
+        .local_addr()
+        .expect("test listener must expose its local address");
+    let root =
+        std::env::temp_dir().join(format!("ntpro-mvp-005-http-method-{}", std::process::id()));
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            dashboard_router(
+                root.join("supervisor/registry.json"),
+                PathBuf::from("missing-ntpro-node"),
+            ),
+        )
+        .await
+    });
+
+    let get_response = http_request(addr, "GET", "/api/mvp/v1/status")
+        .await
+        .expect("GET request should complete");
+    assert_eq!(
+        response_status_line(&get_response),
+        "HTTP/1.1 503 Service Unavailable"
+    );
+    let body: Value = serde_json::from_str(response_body(&get_response))
+        .expect("GET error response should be valid JSON");
+    assert_eq!(
+        body["schema_version"],
+        "ntpro.mvp_shared_status_api.error.v1"
+    );
+    assert_eq!(body["order_submission_allowed"], false);
+
+    for method in ["POST", "PUT", "PATCH", "DELETE"] {
+        let response = http_request(addr, method, "/api/mvp/v1/status")
+            .await
+            .expect("non-GET request should complete");
+        assert_eq!(
+            response_status_line(&response),
+            "HTTP/1.1 405 Method Not Allowed",
+            "{method} must be rejected"
+        );
+    }
+
+    server.abort();
+}
+
+#[tokio::test]
 async fn raw_event_store_guard_blocks_registered_routes_without_hiding_node_ids() {
     let listener_result = tokio::net::TcpListener::bind("127.0.0.1:0").await;
     assert!(

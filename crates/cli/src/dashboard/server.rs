@@ -30,6 +30,7 @@ use axum::{
 
 use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
+use super::mvp_status_api::mvp_shared_status_api;
 use super::trader_terminal_api::{
     audit_entries_api, backend_closure_status_api, deployment_state_api, permission_snapshot_api,
     provenance_drilldown_api, telemetry_health_api,
@@ -109,6 +110,7 @@ fn dashboard_router_with_workflow_root(
         .route("/assets/dashboard.js", get(dashboard_js))
         .route("/api/server", get(server_metadata_api))
         .route("/api/snapshot", get(snapshot_api))
+        .route("/api/mvp/v1/status", get(mvp_shared_status_api))
         .route(
             "/api/v28/backend-closure/status",
             get(backend_closure_status_api),
