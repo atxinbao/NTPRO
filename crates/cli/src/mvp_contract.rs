@@ -22,7 +22,7 @@ use std::{
 };
 
 use anyhow::{Context, ensure};
-use nautilus_live::status::LifecycleStatus;
+use nautilus_live::status::{LifecycleStatus, SnapshotAvailability, SnapshotValue};
 use serde::{Deserialize, Serialize};
 
 use crate::supervisor::{
@@ -150,10 +150,12 @@ pub(crate) enum MvpTradingReadiness {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct MvpStatusProvenance {
     pub identity_contract_path: String,
+    pub identity_contract_available: bool,
     pub supervisor_registry_path: String,
     pub node_status_path: String,
     pub node_metrics_path: String,
     pub unified_read_model_path: String,
+    pub freshness_max_age_ms: u64,
     pub generated_at_unix_ms: u64,
 }
 
@@ -287,15 +289,47 @@ impl MvpStatusContract {
         metrics: Option<&NodeMetrics>,
         status_error: Option<&str>,
         metrics_error: Option<&str>,
+        identity_error: Option<&str>,
+        freshness_max_age_ms: u64,
     ) -> Self {
         let observed_at_unix_ms = unix_time_ms();
         let unified_read_model_path = record.artifact_root.join(UNIFIED_READ_MODEL_RELATIVE_PATH);
-        let runtime = runtime_axis(record, status_error, observed_at_unix_ms);
+        let status_freshness = artifact_timestamp_assessment(
+            "node_status",
+            &record.last_known_status.generated_at,
+            observed_at_unix_ms,
+            freshness_max_age_ms,
+        );
+        let metrics_freshness = metrics.map_or_else(
+            || ArtifactTimestampAssessment::unknown("node_metrics_timestamp_missing"),
+            |value| {
+                artifact_timestamp_assessment(
+                    "node_metrics",
+                    &value.generated_at,
+                    observed_at_unix_ms,
+                    freshness_max_age_ms,
+                )
+            },
+        );
+        let mut combined_freshness =
+            combine_timestamp_assessments(&status_freshness, &metrics_freshness);
+        if record.process.state == SupervisorProcessState::Stale
+            || record.status_artifact == RegistryArtifactState::Stale
+            || record.metrics_artifact == RegistryArtifactState::Stale
+        {
+            combined_freshness.freshness = MvpStatusFreshness::Stale;
+            combined_freshness
+                .reasons
+                .push("supervisor_evidence_marked_stale".to_string());
+        }
+        let runtime = runtime_axis(record, status_error, &status_freshness, observed_at_unix_ms);
         let technical_health = technical_health_axis(
             record,
             metrics,
             status_error,
             metrics_error,
+            identity_error,
+            &combined_freshness,
             observed_at_unix_ms,
         );
         let trading_readiness =
@@ -306,26 +340,38 @@ impl MvpStatusContract {
             identity_contract_id: identity.contract_id.clone(),
             research: MvpStatusAxis {
                 status: MvpResearchStatus::ReferenceBound,
-                availability: MvpStatusAvailability::Available,
+                availability: if identity_error.is_some() {
+                    MvpStatusAvailability::Error
+                } else {
+                    MvpStatusAvailability::Available
+                },
                 freshness: MvpStatusFreshness::Unknown,
                 source_refs: vec![identity.identities.backtest_result_ref.clone()],
                 observed_at_unix_ms,
-                reasons: vec![
-                    "backtest_reference_bound".to_string(),
-                    "backtest_result_not_verified_by_runtime".to_string(),
-                    "research_acceptance_not_claimed".to_string(),
-                ],
-                error: None,
+                reasons: {
+                    let mut reasons = vec![
+                        "backtest_reference_bound".to_string(),
+                        "backtest_result_not_verified_by_runtime".to_string(),
+                        "research_acceptance_not_claimed".to_string(),
+                    ];
+                    if identity_error.is_some() {
+                        reasons.push("identity_contract_unavailable".to_string());
+                    }
+                    reasons
+                },
+                error: identity_error.map(ToString::to_string),
             },
             runtime,
             technical_health,
             trading_readiness,
             provenance: MvpStatusProvenance {
                 identity_contract_path: identity_contract_path.display().to_string(),
+                identity_contract_available: identity_error.is_none(),
                 supervisor_registry_path: registry_path.display().to_string(),
                 node_status_path: record.status_path.display().to_string(),
                 node_metrics_path: record.metrics_path.display().to_string(),
                 unified_read_model_path: unified_read_model_path.display().to_string(),
+                freshness_max_age_ms,
                 generated_at_unix_ms: observed_at_unix_ms,
             },
             boundaries: MvpStatusBoundaries {
@@ -348,21 +394,50 @@ impl MvpStatusContract {
 fn runtime_axis(
     record: &SupervisorNodeRecord,
     status_error: Option<&str>,
+    status_freshness: &ArtifactTimestampAssessment,
     observed_at_unix_ms: u64,
 ) -> MvpStatusAxis<MvpRuntimeStatus> {
     let source_refs = vec![
         record.pid_path.display().to_string(),
         record.status_path.display().to_string(),
     ];
-    if let Some(error) = status_error {
+    let timestamp_error = status_freshness.error.as_deref();
+    let lifecycle_error = (record.last_known_status.lifecycle_state == LifecycleStatus::Error)
+        .then(|| {
+            record
+                .last_known_status
+                .last_error
+                .clone()
+                .unwrap_or_else(|| "node lifecycle state is error".to_string())
+        });
+    let invalid_artifact_error =
+        (record.status_artifact == RegistryArtifactState::Invalid).then(|| {
+            record
+                .last_known_status
+                .last_error
+                .clone()
+                .unwrap_or_else(|| "invalid node status artifact".to_string())
+        });
+    let errors = [
+        status_error.map(ToString::to_string),
+        timestamp_error.map(ToString::to_string),
+        lifecycle_error,
+        invalid_artifact_error,
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+    if !errors.is_empty() {
+        let mut reasons = status_freshness.reasons.clone();
+        reasons.push("node_runtime_evidence_error".to_string());
         return MvpStatusAxis {
             status: MvpRuntimeStatus::Unknown,
             availability: MvpStatusAvailability::Error,
-            freshness: MvpStatusFreshness::Unknown,
+            freshness: status_freshness.freshness,
             source_refs,
             observed_at_unix_ms,
-            reasons: vec!["node_status_read_failed".to_string()],
-            error: Some(error.to_string()),
+            reasons,
+            error: Some(errors.join("; ")),
         };
     }
 
@@ -374,7 +449,7 @@ fn runtime_axis(
             (
                 MvpRuntimeStatus::Running,
                 MvpStatusAvailability::Available,
-                MvpStatusFreshness::Fresh,
+                status_freshness.freshness,
                 vec!["supervisor_process_and_node_lifecycle_running".to_string()],
             )
         }
@@ -391,20 +466,20 @@ fn runtime_axis(
             (
                 MvpRuntimeStatus::Transitioning,
                 MvpStatusAvailability::Available,
-                MvpStatusFreshness::Fresh,
+                status_freshness.freshness,
                 vec!["node_lifecycle_transition_in_progress".to_string()],
             )
         }
         SupervisorProcessState::Running => (
             MvpRuntimeStatus::Unknown,
             artifact_availability(record.status_artifact),
-            artifact_freshness(record.status_artifact),
+            status_freshness.freshness,
             vec!["process_alive_without_confirmed_running_lifecycle".to_string()],
         ),
         SupervisorProcessState::Stopped | SupervisorProcessState::NotStarted => (
             MvpRuntimeStatus::Stopped,
             MvpStatusAvailability::Available,
-            MvpStatusFreshness::Fresh,
+            status_freshness.freshness,
             vec!["supervisor_process_not_running".to_string()],
         ),
         SupervisorProcessState::Stale => {
@@ -427,16 +502,7 @@ fn runtime_axis(
             vec!["supervisor_process_state_unknown".to_string()],
         ),
     };
-    let error = (record.status_artifact == RegistryArtifactState::Invalid).then(|| {
-        record
-            .last_known_status
-            .last_error
-            .clone()
-            .unwrap_or_else(|| "invalid node status artifact".to_string())
-    });
-    if error.is_some() {
-        reasons.push("node_status_artifact_invalid".to_string());
-    }
+    reasons.extend(status_freshness.reasons.iter().cloned());
     MvpStatusAxis {
         status,
         availability,
@@ -444,7 +510,7 @@ fn runtime_axis(
         source_refs,
         observed_at_unix_ms,
         reasons,
-        error,
+        error: None,
     }
 }
 
@@ -453,13 +519,15 @@ fn technical_health_axis(
     metrics: Option<&NodeMetrics>,
     status_error: Option<&str>,
     metrics_error: Option<&str>,
+    identity_error: Option<&str>,
+    combined_freshness: &ArtifactTimestampAssessment,
     observed_at_unix_ms: u64,
 ) -> MvpStatusAxis<MvpTechnicalHealth> {
     let mut reasons = Vec::new();
     let effective_metrics_error = (record.metrics_artifact != RegistryArtifactState::Missing)
         .then_some(metrics_error)
         .flatten();
-    let mut errors = [status_error, effective_metrics_error]
+    let mut errors = [status_error, effective_metrics_error, identity_error]
         .into_iter()
         .flatten()
         .map(ToString::to_string)
@@ -467,7 +535,16 @@ fn technical_health_axis(
     if let Some(error) = record.last_known_status.last_error.as_ref() {
         errors.push(error.clone());
     }
+    if let Some(error) = record.last_known_status.execution.last_error.as_ref() {
+        errors.push(error.clone());
+    }
+    if let Some(error) = record.last_known_status.risk.last_error.as_ref() {
+        errors.push(error.clone());
+    }
     if let Some(error) = metrics.and_then(|value| value.last_error_summary.as_ref()) {
+        errors.push(error.clone());
+    }
+    if let Some(error) = combined_freshness.error.as_ref() {
         errors.push(error.clone());
     }
 
@@ -484,11 +561,8 @@ fn technical_health_axis(
         record.metrics_artifact,
         !errors.is_empty(),
     );
-    let freshness = combined_artifact_freshness(
-        record.process.state,
-        record.status_artifact,
-        record.metrics_artifact,
-    );
+    let freshness = combined_freshness.freshness;
+    reasons.extend(combined_freshness.reasons.iter().cloned());
     let metrics_lifecycle = metrics.map(|value| value.lifecycle_state);
     let status = if boundary_violation
         || !errors.is_empty()
@@ -510,6 +584,7 @@ fn technical_health_axis(
         && record.metrics_artifact == RegistryArtifactState::Available
         && record.last_known_status.lifecycle_state == LifecycleStatus::Running
         && metrics_lifecycle == Some(LifecycleStatus::Running)
+        && freshness == MvpStatusFreshness::Fresh
     {
         reasons.push("status_and_metrics_confirm_runtime_health".to_string());
         MvpTechnicalHealth::Healthy
@@ -546,22 +621,50 @@ fn trading_readiness_axis(
     unified_read_model_path: &Path,
     observed_at_unix_ms: u64,
 ) -> MvpStatusAxis<MvpTradingReadiness> {
-    let (availability, reasons) = if unified_read_model_path.exists() {
-        (
-            MvpStatusAvailability::Available,
-            vec![
-                "unified_read_model_present_but_not_validated_by_mvp_status_contract".to_string(),
-                "read_only_mvp_never_implies_trading_permission".to_string(),
-            ],
-        )
-    } else {
-        (
+    let (availability, reasons, error) = match fs::read_to_string(unified_read_model_path) {
+        Ok(raw) => match serde_json::from_str::<serde_json::Value>(&raw) {
+            Ok(value) if value.is_object() => (
+                MvpStatusAvailability::Available,
+                vec![
+                    "unified_read_model_present_but_not_validated_by_mvp_status_contract"
+                        .to_string(),
+                    "read_only_mvp_never_implies_trading_permission".to_string(),
+                ],
+                None,
+            ),
+            Ok(_) => (
+                MvpStatusAvailability::Error,
+                vec![
+                    "unified_read_model_not_an_object".to_string(),
+                    "trading_readiness_fail_closed".to_string(),
+                ],
+                Some("Unified Read Model JSON root must be an object".to_string()),
+            ),
+            Err(parse_error) => (
+                MvpStatusAvailability::Error,
+                vec![
+                    "invalid_unified_read_model_json".to_string(),
+                    "trading_readiness_fail_closed".to_string(),
+                ],
+                Some(format!("invalid Unified Read Model JSON: {parse_error}")),
+            ),
+        },
+        Err(read_error) if read_error.kind() == std::io::ErrorKind::NotFound => (
             MvpStatusAvailability::Missing,
             vec![
                 "missing_unified_read_model".to_string(),
                 "trading_readiness_fail_closed".to_string(),
             ],
-        )
+            None,
+        ),
+        Err(read_error) => (
+            MvpStatusAvailability::Error,
+            vec![
+                "unreadable_unified_read_model".to_string(),
+                "trading_readiness_fail_closed".to_string(),
+            ],
+            Some(format!("cannot read Unified Read Model: {read_error}")),
+        ),
     };
     MvpStatusAxis {
         status: MvpTradingReadiness::Blocked,
@@ -570,7 +673,7 @@ fn trading_readiness_axis(
         source_refs: vec![unified_read_model_path.display().to_string()],
         observed_at_unix_ms,
         reasons,
-        error: None,
+        error,
     }
 }
 
@@ -582,16 +685,6 @@ fn artifact_availability(state: RegistryArtifactState) -> MvpStatusAvailability 
         RegistryArtifactState::Missing => MvpStatusAvailability::Missing,
         RegistryArtifactState::Invalid => MvpStatusAvailability::Error,
         RegistryArtifactState::Unknown => MvpStatusAvailability::Unknown,
-    }
-}
-
-fn artifact_freshness(state: RegistryArtifactState) -> MvpStatusFreshness {
-    match state {
-        RegistryArtifactState::Available => MvpStatusFreshness::Fresh,
-        RegistryArtifactState::Stale => MvpStatusFreshness::Stale,
-        RegistryArtifactState::Missing
-        | RegistryArtifactState::Invalid
-        | RegistryArtifactState::Unknown => MvpStatusFreshness::Unknown,
     }
 }
 
@@ -618,22 +711,138 @@ fn combined_artifact_availability(
     }
 }
 
-fn combined_artifact_freshness(
-    process: SupervisorProcessState,
-    status: RegistryArtifactState,
-    metrics: RegistryArtifactState,
-) -> MvpStatusFreshness {
-    if process == SupervisorProcessState::Stale
-        || status == RegistryArtifactState::Stale
-        || metrics == RegistryArtifactState::Stale
+#[derive(Clone, Debug)]
+struct ArtifactTimestampAssessment {
+    freshness: MvpStatusFreshness,
+    generated_at_unix_ms: Option<u64>,
+    reasons: Vec<String>,
+    error: Option<String>,
+}
+
+impl ArtifactTimestampAssessment {
+    fn unknown(reason: &str) -> Self {
+        Self {
+            freshness: MvpStatusFreshness::Unknown,
+            generated_at_unix_ms: None,
+            reasons: vec![reason.to_string()],
+            error: None,
+        }
+    }
+}
+
+fn artifact_timestamp_assessment(
+    label: &str,
+    generated_at: &SnapshotValue<String>,
+    observed_at_unix_ms: u64,
+    freshness_max_age_ms: u64,
+) -> ArtifactTimestampAssessment {
+    match generated_at.availability {
+        SnapshotAvailability::Available => {
+            let Some(raw) = generated_at.value.as_deref() else {
+                return ArtifactTimestampAssessment {
+                    freshness: MvpStatusFreshness::Unknown,
+                    generated_at_unix_ms: None,
+                    reasons: vec![format!("{label}_timestamp_value_missing")],
+                    error: Some(format!("{label} generated_at is available without a value")),
+                };
+            };
+            let Ok(timestamp) = raw.parse::<u64>() else {
+                return ArtifactTimestampAssessment {
+                    freshness: MvpStatusFreshness::Unknown,
+                    generated_at_unix_ms: None,
+                    reasons: vec![format!("{label}_timestamp_invalid")],
+                    error: Some(format!(
+                        "{label} generated_at '{raw}' is not Unix milliseconds"
+                    )),
+                };
+            };
+            if timestamp > observed_at_unix_ms.saturating_add(freshness_max_age_ms) {
+                return ArtifactTimestampAssessment {
+                    freshness: MvpStatusFreshness::Unknown,
+                    generated_at_unix_ms: Some(timestamp),
+                    reasons: vec![format!("{label}_timestamp_in_future")],
+                    error: Some(format!(
+                        "{label} generated_at {timestamp} exceeds allowed clock skew"
+                    )),
+                };
+            }
+            if observed_at_unix_ms.saturating_sub(timestamp) > freshness_max_age_ms {
+                ArtifactTimestampAssessment {
+                    freshness: MvpStatusFreshness::Stale,
+                    generated_at_unix_ms: Some(timestamp),
+                    reasons: vec![format!("{label}_timestamp_stale")],
+                    error: None,
+                }
+            } else {
+                ArtifactTimestampAssessment {
+                    freshness: MvpStatusFreshness::Fresh,
+                    generated_at_unix_ms: Some(timestamp),
+                    reasons: vec![format!("{label}_timestamp_fresh")],
+                    error: None,
+                }
+            }
+        }
+        SnapshotAvailability::Stale => ArtifactTimestampAssessment {
+            freshness: MvpStatusFreshness::Stale,
+            generated_at_unix_ms: None,
+            reasons: vec![format!("{label}_timestamp_marked_stale")],
+            error: None,
+        },
+        SnapshotAvailability::NotConfigured
+        | SnapshotAvailability::NotSupported
+        | SnapshotAvailability::Unknown => {
+            ArtifactTimestampAssessment::unknown(&format!("{label}_timestamp_unknown"))
+        }
+    }
+}
+
+fn combine_timestamp_assessments(
+    status: &ArtifactTimestampAssessment,
+    metrics: &ArtifactTimestampAssessment,
+) -> ArtifactTimestampAssessment {
+    let mut reasons = status.reasons.clone();
+    reasons.extend(metrics.reasons.iter().cloned());
+    let errors = [status.error.as_ref(), metrics.error.as_ref()]
+        .into_iter()
+        .flatten()
+        .cloned()
+        .collect::<Vec<_>>();
+    if !errors.is_empty() {
+        return ArtifactTimestampAssessment {
+            freshness: MvpStatusFreshness::Unknown,
+            generated_at_unix_ms: None,
+            reasons,
+            error: Some(errors.join("; ")),
+        };
+    }
+    if let (Some(status_timestamp), Some(metrics_timestamp)) =
+        (status.generated_at_unix_ms, metrics.generated_at_unix_ms)
+        && status_timestamp != metrics_timestamp
+    {
+        reasons.push("status_metrics_generation_mismatch".to_string());
+        return ArtifactTimestampAssessment {
+            freshness: MvpStatusFreshness::Stale,
+            generated_at_unix_ms: None,
+            reasons,
+            error: None,
+        };
+    }
+    let freshness = if status.freshness == MvpStatusFreshness::Stale
+        || metrics.freshness == MvpStatusFreshness::Stale
     {
         MvpStatusFreshness::Stale
-    } else if status == RegistryArtifactState::Available
-        && metrics == RegistryArtifactState::Available
+    } else if status.freshness == MvpStatusFreshness::Fresh
+        && metrics.freshness == MvpStatusFreshness::Fresh
     {
         MvpStatusFreshness::Fresh
     } else {
         MvpStatusFreshness::Unknown
+    };
+    ArtifactTimestampAssessment {
+        freshness,
+        generated_at_unix_ms: status.generated_at_unix_ms,
+        reasons,
+        error: None,
     }
 }
 
