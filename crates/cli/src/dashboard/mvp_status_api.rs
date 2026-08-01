@@ -224,7 +224,8 @@ fn validate_runtime_provenance(
             field: "node_id",
         })?;
     let expected_artifact_root = workspace.join("nodes").join(&identity.identities.node_id);
-    if canonical_path(&record.artifact_root, "artifact_root")? != expected_artifact_root {
+    let canonical_artifact_root = canonical_path(&record.artifact_root, "artifact_root")?;
+    if canonical_artifact_root != expected_artifact_root {
         return Err(invalid("supervisor_registry", "artifact_root_containment"));
     }
     let identity_config_path = canonical_path(
@@ -252,14 +253,61 @@ fn validate_runtime_provenance(
             field: "config_projection",
         });
     }
+    let expected_status = record.artifact_root.join("status.json");
+    let expected_metrics = record.artifact_root.join("metrics.json");
     let expected_read_model = record
         .artifact_root
         .join("v0_21/unified_read_model_snapshot.json");
-    if Path::new(&status.provenance.node_status_path) != record.status_path
-        || Path::new(&status.provenance.node_metrics_path) != record.metrics_path
+    if record.status_path != expected_status
+        || record.metrics_path != expected_metrics
+        || Path::new(&status.provenance.node_status_path) != expected_status
+        || Path::new(&status.provenance.node_metrics_path) != expected_metrics
         || Path::new(&status.provenance.unified_read_model_path) != expected_read_model
     {
         return Err(invalid("status_contract", "runtime_provenance"));
+    }
+    validate_artifact_child(
+        &expected_status,
+        &record.artifact_root,
+        &canonical_artifact_root,
+        "node_status_path_containment",
+    )?;
+    validate_artifact_child(
+        &expected_metrics,
+        &record.artifact_root,
+        &canonical_artifact_root,
+        "node_metrics_path_containment",
+    )?;
+    validate_artifact_child(
+        &expected_read_model,
+        &record.artifact_root,
+        &canonical_artifact_root,
+        "unified_read_model_path_containment",
+    )?;
+    Ok(())
+}
+
+fn validate_artifact_child(
+    path: &Path,
+    artifact_root: &Path,
+    canonical_artifact_root: &Path,
+    field: &'static str,
+) -> Result<(), SharedStatusError> {
+    let mut existing = path;
+    while !existing.exists() {
+        existing = existing
+            .parent()
+            .ok_or_else(|| invalid("supervisor_registry", field))?;
+        if !existing.starts_with(artifact_root) {
+            return Err(invalid("supervisor_registry", field));
+        }
+    }
+    let relative = existing
+        .strip_prefix(artifact_root)
+        .map_err(|_| invalid("supervisor_registry", field))?;
+    let canonical_existing = canonical_path(existing, field)?;
+    if canonical_existing != canonical_artifact_root.join(relative) {
+        return Err(invalid("supervisor_registry", field));
     }
     Ok(())
 }
@@ -525,6 +573,22 @@ fn business_summary(
             .pointer(&format!("/components/{component}/data/account_id"))
             .and_then(Value::as_str);
         if component_account_id != Some(identity.identities.account_id.as_str()) {
+            return MvpBusinessReadModelSummary::identity_mismatch();
+        }
+    }
+    let positions_venue = value
+        .pointer("/components/positions/data/instrument_identity/venue")
+        .and_then(Value::as_str);
+    if positions_venue != Some(identity.identities.venue_id.as_str()) {
+        return MvpBusinessReadModelSummary::identity_mismatch();
+    }
+    for component in ["orders", "fills"] {
+        let component_venue = value
+            .pointer(&format!(
+                "/components/{component}/data/instrument_identity/venue"
+            ))
+            .and_then(Value::as_str);
+        if component_venue.is_some_and(|venue| venue != identity.identities.venue_id) {
             return MvpBusinessReadModelSummary::identity_mismatch();
         }
     }

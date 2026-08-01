@@ -515,6 +515,30 @@ fn component_account_mismatch_is_not_projected() {
 }
 
 #[test]
+fn component_venue_mismatch_is_not_projected() {
+    let now = 1_800_000_000_000;
+    for component in ["positions", "orders", "fills"] {
+        let fixture = Fixture::new(&format!("component-venue-{component}"), now);
+        let mut read_model = fixture.write_healthy_read_model(now);
+        read_model["components"][component]["data"]["instrument_identity"] = json!({
+            "instrument_id": "BTCUSDT.OTHER",
+            "symbol": "BTCUSDT",
+            "venue": "OTHER"
+        });
+        write_json(&fixture.read_model_path, &read_model);
+
+        let response = project_mvp_shared_status(&fixture.state, now)
+            .expect("component venue mismatch should be represented");
+        assert_eq!(
+            response.business.availability,
+            MvpBusinessAvailability::IdentityMismatch,
+            "component {component} must not cross venues"
+        );
+        assert_eq!(response.business.health, HealthStatus::Error);
+    }
+}
+
+#[test]
 fn stale_component_cannot_keep_available_healthy_projection() {
     let now = 1_800_000_000_000;
     let fixture = Fixture::new("stale-component", now);
@@ -633,6 +657,70 @@ fn coordinated_registry_path_escape_fails_closed() {
     fs::remove_dir_all(escaped_root).expect("escaped fixture should be removed");
 }
 
+#[test]
+fn legal_artifact_root_with_external_status_or_metrics_path_fails_closed() {
+    let now = 1_800_000_000_000;
+    for (field, provenance_field, file_name) in [
+        ("status_path", "node_status_path", "status.json"),
+        ("metrics_path", "node_metrics_path", "metrics.json"),
+    ] {
+        let mut fixture = Fixture::new(&format!("child-path-{field}"), now);
+        let escaped_root = fixture.root.with_extension(format!("outside-{field}"));
+        fs::create_dir_all(&escaped_root).expect("escaped root should be created");
+        let escaped_path = escaped_root.join(file_name);
+        fs::write(&escaped_path, "{}").expect("escaped artifact should be written");
+        let mut registry: Value = serde_json::from_str(
+            &fs::read_to_string(&fixture.state.registry_path)
+                .expect("fixture registry should be readable"),
+        )
+        .expect("fixture registry should be valid JSON");
+        registry["nodes"]["mvp-node-001"][field] = json!(escaped_path.display().to_string());
+        match provenance_field {
+            "node_status_path" => {
+                fixture.status.provenance.node_status_path = escaped_path.display().to_string();
+            }
+            "node_metrics_path" => {
+                fixture.status.provenance.node_metrics_path = escaped_path.display().to_string();
+            }
+            _ => unreachable!("fixture provenance field is fixed"),
+        }
+        write_json(&fixture.state.registry_path, &registry);
+        fixture.write_status();
+
+        let error = project_mvp_shared_status(&fixture.state, now)
+            .expect_err("child path outside a legal artifact root must fail closed");
+        assert_eq!(error.kind, SharedStatusErrorKind::Invalid);
+        assert_eq!(error.field, "runtime_provenance");
+        fs::remove_dir_all(escaped_root).expect("escaped fixture should be removed");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn unified_read_model_symlink_escape_fails_closed() {
+    let now = 1_800_000_000_000;
+    let fixture = Fixture::new("read-model-symlink", now);
+    let escaped_root = fixture.root.with_extension("outside-read-model");
+    fs::create_dir_all(&escaped_root).expect("escaped root should be created");
+    let escaped_read_model = escaped_root.join("unified_read_model_snapshot.json");
+    write_json(&escaped_read_model, &healthy_read_model(now));
+    fs::create_dir_all(
+        fixture
+            .read_model_path
+            .parent()
+            .expect("read model parent should exist"),
+    )
+    .expect("read model parent should be created");
+    std::os::unix::fs::symlink(&escaped_read_model, &fixture.read_model_path)
+        .expect("read model symlink should be created");
+
+    let error = project_mvp_shared_status(&fixture.state, now)
+        .expect_err("read model symlink outside artifact root must fail closed");
+    assert_eq!(error.kind, SharedStatusErrorKind::Invalid);
+    assert_eq!(error.field, "unified_read_model_path_containment");
+    fs::remove_dir_all(escaped_root).expect("escaped fixture should be removed");
+}
+
 fn healthy_read_model(now_unix_ms: u64) -> Value {
     let mut value = crate::dashboard::tests::healthy_trader_terminal_read_model_artifact();
     let now_unix_ns = (u128::from(now_unix_ms) * 1_000_000).to_string();
@@ -640,6 +728,11 @@ fn healthy_read_model(now_unix_ms: u64) -> Value {
     value["snapshot_identity"]["venue"] = json!("BINANCE");
     value["components"]["account"]["data"]["account_id"] = json!("acct-sandbox-001");
     value["components"]["positions"]["data"]["account_id"] = json!("acct-sandbox-001");
+    value["components"]["positions"]["data"]["instrument_identity"] = json!({
+        "instrument_id": "BTCUSDT.BINANCE",
+        "symbol": "BTCUSDT",
+        "venue": "BINANCE"
+    });
     set_freshness(&mut value["freshness"], &now_unix_ns);
     for component in [
         "account",
