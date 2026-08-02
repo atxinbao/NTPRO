@@ -19,9 +19,10 @@ family remains separately scoped only. Future tracks must repeat that intake.
 
 ## 当前产品北极星：完成单节点 MVP
 
-PR #1198 已交付 `nautilus mvp serve` 单 Supervisor + 单节点运行入口；它完成
-运行基线，但尚未完成对象追溯、稳定只读产品投影和双门户界面。下一步不扩展到
-多节点平台、分布式编排或真实交易，只完成这条基线的产品闭环：
+PR #1198 已交付 `nautilus mvp serve` 单 Supervisor + 单节点运行入口；
+MVP-003/004 已交付对象追溯与四轴状态合同，MVP-005 已交付稳定只读状态 API。
+下一步不扩展到多节点平台、分布式编排或真实交易，只完成双门户消费绑定和这条
+基线的产品闭环：
 
 ```text
 策略版本 + 回测结果
@@ -58,7 +59,7 @@ Supervisor 是运行控制层，节点是后端进程边界，策略实例是节
 
 ## MVP 交付 Roadmap
 
-### M0：对象与状态合同
+### M0：对象与状态合同（实现已交付）
 
 - 固定 `strategy_id`、`strategy_version`、`backtest_run_id`、`node_id`、
   `strategy_instance_id`、`account_id`、`venue_id` 和 `environment`。
@@ -68,25 +69,36 @@ Supervisor 是运行控制层，节点是后端进程边界，策略实例是节
 退出条件：同一策略实例可以从回测结果追溯到节点、账户和 Venue；任何状态都不会
 用 HTTP 200 或进程存活代替业务健康。
 
+实现证据：issue #1203/#1205、PR #1204/#1206，以及
+`docs/rust-cutover/evidence/MVP-003.md` 和 `MVP-004.md`。技术退出条件已满足；
+MVP-003 缺少合并前独立审查记录，MVP-004 的 GitHub 审批记录晚于合并时间，该历史
+治理例外由 issue #1209 如实收口，不改写远端事实。
+
 ### M1：Supervisor + 单节点运行基线（已交付）
 
 - #1198 已新增 `nautilus mvp serve`，复用注册表和节点进程路径完成注册、启动与停止。
 - Dashboard 启动失败、Ctrl-C 和正常退出时回收节点，并保留运行日志与指标入口。
-- 当前 Unified Read Model 产物缺失时保持 fail-closed；对象追溯和双门户投影归 M0/M2。
+- 当前 Unified Read Model 产物缺失时保持 fail-closed；对象追溯已由 M0 交付，共享
+  API 已由 M2 交付，双门户消费仍待完成。
 
 基线证据：issue #1197、PR #1198 和 `docs/rust-cutover/evidence/MVP-001.md`。
 这不代表暂停/恢复、多节点编排、完整前端或真实交易已经交付。
 
-### M2：最小只读产品接口
+### M2：最小只读产品接口（共享 API 已交付，门户接入待完成）
 
 - 版本化输出策略、账户、仓位、订单、成交、风险和节点状态。
 - 提供快照、时效、来源、错误信封和节点到策略实例的关联。
 - 浏览器不读取原始事件存储，不直接连接交易所，不包含交易命令。
 
-退出条件：机构工作台和控制中心只消费稳定投影；相同事实按角色显示，但证据编号和
-状态语义一致。
+接口证据：issue #1207、PR #1208、`GET /api/mvp/v1/status` 和
+`docs/rust-cutover/evidence/MVP-005.md`。API 合同、fail-closed 校验和只读边界已
+交付；当前浏览器仍未绑定该接口。
 
-### M3：双角色最小界面
+退出条件：机构工作台和控制中心只消费稳定投影；相同事实按角色显示，但证据编号和
+状态语义一致。该条件保持开放，必须由后续 MVP-006 和 MVP-007 的真实门户消费
+验证共同关闭，不因 API 已存在而提前完成。
+
+### M3：双角色最小界面（未开始）
 
 - 机构工作台交付策略/回测摘要和运行中的账户、仓位、订单、成交、风险只读页面。
 - 控制中心交付单节点注册、生命周期、健康、日志、指标和事件页面。
