@@ -1942,7 +1942,7 @@
       <div class="brand-mark" aria-hidden="true">NT</div>
       <div>
         <p class="brand-name">NTPRO / 机构系统化交易平台蓝图</p>
-        <p class="brand-meta">代码基线 91c74e6f133f · 2026-08-02 · Codex</p>
+        <p class="brand-meta">审计代码面：MVP-005 merge + #1209 · 正式发布：v0.33.0 · 2026-08-02</p>
       </div>
     </div>
     <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
@@ -1977,6 +1977,8 @@
             <span class="status ok">v0.33.0 后端维护版已发布</span>
             <span class="status ok">v0.32.0 后端冻结基线保持有效</span>
             <span class="status ok">MVP-001 单节点运行基线已合并</span>
+            <span class="status ok">M0 身份与四轴状态实现已交付</span>
+            <span class="status ok">M2 共享只读 API 已交付</span>
             <span class="status ok">TTR-001 / TTR-002 已合并</span>
             <span class="status info">前端产品尚未完成，当前只读优先</span>
           </div>
@@ -1988,7 +1990,7 @@
 
           <div class="summary-callout">
             <strong>MVP 当前进度与北极星</strong>
-            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；下一步只补齐策略版本、回测、策略实例、账户与 Venue 的追溯合同，以及机构工作台和控制中心的只读产品投影。多节点编排和真实交易全部后置。
+            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；MVP-003/004 已交付身份追溯与四轴状态合同，MVP-005 已交付共享只读状态 API。下一步只完成机构工作台与控制中心的真实消费绑定；多节点编排和真实交易全部后置。
           </div>
 
           <div class="metric-grid" aria-label="项目指标">
@@ -2382,12 +2384,12 @@
               <h3>能力成熟度与产品承诺</h3>
               <p>代码存在不等于产品接口完成；每一项必须区分后端能力、浏览器可用合同和授权边界。</p>
             </div>
-            <span class="surface-index">当前 main / v0.33.0 发布面 / v0.32.0 冻结基线</span>
+            <span class="surface-index">审计代码面：MVP-005 merge + #1209 / 正式发布：v0.33.0 / 冻结基线：v0.32.0</span>
           </div>
 
           <div class="maturity-key" aria-label="能力成熟度图例">
             <span class="maturity current">已落地只读</span>
-            <span class="maturity backend">后端已有，产品接口待建</span>
+            <span class="maturity backend">后端或接口已有，页面待接入</span>
             <span class="maturity target">目标产品合同</span>
             <span class="maturity forbidden">当前未授权</span>
           </div>
@@ -2397,9 +2399,9 @@
               <thead><tr><th>能力域</th><th>机构工作台</th><th>控制中心</th><th>成熟度与依据</th></tr></thead>
               <tbody>
                 <tr><td><strong>机构、交易台与账簿</strong></td><td>切换业务范围和组合上下文</td><td>维护组织关系、角色和环境</td><td><span class="maturity target">目标产品合同</span></td></tr>
-                <tr><td><strong>账户、仓位、订单与成交</strong></td><td>业务主视图、来源和时效</td><td>仅显示绑定、同步和影响范围</td><td><span class="maturity backend">统一读模型存在，稳定产品接口待建</span></td></tr>
+                <tr><td><strong>账户、仓位、订单与成交</strong></td><td>业务主视图、来源和时效</td><td>仅显示绑定、同步和影响范围</td><td><span class="maturity backend">共享只读 API 已交付，门户消费待接入</span></td></tr>
                 <tr><td><strong>策略与回测</strong></td><td>策略库、版本、运行、结果和对比</td><td>独立审批、版本冻结和部署授权</td><td><span class="maturity backend">引擎与命令行存在，产品资源合同待建</span></td></tr>
-                <tr><td><strong>风险与交易准备度</strong></td><td>限额、拒绝、受限动作和业务影响</td><td>数据、账户、风险、部署和技术根因</td><td><span class="maturity backend">后端证据存在，跨门户投影待建</span></td></tr>
+                <tr><td><strong>风险与交易准备度</strong></td><td>限额、拒绝、受限动作和业务影响</td><td>数据、账户、风险、部署和技术根因</td><td><span class="maturity backend">共享状态投影已交付，角色页面待接入</span></td></tr>
                 <tr><td><strong>后台治理与运维状态</strong></td><td>只接收业务影响摘要和事件链接</td><td>关闭状态、来源、审计、遥测、权限和部署</td><td><span class="maturity current">v0.28 六个只读接口已挂载</span></td></tr>
                 <tr><td><strong>节点、日志与指标</strong></td><td>不进入一级导航</td><td>生命周期、指标、日志和技术事件</td><td><span class="maturity current">本地仪表盘接口已存在</span></td></tr>
                 <tr><td><strong>身份、授权与数据范围</strong></td><td>按机构、交易台、账簿和角色过滤</td><td>管理身份、角色、权限和凭证</td><td><span class="maturity target">目标产品合同</span></td></tr>
@@ -2451,7 +2453,7 @@
           </div>
 
           <div class="diagram" aria-label="NTPRO 当前后端架构图">
-            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>代码基线：91c74e6f13</span></div>
+            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>审计代码面：MVP-005 merge <code>6bc2a7246534</code> + #1209；正式发布基线：v0.33.0 <code>0ef6fd9d8577</code></span></div>
             <div class="architecture-flow">
               <div class="arch-row">
                 <div class="arch-label">外部接入层</div>
@@ -2607,7 +2609,7 @@
             <div>
               <p class="eyebrow">当前产品北极星</p>
               <h2>在单节点运行基线上完成产品 MVP</h2>
-              <p class="section-intro">PR #1198 已交付一个 Supervisor + 一个节点的运行入口；当前只补齐对象追溯、稳定只读投影和双门户最小界面。多节点平台、分布式调度、真实交易和完整门户能力不进入当前 MVP。</p>
+              <p class="section-intro">PR #1198 已交付一个 Supervisor + 一个节点的运行入口，MVP-003/004/005 已交付对象追溯、四轴状态和共享只读 API；当前只补齐双门户消费与最小界面。多节点平台、分布式调度、真实交易和完整门户能力不进入当前 MVP。</p>
             </div>
           </div>
 
@@ -2649,17 +2651,17 @@
           <div class="roadmap">
             <article class="phase">
               <div class="phase-dot">M0</div>
-              <div class="phase-time">对象合同</div>
+              <div class="phase-time">对象合同 · 实现已交付</div>
               <div class="phase-body">
                 <h3>固定 MVP 身份与状态</h3>
-                <p>先让策略、回测、节点、运行实例和账户关系不可歧义。</p>
+                <p>MVP-003/004 已交付身份追溯与四轴状态；历史审查证据例外由 issue #1209 如实登记。</p>
                 <ul>
                   <li>固定策略版本、回测、节点、策略实例、账户、Venue 和环境标识。</li>
                   <li>分离研究状态、运行状态、技术健康和交易准备度。</li>
                   <li>定义来源、时效、错误、缺失和降级语义。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>一次回测可以追溯到策略版本；一个运行实例可以追溯到节点、账户和 Venue；任何状态都不使用模糊健康值。</div>
+              <div class="exit-gate"><strong>实现状态</strong>技术退出条件已满足。PR #1204 缺少合并前独立审查记录，PR #1206 的审批记录晚于合并时间；不改写历史远端事实。</div>
             </article>
 
             <article class="phase">
@@ -2674,27 +2676,27 @@
                   <li>Unified Read Model 缺失时保持 fail-closed，不冒充完整产品状态。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>基线证据</strong>issue #1197、PR #1198 与 <code>docs/rust-cutover/evidence/MVP-001.md</code>；暂停/恢复、对象追溯和双门户投影仍未交付。</div>
+              <div class="exit-gate"><strong>基线证据</strong>issue #1197、PR #1198 与 <code>docs/rust-cutover/evidence/MVP-001.md</code>；暂停/恢复和双门户界面仍未交付，对象追溯已由 M0 完成。</div>
             </article>
 
             <article class="phase">
               <div class="phase-dot">M2</div>
-              <div class="phase-time">只读接口</div>
+              <div class="phase-time">只读接口 · API 已交付</div>
               <div class="phase-body">
                 <h3>共享产品状态合同</h3>
-                <p>把已有运行产物变成两个最小界面共同消费的稳定投影。</p>
+                <p>MVP-005 已交付 <code>GET /api/mvp/v1/status</code>；两个最小界面的真实消费绑定仍待完成。</p>
                 <ul>
                   <li>版本化输出策略、账户、仓位、订单、成交、风险和节点状态。</li>
                   <li>包含来源、时效、错误信封和节点到策略实例的关联。</li>
                   <li>浏览器不读取原始事件存储，不直连交易所，不包含交易命令。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>两个门户只消费同一版本化事实；接口成功不会覆盖节点或业务健康状态。</div>
+              <div class="exit-gate"><strong>退出条件 · 保持开放</strong>MVP-006 与 MVP-007 必须让两个门户实际消费同一版本化事实；API 已存在不能单独关闭 M2。</div>
             </article>
 
             <article class="phase">
               <div class="phase-dot">M3</div>
-              <div class="phase-time">最小界面</div>
+              <div class="phase-time">最小界面 · 未开始</div>
               <div class="phase-body">
                 <h3>交易员视图 + 运维视图</h3>
                 <p>只实现支撑单节点 MVP 的必要页面，不扩张完整门户范围。</p>
@@ -2754,10 +2756,12 @@
 
           <div class="verification"><strong>当前正式发布</strong><span>ntpro-rust-only-v0.33.0 · 非草稿 / 非预发布</span><span class="check-pass">已发布</span></div>
           <div class="verification"><strong>MVP-001 运行基线</strong><span>PR #1198 已合并 · nautilus mvp serve · 单 Supervisor + 单节点沙盒入口</span><span class="check-pass">已交付基线</span></div>
+          <div class="verification"><strong>M0 身份与状态合同</strong><span>MVP-003/004 实现已合并 · 技术退出条件满足 · 历史审查证据例外由 issue #1209 登记</span><span class="check-pass">实现已交付</span></div>
+          <div class="verification"><strong>M2 共享只读 API</strong><span>PR #1208 已合并 · GET /api/mvp/v1/status · final head 审查与 14 项 hosted checks 通过</span><span class="check-pass">接口已交付</span></div>
           <div class="verification"><strong>TTR-001 只读路由</strong><span>PR #1148 已合并 · 六个 v0.28 治理接口真实挂载 · hosted checks 全通过</span><span class="check-pass">已合并</span></div>
           <div class="verification"><strong>TTR-002 存储边界</strong><span>PR #1152 已合并 · 原始 Event Store / redb / run 路径保持 404</span><span class="check-pass">已合并</span></div>
-          <div class="verification"><strong>业务读模型基础</strong><span>账户、仓位、订单、成交和风险投影存在；稳定产品查询接口仍待建设</span><span class="check-partial">部分完成</span></div>
-          <div class="verification"><strong>前端产品状态</strong><span>机构工作台、控制中心、身份范围和实时增量尚未作为产品运行时交付</span><span class="check-partial">目标设计</span></div>
+          <div class="verification"><strong>业务读模型基础</strong><span>账户、仓位、订单、成交和风险投影已进入共享 API；浏览器消费绑定尚未完成</span><span class="check-partial">接口完成</span></div>
+          <div class="verification"><strong>前端产品状态</strong><span>机构工作台与控制中心尚未消费共享 API；M2 退出条件保持开放，M3 未开始</span><span class="check-partial">待开发</span></div>
 
           <div class="research-lane">
             <strong>文档权威顺序</strong>
@@ -2794,7 +2798,7 @@
             <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
           </ul>
 
-          <p class="footer-note">信息架构版本：第七版 · 更新日期：2026-08-02 · 执行者：Codex · 产品架构基线：91c74e6f133f</p>
+          <p class="footer-note">信息架构版本：第七版 · 更新日期：2026-08-02 · 执行者：Codex · 审计代码面：MVP-005 merge <code>6bc2a7246534</code> + #1209 · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（不包含当前 MVP-003/004/005）</p>
         </section>
       </div>
     </main>
