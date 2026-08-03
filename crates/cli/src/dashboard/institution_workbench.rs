@@ -100,7 +100,7 @@ pub(super) const INSTITUTION_WORKBENCH_HTML: &str = r##"<!doctype html>
 
 pub(super) const INSTITUTION_WORKBENCH_CSS: &str = r#":root {
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, "Noto Sans CJK SC", "Noto Sans CJK", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #eef2f0;
   color: #18221e;
 }
