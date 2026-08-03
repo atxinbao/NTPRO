@@ -2705,10 +2705,10 @@
                 <ul>
                   <li>机构工作台展示策略/回测摘要和运行中的只读业务状态。</li>
                   <li>控制中心展示单节点生命周期、健康、日志、指标和事件。</li>
-                  <li>业务影响与技术根因通过同一运行实例和事件编号连接。</li>
+                  <li>MVP-008 已将业务影响与技术根因通过同一运行实例和事件编号连接。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件 · 保持开放</strong>还需完成跨门户事件跳转、服务端角色边界和生命周期动作产品化；不得因两个页面可打开就提前关闭 M3。</div>
+              <div class="exit-gate"><strong>退出条件 · 保持开放</strong>跨门户事件跳转已由 issue #1217 / PR #1218 交付；还需完成服务端角色边界和生命周期动作产品化。</div>
             </article>
 
             <article class="phase">
@@ -2765,7 +2765,8 @@
           <div class="verification"><strong>业务读模型基础</strong><span>账户、仓位、订单、成交和风险投影已进入共享 API；机构工作台已完成浏览器消费绑定</span><span class="check-pass">接口与前台绑定完成</span></div>
           <div class="verification"><strong>机构工作台</strong><span>issue #1211 / PR #1212 已合并 · /institution-workbench · 只消费 GET /api/mvp/v1/status · fail closed</span><span class="check-pass">已合并</span></div>
           <div class="verification"><strong>控制中心</strong><span>issue #1213 / PR #1214 已合并 · /control-center · 共享状态与专用最小运维快照 · fail closed</span><span class="check-pass">已合并</span></div>
-          <div class="verification"><strong>前端产品状态</strong><span>M2 双门户只读消费已完成；M3 仍缺跨门户事件跳转、服务端角色边界和生命周期动作产品化</span><span class="check-partial">M3 保持开放</span></div>
+          <div class="verification"><strong>跨门户事件关联</strong><span>issue #1217 / PR #1218 已合并 · 同一 event_id 双向跳转 · 串线与重复参数 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
+          <div class="verification"><strong>前端产品状态</strong><span>M2 双门户只读消费和 MVP-008 跨门户事件跳转已完成；M3 仍缺服务端角色边界和生命周期动作产品化</span><span class="check-partial">M3 保持开放</span></div>
 
           <div class="research-lane">
             <strong>文档权威顺序</strong>
