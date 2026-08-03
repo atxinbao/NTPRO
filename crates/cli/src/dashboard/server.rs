@@ -365,7 +365,9 @@ async fn require_role_access(
     next: Next,
 ) -> Response {
     if access.authorizes(request.headers(), role) {
-        next.run(request).await
+        let mut response = next.run(request).await;
+        add_private_response_headers(response.headers_mut());
+        response
     } else {
         portal_access_denied(role)
     }

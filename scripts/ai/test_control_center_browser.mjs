@@ -20,6 +20,17 @@ if (!fs.existsSync(config)) throw new Error(`MVP browser fixture is missing: ${c
 
 const readIfPresent = (filePath) => fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
 const redactAccessTokens = (value) => value.replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]");
+const sanitizeDiagnosticResult = (result) => ({
+  ...result,
+  ...(typeof result.error === "string" ? { error: redactAccessTokens(result.error) } : {}),
+});
+const diagnosticProbe = sanitizeDiagnosticResult({
+  status: "fail",
+  error: "goto http://127.0.0.1/control-center?access_token=probe-secret&event_id=1",
+});
+if (diagnosticProbe.error.includes("probe-secret") || !diagnosticProbe.error.includes("access_token=[REDACTED]")) {
+  throw new Error("browser diagnostic token redaction self-test failed");
+}
 const passResult = {
   status: "pass",
   viewports: ["1440x1000", "390x844"],
@@ -33,6 +44,7 @@ const passResult = {
   unauthorized: 1,
   wrong_role: 1,
   bootstrap_url_clean: 1,
+  diagnostic_redaction_selftest: 1,
   stale_clear: 5,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
@@ -71,7 +83,10 @@ const writeDiagnostics = (result, logs) => {
   fs.writeFileSync(path.join(evidenceDir, "mvp-server.log"), logs.server);
   fs.writeFileSync(path.join(evidenceDir, "ntpro-node-stdout.log"), logs.nodeStdout);
   fs.writeFileSync(path.join(evidenceDir, "ntpro-node-stderr.log"), logs.nodeStderr);
-  fs.writeFileSync(path.join(evidenceDir, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
+  fs.writeFileSync(
+    path.join(evidenceDir, "result.json"),
+    `${JSON.stringify(sanitizeDiagnosticResult(result), null, 2)}\n`,
+  );
 };
 const serverExited = () => server.exitCode !== null || server.signalCode !== null;
 const waitForServerExit = (timeoutMs) => {
@@ -93,7 +108,8 @@ let browser;
 let failure;
 const recordFailure = (error) => {
   const next = error instanceof Error ? error : new Error(String(error));
-  failure = failure ? new Error(`${failure.message}\nCleanup failure: ${next.message}`) : next;
+  const message = redactAccessTokens(next.message);
+  failure = failure ? new Error(`${failure.message}\nCleanup failure: ${message}`) : new Error(message);
 };
 try {
   let sharedPayload;
@@ -132,6 +148,9 @@ try {
   }
   if (!sharedPayload || !snapshotPayload || !correlationPayload || !institutionAccessUrl || !operatorAccessUrl) {
     throw new Error(`control center APIs and role bootstrap did not become ready:\n${redactAccessTokens(serverLog.join(""))}`);
+  }
+  if (process.env.NTPRO_BROWSER_FORCE_BOOTSTRAP_DIAGNOSTIC_FAILURE === "1") {
+    throw new Error(`forced bootstrap diagnostic failure: ${operatorAccessUrl}`);
   }
   const unauthorized = await fetch(`${baseUrl}/control-center`, { redirect: "manual" });
   if (unauthorized.status !== 403) throw new Error(`unauthorized control center expected 403, got ${unauthorized.status}`);
@@ -339,4 +358,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 stale_clear=5 cjk_glyphs=1 graceful_shutdown=1");
+console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 diagnostic_redaction_selftest=1 stale_clear=5 cjk_glyphs=1 graceful_shutdown=1");

@@ -482,6 +482,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
     ] {
         let response = router_response(&router, method, path, None).await;
         assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+        assert_private_response_headers(&response, path);
     }
 
     for path in ["/institution-workbench", "/assets/institution-workbench.js"] {
@@ -521,6 +522,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
     ] {
         let response = router_response(&router, Method::GET, path, Some(&operator_cookie)).await;
         assert_ne!(response.status(), StatusCode::FORBIDDEN, "{path}");
+        assert_private_response_headers(&response, path);
     }
     let response = router_response(
         &router,
@@ -552,6 +554,19 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         let response = router_response(&router, Method::HEAD, path, Some(cookie)).await;
         assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{path}");
     }
+}
+
+fn assert_private_response_headers(response: &Response, context: &str) {
+    assert_eq!(
+        response.headers().get(header::CACHE_CONTROL),
+        Some(&header::HeaderValue::from_static("no-store")),
+        "{context} must disable response caching",
+    );
+    assert_eq!(
+        response.headers().get(header::REFERRER_POLICY),
+        Some(&header::HeaderValue::from_static("no-referrer")),
+        "{context} must suppress referrer data",
+    );
 }
 
 async fn router_request(router: &Router, method: Method, path: &str) -> (StatusCode, Vec<u8>) {

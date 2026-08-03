@@ -54,7 +54,7 @@
         "unused": 96,
         "unwrap": 19550
       },
-      "canonical_sha256": "6cb3cebd0bf25c23f10ab433cd63d7c22cd35cea46ec33935d355c0388ba442d"
+      "canonical_sha256": "797678f41b25e114e12fd4410cce7331968f70eae9c1176b242850b265e880e6"
     },
     "limitations": [
       "Dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
