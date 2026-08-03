@@ -26,7 +26,9 @@ const passResult = {
   shared_boundary: 1,
   node_mismatch: 1,
   ops_http_error: 1,
-  stale_clear: 3,
+  event_mismatch: 1,
+  cross_portal_jump: 1,
+  stale_clear: 4,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
 };
@@ -91,28 +93,34 @@ const recordFailure = (error) => {
 try {
   let sharedPayload;
   let snapshotPayload;
+  let correlationPayload;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
-      const [sharedResponse, snapshotResponse] = await Promise.all([
+      const [sharedResponse, snapshotResponse, correlationResponse] = await Promise.all([
         fetch(`${baseUrl}/api/mvp/v1/status`),
         fetch(`${baseUrl}/api/mvp/v1/control-center`),
+        fetch(`${baseUrl}/api/mvp/v1/event-correlation`),
       ]);
-      if (sharedResponse.ok && snapshotResponse.ok) {
-        [sharedPayload, snapshotPayload] = await Promise.all([
-          sharedResponse.json(), snapshotResponse.json(),
+      if (sharedResponse.ok && snapshotResponse.ok && correlationResponse.ok) {
+        [sharedPayload, snapshotPayload, correlationPayload] = await Promise.all([
+          sharedResponse.json(), snapshotResponse.json(), correlationResponse.json(),
         ]);
         break;
       }
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  if (!sharedPayload || !snapshotPayload) {
+  if (!sharedPayload || !snapshotPayload || !correlationPayload) {
     throw new Error(`control center APIs did not become ready:\n${serverLog.join("")}`);
   }
   const serializedSnapshot = JSON.stringify(snapshotPayload);
   for (const forbidden of ["controls", "production_mutation_evidence", "read_model_runtime", "last_error", "message", "notes", "account_ref"]) {
     if (serializedSnapshot.includes(`\"${forbidden}\"`)) throw new Error(`operational API exposed forbidden field: ${forbidden}`);
+  }
+  const serializedCorrelation = JSON.stringify(correlationPayload);
+  for (const forbidden of ["source_refs", "registry_path", "last_error", "message", "credential", "controls"]) {
+    if (serializedCorrelation.includes(`\"${forbidden}\"`)) throw new Error(`event correlation API exposed forbidden field: ${forbidden}`);
   }
 
   browser = await chromium.launch({ executablePath: chrome, headless: true });
@@ -145,6 +153,15 @@ try {
     }
     await route.continue();
   });
+  await page.route("**/api/mvp/v1/event-correlation", async (route) => {
+    if (scenario !== "event_mismatch") {
+      await route.continue();
+      return;
+    }
+    const response = structuredClone(correlationPayload);
+    response.event.strategy_instance_id = "mismatched-instance";
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) });
+  });
 
   const waitForTitle = (title) => page.waitForFunction(
     (expected) => document.getElementById("connection-title")?.textContent === expected,
@@ -170,6 +187,9 @@ try {
   }
   const businessImpact = await page.locator("#business-impact-list").textContent();
   if (!businessImpact?.includes("风险")) throw new Error("valid browser contract did not render business impact");
+  const eventId = correlationPayload.event.event_id;
+  const businessLink = page.locator("#event-correlation-panel .portal-link");
+  if (!await businessLink.isVisible()) throw new Error("control center did not render business impact jump");
   const cjkGlyphCheck = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 64;
@@ -194,8 +214,15 @@ try {
   if (wideOverflow) throw new Error("1440 viewport has horizontal overflow");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-1440.png"), fullPage: true });
 
+  await businessLink.click();
+  await page.waitForURL((url) => url.pathname === "/institution-workbench" && url.searchParams.get("event_id") === eventId && url.hash === "#event-correlation");
+  await waitForTitle("共享状态已验证");
+  if (!await page.locator("#event-correlation-panel").textContent().then((value) => value?.includes(eventId))) {
+    throw new Error("institution workbench did not preserve the correlated event");
+  }
+
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/control-center`, { waitUntil: "networkidle" });
   await waitForTitle("共享与运维状态已对齐");
   const narrowOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   if (narrowOverflow) throw new Error("390 viewport has horizontal overflow");
@@ -223,6 +250,15 @@ try {
   await waitForTitle("控制中心已阻断");
   await assertCleared("operations HTTP error");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-ops-http-error.png"), fullPage: true });
+
+  scenario = "valid";
+  await page.locator("#refresh").click();
+  await waitForTitle("共享与运维状态已对齐");
+  scenario = "event_mismatch";
+  await page.locator("#refresh").click();
+  await waitForTitle("控制中心已阻断");
+  await assertCleared("event mismatch");
+  await page.screenshot({ path: path.join(evidenceDir, "control-center-event-mismatch.png"), fullPage: true });
 
   if (browserErrors.length > 0) throw new Error(`browser console errors: ${browserErrors.join(" | ")}`);
 } catch (error) {
@@ -265,4 +301,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 stale_clear=3 cjk_glyphs=1 graceful_shutdown=1");
+console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 cross_portal_jump=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");

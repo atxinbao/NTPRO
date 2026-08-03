@@ -7,6 +7,7 @@ if (!embedded) throw new Error("embedded control center JavaScript not found");
 
 const ids = [
   "axis-grid", "business-impact-title", "business-impact-list", "node-grid", "component-table", "observability-grid", "alert-list",
+  "event-correlation-panel",
   "source-list", "boundary-list", "context-node", "context-scope", "generated-at",
   "node-health", "alert-count", "footer-environment", "footer-node", "footer-runtime",
   "footer-health", "footer-readiness", "footer-updated", "connection-banner",
@@ -211,9 +212,38 @@ const baseSnapshot = {
   },
 };
 
+const eventId = "mvp-status:node-1:btc-ema:instance-1:technical-health";
+const baseCorrelation = {
+  schema_version: "ntpro.mvp_event_correlation_api.response.v1",
+  contract_version: "ntpro.mvp_event_correlation_api.v1",
+  event: {
+    event_id: eventId,
+    event_kind: "technical_health_observation",
+    event_source: "projected_status_contract",
+    identity_contract_id: "node-1:btc-ema:instance-1",
+    node_id: "node-1",
+    strategy_instance_id: "instance-1",
+  },
+  links: {
+    institution_workbench_path: "/institution-workbench",
+    control_center_path: "/control-center",
+  },
+  boundaries: {
+    read_only: true,
+    projected_status_event: true,
+    raw_event_store_exposed: false,
+    raw_event_payload_exposed: false,
+    raw_errors_exposed: false,
+    supervisor_actions_exposed: false,
+    trading_controls_exposed: false,
+  },
+};
+
 let shared = structuredClone(baseShared);
 let snapshot = structuredClone(baseSnapshot);
-let statuses = { shared: 200, snapshot: 200 };
+let correlation = structuredClone(baseCorrelation);
+let statuses = { shared: 200, snapshot: 200, correlation: 200 };
+const browserLocation = { search: "" };
 const response = (status, value) => ({
   ok: status >= 200 && status < 300,
   status,
@@ -224,8 +254,11 @@ const context = vm.createContext({
   fetch: async (url) => {
     if (url === "/api/mvp/v1/status") return response(statuses.shared, shared);
     if (url === "/api/mvp/v1/control-center") return response(statuses.snapshot, snapshot);
+    if (url === "/api/mvp/v1/event-correlation") return response(statuses.correlation, correlation);
     throw new Error(`unexpected URL ${url}`);
   },
+  location: browserLocation,
+  URLSearchParams,
   console,
   Error,
 });
@@ -241,6 +274,9 @@ if (elements["context-node"].textContent !== "node-1") {
 }
 if (!elements["business-impact-list"].innerHTML.includes("风险：可用")) {
   throw new Error("valid contract did not render shared business impact");
+}
+if (!elements["event-correlation-panel"].innerHTML.includes("在机构工作台查看业务影响") || !elements["event-correlation-panel"].innerHTML.includes(encodeURIComponent(eventId))) {
+  throw new Error("valid event correlation did not render the institution workbench jump");
 }
 
 const cases = [
@@ -273,12 +309,22 @@ const cases = [
   ["full_snapshot_controls", () => { snapshot.controls = []; }],
   ["shared_http_error", () => { statuses.shared = 503; }],
   ["snapshot_http_error", () => { statuses.snapshot = 503; }],
+  ["event_http_error", () => { statuses.correlation = 503; }],
+  ["event_identity_mismatch", () => { correlation.event.identity_contract_id = "other"; }],
+  ["event_node_mismatch", () => { correlation.event.node_id = "node-2"; }],
+  ["event_kind_mismatch", () => { correlation.event.event_kind = "raw_event"; }],
+  ["event_target_drift", () => { correlation.links.institution_workbench_path = "/dashboard"; }],
+  ["event_boundary_true", () => { correlation.boundaries.raw_event_payload_exposed = true; }],
+  ["event_raw_field", () => { correlation.event.message = "raw error"; }],
+  ["requested_event_mismatch", () => { browserLocation.search = "?event_id=forged"; }],
 ];
 
 for (const [name, mutate] of cases) {
   shared = structuredClone(baseShared);
   snapshot = structuredClone(baseSnapshot);
-  statuses = { shared: 200, snapshot: 200 };
+  correlation = structuredClone(baseCorrelation);
+  statuses = { shared: 200, snapshot: 200, correlation: 200 };
+  browserLocation.search = "";
   mutate();
   await refresh();
   if (elements["connection-title"].textContent !== "控制中心已阻断") {

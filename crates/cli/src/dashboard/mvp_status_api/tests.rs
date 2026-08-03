@@ -261,6 +261,67 @@ fn shared_status_projects_one_fact_set_for_both_portals() {
 }
 
 #[test]
+fn event_correlation_projects_one_minimized_status_event_for_both_portals() {
+    let now = 1_800_000_000_000;
+    let fixture = Fixture::new("event-correlation", now);
+    let response = project_mvp_event_correlation(&fixture.state, now)
+        .expect("valid contracts should produce an event correlation");
+
+    assert_eq!(
+        response.schema_version,
+        MVP_EVENT_CORRELATION_SCHEMA_VERSION
+    );
+    assert_eq!(
+        response.contract_version,
+        MVP_EVENT_CORRELATION_CONTRACT_VERSION
+    );
+    assert_eq!(
+        response.event.event_id,
+        "mvp-status:mvp-node-001:ema-cross:mvp-strategy-001:technical-health"
+    );
+    assert_eq!(response.event.event_kind, "technical_health_observation");
+    assert_eq!(response.event.event_source, "projected_status_contract");
+    assert_eq!(
+        response.event.identity_contract_id,
+        fixture.identity.contract_id
+    );
+    assert_eq!(response.event.node_id, "mvp-node-001");
+    assert_eq!(response.event.strategy_instance_id, "mvp-strategy-001");
+    assert_eq!(
+        response.links.institution_workbench_path,
+        "/institution-workbench"
+    );
+    assert_eq!(response.links.control_center_path, "/control-center");
+    assert!(response.boundaries.read_only);
+    assert!(response.boundaries.projected_status_event);
+    assert!(!response.boundaries.raw_event_store_exposed);
+    assert!(!response.boundaries.raw_event_payload_exposed);
+    assert!(!response.boundaries.raw_errors_exposed);
+    assert!(!response.boundaries.supervisor_actions_exposed);
+    assert!(!response.boundaries.trading_controls_exposed);
+
+    let serialized = serde_json::to_string(&response).expect("response should serialize");
+    for forbidden in [
+        "source_refs",
+        "config_path",
+        "registry_path",
+        "node_status_path",
+        "node_metrics_path",
+        "unified_read_model_path",
+        "raw_event",
+        "last_error",
+        "message",
+        "credential",
+        "controls",
+    ] {
+        assert!(
+            !serialized.contains(&format!("\"{forbidden}\"")),
+            "event correlation exposed forbidden field {forbidden}"
+        );
+    }
+}
+
+#[test]
 fn valid_read_model_projects_available_business_summary() {
     let now = 1_800_000_000_000;
     let fixture = Fixture::new("available-business", now);

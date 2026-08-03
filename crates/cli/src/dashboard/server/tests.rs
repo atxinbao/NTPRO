@@ -188,6 +188,47 @@ async fn mvp_shared_status_route_is_get_only() {
 }
 
 #[tokio::test]
+async fn mvp_event_correlation_route_is_get_only() {
+    let root = std::env::temp_dir().join(format!(
+        "ntpro-mvp-008-event-correlation-http-method-{}",
+        std::process::id()
+    ));
+    let router = dashboard_router(
+        root.join("supervisor/registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+    );
+    let path = "/api/mvp/v1/event-correlation";
+
+    let (status, body) = router_request(&router, Method::GET, path).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    let body: Value =
+        serde_json::from_slice(&body).expect("GET error response should be valid JSON");
+    assert_eq!(
+        body["schema_version"],
+        "ntpro.mvp_shared_status_api.error.v1"
+    );
+    assert_eq!(body["order_submission_allowed"], false);
+
+    for method in [
+        Method::HEAD,
+        Method::POST,
+        Method::PUT,
+        Method::PATCH,
+        Method::DELETE,
+        Method::OPTIONS,
+        Method::CONNECT,
+        Method::TRACE,
+    ] {
+        let (status, _) = router_request(&router, method.clone(), path).await;
+        assert_eq!(
+            status,
+            StatusCode::METHOD_NOT_ALLOWED,
+            "{method} {path} must be rejected"
+        );
+    }
+}
+
+#[tokio::test]
 async fn institution_workbench_route_serves_read_only_shell_and_assets() {
     let root = std::env::temp_dir().join(format!(
         "ntpro-mvp-006-institution-workbench-{}",

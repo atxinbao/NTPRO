@@ -79,6 +79,8 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
         r#""/assets/control-center.js""#,
         r#""/api/mvp/v1/control-center""#,
         "get(control_center_operational_api).head(reject_non_get)",
+        r#""/api/mvp/v1/event-correlation""#,
+        "get(mvp_event_correlation_api).head(reject_non_get)",
     ] {
         assert!(
             server.contains(route),
@@ -88,6 +90,7 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
     for mount in [
         "axis-grid",
         "business-impact-list",
+        "event-correlation-panel",
         "node-grid",
         "component-table",
         "observability-grid",
@@ -104,8 +107,12 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
     for required in [
         "const SHARED_STATUS_URL = \"/api/mvp/v1/status\"",
         "const OPS_SNAPSHOT_URL = \"/api/mvp/v1/control-center\"",
+        "const EVENT_CORRELATION_URL = \"/api/mvp/v1/event-correlation\"",
         "control_center",
         "validateSharedStatus",
+        "validateEventCorrelation",
+        "requestedEventId",
+        "portalEventLink",
         "validateOperationalProjection",
         "共享状态与运维节点身份不一致",
         "共享状态与运维 registry provenance 不一致",
@@ -123,8 +130,8 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
     }
     assert_eq!(
         CONTROL_CENTER_JS.matches("fetch(").count(),
-        2,
-        "control center must request exactly the shared and minimized operational projections",
+        3,
+        "control center must request exactly the shared, minimized operational, and event correlation projections",
     );
     for forbidden in [
         "/api/nodes/",
@@ -270,6 +277,7 @@ fn institution_workbench_consumes_only_shared_status_and_fails_closed() {
         "identity-grid",
         "business-grid",
         "blocking-panel",
+        "event-correlation-panel",
         "source-list",
         "boundary-list",
     ] {
@@ -283,16 +291,23 @@ fn institution_workbench_consumes_only_shared_status_and_fails_closed() {
         "institution workbench must identify its product role",
     );
     assert!(INSTITUTION_WORKBENCH_JS.contains("const SHARED_STATUS_URL = \"/api/mvp/v1/status\""),);
+    assert!(
+        INSTITUTION_WORKBENCH_JS
+            .contains("const EVENT_CORRELATION_URL = \"/api/mvp/v1/event-correlation\""),
+    );
     assert_eq!(
         INSTITUTION_WORKBENCH_JS.matches("fetch(").count(),
-        1,
-        "institution workbench must have exactly one data request",
+        2,
+        "institution workbench must request exactly shared status and event correlation",
     );
     for required in [
         "ntpro.mvp_shared_status_api.response.v1",
         "ntpro.mvp_shared_status_api.v1",
         "institution_workbench",
         "validateSharedStatus",
+        "validateEventCorrelation",
+        "requestedEventId",
+        "portalEventLink",
         "requireBoundary",
         "requireAxis",
         "requireDashboardValue",
