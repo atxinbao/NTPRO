@@ -71,12 +71,13 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         .local_addr()
         .context("failed to read dashboard server local address")?;
     println!(
-        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard institution_workbench_url=http://{}/institution-workbench",
+        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard institution_workbench_url=http://{}/institution-workbench control_center_url=http://{}/control-center",
         local_addr,
         registry_path.display(),
         workflow_root
             .as_ref()
             .map_or_else(|| "auto".to_string(), |path| path.display().to_string()),
+        local_addr,
         local_addr,
         local_addr
     );
@@ -121,11 +122,27 @@ fn dashboard_router_with_workflow_root(
             "/assets/institution-workbench.js",
             get(institution_workbench_js).head(reject_non_get),
         )
+        .route(
+            "/control-center",
+            get(control_center_shell).head(reject_non_get),
+        )
+        .route(
+            "/assets/control-center.css",
+            get(control_center_css).head(reject_non_get),
+        )
+        .route(
+            "/assets/control-center.js",
+            get(control_center_js).head(reject_non_get),
+        )
         .route("/api/server", get(server_metadata_api))
         .route("/api/snapshot", get(snapshot_api))
         .route(
             "/api/mvp/v1/status",
             get(mvp_shared_status_api).head(reject_non_get),
+        )
+        .route(
+            "/api/mvp/v1/control-center",
+            get(control_center_operational_api).head(reject_non_get),
         )
         .route(
             "/api/v28/backend-closure/status",
@@ -241,6 +258,24 @@ async fn institution_workbench_js() -> impl IntoResponse {
     )
 }
 
+async fn control_center_shell() -> Html<&'static str> {
+    Html(CONTROL_CENTER_HTML)
+}
+
+async fn control_center_css() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "text/css; charset=utf-8")],
+        CONTROL_CENTER_CSS,
+    )
+}
+
+async fn control_center_js() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "application/javascript; charset=utf-8")],
+        CONTROL_CENTER_JS,
+    )
+}
+
 async fn reject_non_get() -> StatusCode {
     StatusCode::METHOD_NOT_ALLOWED
 }
@@ -260,6 +295,30 @@ async fn server_metadata_api(
 
 async fn snapshot_api(State(state): State<DashboardServerState>) -> ApiResult<DashboardSnapshot> {
     load_dashboard_snapshot(&state).map(Json)
+}
+
+async fn control_center_operational_api(
+    State(state): State<DashboardServerState>,
+) -> ApiResult<ControlCenterOperationalSnapshot> {
+    let snapshot = load_dashboard_snapshot(&state)
+        .map_err(|_| control_center_operational_error("snapshot_unavailable"))?;
+    project_control_center_snapshot(&state.registry_path, snapshot)
+        .map(Json)
+        .map_err(control_center_operational_error)
+}
+
+fn control_center_operational_error(error_code: &str) -> (StatusCode, Json<Value>) {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        Json(json!({
+            "schema_version": "ntpro.mvp_control_center_snapshot.error.v1",
+            "error_code": error_code,
+            "message": "控制中心运维投影不可用",
+            "read_only": true,
+            "supervisor_actions_exposed": false,
+            "raw_errors_exposed": false,
+        })),
+    )
 }
 
 async fn nodes_api(

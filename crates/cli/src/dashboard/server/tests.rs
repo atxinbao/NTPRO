@@ -235,6 +235,73 @@ async fn institution_workbench_route_serves_read_only_shell_and_assets() {
     }
 }
 
+#[tokio::test]
+async fn control_center_route_serves_read_only_shell_and_assets() {
+    let root = std::env::temp_dir().join(format!(
+        "ntpro-mvp-007-control-center-{}",
+        std::process::id()
+    ));
+    let router = dashboard_router(
+        root.join("supervisor/registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+    );
+
+    for (path, marker) in [
+        ("/control-center", "<title>NTPRO 控制中心</title>"),
+        ("/assets/control-center.css", ".app-shell { display: grid;"),
+        (
+            "/assets/control-center.js",
+            "const SHARED_STATUS_URL = \"/api/mvp/v1/status\";",
+        ),
+    ] {
+        let (status, body) = router_request(&router, Method::GET, path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert!(
+            String::from_utf8_lossy(&body).contains(marker),
+            "{path} missing {marker}"
+        );
+        for method in [
+            Method::HEAD,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::CONNECT,
+            Method::TRACE,
+        ] {
+            let (status, _) = router_request(&router, method.clone(), path).await;
+            assert_eq!(
+                status,
+                StatusCode::METHOD_NOT_ALLOWED,
+                "{method} {path} must be rejected",
+            );
+        }
+    }
+
+    let path = "/api/mvp/v1/control-center";
+    let (status, body) = router_request(&router, Method::GET, path).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(!String::from_utf8_lossy(&body).contains("missing-ntpro-node"));
+    for method in [
+        Method::HEAD,
+        Method::POST,
+        Method::PUT,
+        Method::PATCH,
+        Method::DELETE,
+        Method::OPTIONS,
+        Method::CONNECT,
+        Method::TRACE,
+    ] {
+        let (status, _) = router_request(&router, method.clone(), path).await;
+        assert_eq!(
+            status,
+            StatusCode::METHOD_NOT_ALLOWED,
+            "{method} {path} must be rejected",
+        );
+    }
+}
+
 async fn router_request(router: &Router, method: Method, path: &str) -> (StatusCode, Vec<u8>) {
     let response = router
         .clone()
