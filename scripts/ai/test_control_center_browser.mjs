@@ -19,6 +19,7 @@ const config = path.resolve("configs/nodes/btc-ema-shadow.toml");
 if (!fs.existsSync(config)) throw new Error(`MVP browser fixture is missing: ${config}`);
 
 const readIfPresent = (filePath) => fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+const redactAccessTokens = (value) => value.replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]");
 const passResult = {
   status: "pass",
   viewports: ["1440x1000", "390x844"],
@@ -29,6 +30,9 @@ const passResult = {
   event_mismatch: 1,
   duplicate_event: 1,
   cross_portal_jump: 1,
+  unauthorized: 1,
+  wrong_role: 1,
+  bootstrap_url_clean: 1,
   stale_clear: 5,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
@@ -58,7 +62,7 @@ server.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
 const collectRuntimeLogs = () => {
   const nodeLogDir = path.join(workspace, "nodes", "mvp-node-001", "logs");
   return {
-    server: serverLog.join(""),
+    server: redactAccessTokens(serverLog.join("")),
     nodeStdout: readIfPresent(path.join(nodeLogDir, "stdout.log")),
     nodeStderr: readIfPresent(path.join(nodeLogDir, "stderr.log")),
   };
@@ -95,13 +99,27 @@ try {
   let sharedPayload;
   let snapshotPayload;
   let correlationPayload;
+  let institutionAccessUrl;
+  let operatorAccessUrl;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
+      const log = serverLog.join("");
+      const institutionMatch = log.match(/institution_workbench_url=(\S+)/);
+      const operatorMatch = log.match(/control_center_url=(\S+)/);
+      if (!institutionMatch || !operatorMatch) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        continue;
+      }
+      institutionAccessUrl = new URL(institutionMatch[1]);
+      operatorAccessUrl = new URL(operatorMatch[1]);
+      const operatorToken = operatorAccessUrl.searchParams.get("access_token");
+      if (!operatorToken) throw new Error("operator bootstrap URL omitted access_token");
+      const cookie = `ntpro_mvp_operator_access=${operatorToken}`;
       const [sharedResponse, snapshotResponse, correlationResponse] = await Promise.all([
-        fetch(`${baseUrl}/api/mvp/v1/status`),
-        fetch(`${baseUrl}/api/mvp/v1/control-center`),
-        fetch(`${baseUrl}/api/mvp/v1/event-correlation`),
+        fetch(`${baseUrl}/api/mvp/v1/status`, { headers: { cookie } }),
+        fetch(`${baseUrl}/api/mvp/v1/control-center`, { headers: { cookie } }),
+        fetch(`${baseUrl}/api/mvp/v1/event-correlation`, { headers: { cookie } }),
       ]);
       if (sharedResponse.ok && snapshotResponse.ok && correlationResponse.ok) {
         [sharedPayload, snapshotPayload, correlationPayload] = await Promise.all([
@@ -112,9 +130,18 @@ try {
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  if (!sharedPayload || !snapshotPayload || !correlationPayload) {
-    throw new Error(`control center APIs did not become ready:\n${serverLog.join("")}`);
+  if (!sharedPayload || !snapshotPayload || !correlationPayload || !institutionAccessUrl || !operatorAccessUrl) {
+    throw new Error(`control center APIs and role bootstrap did not become ready:\n${redactAccessTokens(serverLog.join(""))}`);
   }
+  const unauthorized = await fetch(`${baseUrl}/control-center`, { redirect: "manual" });
+  if (unauthorized.status !== 403) throw new Error(`unauthorized control center expected 403, got ${unauthorized.status}`);
+  const operatorToken = operatorAccessUrl.searchParams.get("access_token");
+  if (!operatorToken) throw new Error("operator bootstrap token missing");
+  const wrongRole = await fetch(`${baseUrl}/institution-workbench`, {
+    headers: { cookie: `ntpro_mvp_operator_access=${operatorToken}` },
+    redirect: "manual",
+  });
+  if (wrongRole.status !== 403) throw new Error(`operator role reached institution workbench: ${wrongRole.status}`);
   const serializedSnapshot = JSON.stringify(snapshotPayload);
   for (const forbidden of ["controls", "production_mutation_evidence", "read_model_runtime", "last_error", "message", "notes", "account_ref"]) {
     if (serializedSnapshot.includes(`\"${forbidden}\"`)) throw new Error(`operational API exposed forbidden field: ${forbidden}`);
@@ -125,7 +152,8 @@ try {
   }
 
   browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
   const browserErrors = [];
   let scenario = "valid";
   page.on("pageerror", (error) => browserErrors.push(error.message));
@@ -178,7 +206,10 @@ try {
     }
   };
 
-  await page.goto(`${baseUrl}/control-center`, { waitUntil: "networkidle" });
+  await page.goto(institutionAccessUrl.toString(), { waitUntil: "networkidle" });
+  if (new URL(page.url()).searchParams.has("access_token")) throw new Error("institution bootstrap token remained in browser URL");
+  await page.goto(operatorAccessUrl.toString(), { waitUntil: "networkidle" });
+  if (new URL(page.url()).searchParams.has("access_token")) throw new Error("operator bootstrap token remained in browser URL");
   await waitForTitle("共享与运维状态已对齐");
   const node = await page.locator("#context-node").textContent();
   if (!node || node === "节点未加载") throw new Error("valid browser contract did not render node identity");
@@ -308,4 +339,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 stale_clear=5 cjk_glyphs=1 graceful_shutdown=1");
+console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 stale_clear=5 cjk_glyphs=1 graceful_shutdown=1");

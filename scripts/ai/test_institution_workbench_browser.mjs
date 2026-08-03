@@ -19,6 +19,7 @@ const config = path.resolve("configs/nodes/btc-ema-shadow.toml");
 if (!fs.existsSync(config)) throw new Error(`MVP browser fixture is missing: ${config}`);
 
 const readIfPresent = (filePath) => fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+const redactAccessTokens = (value) => value.replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]");
 const passResult = {
   status: "pass",
   viewports: ["1440x1000", "390x844"],
@@ -28,6 +29,9 @@ const passResult = {
   event_mismatch: 1,
   duplicate_event: 1,
   cross_portal_jump: 1,
+  unauthorized: 1,
+  wrong_role: 1,
+  bootstrap_url_clean: 1,
   stale_clear: 4,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
@@ -57,7 +61,7 @@ server.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
 const collectRuntimeLogs = () => {
   const nodeLogDir = path.join(workspace, "nodes", "mvp-node-001", "logs");
   return {
-    server: serverLog.join(""),
+    server: redactAccessTokens(serverLog.join("")),
     nodeStdout: readIfPresent(path.join(nodeLogDir, "stdout.log")),
     nodeStderr: readIfPresent(path.join(nodeLogDir, "stderr.log")),
   };
@@ -96,12 +100,26 @@ const recordFailure = (error) => {
 try {
   let payload;
   let correlationPayload;
+  let institutionAccessUrl;
+  let operatorAccessUrl;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
+      const log = serverLog.join("");
+      const institutionMatch = log.match(/institution_workbench_url=(\S+)/);
+      const operatorMatch = log.match(/control_center_url=(\S+)/);
+      if (!institutionMatch || !operatorMatch) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        continue;
+      }
+      institutionAccessUrl = new URL(institutionMatch[1]);
+      operatorAccessUrl = new URL(operatorMatch[1]);
+      const institutionToken = institutionAccessUrl.searchParams.get("access_token");
+      if (!institutionToken) throw new Error("institution bootstrap URL omitted access_token");
+      const cookie = `ntpro_mvp_institution_access=${institutionToken}`;
       const [response, correlationResponse] = await Promise.all([
-        fetch(`${baseUrl}/api/mvp/v1/status`),
-        fetch(`${baseUrl}/api/mvp/v1/event-correlation`),
+        fetch(`${baseUrl}/api/mvp/v1/status`, { headers: { cookie } }),
+        fetch(`${baseUrl}/api/mvp/v1/event-correlation`, { headers: { cookie } }),
       ]);
       if (response.ok && correlationResponse.ok) {
         [payload, correlationPayload] = await Promise.all([response.json(), correlationResponse.json()]);
@@ -110,10 +128,23 @@ try {
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  if (!payload || !correlationPayload) throw new Error(`MVP status and event correlation APIs did not become ready:\n${serverLog.join("")}`);
+  if (!payload || !correlationPayload || !institutionAccessUrl || !operatorAccessUrl) {
+    throw new Error(`MVP status, role bootstrap and event correlation APIs did not become ready:\n${redactAccessTokens(serverLog.join(""))}`);
+  }
+
+  const unauthorized = await fetch(`${baseUrl}/institution-workbench`, { redirect: "manual" });
+  if (unauthorized.status !== 403) throw new Error(`unauthorized institution page expected 403, got ${unauthorized.status}`);
+  const institutionToken = institutionAccessUrl.searchParams.get("access_token");
+  if (!institutionToken) throw new Error("institution bootstrap token missing");
+  const wrongRole = await fetch(`${baseUrl}/control-center`, {
+    headers: { cookie: `ntpro_mvp_institution_access=${institutionToken}` },
+    redirect: "manual",
+  });
+  if (wrongRole.status !== 403) throw new Error(`institution role reached control center: ${wrongRole.status}`);
 
   browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const page = await context.newPage();
   const browserErrors = [];
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
@@ -157,7 +188,10 @@ try {
     }
   };
 
-  await page.goto(`${baseUrl}/institution-workbench`, { waitUntil: "networkidle" });
+  await page.goto(operatorAccessUrl.toString(), { waitUntil: "networkidle" });
+  if (new URL(page.url()).searchParams.has("access_token")) throw new Error("operator bootstrap token remained in browser URL");
+  await page.goto(institutionAccessUrl.toString(), { waitUntil: "networkidle" });
+  if (new URL(page.url()).searchParams.has("access_token")) throw new Error("institution bootstrap token remained in browser URL");
   await waitForTitle("共享状态已验证");
   const strategy = await page.locator("#context-strategy").textContent();
   if (!strategy || strategy === "策略未加载") throw new Error("valid browser contract did not render identity");
@@ -282,4 +316,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");
+console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");

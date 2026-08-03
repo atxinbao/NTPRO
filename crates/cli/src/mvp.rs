@@ -327,7 +327,7 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
     let runtime = MvpRuntime::start(&opt, ntpro_node_bin.clone())?;
 
     println!(
-        "mvp.serve status=ok node_id={} registry={} artifact_root={} identity_contract={} status_contract={} dashboard_url=http://{}/dashboard external_venue_connection=false real_orders_submitted=false",
+        "mvp.serve status=ok node_id={} registry={} artifact_root={} identity_contract={} status_contract={} dashboard_bind={} portal_access=dashboard_bootstrap_output external_venue_connection=false real_orders_submitted=false",
         runtime.node_id,
         runtime.registry_path.display(),
         runtime.artifact_root.display(),
