@@ -41,6 +41,7 @@ jobs:
           heavy_rust=false
           release_verify=false
           institution_workbench=false
+          control_center=false
           if grep -E '^(Cargo\.(toml|lock)|crates/|tests/|examples/|configs/)' /tmp/changed-files.txt >/dev/null; then
             heavy_rust=true
           fi
@@ -50,9 +51,13 @@ jobs:
           if grep -E '^(crates/cli/src/dashboard/(institution_workbench\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_institution_workbench_(contract|browser)\.mjs)' /tmp/changed-files.txt >/dev/null; then
             institution_workbench=true
           fi
+          if grep -E '^(crates/cli/src/dashboard/(control_center\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_control_center_(contract|browser)\.mjs)' /tmp/changed-files.txt >/dev/null; then
+            control_center=true
+          fi
           echo "heavy_rust=$heavy_rust" >>"$GITHUB_OUTPUT"
           echo "release_verify=$release_verify" >>"$GITHUB_OUTPUT"
           echo "institution_workbench=$institution_workbench" >>"$GITHUB_OUTPUT"
+          echo "control_center=$control_center" >>"$GITHUB_OUTPUT"
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
@@ -99,8 +104,11 @@ jobs:
       - name: Institution workbench contract replay
         if: steps.changes.outputs.institution_workbench == 'true'
         run: node scripts/ai/test_institution_workbench_contract.mjs
-      - name: Institution workbench browser smoke
-        if: steps.changes.outputs.institution_workbench == 'true'
+      - name: Control center contract replay
+        if: steps.changes.outputs.control_center == 'true'
+        run: node scripts/ai/test_control_center_contract.mjs
+      - name: Product portal browser smoke
+        if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.control_center == 'true'
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -114,14 +122,29 @@ jobs:
             playwright-core@1.55.0
           export NTPRO_PLAYWRIGHT_CORE_PATH="$RUNNER_TEMP/ntpro-playwright/node_modules/playwright-core"
           export NTPRO_CHROME_BIN="$(command -v google-chrome || command -v chromium)"
-          export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-browser-evidence"
-          node scripts/ai/test_institution_workbench_browser.mjs
+          portal_status=0
+          if [[ "${{ steps.changes.outputs.institution_workbench }}" == "true" ]]; then
+            export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-browser-evidence"
+            node scripts/ai/test_institution_workbench_browser.mjs || portal_status=$?
+          fi
+          if [[ "${{ steps.changes.outputs.control_center }}" == "true" ]]; then
+            export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-control-center-browser-evidence"
+            node scripts/ai/test_control_center_browser.mjs || portal_status=$?
+          fi
+          exit "$portal_status"
       - name: Upload institution workbench browser evidence
         if: always() && steps.changes.outputs.institution_workbench == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: institution-workbench-browser-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-browser-evidence
+          if-no-files-found: error
+      - name: Upload control center browser evidence
+        if: always() && steps.changes.outputs.control_center == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: control-center-browser-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/ntpro-control-center-browser-evidence
           if-no-files-found: error
       - name: Golden trace schema smoke
         run: scripts/ai/ntpro_governance.sh golden-trace tests/golden/schema_smoke.jsonl --mode validate-only

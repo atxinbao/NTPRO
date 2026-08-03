@@ -40,9 +40,11 @@ use std::os::unix::fs::PermissionsExt;
 #[test]
 fn dashboard_module_ownership_boundaries_are_explicit() {
     let root = include_str!("../dashboard.rs");
+    let control_center = include_str!("control_center.rs");
     let institution_workbench = include_str!("institution_workbench.rs");
     let rendering = include_str!("rendering.rs");
 
+    assert!(root.contains("mod control_center;"));
     assert!(root.contains("mod institution_workbench;"));
     assert!(root.contains("mod rendering;"));
     assert!(root.contains("mod server;"));
@@ -57,10 +59,196 @@ fn dashboard_module_ownership_boundaries_are_explicit() {
     assert!(rendering.contains("pub(super) const DASHBOARD_HTML:"));
     assert!(rendering.contains("pub(super) const DASHBOARD_CSS:"));
     assert!(rendering.contains("pub(super) const DASHBOARD_JS:"));
+    assert!(control_center.contains("//! 控制中心静态 shell 与共享状态、运维投影渲染资源。"));
+    assert!(control_center.contains("pub(super) const CONTROL_CENTER_HTML:"));
+    assert!(control_center.contains("pub(super) const CONTROL_CENTER_CSS:"));
+    assert!(control_center.contains("pub(super) const CONTROL_CENTER_JS:"));
     assert!(institution_workbench.contains("//! 机构工作台静态 shell 与共享只读状态渲染资源。"));
     assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_HTML:"));
     assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_CSS:"));
     assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_JS:"));
+}
+
+#[test]
+fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
+    let server = include_str!("server.rs");
+    for route in [
+        r#""/control-center""#,
+        "get(control_center_shell).head(reject_non_get)",
+        r#""/assets/control-center.css""#,
+        r#""/assets/control-center.js""#,
+        r#""/api/mvp/v1/control-center""#,
+        "get(control_center_operational_api).head(reject_non_get)",
+    ] {
+        assert!(
+            server.contains(route),
+            "dashboard server missing route {route}"
+        );
+    }
+    for mount in [
+        "axis-grid",
+        "business-impact-list",
+        "node-grid",
+        "component-table",
+        "observability-grid",
+        "alert-list",
+        "source-list",
+        "boundary-list",
+    ] {
+        assert!(
+            CONTROL_CENTER_HTML.contains(mount),
+            "control center missing mount {mount}",
+        );
+    }
+    assert!(CONTROL_CENTER_HTML.contains("NTPRO 控制中心"));
+    for required in [
+        "const SHARED_STATUS_URL = \"/api/mvp/v1/status\"",
+        "const OPS_SNAPSHOT_URL = \"/api/mvp/v1/control-center\"",
+        "control_center",
+        "validateSharedStatus",
+        "validateOperationalProjection",
+        "共享状态与运维节点身份不一致",
+        "共享状态与运维 registry provenance 不一致",
+        "控制中心 MVP 要求恰好一个运维节点",
+        "运维投影暴露超范围字段",
+        "运维节点暴露未脱敏错误",
+        "resetSurface(\"刷新中，旧数据已清空\")",
+        "method: \"GET\"",
+        "cache: \"no-store\"",
+    ] {
+        assert!(
+            CONTROL_CENTER_JS.contains(required),
+            "control center missing contract marker {required}",
+        );
+    }
+    assert_eq!(
+        CONTROL_CENTER_JS.matches("fetch(").count(),
+        2,
+        "control center must request exactly the shared and minimized operational projections",
+    );
+    for forbidden in [
+        "/api/nodes/",
+        "/api/server",
+        r#""/api/snapshot""#,
+        "/api/event-store",
+        "method: \"POST\"",
+        "data-dashboard-action",
+        "submit_order",
+        "cancel_order",
+        "replace_order",
+        "amend_order",
+        "flatten_position",
+        "retry_order_action",
+        "automatic_remediation_action",
+    ] {
+        assert!(
+            !CONTROL_CENTER_JS.contains(forbidden),
+            "control center must not expose {forbidden}",
+        );
+        assert!(
+            !CONTROL_CENTER_HTML.contains(forbidden),
+            "control center shell must not expose {forbidden}",
+        );
+    }
+    assert!(CONTROL_CENTER_CSS.contains("@media (max-width: 680px)"));
+}
+
+#[test]
+fn control_center_operational_projection_is_minimized_and_redacted() {
+    let status = NodeStatus {
+        lifecycle_state: LifecycleStatus::Running,
+        last_error: Some("credential=must-not-cross-product-boundary".to_string()),
+        ..NodeStatus::unknown("sandbox-a")
+    };
+    let mut snapshot = DashboardSnapshot::from_nodes(
+        "2026-08-03T12:00:00Z",
+        vec![DashboardNodeSummary::from_status(&status)],
+    );
+    snapshot.controls.push(ControlStatus {
+        action: "stop:sandbox-a".to_string(),
+        availability: DashboardAvailability::Available,
+        enabled: true,
+        reason: DashboardValue::available("internal control reason".to_string()),
+    });
+    snapshot.gaps.push(DashboardGap::new(
+        "runtime_modules.sandbox-a.cache",
+        DashboardAvailability::NotSupported,
+        "MVP-007",
+        "raw internal error detail",
+    ));
+    snapshot.generated_at = DashboardValue {
+        availability: DashboardAvailability::Redacted,
+        value: Some("credential=must-be-removed".to_string()),
+    };
+
+    let projection = project_control_center_snapshot(Path::new("registry.json"), snapshot)
+        .expect("valid one-node snapshot should project");
+    let value = serde_json::to_value(projection).unwrap();
+    let serialized = serde_json::to_string(&value).unwrap();
+
+    assert_eq!(
+        value["schema_version"],
+        control_center::CONTROL_CENTER_OPERATIONAL_SCHEMA_VERSION
+    );
+    assert_eq!(value["registry_path"], "registry.json");
+    assert_eq!(value["node"]["error_present"], true);
+    assert_eq!(value["boundaries"]["read_only"], true);
+    assert_eq!(value["boundaries"]["supervisor_actions_exposed"], false);
+    assert_eq!(value["boundaries"]["raw_errors_exposed"], false);
+    for forbidden in [
+        "controls",
+        "risk",
+        "workflow_artifacts",
+        "read_model_runtime",
+        "production_mutation_evidence",
+        "last_error",
+        "message",
+        "notes",
+        "account_ref",
+    ] {
+        assert!(
+            value.get(forbidden).is_none(),
+            "unexpected top-level {forbidden}"
+        );
+        assert!(!serialized.contains(&format!("\"{forbidden}\"")));
+    }
+    assert!(!serialized.contains("must-not-cross-product-boundary"));
+    assert!(!serialized.contains("raw internal error detail"));
+    assert!(!serialized.contains("internal control reason"));
+    assert!(!serialized.contains("credential=must-be-removed"));
+    assert_eq!(value["generated_at"]["availability"], "redacted");
+    assert!(value["generated_at"].get("value").is_none());
+}
+
+#[test]
+fn control_center_operational_projection_rejects_scope_and_boundary_drift() {
+    let node = DashboardNodeSummary::from_status(&NodeStatus::unknown("sandbox-a"));
+    let two_nodes =
+        DashboardSnapshot::from_nodes("2026-08-03T12:00:00Z", vec![node.clone(), node.clone()]);
+    assert_eq!(
+        project_control_center_snapshot(Path::new("registry.json"), two_nodes).unwrap_err(),
+        "single_node_contract_violation"
+    );
+
+    let mut boundary_drift = DashboardSnapshot::from_nodes("2026-08-03T12:00:00Z", vec![node]);
+    boundary_drift.overview.external_venue_connection = true;
+    assert_eq!(
+        project_control_center_snapshot(Path::new("registry.json"), boundary_drift).unwrap_err(),
+        "operational_boundary_violation"
+    );
+
+    let mut count_drift = DashboardSnapshot::from_nodes(
+        "2026-08-03T12:00:00Z",
+        vec![DashboardNodeSummary::from_status(&NodeStatus {
+            lifecycle_state: LifecycleStatus::Running,
+            ..NodeStatus::unknown("sandbox-a")
+        })],
+    );
+    count_drift.overview.running_nodes = 0;
+    assert_eq!(
+        project_control_center_snapshot(Path::new("registry.json"), count_drift).unwrap_err(),
+        "overview_node_count_mismatch"
+    );
 }
 
 #[test]

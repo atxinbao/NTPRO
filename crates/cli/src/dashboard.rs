@@ -51,12 +51,17 @@ use crate::{
     },
 };
 
+mod control_center;
 mod institution_workbench;
 mod mvp_status_api;
 mod rendering;
 mod server;
 mod trader_terminal_api;
 
+use control_center::{
+    CONTROL_CENTER_CSS, CONTROL_CENTER_HTML, CONTROL_CENTER_JS, ControlCenterOperationalSnapshot,
+    project_control_center_snapshot,
+};
 use institution_workbench::{
     INSTITUTION_WORKBENCH_CSS, INSTITUTION_WORKBENCH_HTML, INSTITUTION_WORKBENCH_JS,
 };
