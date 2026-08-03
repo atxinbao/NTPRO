@@ -58,6 +58,9 @@ toml = { workspace = true }
 url = { workspace = true }
 ustr = { workspace = true }
 
+[dev-dependencies]
+tower = { workspace = true }
+
 [[bin]]
 name = "nautilus"
 path = "src/bin/cli.rs"

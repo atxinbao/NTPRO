@@ -281,6 +281,7 @@ toml = { version = "1.1.2", default-features = false, features = [
   "parse",
   "serde",
 ] }
+tower = { version = "0.5.3", features = ["util"] }
 tracing = { version = "0.1.44", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.23", default-features = false, features = [
   "std",

@@ -51,11 +51,15 @@ use crate::{
     },
 };
 
+mod institution_workbench;
 mod mvp_status_api;
 mod rendering;
 mod server;
 mod trader_terminal_api;
 
+use institution_workbench::{
+    INSTITUTION_WORKBENCH_CSS, INSTITUTION_WORKBENCH_HTML, INSTITUTION_WORKBENCH_JS,
+};
 use rendering::{DASHBOARD_CSS, DASHBOARD_HTML, DASHBOARD_JS};
 #[cfg(test)]
 use server::dashboard_router;

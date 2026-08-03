@@ -27,7 +27,8 @@ PR #1198 已交付 `nautilus mvp serve`：一个 Supervisor 注册、启动并�
   -> 一个策略实例
   -> 一个沙盒账户 / Venue
   -> 共享只读状态 API（已交付）
-  -> 机构工作台 + 控制中心（消费绑定待完成）
+  -> 机构工作台（`/institution-workbench`，已实现，待审查/合并）
+  -> 控制中心（共享 API 消费待完成）
 ```
 
 策略版本与回测结果必须能追溯到运行实例；Supervisor 负责节点生命周期，
@@ -35,8 +36,10 @@ PR #1198 已交付 `nautilus mvp serve`：一个 Supervisor 注册、启动并�
 日志、指标和故障定位。`node_id`、`strategy_id` 和交易员工作空间保持独立。
 
 当前阶段状态：M0 实现已交付并记录历史审查证据例外；M1 已交付；M2 共享 API 已
-交付，但只有机构工作台与控制中心实际绑定该 API 后才满足阶段退出条件；M3 尚未
-开始。详细状态以 [`docs/product/roadmap.md`](docs/product/roadmap.md) 为准。
+交付，MVP-006 已实现机构工作台真实消费并处于审查阶段；只有机构工作台合并且控制
+中心也完成绑定后才满足 M2 阶段退出条件。M3 已实现机构工作台最小界面但尚未合并，
+控制中心仍待完成。详细状态以
+[`docs/product/roadmap.md`](docs/product/roadmap.md) 为准。
 
 多节点生产编排、多账户/多 Venue 扩展、真实订单提交、订单变更和产品级实盘终端
 均不属于本 MVP，必须在 MVP 验收后独立立项。

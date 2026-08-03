@@ -1,8 +1,15 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use axum::{Router, http::StatusCode, middleware, routing::any};
+use axum::{
+    Router,
+    body::{Body, to_bytes},
+    http::{Method, Request, StatusCode},
+    middleware,
+    routing::any,
+};
 use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tower::ServiceExt;
 
 use super::{dashboard_router, reject_raw_event_store_paths};
 
@@ -144,52 +151,108 @@ async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
 
 #[tokio::test]
 async fn mvp_shared_status_route_is_get_only() {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("test listener must bind");
-    let addr = listener
-        .local_addr()
-        .expect("test listener must expose its local address");
     let root =
         std::env::temp_dir().join(format!("ntpro-mvp-005-http-method-{}", std::process::id()));
-    let server = tokio::spawn(async move {
-        axum::serve(
-            listener,
-            dashboard_router(
-                root.join("supervisor/registry.json"),
-                PathBuf::from("missing-ntpro-node"),
-            ),
-        )
-        .await
-    });
-
-    let get_response = http_request(addr, "GET", "/api/mvp/v1/status")
-        .await
-        .expect("GET request should complete");
-    assert_eq!(
-        response_status_line(&get_response),
-        "HTTP/1.1 503 Service Unavailable"
+    let router = dashboard_router(
+        root.join("supervisor/registry.json"),
+        PathBuf::from("missing-ntpro-node"),
     );
-    let body: Value = serde_json::from_str(response_body(&get_response))
-        .expect("GET error response should be valid JSON");
+
+    let (status, body) = router_request(&router, Method::GET, "/api/mvp/v1/status").await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    let body: Value =
+        serde_json::from_slice(&body).expect("GET error response should be valid JSON");
     assert_eq!(
         body["schema_version"],
         "ntpro.mvp_shared_status_api.error.v1"
     );
     assert_eq!(body["order_submission_allowed"], false);
 
-    for method in ["POST", "PUT", "PATCH", "DELETE"] {
-        let response = http_request(addr, method, "/api/mvp/v1/status")
-            .await
-            .expect("non-GET request should complete");
+    for method in [
+        Method::HEAD,
+        Method::POST,
+        Method::PUT,
+        Method::PATCH,
+        Method::DELETE,
+        Method::OPTIONS,
+        Method::CONNECT,
+        Method::TRACE,
+    ] {
+        let (status, _) = router_request(&router, method.clone(), "/api/mvp/v1/status").await;
         assert_eq!(
-            response_status_line(&response),
-            "HTTP/1.1 405 Method Not Allowed",
+            status,
+            StatusCode::METHOD_NOT_ALLOWED,
             "{method} must be rejected"
         );
     }
+}
 
-    server.abort();
+#[tokio::test]
+async fn institution_workbench_route_serves_read_only_shell_and_assets() {
+    let root = std::env::temp_dir().join(format!(
+        "ntpro-mvp-006-institution-workbench-{}",
+        std::process::id()
+    ));
+    let router = dashboard_router(
+        root.join("supervisor/registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+    );
+
+    for (path, marker) in [
+        ("/institution-workbench", "<title>NTPRO 机构工作台</title>"),
+        (
+            "/assets/institution-workbench.css",
+            ".app-shell { display: grid;",
+        ),
+        (
+            "/assets/institution-workbench.js",
+            "const SHARED_STATUS_URL = \"/api/mvp/v1/status\";",
+        ),
+    ] {
+        let (status, body) = router_request(&router, Method::GET, path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert!(
+            String::from_utf8_lossy(&body).contains(marker),
+            "{path} missing {marker}"
+        );
+        for method in [
+            Method::HEAD,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::CONNECT,
+            Method::TRACE,
+        ] {
+            let (status, _) = router_request(&router, method.clone(), path).await;
+            assert_eq!(
+                status,
+                StatusCode::METHOD_NOT_ALLOWED,
+                "{method} {path} must be rejected",
+            );
+        }
+    }
+}
+
+async fn router_request(router: &Router, method: Method, path: &str) -> (StatusCode, Vec<u8>) {
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .body(Body::empty())
+                .expect("router request should build"),
+        )
+        .await
+        .expect("router request should complete");
+    let status = response.status();
+    let body = to_bytes(response.into_body(), 2 * 1024 * 1024)
+        .await
+        .expect("router response body should be readable")
+        .to_vec();
+    (status, body)
 }
 
 #[tokio::test]
