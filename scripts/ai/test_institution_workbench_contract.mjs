@@ -131,7 +131,7 @@ const basePayload = {
   },
 };
 
-const eventId = "mvp-status:node-1:btc-ema:instance-1:technical-health";
+const eventId = "mvp-status:v1:node-1:btc-ema:instance-1:technical-health";
 const baseCorrelation = {
   schema_version: "ntpro.mvp_event_correlation_api.response.v1",
   contract_version: "ntpro.mvp_event_correlation_api.v1",
@@ -201,6 +201,8 @@ const cases = [
   ["event_boundary_true", (_value, correlation) => { correlation.boundaries.raw_event_store_exposed = true; }],
   ["event_raw_field", (_value, correlation) => { correlation.event.message = "raw error"; }],
   ["requested_event_mismatch", (_value, _correlation, location) => { location.search = "?event_id=forged"; }],
+  ["duplicate_event_valid_first", (_value, _correlation, location) => { location.search = `?event_id=${encodeURIComponent(eventId)}&event_id=forged`; }],
+  ["duplicate_event_valid_last", (_value, _correlation, location) => { location.search = `?event_id=forged&event_id=${encodeURIComponent(eventId)}`; }],
 ];
 
 for (const [name, mutate] of cases) {

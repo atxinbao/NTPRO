@@ -27,8 +27,9 @@ const passResult = {
   node_mismatch: 1,
   ops_http_error: 1,
   event_mismatch: 1,
+  duplicate_event: 1,
   cross_portal_jump: 1,
-  stale_clear: 4,
+  stale_clear: 5,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
 };
@@ -260,6 +261,12 @@ try {
   await assertCleared("event mismatch");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-event-mismatch.png"), fullPage: true });
 
+  scenario = "valid";
+  await page.goto(`${baseUrl}/control-center?event_id=forged&event_id=${encodeURIComponent(eventId)}`, { waitUntil: "networkidle" });
+  await waitForTitle("控制中心已阻断");
+  await assertCleared("duplicate event parameter");
+  await page.screenshot({ path: path.join(evidenceDir, "control-center-duplicate-event-blocked.png"), fullPage: true });
+
   if (browserErrors.length > 0) throw new Error(`browser console errors: ${browserErrors.join(" | ")}`);
 } catch (error) {
   recordFailure(error);
@@ -301,4 +308,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 cross_portal_jump=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");
+console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 stale_clear=5 cjk_glyphs=1 graceful_shutdown=1");

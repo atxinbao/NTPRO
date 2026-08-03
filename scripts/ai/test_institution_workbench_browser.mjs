@@ -26,8 +26,9 @@ const passResult = {
   boundary: 1,
   http_error: 1,
   event_mismatch: 1,
+  duplicate_event: 1,
   cross_portal_jump: 1,
-  stale_clear: 3,
+  stale_clear: 4,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
 };
@@ -225,6 +226,12 @@ try {
   await assertCleared("event mismatch");
   await page.screenshot({ path: path.join(evidenceDir, "institution-workbench-event-mismatch.png"), fullPage: true });
 
+  scenario = "valid";
+  await page.goto(`${baseUrl}/institution-workbench?event_id=${encodeURIComponent(eventId)}&event_id=forged`, { waitUntil: "networkidle" });
+  await waitForTitle("机构工作台已阻断");
+  await assertCleared("duplicate event parameter");
+  await page.screenshot({ path: path.join(evidenceDir, "institution-workbench-duplicate-event-blocked.png"), fullPage: true });
+
   if (browserErrors.length > 0) throw new Error(`browser console errors: ${browserErrors.join(" | ")}`);
 } catch (error) {
   recordFailure(error);
@@ -275,4 +282,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 cross_portal_jump=1 stale_clear=3 cjk_glyphs=1 graceful_shutdown=1");
+console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");

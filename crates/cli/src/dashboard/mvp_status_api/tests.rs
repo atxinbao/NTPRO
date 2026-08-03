@@ -277,7 +277,7 @@ fn event_correlation_projects_one_minimized_status_event_for_both_portals() {
     );
     assert_eq!(
         response.event.event_id,
-        "mvp-status:mvp-node-001:ema-cross:mvp-strategy-001:technical-health"
+        "mvp-status:v1:mvp-node-001:ema-cross:mvp-strategy-001:technical-health"
     );
     assert_eq!(response.event.event_kind, "technical_health_observation");
     assert_eq!(response.event.event_source, "projected_status_contract");
@@ -319,6 +319,18 @@ fn event_correlation_projects_one_minimized_status_event_for_both_portals() {
             "event correlation exposed forbidden field {forbidden}"
         );
     }
+}
+
+#[test]
+fn event_correlation_id_uses_unambiguous_identity_component_encoding() {
+    assert_eq!(
+        mvp_status_event_id("node:one", "策略/alpha", "instance%1"),
+        "mvp-status:v1:node%3Aone:%E7%AD%96%E7%95%A5%2Falpha:instance%251:technical-health"
+    );
+    assert_ne!(
+        mvp_status_event_id("node:one", "strategy", "instance"),
+        mvp_status_event_id("node", "one:strategy", "instance")
+    );
 }
 
 #[test]

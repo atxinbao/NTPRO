@@ -732,7 +732,9 @@ function validateSharedStatus(payload) {
 }
 function requestedEventId() {
   const search = typeof location === "object" && typeof location.search === "string" ? location.search : "";
-  return new URLSearchParams(search).get("event_id");
+  const values = new URLSearchParams(search).getAll("event_id");
+  if (values.length > 1) throw new Error("请求包含重复事件参数");
+  return values.length === 1 ? values[0] : null;
 }
 function validateEventCorrelation(payload, shared) {
   const correlation = requireObject(payload, "event correlation");
@@ -744,7 +746,7 @@ function validateEventCorrelation(payload, shared) {
   for (const field of ["event_id", "event_kind", "event_source", "identity_contract_id", "node_id", "strategy_instance_id"]) requireString(event[field], `event correlation.event.${field}`);
   if (event.event_kind !== "technical_health_observation" || event.event_source !== "projected_status_contract") throw new Error("事件关联不是已投影状态观察");
   const identities = shared.identity.identities;
-  const expectedEventId = `mvp-status:${shared.identity.contract_id}:technical-health`;
+  const expectedEventId = `mvp-status:v1:${encodeURIComponent(identities.node_id)}:${encodeURIComponent(identities.strategy_id)}:${encodeURIComponent(identities.strategy_instance_id)}:technical-health`;
   if (event.event_id !== expectedEventId || event.identity_contract_id !== shared.identity.contract_id || event.node_id !== identities.node_id || event.strategy_instance_id !== identities.strategy_instance_id) throw new Error("事件关联与共享身份不一致");
   if (links.institution_workbench_path !== "/institution-workbench" || links.control_center_path !== "/control-center") throw new Error("事件关联目标路径异常");
   requireBoundary(boundaries, "read_only", true, "事件关联");

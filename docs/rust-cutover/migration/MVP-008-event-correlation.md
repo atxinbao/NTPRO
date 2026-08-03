@@ -22,7 +22,7 @@ GET /api/mvp/v1/event-correlation
 - 将事件 ID 与共享 identity contract、node 和 strategy instance 逐项比对；业务影响、
   技术根因与观察时间继续只从同一次共享状态响应读取，不能信任关联响应重复动态事实；
 - 只信任合同中的两个固定相对路径，并自行对 `event_id` 做 URL 编码；
-- 在 URL 已指定 `event_id` 时拒绝任何不一致关联；
+- 在 URL 已指定一个 `event_id` 时拒绝任何不一致关联，并拒绝任意多个同名参数；
 - 在 HTTP、JSON、schema、身份、状态、链接或边界异常时清空旧关联数据并 fail closed。
 
 没有消费跨门户关联的既有本地客户端无需迁移。新客户端不得把该投影解释为原始事件流

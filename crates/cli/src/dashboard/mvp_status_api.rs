@@ -190,9 +190,10 @@ fn project_mvp_event_correlation(
 ) -> Result<MvpEventCorrelationResponse, SharedStatusError> {
     let shared = project_mvp_shared_status(state, now_unix_ms)?;
     let identity = &shared.identity.identities;
-    let event_id = format!(
-        "mvp-status:{}:technical-health",
-        shared.identity.contract_id
+    let event_id = mvp_status_event_id(
+        &identity.node_id,
+        &identity.strategy_id,
+        &identity.strategy_instance_id,
     );
 
     Ok(MvpEventCorrelationResponse {
@@ -220,6 +221,33 @@ fn project_mvp_event_correlation(
             trading_controls_exposed: false,
         },
     })
+}
+
+fn mvp_status_event_id(node_id: &str, strategy_id: &str, strategy_instance_id: &str) -> String {
+    format!(
+        "mvp-status:v1:{}:{}:{}:technical-health",
+        encode_event_identity_component(node_id),
+        encode_event_identity_component(strategy_id),
+        encode_event_identity_component(strategy_instance_id)
+    )
+}
+
+fn encode_event_identity_component(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric()
+            || matches!(
+                byte,
+                b'-' | b'_' | b'.' | b'!' | b'~' | b'*' | b'\'' | b'(' | b')'
+            )
+        {
+            encoded.push(char::from(byte));
+        } else {
+            use std::fmt::Write as _;
+            let _ = write!(encoded, "%{byte:02X}");
+        }
+    }
+    encoded
 }
 
 fn project_mvp_shared_status(
