@@ -3,15 +3,22 @@ use std::{net::SocketAddr, path::PathBuf};
 use axum::{
     Router,
     body::{Body, to_bytes},
-    http::{Method, Request, StatusCode},
+    http::{Method, Request, StatusCode, header},
     middleware,
+    response::Response,
     routing::any,
 };
 use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tower::ServiceExt;
 
-use super::{dashboard_router, reject_raw_event_store_paths};
+use super::{
+    INSTITUTION_ACCESS_COOKIE, OPERATOR_ACCESS_COOKIE, PORTAL_ACCESS_ERROR_SCHEMA_VERSION,
+    dashboard_router, dashboard_router_with_access, reject_raw_event_store_paths,
+};
+
+const INSTITUTION_TOKEN: &str = "test-institution-access-token";
+const OPERATOR_TOKEN: &str = "test-operator-access-token";
 
 #[tokio::test]
 async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
@@ -343,24 +350,254 @@ async fn control_center_route_serves_read_only_shell_and_assets() {
     }
 }
 
-async fn router_request(router: &Router, method: Method, path: &str) -> (StatusCode, Vec<u8>) {
-    let response = router
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method(method)
-                .uri(path)
-                .body(Body::empty())
-                .expect("router request should build"),
+#[tokio::test]
+async fn portal_access_bootstrap_redirects_to_clean_url_and_sets_private_cookie() {
+    let router = dashboard_router_with_access(
+        PathBuf::from("missing-mvp-role-registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+        INSTITUTION_TOKEN,
+        OPERATOR_TOKEN,
+    );
+
+    let response = router_response(
+        &router,
+        Method::GET,
+        &format!("/institution-workbench?event_id=event%3A1&access_token={INSTITUTION_TOKEN}"),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        response.headers()[header::LOCATION],
+        "/institution-workbench?event_id=event%3A1"
+    );
+    let cookie = response.headers()[header::SET_COOKIE].to_str().ok();
+    assert_eq!(
+        cookie,
+        Some(
+            format!(
+                "{INSTITUTION_ACCESS_COOKIE}={INSTITUTION_TOKEN}; HttpOnly; SameSite=Strict; Path=/"
+            )
+            .as_str()
         )
-        .await
-        .expect("router request should complete");
+    );
+    assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    assert_eq!(response.headers()[header::REFERRER_POLICY], "no-referrer");
+
+    let response = router_response(
+        &router,
+        Method::GET,
+        &format!("/control-center?access_token={OPERATOR_TOKEN}"),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(response.headers()[header::LOCATION], "/control-center");
+    assert!(
+        response.headers()[header::SET_COOKIE]
+            .to_str()
+            .is_ok_and(|cookie| cookie.starts_with(OPERATOR_ACCESS_COOKIE))
+    );
+}
+
+#[tokio::test]
+async fn portal_access_rejects_missing_wrong_empty_and_duplicate_bootstrap_credentials() {
+    let router = dashboard_router_with_access(
+        PathBuf::from("missing-mvp-role-registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+        INSTITUTION_TOKEN,
+        OPERATOR_TOKEN,
+    );
+    let institution_cookie = format!("{INSTITUTION_ACCESS_COOKIE}={INSTITUTION_TOKEN}");
+
+    for (path, cookie) in [
+        ("/institution-workbench", None),
+        ("/institution-workbench?access_token=", None),
+        ("/institution-workbench?access_token=forged", None),
+        (
+            "/institution-workbench?access_token=forged&access_token=forged",
+            None,
+        ),
+        (
+            "/institution-workbench?access_token=forged",
+            Some(institution_cookie.as_str()),
+        ),
+        (
+            "/institution-workbench?access_token=test-institution-access-token&access_token=test-institution-access-token",
+            Some(institution_cookie.as_str()),
+        ),
+        (
+            &format!("/institution-workbench?access_token={OPERATOR_TOKEN}"),
+            None,
+        ),
+    ] {
+        let response = router_response(&router, Method::GET, path, cookie).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+        let body_result = to_bytes(response.into_body(), 2 * 1024 * 1024).await;
+        assert!(
+            body_result.is_ok(),
+            "{path} access error body must be readable"
+        );
+        let body = body_result.unwrap_or_default();
+        let value_result = serde_json::from_slice::<Value>(&body);
+        assert!(
+            value_result.is_ok(),
+            "{path} access error must be valid JSON"
+        );
+        let Ok(value) = value_result else {
+            continue;
+        };
+        assert_eq!(value["schema_version"], PORTAL_ACCESS_ERROR_SCHEMA_VERSION);
+        assert_eq!(value["error_code"], "portal_role_access_required");
+        assert_eq!(value["order_submission_allowed"], false);
+        assert_eq!(value["supervisor_actions_allowed"], false);
+        assert!(!String::from_utf8_lossy(&body).contains(INSTITUTION_TOKEN));
+        assert!(!String::from_utf8_lossy(&body).contains(OPERATOR_TOKEN));
+    }
+}
+
+#[tokio::test]
+async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
+    let router = dashboard_router_with_access(
+        PathBuf::from("missing-mvp-role-registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+        INSTITUTION_TOKEN,
+        OPERATOR_TOKEN,
+    );
+    let institution_cookie = format!("{INSTITUTION_ACCESS_COOKIE}={INSTITUTION_TOKEN}");
+    let operator_cookie = format!("{OPERATOR_ACCESS_COOKIE}={OPERATOR_TOKEN}");
+
+    for (method, path) in [
+        (Method::GET, "/institution-workbench"),
+        (Method::GET, "/control-center"),
+        (Method::GET, "/dashboard"),
+        (Method::GET, "/api/mvp/v1/status"),
+        (Method::GET, "/api/mvp/v1/event-correlation"),
+        (Method::GET, "/api/mvp/v1/control-center"),
+        (Method::GET, "/api/server"),
+        (Method::GET, "/api/snapshot"),
+        (Method::GET, "/api/v28/telemetry/health"),
+        (Method::GET, "/api/nodes"),
+        (Method::POST, "/api/nodes/mvp-node-001/actions/start"),
+    ] {
+        let response = router_response(&router, method, path, None).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+        assert_private_response_headers(&response, path);
+    }
+
+    for path in ["/institution-workbench", "/assets/institution-workbench.js"] {
+        let response = router_response(&router, Method::GET, path, Some(&institution_cookie)).await;
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+    }
+    for path in ["/api/mvp/v1/status", "/api/mvp/v1/event-correlation"] {
+        let response = router_response(&router, Method::GET, path, Some(&institution_cookie)).await;
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{path}");
+    }
+    for (method, path) in [
+        (Method::GET, "/control-center"),
+        (Method::GET, "/dashboard"),
+        (Method::GET, "/api/mvp/v1/control-center"),
+        (Method::GET, "/api/server"),
+        (Method::GET, "/api/snapshot"),
+        (Method::GET, "/api/v28/telemetry/health"),
+        (Method::GET, "/api/nodes"),
+        (Method::POST, "/api/nodes/mvp-node-001/actions/start"),
+    ] {
+        let response = router_response(&router, method, path, Some(&institution_cookie)).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+    }
+
+    for path in ["/control-center", "/dashboard"] {
+        let response = router_response(&router, Method::GET, path, Some(&operator_cookie)).await;
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+    }
+    for path in [
+        "/api/mvp/v1/status",
+        "/api/mvp/v1/event-correlation",
+        "/api/mvp/v1/control-center",
+        "/api/server",
+        "/api/snapshot",
+        "/api/v28/telemetry/health",
+        "/api/nodes",
+    ] {
+        let response = router_response(&router, Method::GET, path, Some(&operator_cookie)).await;
+        assert_ne!(response.status(), StatusCode::FORBIDDEN, "{path}");
+        assert_private_response_headers(&response, path);
+    }
+    let response = router_response(
+        &router,
+        Method::GET,
+        "/institution-workbench",
+        Some(&operator_cookie),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    let both_cookies = format!("{institution_cookie}; {operator_cookie}");
+    for path in ["/institution-workbench", "/control-center"] {
+        let response = router_response(&router, Method::GET, path, Some(&both_cookies)).await;
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+    }
+
+    for (path, cookie) in [
+        ("/institution-workbench", institution_cookie.as_str()),
+        ("/api/mvp/v1/status", institution_cookie.as_str()),
+        ("/api/mvp/v1/event-correlation", institution_cookie.as_str()),
+        ("/control-center", operator_cookie.as_str()),
+        ("/dashboard", operator_cookie.as_str()),
+        ("/api/mvp/v1/control-center", operator_cookie.as_str()),
+        ("/api/server", operator_cookie.as_str()),
+        ("/api/snapshot", operator_cookie.as_str()),
+        ("/api/v28/telemetry/health", operator_cookie.as_str()),
+        ("/api/nodes", operator_cookie.as_str()),
+    ] {
+        let response = router_response(&router, Method::HEAD, path, Some(cookie)).await;
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{path}");
+    }
+}
+
+fn assert_private_response_headers(response: &Response, context: &str) {
+    assert_eq!(
+        response.headers().get(header::CACHE_CONTROL),
+        Some(&header::HeaderValue::from_static("no-store")),
+        "{context} must disable response caching",
+    );
+    assert_eq!(
+        response.headers().get(header::REFERRER_POLICY),
+        Some(&header::HeaderValue::from_static("no-referrer")),
+        "{context} must suppress referrer data",
+    );
+}
+
+async fn router_request(router: &Router, method: Method, path: &str) -> (StatusCode, Vec<u8>) {
+    let response = router_response(router, method, path, None).await;
     let status = response.status();
     let body = to_bytes(response.into_body(), 2 * 1024 * 1024)
         .await
         .expect("router response body should be readable")
         .to_vec();
     (status, body)
+}
+
+async fn router_response(
+    router: &Router,
+    method: Method,
+    path: &str,
+    cookie: Option<&str>,
+) -> Response {
+    let mut request = Request::builder().method(method).uri(path);
+    if let Some(cookie) = cookie {
+        request = request.header(header::COOKIE, cookie);
+    }
+    router
+        .clone()
+        .oneshot(
+            request
+                .body(Body::empty())
+                .expect("router request should build"),
+        )
+        .await
+        .expect("router request should complete")
 }
 
 #[tokio::test]

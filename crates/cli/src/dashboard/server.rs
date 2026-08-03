@@ -19,10 +19,19 @@
 //! adaptation. Snapshot projection and fail-closed control decisions remain in
 //! the parent `dashboard` module.
 
+use std::sync::Arc;
+
+use aws_lc_rs::{
+    constant_time,
+    rand::{SecureRandom, SystemRandom},
+};
 use axum::{
-    Router,
+    Extension, Router,
     extract::{Path as AxumPath, Request, State},
-    http::{StatusCode, header::CONTENT_TYPE},
+    http::{
+        HeaderMap, HeaderValue, StatusCode, Uri,
+        header::{CACHE_CONTROL, CONTENT_TYPE, COOKIE, LOCATION, REFERRER_POLICY, SET_COOKIE},
+    },
     middleware::{self, Next},
     response::{Html, IntoResponse, Response},
     routing::{get, post},
@@ -39,6 +48,101 @@ use super::*;
 
 #[cfg(test)]
 mod tests;
+
+const ACCESS_TOKEN_QUERY: &str = "access_token";
+const INSTITUTION_ACCESS_COOKIE: &str = "ntpro_mvp_institution_access";
+const OPERATOR_ACCESS_COOKIE: &str = "ntpro_mvp_operator_access";
+const PORTAL_ACCESS_ERROR_SCHEMA_VERSION: &str = "ntpro.mvp_portal_access.error.v1";
+
+#[derive(Clone)]
+struct PortalAccess {
+    institution_token: Arc<str>,
+    operator_token: Arc<str>,
+    enforced: bool,
+}
+
+#[derive(Clone, Copy)]
+enum PortalRole {
+    InstitutionUser,
+    OperationsOperator,
+    SharedRead,
+}
+
+impl PortalRole {
+    const fn label(self) -> &'static str {
+        match self {
+            Self::InstitutionUser => "institution_user",
+            Self::OperationsOperator => "operations_operator",
+            Self::SharedRead => "institution_user_or_operations_operator",
+        }
+    }
+}
+
+impl PortalAccess {
+    fn generate() -> anyhow::Result<Self> {
+        Ok(Self {
+            institution_token: generate_access_token("institution_user")?.into(),
+            operator_token: generate_access_token("operations_operator")?.into(),
+            enforced: true,
+        })
+    }
+
+    #[cfg(test)]
+    fn disabled_for_existing_tests() -> Self {
+        Self {
+            institution_token: Arc::from("test-institution-access"),
+            operator_token: Arc::from("test-operator-access"),
+            enforced: false,
+        }
+    }
+
+    #[cfg(test)]
+    fn enforced_for_test(institution_token: &str, operator_token: &str) -> Self {
+        Self {
+            institution_token: Arc::from(institution_token),
+            operator_token: Arc::from(operator_token),
+            enforced: true,
+        }
+    }
+
+    fn token(&self, role: PortalRole) -> Option<&str> {
+        match role {
+            PortalRole::InstitutionUser => Some(&self.institution_token),
+            PortalRole::OperationsOperator => Some(&self.operator_token),
+            PortalRole::SharedRead => None,
+        }
+    }
+
+    fn authorizes(&self, headers: &HeaderMap, role: PortalRole) -> bool {
+        if !self.enforced {
+            return true;
+        }
+        match role {
+            PortalRole::InstitutionUser => {
+                request_cookie_matches(headers, INSTITUTION_ACCESS_COOKIE, &self.institution_token)
+            }
+            PortalRole::OperationsOperator => {
+                request_cookie_matches(headers, OPERATOR_ACCESS_COOKIE, &self.operator_token)
+            }
+            PortalRole::SharedRead => {
+                request_cookie_matches(headers, INSTITUTION_ACCESS_COOKIE, &self.institution_token)
+                    || request_cookie_matches(headers, OPERATOR_ACCESS_COOKIE, &self.operator_token)
+            }
+        }
+    }
+}
+
+fn generate_access_token(role: &str) -> anyhow::Result<String> {
+    let mut bytes = [0_u8; 32];
+    SystemRandom::new()
+        .fill(&mut bytes)
+        .map_err(|_| anyhow::anyhow!("failed to generate {role} portal access token"))?;
+    let mut token = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        token.push_str(&format!("{byte:02x}"));
+    }
+    Ok(token)
+}
 
 /// Runs local dashboard commands.
 ///
@@ -59,6 +163,7 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         "dashboard server is local-only; use a loopback bind address"
     );
 
+    let access = PortalAccess::generate()?;
     let registry_path = opt.registry;
     let workflow_root = opt.workflow_root;
     let ntpro_node_bin = opt
@@ -71,19 +176,22 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         .local_addr()
         .context("failed to read dashboard server local address")?;
     println!(
-        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard institution_workbench_url=http://{}/institution-workbench control_center_url=http://{}/control-center",
+        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard?access_token={} institution_workbench_url=http://{}/institution-workbench?access_token={} control_center_url=http://{}/control-center?access_token={} portal_access=local_bootstrap external_identity_provider=false",
         local_addr,
         registry_path.display(),
         workflow_root
             .as_ref()
             .map_or_else(|| "auto".to_string(), |path| path.display().to_string()),
         local_addr,
+        access.operator_token,
         local_addr,
-        local_addr
+        access.institution_token,
+        local_addr,
+        access.operator_token,
     );
     axum::serve(
         listener,
-        dashboard_router_with_workflow_root(registry_path, ntpro_node_bin, workflow_root),
+        dashboard_router_with_workflow_root(registry_path, ntpro_node_bin, workflow_root, access),
     )
     .await
     .context("dashboard HTTP server exited with an error")?;
@@ -92,22 +200,43 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
 
 #[cfg(test)]
 pub(super) fn dashboard_router(registry_path: PathBuf, ntpro_node_bin: PathBuf) -> Router {
-    dashboard_router_with_workflow_root(registry_path, ntpro_node_bin, None)
+    dashboard_router_with_workflow_root(
+        registry_path,
+        ntpro_node_bin,
+        None,
+        PortalAccess::disabled_for_existing_tests(),
+    )
+}
+
+#[cfg(test)]
+pub(super) fn dashboard_router_with_access(
+    registry_path: PathBuf,
+    ntpro_node_bin: PathBuf,
+    institution_token: &str,
+    operator_token: &str,
+) -> Router {
+    dashboard_router_with_workflow_root(
+        registry_path,
+        ntpro_node_bin,
+        None,
+        PortalAccess::enforced_for_test(institution_token, operator_token),
+    )
 }
 
 fn dashboard_router_with_workflow_root(
     registry_path: PathBuf,
     ntpro_node_bin: PathBuf,
     workflow_root: Option<PathBuf>,
+    access: PortalAccess,
 ) -> Router {
     let state = DashboardServerState {
         registry_path,
         workflow_root,
         ntpro_node_bin,
     };
-    Router::new()
-        .route("/", get(dashboard_shell))
-        .route("/dashboard", get(dashboard_shell))
+    let public_routes = Router::new()
+        .route("/", get(dashboard_shell).head(reject_non_get))
+        .route("/dashboard", get(dashboard_shell).head(reject_non_get))
         .route("/assets/dashboard.css", get(dashboard_css))
         .route("/assets/dashboard.js", get(dashboard_js))
         .route(
@@ -133,9 +262,8 @@ fn dashboard_router_with_workflow_root(
         .route(
             "/assets/control-center.js",
             get(control_center_js).head(reject_non_get),
-        )
-        .route("/api/server", get(server_metadata_api))
-        .route("/api/snapshot", get(snapshot_api))
+        );
+    let shared_read_routes = Router::new()
         .route(
             "/api/mvp/v1/status",
             get(mvp_shared_status_api).head(reject_non_get),
@@ -144,29 +272,51 @@ fn dashboard_router_with_workflow_root(
             "/api/mvp/v1/event-correlation",
             get(mvp_event_correlation_api).head(reject_non_get),
         )
+        .route_layer(middleware::from_fn(require_shared_read_access));
+    let operator_routes = Router::new()
+        .route("/api/server", get(server_metadata_api).head(reject_non_get))
+        .route("/api/snapshot", get(snapshot_api).head(reject_non_get))
         .route(
             "/api/mvp/v1/control-center",
             get(control_center_operational_api).head(reject_non_get),
         )
         .route(
             "/api/v28/backend-closure/status",
-            get(backend_closure_status_api),
+            get(backend_closure_status_api).head(reject_non_get),
         )
         .route(
             "/api/v28/provenance/drilldown",
-            get(provenance_drilldown_api),
+            get(provenance_drilldown_api).head(reject_non_get),
         )
-        .route("/api/v28/audit/entries", get(audit_entries_api))
-        .route("/api/v28/telemetry/health", get(telemetry_health_api))
+        .route(
+            "/api/v28/audit/entries",
+            get(audit_entries_api).head(reject_non_get),
+        )
+        .route(
+            "/api/v28/telemetry/health",
+            get(telemetry_health_api).head(reject_non_get),
+        )
         .route(
             "/api/v28/permissions/snapshot",
-            get(permission_snapshot_api),
+            get(permission_snapshot_api).head(reject_non_get),
         )
-        .route("/api/v28/deployment/state", get(deployment_state_api))
-        .route("/api/nodes", get(nodes_api))
-        .route("/api/nodes/{node_id}", get(node_detail_api))
-        .route("/api/nodes/{node_id}/metrics", get(node_metrics_api))
-        .route("/api/nodes/{node_id}/logs", get(node_logs_api))
+        .route(
+            "/api/v28/deployment/state",
+            get(deployment_state_api).head(reject_non_get),
+        )
+        .route("/api/nodes", get(nodes_api).head(reject_non_get))
+        .route(
+            "/api/nodes/{node_id}",
+            get(node_detail_api).head(reject_non_get),
+        )
+        .route(
+            "/api/nodes/{node_id}/metrics",
+            get(node_metrics_api).head(reject_non_get),
+        )
+        .route(
+            "/api/nodes/{node_id}/logs",
+            get(node_logs_api).head(reject_non_get),
+        )
         .route("/api/nodes/{node_id}/actions/start", post(start_action_api))
         .route("/api/nodes/{node_id}/actions/stop", post(stop_action_api))
         .route("/api/nodes/{node_id}/actions/pause", post(pause_action_api))
@@ -182,8 +332,45 @@ fn dashboard_router_with_workflow_root(
             "/api/nodes/{node_id}/actions/reconnect_execution",
             post(reconnect_execution_action_api),
         )
+        .route_layer(middleware::from_fn(require_operator_access));
+    Router::new()
+        .merge(public_routes)
+        .merge(shared_read_routes)
+        .merge(operator_routes)
         .with_state(state)
+        .layer(Extension(access))
         .layer(middleware::from_fn(reject_raw_event_store_paths))
+}
+
+async fn require_shared_read_access(
+    Extension(access): Extension<PortalAccess>,
+    request: Request,
+    next: Next,
+) -> Response {
+    require_role_access(access, PortalRole::SharedRead, request, next).await
+}
+
+async fn require_operator_access(
+    Extension(access): Extension<PortalAccess>,
+    request: Request,
+    next: Next,
+) -> Response {
+    require_role_access(access, PortalRole::OperationsOperator, request, next).await
+}
+
+async fn require_role_access(
+    access: PortalAccess,
+    role: PortalRole,
+    request: Request,
+    next: Next,
+) -> Response {
+    if access.authorizes(request.headers(), role) {
+        let mut response = next.run(request).await;
+        add_private_response_headers(response.headers_mut());
+        response
+    } else {
+        portal_access_denied(role)
+    }
 }
 
 async fn reject_raw_event_store_paths(request: Request, next: Next) -> Response {
@@ -229,8 +416,19 @@ fn default_ntpro_node_bin_path() -> PathBuf {
     )
 }
 
-async fn dashboard_shell() -> Html<&'static str> {
-    Html(DASHBOARD_HTML)
+async fn dashboard_shell(
+    Extension(access): Extension<PortalAccess>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
+    portal_shell_response(
+        &access,
+        PortalRole::OperationsOperator,
+        &headers,
+        &uri,
+        "/dashboard",
+        DASHBOARD_HTML,
+    )
 }
 
 async fn dashboard_css() -> impl IntoResponse {
@@ -244,8 +442,19 @@ async fn dashboard_js() -> impl IntoResponse {
     )
 }
 
-async fn institution_workbench_shell() -> Html<&'static str> {
-    Html(INSTITUTION_WORKBENCH_HTML)
+async fn institution_workbench_shell(
+    Extension(access): Extension<PortalAccess>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
+    portal_shell_response(
+        &access,
+        PortalRole::InstitutionUser,
+        &headers,
+        &uri,
+        "/institution-workbench",
+        INSTITUTION_WORKBENCH_HTML,
+    )
 }
 
 async fn institution_workbench_css() -> impl IntoResponse {
@@ -262,8 +471,19 @@ async fn institution_workbench_js() -> impl IntoResponse {
     )
 }
 
-async fn control_center_shell() -> Html<&'static str> {
-    Html(CONTROL_CENTER_HTML)
+async fn control_center_shell(
+    Extension(access): Extension<PortalAccess>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
+    portal_shell_response(
+        &access,
+        PortalRole::OperationsOperator,
+        &headers,
+        &uri,
+        "/control-center",
+        CONTROL_CENTER_HTML,
+    )
 }
 
 async fn control_center_css() -> impl IntoResponse {
@@ -282,6 +502,133 @@ async fn control_center_js() -> impl IntoResponse {
 
 async fn reject_non_get() -> StatusCode {
     StatusCode::METHOD_NOT_ALLOWED
+}
+
+fn portal_shell_response(
+    access: &PortalAccess,
+    role: PortalRole,
+    headers: &HeaderMap,
+    uri: &Uri,
+    canonical_path: &str,
+    html: &'static str,
+) -> Response {
+    if !access.enforced {
+        return Html(html).into_response();
+    }
+
+    let bootstrap_tokens = query_values(uri, ACCESS_TOKEN_QUERY);
+    if bootstrap_tokens.len() > 1 || bootstrap_tokens.first().is_some_and(String::is_empty) {
+        return portal_access_denied(role);
+    }
+    if let Some(token) = bootstrap_tokens.first() {
+        let Some(expected) = access.token(role) else {
+            return portal_access_denied(role);
+        };
+        if !access_tokens_equal(expected, token) {
+            return portal_access_denied(role);
+        }
+        return portal_bootstrap_redirect(role, token, uri, canonical_path);
+    }
+    if !access.authorizes(headers, role) {
+        return portal_access_denied(role);
+    }
+
+    let mut response = Html(html).into_response();
+    add_private_response_headers(response.headers_mut());
+    response
+}
+
+fn query_values(uri: &Uri, key: &str) -> Vec<String> {
+    uri.query()
+        .into_iter()
+        .flat_map(|query| url::form_urlencoded::parse(query.as_bytes()))
+        .filter_map(|(candidate, value)| (candidate == key).then(|| value.into_owned()))
+        .collect()
+}
+
+fn portal_bootstrap_redirect(
+    role: PortalRole,
+    token: &str,
+    uri: &Uri,
+    canonical_path: &str,
+) -> Response {
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+    for (key, value) in uri
+        .query()
+        .into_iter()
+        .flat_map(|value| url::form_urlencoded::parse(value.as_bytes()))
+    {
+        if key != ACCESS_TOKEN_QUERY {
+            query.append_pair(&key, &value);
+        }
+    }
+    let query = query.finish();
+    let location = if query.is_empty() {
+        canonical_path.to_string()
+    } else {
+        format!("{canonical_path}?{query}")
+    };
+    let cookie_name = match role {
+        PortalRole::InstitutionUser => INSTITUTION_ACCESS_COOKIE,
+        PortalRole::OperationsOperator => OPERATOR_ACCESS_COOKIE,
+        PortalRole::SharedRead => return portal_access_denied(role),
+    };
+    let cookie = format!("{cookie_name}={token}; HttpOnly; SameSite=Strict; Path=/");
+    let Ok(location) = HeaderValue::from_str(&location) else {
+        return portal_access_denied(role);
+    };
+    let Ok(cookie) = HeaderValue::from_str(&cookie) else {
+        return portal_access_denied(role);
+    };
+    let mut response = StatusCode::SEE_OTHER.into_response();
+    response.headers_mut().insert(LOCATION, location);
+    response.headers_mut().insert(SET_COOKIE, cookie);
+    add_private_response_headers(response.headers_mut());
+    response
+}
+
+fn portal_access_denied(role: PortalRole) -> Response {
+    let mut response = (
+        StatusCode::FORBIDDEN,
+        Json(json!({
+            "schema_version": PORTAL_ACCESS_ERROR_SCHEMA_VERSION,
+            "error_code": "portal_role_access_required",
+            "required_role": role.label(),
+            "read_only": true,
+            "order_submission_allowed": false,
+            "supervisor_actions_allowed": false,
+            "external_venue_connection_allowed": false,
+            "retry_allowed": false,
+            "automatic_remediation_allowed": false,
+        })),
+    )
+        .into_response();
+    add_private_response_headers(response.headers_mut());
+    response
+}
+
+fn add_private_response_headers(headers: &mut HeaderMap) {
+    headers.insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    headers.insert(REFERRER_POLICY, HeaderValue::from_static("no-referrer"));
+}
+
+fn request_cookie_matches(headers: &HeaderMap, name: &str, expected: &str) -> bool {
+    headers.get_all(COOKIE).iter().any(|header| {
+        header.to_str().is_ok_and(|cookies| {
+            cookies.split(';').any(|cookie| {
+                cookie
+                    .trim()
+                    .split_once('=')
+                    .is_some_and(|(candidate, value)| {
+                        candidate == name && access_tokens_equal(expected, value)
+                    })
+            })
+        })
+    })
+}
+
+fn access_tokens_equal(expected: &str, actual: &str) -> bool {
+    constant_time::verify_slices_are_equal(expected.as_bytes(), actual.as_bytes()).is_ok()
 }
 
 async fn server_metadata_api(
