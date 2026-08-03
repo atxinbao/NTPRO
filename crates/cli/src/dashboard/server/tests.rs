@@ -284,7 +284,7 @@ async fn institution_workbench_route_serves_read_only_shell_and_assets() {
 }
 
 #[tokio::test]
-async fn control_center_route_serves_read_only_shell_and_assets() {
+async fn control_center_route_serves_shell_and_assets() {
     let root = std::env::temp_dir().join(format!(
         "ntpro-mvp-007-control-center-{}",
         std::process::id()
@@ -348,6 +348,83 @@ async fn control_center_route_serves_read_only_shell_and_assets() {
             "{method} {path} must be rejected",
         );
     }
+}
+
+#[tokio::test]
+async fn control_center_lifecycle_actions_are_post_only_and_return_closed_envelopes() {
+    let root = std::env::temp_dir().join(format!(
+        "ntpro-mvp-010-lifecycle-action-method-{}",
+        std::process::id()
+    ));
+    let router = dashboard_router(
+        root.join("supervisor/registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+    );
+
+    for action in ["start", "stop"] {
+        let path = format!("/api/mvp/v1/control-center/nodes/mvp-node-001/actions/{action}");
+        let (status, body) = router_request(&router, Method::POST, &path).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+        let value_result = serde_json::from_slice::<Value>(&body);
+        assert!(
+            value_result.is_ok(),
+            "lifecycle action error response should be valid JSON"
+        );
+        let Ok(value) = value_result else {
+            continue;
+        };
+        assert_eq!(
+            value["schema_version"],
+            "ntpro.mvp_control_center_lifecycle_action.response.v1"
+        );
+        assert_eq!(
+            value["contract_version"],
+            "ntpro.mvp_control_center_lifecycle_action.v1"
+        );
+        assert_eq!(value["target_node_id"], "mvp-node-001");
+        assert_eq!(value["action_name"], action);
+        assert_eq!(value["result"]["status"], "rejected");
+        assert_eq!(value["result"]["error_code"]["value"], "node_not_found");
+        assert_eq!(value["boundaries"]["supervisor_lifecycle_action"], true);
+        for field in [
+            "external_venue_connection",
+            "production_venue_connection",
+            "external_network_attempted",
+            "order_submission_allowed",
+            "order_mutation_allowed",
+            "automatic_retry_allowed",
+            "automatic_remediation_allowed",
+            "real_orders_submitted",
+        ] {
+            assert_eq!(value["boundaries"][field], false, "{field}");
+        }
+
+        for method in [
+            Method::HEAD,
+            Method::GET,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::CONNECT,
+            Method::TRACE,
+        ] {
+            let (status, _) = router_request(&router, method.clone(), &path).await;
+            assert_eq!(
+                status,
+                StatusCode::METHOD_NOT_ALLOWED,
+                "{method} {path} must be rejected"
+            );
+        }
+    }
+
+    let (status, _) = router_request(
+        &router,
+        Method::POST,
+        "/api/mvp/v1/control-center/nodes/mvp-node-001/actions/pause",
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -479,6 +556,10 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         (Method::GET, "/api/v28/telemetry/health"),
         (Method::GET, "/api/nodes"),
         (Method::POST, "/api/nodes/mvp-node-001/actions/start"),
+        (
+            Method::POST,
+            "/api/mvp/v1/control-center/nodes/mvp-node-001/actions/start",
+        ),
     ] {
         let response = router_response(&router, method, path, None).await;
         assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
@@ -502,6 +583,10 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         (Method::GET, "/api/v28/telemetry/health"),
         (Method::GET, "/api/nodes"),
         (Method::POST, "/api/nodes/mvp-node-001/actions/start"),
+        (
+            Method::POST,
+            "/api/mvp/v1/control-center/nodes/mvp-node-001/actions/start",
+        ),
     ] {
         let response = router_response(&router, method, path, Some(&institution_cookie)).await;
         assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
@@ -524,6 +609,11 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         assert_ne!(response.status(), StatusCode::FORBIDDEN, "{path}");
         assert_private_response_headers(&response, path);
     }
+    let action_path = "/api/mvp/v1/control-center/nodes/mvp-node-001/actions/start";
+    let response =
+        router_response(&router, Method::POST, action_path, Some(&operator_cookie)).await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_private_response_headers(&response, action_path);
     let response = router_response(
         &router,
         Method::GET,
@@ -550,6 +640,10 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         ("/api/snapshot", operator_cookie.as_str()),
         ("/api/v28/telemetry/health", operator_cookie.as_str()),
         ("/api/nodes", operator_cookie.as_str()),
+        (
+            "/api/mvp/v1/control-center/nodes/mvp-node-001/actions/start",
+            operator_cookie.as_str(),
+        ),
     ] {
         let response = router_response(&router, Method::HEAD, path, Some(cookie)).await;
         assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{path}");

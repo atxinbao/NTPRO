@@ -6,7 +6,7 @@ const embedded = source.match(/pub\(super\) const CONTROL_CENTER_JS: &str = r#"(
 if (!embedded) throw new Error("embedded control center JavaScript not found");
 
 const ids = [
-  "axis-grid", "business-impact-title", "business-impact-list", "node-grid", "component-table", "observability-grid", "alert-list",
+  "axis-grid", "business-impact-title", "business-impact-list", "node-grid", "lifecycle-action-buttons", "lifecycle-action-result", "component-table", "observability-grid", "alert-list",
   "event-correlation-panel",
   "source-list", "boundary-list", "context-node", "context-scope", "generated-at",
   "node-health", "alert-count", "footer-environment", "footer-node", "footer-runtime",
@@ -130,7 +130,7 @@ const baseShared = {
   },
 };
 const baseSnapshot = {
-  schema_version: "ntpro.mvp_control_center_snapshot.v1",
+  schema_version: "ntpro.mvp_control_center_snapshot.v2",
   generated_at: dashboardValue("unix_seconds:1"),
   registry_path: "registry.json",
   local_only: true,
@@ -200,6 +200,10 @@ const baseSnapshot = {
     reason: "not_supported",
     owner_task: dashboardValue("MVP-007"),
   }],
+  lifecycle_actions: [
+    { action: "start", target_node_id: "node-1", method: "POST", enabled: false, reason_code: "requires_stopped" },
+    { action: "stop", target_node_id: "node-1", method: "POST", enabled: true, reason_code: "ready" },
+  ],
   boundaries: {
     read_only: true,
     external_venue_connection: false,
@@ -207,9 +211,45 @@ const baseSnapshot = {
     testnet_public_network_connection: false,
     external_network_attempted: false,
     real_orders_submitted: false,
-    supervisor_actions_exposed: false,
+    supervisor_actions_exposed: true,
+    unsupported_supervisor_actions_exposed: false,
+    trading_controls_exposed: false,
+    automatic_retry_allowed: false,
+    automatic_remediation_allowed: false,
     raw_errors_exposed: false,
   },
+};
+
+const lifecycleActionBoundaries = {
+  supervisor_lifecycle_action: true,
+  external_venue_connection: false,
+  production_venue_connection: false,
+  external_network_attempted: false,
+  order_submission_allowed: false,
+  order_mutation_allowed: false,
+  automatic_retry_allowed: false,
+  automatic_remediation_allowed: false,
+  real_orders_submitted: false,
+};
+const baseLifecycleAction = {
+  schema_version: "ntpro.mvp_control_center_lifecycle_action.response.v1",
+  contract_version: "ntpro.mvp_control_center_lifecycle_action.v1",
+  local_only: true,
+  target_node_id: "node-1",
+  action_name: "stop",
+  result: {
+    action_id: "stop:node-1:unix_ms:2",
+    action: "stop:node-1",
+    status: "succeeded",
+    previous_state: "running",
+    current_state: "stopped",
+    started_at: dashboardValue("unix_ms:2"),
+    finished_at: dashboardValue("unix_ms:3"),
+    error_code: { availability: "unknown" },
+    message: dashboardValue("已通过本地监督器完成停止"),
+    observability_ref: dashboardValue("registry:node-1"),
+  },
+  boundaries: lifecycleActionBoundaries,
 };
 
 const eventId = "mvp-status:v1:node-1:btc-ema:instance-1:technical-health";
@@ -242,7 +282,8 @@ const baseCorrelation = {
 let shared = structuredClone(baseShared);
 let snapshot = structuredClone(baseSnapshot);
 let correlation = structuredClone(baseCorrelation);
-let statuses = { shared: 200, snapshot: 200, correlation: 200 };
+let lifecycleAction = structuredClone(baseLifecycleAction);
+let statuses = { shared: 200, snapshot: 200, correlation: 200, action: 200 };
 const browserLocation = { search: "" };
 const response = (status, value) => ({
   ok: status >= 200 && status < 300,
@@ -250,11 +291,23 @@ const response = (status, value) => ({
   json: async () => structuredClone(value),
 });
 const context = vm.createContext({
-  document: { getElementById: (id) => elements[id] },
-  fetch: async (url) => {
+  document: { getElementById: (id) => elements[id], addEventListener: () => {} },
+  fetch: async (url, options = {}) => {
     if (url === "/api/mvp/v1/status") return response(statuses.shared, shared);
     if (url === "/api/mvp/v1/control-center") return response(statuses.snapshot, snapshot);
     if (url === "/api/mvp/v1/event-correlation") return response(statuses.correlation, correlation);
+    if (url === "/api/mvp/v1/control-center/nodes/node-1/actions/stop" && options.method === "POST") {
+      if (statuses.action === 200) {
+        shared.status.runtime.status = "stopped";
+        snapshot.node.lifecycle_state = "stopped";
+        snapshot.node.process_state = "stopped";
+        snapshot.overview.running_nodes = 0;
+        snapshot.overview.stopped_nodes = 1;
+        snapshot.lifecycle_actions[0] = { action: "start", target_node_id: "node-1", method: "POST", enabled: true, reason_code: "ready" };
+        snapshot.lifecycle_actions[1] = { action: "stop", target_node_id: "node-1", method: "POST", enabled: false, reason_code: "requires_running_or_paused" };
+      }
+      return response(statuses.action, lifecycleAction);
+    }
     throw new Error(`unexpected URL ${url}`);
   },
   location: browserLocation,
@@ -277,6 +330,16 @@ if (!elements["business-impact-list"].innerHTML.includes("风险：可用")) {
 }
 if (!elements["event-correlation-panel"].innerHTML.includes("在机构工作台查看业务影响") || !elements["event-correlation-panel"].innerHTML.includes(encodeURIComponent(eventId))) {
   throw new Error("valid event correlation did not render the institution workbench jump");
+}
+if (!elements["lifecycle-action-buttons"].innerHTML.includes("data-lifecycle-action=\"stop\"") || !elements["lifecycle-action-buttons"].innerHTML.includes("data-lifecycle-action=\"start\"")) {
+  throw new Error("valid lifecycle capability did not render start and stop controls");
+}
+await vm.runInContext('executeLifecycleAction("stop", "node-1")', context);
+if (!elements["lifecycle-action-result"].innerHTML.includes("running → stopped")) {
+  throw new Error("valid lifecycle action response did not render the state transition");
+}
+if (!elements["lifecycle-action-buttons"].innerHTML.includes("data-lifecycle-action=\"start\"")) {
+  throw new Error("post-action refresh did not render the new start capability");
 }
 
 const cases = [
@@ -302,7 +365,16 @@ const cases = [
   ["missing_log_timestamp", () => { delete snapshot.logs[0].last_seen_at; }],
   ["invalid_metric_error_flag", () => { snapshot.metrics[0].error_present = "false"; }],
   ["overview_count_mismatch", () => { snapshot.overview.running_nodes = 0; }],
-  ["ops_boundary_true", () => { snapshot.boundaries.supervisor_actions_exposed = true; }],
+  ["ops_action_boundary_false", () => { snapshot.boundaries.supervisor_actions_exposed = false; }],
+  ["ops_unsupported_action_boundary_true", () => { snapshot.boundaries.unsupported_supervisor_actions_exposed = true; }],
+  ["ops_trading_boundary_true", () => { snapshot.boundaries.trading_controls_exposed = true; }],
+  ["missing_lifecycle_actions", () => { snapshot.lifecycle_actions = []; }],
+  ["duplicate_lifecycle_action", () => { snapshot.lifecycle_actions[1] = structuredClone(snapshot.lifecycle_actions[0]); }],
+  ["unsupported_lifecycle_action", () => { snapshot.lifecycle_actions[1].action = "pause"; }],
+  ["lifecycle_action_target_mismatch", () => { snapshot.lifecycle_actions[1].target_node_id = "node-2"; }],
+  ["lifecycle_action_method_mismatch", () => { snapshot.lifecycle_actions[1].method = "GET"; }],
+  ["lifecycle_action_enabled_mismatch", () => { snapshot.lifecycle_actions[0].enabled = true; snapshot.lifecycle_actions[0].reason_code = "ready"; }],
+  ["lifecycle_action_reason_mismatch", () => { snapshot.lifecycle_actions[1].reason_code = "requires_running_or_paused"; }],
   ["raw_node_error", () => { snapshot.node.last_error = "credential=secret"; }],
   ["raw_alert_message", () => { snapshot.alerts[0].message = "raw error"; }],
   ["raw_gap_notes", () => { snapshot.gaps[0].notes = dashboardValue("raw error"); }],
@@ -325,7 +397,8 @@ for (const [name, mutate] of cases) {
   shared = structuredClone(baseShared);
   snapshot = structuredClone(baseSnapshot);
   correlation = structuredClone(baseCorrelation);
-  statuses = { shared: 200, snapshot: 200, correlation: 200 };
+  lifecycleAction = structuredClone(baseLifecycleAction);
+  statuses = { shared: 200, snapshot: 200, correlation: 200, action: 200 };
   browserLocation.search = "";
   mutate();
   await refresh();
@@ -343,4 +416,31 @@ for (const [name, mutate] of cases) {
   }
 }
 
-console.log(`control_center_contract=pass valid=1 fail_closed=${cases.length} stale_clear=${cases.length}`);
+const actionCases = [
+  ["action_schema_mismatch", (value) => { value.schema_version = "other"; }],
+  ["action_contract_mismatch", (value) => { value.contract_version = "other"; }],
+  ["action_not_local", (value) => { value.local_only = false; }],
+  ["action_node_mismatch", (value) => { value.target_node_id = "node-2"; }],
+  ["action_name_mismatch", (value) => { value.action_name = "start"; }],
+  ["action_result_target_mismatch", (value) => { value.result.action = "stop:node-2"; }],
+  ["action_status_invalid", (value) => { value.result.status = "complete"; }],
+  ["action_state_invalid", (value) => { value.result.current_state = "arbitrary"; }],
+  ["action_boundary_false", (value) => { value.boundaries.supervisor_lifecycle_action = false; }],
+  ["action_trading_boundary_true", (value) => { value.boundaries.order_submission_allowed = true; }],
+  ["action_raw_error", (value) => { value.raw_error = "credential=secret"; }],
+];
+
+for (const [name, mutate] of actionCases) {
+  const value = structuredClone(baseLifecycleAction);
+  mutate(value);
+  context.actionEnvelopeUnderTest = value;
+  let rejected = false;
+  try {
+    vm.runInContext('validateLifecycleActionEnvelope(actionEnvelopeUnderTest, "node-1", "stop")', context);
+  } catch {
+    rejected = true;
+  }
+  if (!rejected) throw new Error(`${name} lifecycle action envelope did not fail closed`);
+}
+
+console.log(`control_center_contract=pass valid=1 lifecycle_action=1 fail_closed=${cases.length + actionCases.length} stale_clear=${cases.length}`);

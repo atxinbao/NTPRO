@@ -281,6 +281,14 @@ fn dashboard_router_with_workflow_root(
             get(control_center_operational_api).head(reject_non_get),
         )
         .route(
+            "/api/mvp/v1/control-center/nodes/{node_id}/actions/start",
+            post(control_center_start_action_api),
+        )
+        .route(
+            "/api/mvp/v1/control-center/nodes/{node_id}/actions/stop",
+            post(control_center_stop_action_api),
+        )
+        .route(
             "/api/v28/backend-closure/status",
             get(backend_closure_status_api).head(reject_non_get),
         )
@@ -737,6 +745,56 @@ async fn start_action_api(
     AxumPath(node_id): AxumPath<String>,
 ) -> ApiStatusResult<ControlActionResponse> {
     control_action_response(&state, &node_id, "start")
+}
+
+async fn control_center_start_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> (StatusCode, Json<ControlCenterLifecycleActionEnvelope>) {
+    control_center_lifecycle_action_response(&state, &node_id, "start")
+}
+
+async fn control_center_stop_action_api(
+    State(state): State<DashboardServerState>,
+    AxumPath(node_id): AxumPath<String>,
+) -> (StatusCode, Json<ControlCenterLifecycleActionEnvelope>) {
+    control_center_lifecycle_action_response(&state, &node_id, "stop")
+}
+
+fn control_center_lifecycle_action_response(
+    state: &DashboardServerState,
+    node_id: &str,
+    action: &str,
+) -> (StatusCode, Json<ControlCenterLifecycleActionEnvelope>) {
+    let (status, result) = match control_action_response(state, node_id, action) {
+        Ok((status, Json(result))) => (status, result),
+        Err((status, _)) => {
+            let started_at = generated_at_now();
+            (
+                status,
+                action_response(ControlActionResponseParts {
+                    action,
+                    node_id,
+                    status: ControlActionStatus::Failed,
+                    previous_state: LifecycleStatus::Unknown,
+                    current_state: LifecycleStatus::Unknown,
+                    started_at,
+                    error_code: DashboardValue::available(
+                        "lifecycle_snapshot_unavailable".to_string(),
+                    ),
+                    message: DashboardValue::available(
+                        "节点生命周期状态不可用，动作未执行".to_string(),
+                    ),
+                }),
+            )
+        }
+    };
+    (
+        status,
+        Json(project_control_center_lifecycle_action(
+            node_id, action, result,
+        )),
+    )
 }
 
 async fn stop_action_api(

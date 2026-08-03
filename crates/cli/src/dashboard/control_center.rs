@@ -16,7 +16,11 @@ use serde::Serialize;
 use super::*;
 
 pub(super) const CONTROL_CENTER_OPERATIONAL_SCHEMA_VERSION: &str =
-    "ntpro.mvp_control_center_snapshot.v1";
+    "ntpro.mvp_control_center_snapshot.v2";
+pub(super) const CONTROL_CENTER_LIFECYCLE_ACTION_SCHEMA_VERSION: &str =
+    "ntpro.mvp_control_center_lifecycle_action.response.v1";
+pub(super) const CONTROL_CENTER_LIFECYCLE_ACTION_CONTRACT_VERSION: &str =
+    "ntpro.mvp_control_center_lifecycle_action.v1";
 
 #[derive(Clone, Debug, Serialize)]
 pub(super) struct ControlCenterOperationalSnapshot {
@@ -33,6 +37,7 @@ pub(super) struct ControlCenterOperationalSnapshot {
     metrics: Vec<ControlCenterMetric>,
     alerts: Vec<ControlCenterAlert>,
     gaps: Vec<ControlCenterGap>,
+    lifecycle_actions: Vec<ControlCenterLifecycleAction>,
     boundaries: ControlCenterOperationalBoundaries,
 }
 
@@ -125,6 +130,15 @@ struct ControlCenterGap {
 }
 
 #[derive(Clone, Debug, Serialize)]
+struct ControlCenterLifecycleAction {
+    action: String,
+    target_node_id: String,
+    method: String,
+    enabled: bool,
+    reason_code: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
 struct ControlCenterOperationalBoundaries {
     read_only: bool,
     external_venue_connection: bool,
@@ -133,7 +147,61 @@ struct ControlCenterOperationalBoundaries {
     external_network_attempted: bool,
     real_orders_submitted: bool,
     supervisor_actions_exposed: bool,
+    unsupported_supervisor_actions_exposed: bool,
+    trading_controls_exposed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
     raw_errors_exposed: bool,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(super) struct ControlCenterLifecycleActionEnvelope {
+    schema_version: String,
+    contract_version: String,
+    local_only: bool,
+    target_node_id: String,
+    action_name: String,
+    result: ControlActionResponse,
+    boundaries: ControlCenterLifecycleActionBoundaries,
+}
+
+#[derive(Clone, Debug, Serialize)]
+struct ControlCenterLifecycleActionBoundaries {
+    supervisor_lifecycle_action: bool,
+    external_venue_connection: bool,
+    production_venue_connection: bool,
+    external_network_attempted: bool,
+    order_submission_allowed: bool,
+    order_mutation_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    real_orders_submitted: bool,
+}
+
+pub(super) fn project_control_center_lifecycle_action(
+    target_node_id: &str,
+    action_name: &str,
+    result: ControlActionResponse,
+) -> ControlCenterLifecycleActionEnvelope {
+    ControlCenterLifecycleActionEnvelope {
+        schema_version: CONTROL_CENTER_LIFECYCLE_ACTION_SCHEMA_VERSION.to_string(),
+        contract_version: CONTROL_CENTER_LIFECYCLE_ACTION_CONTRACT_VERSION.to_string(),
+        local_only: true,
+        target_node_id: target_node_id.to_string(),
+        action_name: action_name.to_string(),
+        result,
+        boundaries: ControlCenterLifecycleActionBoundaries {
+            supervisor_lifecycle_action: true,
+            external_venue_connection: false,
+            production_venue_connection: false,
+            external_network_attempted: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+        },
+    }
 }
 
 fn normalize_control_center_value<T>(
@@ -209,6 +277,36 @@ pub(super) fn project_control_center_snapshot(
     let generated_at = normalize_control_center_value(snapshot.generated_at)?;
     let latest_transition_at =
         normalize_control_center_value(snapshot.overview.latest_transition_at)?;
+    let lifecycle_actions = vec![
+        ControlCenterLifecycleAction {
+            action: "start".to_string(),
+            target_node_id: node.node_id.clone(),
+            method: "POST".to_string(),
+            enabled: node.lifecycle_state == LifecycleStatus::Stopped,
+            reason_code: if node.lifecycle_state == LifecycleStatus::Stopped {
+                "ready".to_string()
+            } else {
+                "requires_stopped".to_string()
+            },
+        },
+        ControlCenterLifecycleAction {
+            action: "stop".to_string(),
+            target_node_id: node.node_id.clone(),
+            method: "POST".to_string(),
+            enabled: matches!(
+                node.lifecycle_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            ),
+            reason_code: if matches!(
+                node.lifecycle_state,
+                LifecycleStatus::Running | LifecycleStatus::Paused
+            ) {
+                "ready".to_string()
+            } else {
+                "requires_running_or_paused".to_string()
+            },
+        },
+    ];
 
     Ok(ControlCenterOperationalSnapshot {
         schema_version: CONTROL_CENTER_OPERATIONAL_SCHEMA_VERSION.to_string(),
@@ -326,6 +424,7 @@ pub(super) fn project_control_center_snapshot(
                 })
             })
             .collect::<Result<Vec<_>, &'static str>>()?,
+        lifecycle_actions,
         boundaries: ControlCenterOperationalBoundaries {
             read_only: true,
             external_venue_connection: false,
@@ -333,7 +432,11 @@ pub(super) fn project_control_center_snapshot(
             testnet_public_network_connection: false,
             external_network_attempted: false,
             real_orders_submitted: false,
-            supervisor_actions_exposed: false,
+            supervisor_actions_exposed: true,
+            unsupported_supervisor_actions_exposed: false,
+            trading_controls_exposed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
             raw_errors_exposed: false,
         },
     })
@@ -355,6 +458,7 @@ pub(super) const CONTROL_CENTER_HTML: &str = r##"<!doctype html>
       <nav>
         <a class="active" href="#overview">运行总览</a>
         <a href="#node">节点</a>
+        <a href="#lifecycle-actions">节点操作</a>
         <a href="#components">组件</a>
         <a href="#observability">观测</a>
         <a href="#alerts">告警</a>
@@ -366,7 +470,7 @@ pub(super) const CONTROL_CENTER_HTML: &str = r##"<!doctype html>
     <div class="workspace">
       <header class="context-bar">
         <div class="context-primary">
-          <span class="eyebrow">单节点 MVP · 平台运维只读视图</span>
+          <span class="eyebrow">单节点 MVP · 平台运维工作台</span>
           <div><strong id="context-node">节点未加载</strong><span id="context-scope">策略 / 环境未加载</span></div>
         </div>
         <button id="refresh" type="button" title="刷新控制中心状态">刷新</button>
@@ -395,6 +499,11 @@ pub(super) const CONTROL_CENTER_HTML: &str = r##"<!doctype html>
             <section id="node" class="section-block">
               <div class="section-heading"><div><span class="eyebrow">Supervisor</span><h2>单节点运行状态</h2></div><span id="node-health" class="section-meta">等待节点</span></div>
               <div id="node-grid" class="node-grid"></div>
+              <div id="lifecycle-actions" class="lifecycle-action-panel">
+                <div><span class="eyebrow">Operator only</span><h3>节点生命周期</h3></div>
+                <div id="lifecycle-action-buttons" class="lifecycle-action-buttons"></div>
+                <div id="lifecycle-action-result" class="lifecycle-action-result" aria-live="polite">等待已验证节点状态</div>
+              </div>
             </section>
 
             <section id="components" class="section-block">
@@ -522,6 +631,17 @@ main { min-height: 0; overflow: auto; padding: 20px 16px 32px; }
 .content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
 .primary-column { min-width: 0; }
 .node-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.lifecycle-action-panel { display: grid; grid-template-columns: minmax(140px, .7fr) minmax(220px, 1fr) minmax(220px, 1.3fr); gap: 14px; align-items: center; margin-top: 10px; padding: 12px; background: #ffffff; border: 1px solid #cbd7d1; border-left: 3px solid #178250; border-radius: 6px; }
+.lifecycle-action-panel h3 { margin: 3px 0 0; font-size: 15px; }
+.lifecycle-action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.lifecycle-action-option { display: grid; gap: 4px; min-width: 100px; }
+.lifecycle-action-button { min-width: 92px; }
+.lifecycle-action-button.stop { border-color: #b94b4b; color: #9d2f2f; }
+.lifecycle-action-button.pending { background: #17231e; border-color: #17231e; color: #ffffff; }
+.lifecycle-action-result { min-height: 38px; display: grid; align-content: center; gap: 3px; color: #526159; font-size: 11px; overflow-wrap: anywhere; }
+.lifecycle-action-result strong { color: #18221e; font-size: 12px; }
+.lifecycle-action-result.error strong { color: #a52d2d; }
+.lifecycle-action-reason { color: #68766f; font-size: 10px; }
 .table-wrap { overflow-x: auto; background: #ffffff; border: 1px solid #cbd7d1; border-radius: 6px; }
 table { width: 100%; border-collapse: collapse; min-width: 760px; }
 th, td { padding: 10px 12px; border-bottom: 1px solid #e1e7e4; text-align: left; vertical-align: top; font-size: 12px; }
@@ -568,6 +688,7 @@ tr:last-child td { border-bottom: 0; }
   main { overflow: visible; padding: 12px 8px 24px; }
   .connection-banner { align-items: flex-start; }
   .axis-grid, .node-grid, .observability-grid { grid-template-columns: minmax(0, 1fr); }
+  .lifecycle-action-panel { grid-template-columns: minmax(0, 1fr); align-items: start; }
   .impact-band { align-items: flex-start; flex-direction: column; }
   .impact-list { justify-content: flex-start; }
   .event-correlation-band { grid-template-columns: minmax(0, 1fr); }
@@ -593,7 +714,9 @@ const EXPECTED_EVENT_SCHEMA = "ntpro.mvp_event_correlation_api.response.v1";
 const EXPECTED_EVENT_CONTRACT = "ntpro.mvp_event_correlation_api.v1";
 const EXPECTED_IDENTITY_SCHEMA = "ntpro.mvp_identity_contract.v1";
 const EXPECTED_STATUS_SCHEMA = "ntpro.mvp_status_contract.v1";
-const EXPECTED_OPS_SCHEMA = "ntpro.mvp_control_center_snapshot.v1";
+const EXPECTED_OPS_SCHEMA = "ntpro.mvp_control_center_snapshot.v2";
+const EXPECTED_LIFECYCLE_ACTION_SCHEMA = "ntpro.mvp_control_center_lifecycle_action.response.v1";
+const EXPECTED_LIFECYCLE_ACTION_CONTRACT = "ntpro.mvp_control_center_lifecycle_action.v1";
 const STATUS_AVAILABILITIES = ["available", "missing", "stale", "error"];
 const STATUS_FRESHNESS = ["fresh", "stale", "unknown"];
 const BUSINESS_AVAILABILITIES = ["available", "missing", "stale", "error", "identity_mismatch"];
@@ -607,10 +730,16 @@ const CONNECTION_STATES = ["connected", "connecting", "disconnected", "disconnec
 const API_FALSE_BOUNDARIES = ["http_success_implies_technical_health", "process_alive_implies_technical_health", "backtest_reference_implies_research_accepted", "backtest_complete_implies_trading_readiness", "raw_event_store_exposed", "raw_venue_payload_exposed", "external_venue_connection", "order_submission_allowed", "order_mutation_allowed", "automatic_retry_allowed", "automatic_remediation_allowed", "real_orders_submitted"];
 const CONTRACT_FALSE_BOUNDARIES = ["external_venue_connection", "order_submission_allowed", "order_mutation_allowed", "automatic_retry_allowed", "automatic_remediation_allowed", "real_orders_submitted"];
 const STATUS_FALSE_BOUNDARIES = ["http_success_implies_technical_health", "process_alive_implies_technical_health", "backtest_complete_implies_trading_readiness"];
+const LIFECYCLE_ACTIONS = ["start", "stop"];
+const LIFECYCLE_ACTION_STATUSES = ["accepted", "rejected", "running", "succeeded", "failed", "cancelled", "not_supported", "unknown"];
+
+let lifecycleActionBusy = false;
+let pendingLifecycleAction = null;
+let currentLifecycleActions = [];
 
 const safe = (value) => value === null || value === undefined ? "unknown" : String(value);
 const text = (value) => safe(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;").replaceAll("'", "&#39;");
-const DISPLAY = { available: "可用", missing: "缺失", stale: "陈旧", error: "错误", fresh: "新鲜", unknown: "未知", healthy: "健康", degraded: "降级", unhealthy: "不健康", not_running: "未运行", running: "运行中", stopped: "已停止", transitioning: "转换中", blocked: "阻断", reference_bound: "已绑定引用", sandbox: "沙盒", connected: "已连接", disconnected: "已断开", not_configured: "未配置", spawned_process: "托管进程", local: "本地" };
+const DISPLAY = { available: "可用", missing: "缺失", stale: "陈旧", error: "错误", fresh: "新鲜", unknown: "未知", healthy: "健康", degraded: "降级", unhealthy: "不健康", not_running: "未运行", running: "运行中", stopped: "已停止", transitioning: "转换中", blocked: "阻断", reference_bound: "已绑定引用", sandbox: "沙盒", connected: "已连接", disconnected: "已断开", not_configured: "未配置", spawned_process: "托管进程", local: "本地", start: "启动", stop: "停止", ready: "可执行", requires_stopped: "仅已停止节点可启动", requires_running_or_paused: "仅运行中或已暂停节点可停止", succeeded: "已成功", rejected: "已拒绝", failed: "失败" };
 const display = (value) => DISPLAY[safe(value)] || safe(value);
 const dashboardValue = (value) => value && typeof value === "object" ? value.value ?? value.availability ?? "unknown" : "unknown";
 
@@ -777,7 +906,7 @@ function validateOperationalProjection(snapshot, shared) {
   requireOneOf(overview.health, HEALTH_STATES, "snapshot.overview.health");
   requireDashboardString(overview.latest_transition_at, "snapshot.overview.latest_transition_at");
   requireBoolean(overview.latest_error_present, "snapshot.overview.latest_error_present");
-  for (const field of ["data_sources", "execution_gateways", "runtime_modules", "logs", "metrics", "alerts", "gaps"]) if (!Array.isArray(ops[field])) throw new Error(`运维投影缺少 ${field}`);
+  for (const field of ["data_sources", "execution_gateways", "runtime_modules", "logs", "metrics", "alerts", "gaps", "lifecycle_actions"]) if (!Array.isArray(ops[field])) throw new Error(`运维投影缺少 ${field}`);
   const node = requireObject(ops.node, "snapshot.node");
   const identities = shared.identity.identities;
   if (node.node_id !== identities.node_id) throw new Error("共享状态与运维节点身份不一致");
@@ -805,7 +934,24 @@ function validateOperationalProjection(snapshot, shared) {
   if (overview.sandbox_only !== true) throw new Error("运维总览不在 sandbox-only 边界");
   const boundaries = requireObject(ops.boundaries, "snapshot.boundaries");
   requireBoundary(boundaries, "read_only", true, "运维投影");
-  for (const field of ["external_venue_connection", "production_venue_connection", "testnet_public_network_connection", "external_network_attempted", "real_orders_submitted", "supervisor_actions_exposed", "raw_errors_exposed"]) requireBoundary(boundaries, field, false, "运维投影");
+  requireBoundary(boundaries, "supervisor_actions_exposed", true, "运维投影");
+  for (const field of ["external_venue_connection", "production_venue_connection", "testnet_public_network_connection", "external_network_attempted", "real_orders_submitted", "unsupported_supervisor_actions_exposed", "trading_controls_exposed", "automatic_retry_allowed", "automatic_remediation_allowed", "raw_errors_exposed"]) requireBoundary(boundaries, field, false, "运维投影");
+  if (ops.lifecycle_actions.length !== 2) throw new Error("控制中心必须且只能提供启动和停止动作");
+  const seenActions = new Set();
+  for (const [index, value] of ops.lifecycle_actions.entries()) {
+    const item = requireObject(value, `snapshot.lifecycle_actions[${index}]`);
+    requireOneOf(item.action, LIFECYCLE_ACTIONS, `snapshot.lifecycle_actions[${index}].action`);
+    if (seenActions.has(item.action)) throw new Error("控制中心生命周期动作重复");
+    seenActions.add(item.action);
+    if (item.target_node_id !== node.node_id) throw new Error("生命周期动作目标节点不一致");
+    if (item.method !== "POST") throw new Error("生命周期动作方法必须为 POST");
+    requireBoolean(item.enabled, `snapshot.lifecycle_actions[${index}].enabled`);
+    const expectedReason = item.enabled ? "ready" : item.action === "start" ? "requires_stopped" : "requires_running_or_paused";
+    if (item.reason_code !== expectedReason) throw new Error("生命周期动作可用性原因不一致");
+    const expectedEnabled = item.action === "start" ? node.lifecycle_state === "stopped" : ["running", "paused"].includes(node.lifecycle_state);
+    if (item.enabled !== expectedEnabled) throw new Error("生命周期动作与节点状态不一致");
+  }
+  for (const action of LIFECYCLE_ACTIONS) if (!seenActions.has(action)) throw new Error(`控制中心缺少生命周期动作：${action}`);
   ops.data_sources.forEach((value, index) => {
     const item = requireObject(value, `snapshot.data_sources[${index}]`);
     requireString(item.source_id, `snapshot.data_sources[${index}].source_id`);
@@ -860,13 +1006,38 @@ function validateOperationalProjection(snapshot, shared) {
     requireDashboardString(item.owner_task, `snapshot.gaps[${index}].owner_task`);
     if (Object.prototype.hasOwnProperty.call(item, "notes")) throw new Error("运维缺口暴露未脱敏说明");
   });
-  return { snapshot: ops, node };
+  return { snapshot: ops, node, lifecycleActions: ops.lifecycle_actions };
+}
+
+function validateLifecycleActionEnvelope(payload, expectedNodeId, expectedAction) {
+  const envelope = requireObject(payload, "lifecycle action response");
+  if (envelope.schema_version !== EXPECTED_LIFECYCLE_ACTION_SCHEMA) throw new Error("生命周期动作响应 schema 不匹配");
+  if (envelope.contract_version !== EXPECTED_LIFECYCLE_ACTION_CONTRACT) throw new Error("生命周期动作响应 contract 不匹配");
+  if (envelope.local_only !== true) throw new Error("生命周期动作响应不是本地边界");
+  if (envelope.target_node_id !== expectedNodeId || envelope.action_name !== expectedAction) throw new Error("生命周期动作响应身份不一致");
+  const result = requireObject(envelope.result, "lifecycle action response.result");
+  requireString(result.action_id, "lifecycle action response.result.action_id");
+  if (result.action !== `${expectedAction}:${expectedNodeId}`) throw new Error("生命周期动作响应目标不一致");
+  requireOneOf(result.status, LIFECYCLE_ACTION_STATUSES, "lifecycle action response.result.status");
+  requireOneOf(result.previous_state, LIFECYCLE_STATES, "lifecycle action response.result.previous_state");
+  requireOneOf(result.current_state, LIFECYCLE_STATES, "lifecycle action response.result.current_state");
+  for (const field of ["started_at", "finished_at", "error_code", "message", "observability_ref"]) requireDashboardString(result[field], `lifecycle action response.result.${field}`);
+  const boundaries = requireObject(envelope.boundaries, "lifecycle action response.boundaries");
+  requireBoundary(boundaries, "supervisor_lifecycle_action", true, "生命周期动作响应");
+  for (const field of ["external_venue_connection", "production_venue_connection", "external_network_attempted", "order_submission_allowed", "order_mutation_allowed", "automatic_retry_allowed", "automatic_remediation_allowed", "real_orders_submitted"]) requireBoundary(boundaries, field, false, "生命周期动作响应");
+  const serialized = JSON.stringify(envelope);
+  for (const forbidden of ["credential", "private_key", "auth_header", "raw_error", "raw_payload"]) if (serialized.includes(forbidden)) throw new Error(`生命周期动作响应暴露禁止字段：${forbidden}`);
+  return envelope;
 }
 
 const emptyCard = (label) => `<div class="node-card"><div class="card-label">${text(label)}</div><div class="card-value">等待状态对齐</div></div>`;
 function resetSurface(message) {
+  pendingLifecycleAction = null;
+  currentLifecycleActions = [];
   document.getElementById("axis-grid").innerHTML = ["研究状态", "运行状态", "技术健康", "交易准备度"].map(emptyCard).join("");
   document.getElementById("node-grid").innerHTML = ["生命周期", "进程", "技术健康", "PID", "最近转换", "错误标记"].map(emptyCard).join("");
+  document.getElementById("lifecycle-action-buttons").innerHTML = `<button type="button" disabled>操作不可用</button>`;
+  setLifecycleActionResult("等待已验证节点状态", message);
   document.getElementById("business-impact-title").textContent = "等待共享状态";
   document.getElementById("business-impact-list").innerHTML = "";
   document.getElementById("event-correlation-panel").innerHTML = `<strong>等待事件关联</strong><span>${text(message)}</span>`;
@@ -914,6 +1085,25 @@ function observabilityCard(label, items, idField, valueField) {
   const rows = items.length === 0 ? `<div class="observability-row"><span>没有${text(label)}上报</span><span>未知</span></div>` : items.map((item) => `<div class="observability-row"><span>${text(item[idField])}</span><span>${text(display(valueField ? dashboardValue(item[valueField]) : item.availability))}</span></div>`).join("");
   return `<article class="observability-card"><div class="card-label">${text(label)}</div>${rows}</article>`;
 }
+function setLifecycleActionResult(title, detail, error = false) {
+  const result = document.getElementById("lifecycle-action-result");
+  result.className = `lifecycle-action-result${error ? " error" : ""}`;
+  result.innerHTML = `<strong>${text(title)}</strong><span>${text(detail)}</span>`;
+}
+function renderLifecycleActions(actions, nodeId) {
+  currentLifecycleActions = Array.isArray(actions) ? actions : [];
+  const container = document.getElementById("lifecycle-action-buttons");
+  if (currentLifecycleActions.length !== 2) {
+    container.innerHTML = `<button type="button" disabled>操作不可用</button>`;
+    return;
+  }
+  container.innerHTML = currentLifecycleActions.map((item) => {
+    const pending = pendingLifecycleAction === item.action;
+    const disabled = lifecycleActionBusy || !item.enabled;
+    const label = pending ? `确认${display(item.action)}` : display(item.action);
+    return `<div class="lifecycle-action-option"><button type="button" class="lifecycle-action-button ${text(item.action)}${pending ? " pending" : ""}" data-lifecycle-action="${text(item.action)}" data-node-id="${text(nodeId)}" aria-pressed="${pending ? "true" : "false"}" ${disabled ? "disabled" : ""}>${text(label)}</button><span class="lifecycle-action-reason">${text(display(item.reason_code))}</span></div>`;
+  }).join("");
+}
 function renderControlCenter(shared, ops, correlation) {
   const identities = shared.identity.identities;
   const status = shared.status;
@@ -936,20 +1126,21 @@ function renderControlCenter(shared, ops, correlation) {
     nodeCard("最近转换", dashboardValue(node.last_transition_at), "节点状态时间"),
     nodeCard("错误标记", node.error_present ? "present" : "none", "不传输原始错误文本"),
   ].join("");
+  renderLifecycleActions(ops.lifecycleActions, node.node_id);
   document.getElementById("component-table").innerHTML = componentRows(snapshot);
   document.getElementById("observability-grid").innerHTML = [observabilityCard("日志", snapshot.logs, "log_id"), observabilityCard("指标", snapshot.metrics, "metric_id", "value")].join("");
   const alerts = [...snapshot.alerts.map((item) => ({ severity: item.severity, title: item.alert_id, detail: `${item.source} · 原始错误已脱敏` })), ...snapshot.gaps.map((item) => ({ severity: "warning", title: item.field_path, detail: `${display(item.reason)} · ${display(dashboardValue(item.owner_task))}` }))];
   document.getElementById("alert-count").textContent = `${alerts.length} 项`;
   document.getElementById("alert-list").innerHTML = alerts.length === 0 ? `<div class="empty-state">没有活动告警或能力缺口</div>` : alerts.map((item) => `<article class="alert-item ${text(item.severity)}"><strong>${text(item.title)}</strong><span>${text(item.detail)}</span></article>`).join("");
   document.getElementById("source-list").innerHTML = [...new Set([...shared.source_refs, snapshot.registry_path])].map((source, index) => `<div class="source-item"><strong>来源 ${index + 1}</strong>${text(source)}</div>`).join("");
-  document.getElementById("boundary-list").innerHTML = [["共享合同", shared.contract_version], ["Control Center consumer", "已验证"], ["本地监督器", "已对齐"], ["外部 Venue", "关闭"], ["订单提交与变更", "关闭"], ["自动重试与补救", "关闭"], ["真实订单", "关闭"]].map(([label, value]) => `<div class="boundary-item"><strong>${text(label)}</strong><span>${text(value)}</span></div>`).join("");
+  document.getElementById("boundary-list").innerHTML = [["共享合同", shared.contract_version], ["Control Center consumer", "已验证"], ["本地监督器", "启动 / 停止"], ["其他 Supervisor 动作", "关闭"], ["外部 Venue", "关闭"], ["订单提交与变更", "关闭"], ["自动重试与补救", "关闭"], ["真实订单", "关闭"]].map(([label, value]) => `<div class="boundary-item"><strong>${text(label)}</strong><span>${text(value)}</span></div>`).join("");
   document.getElementById("footer-environment").textContent = `环境：${display(identities.environment)}`;
   document.getElementById("footer-node").textContent = `节点：${node.node_id}`;
   document.getElementById("footer-runtime").textContent = `运行状态：${display(status.runtime.status)}`;
   document.getElementById("footer-health").textContent = `技术健康：${display(status.technical_health.status)}`;
   document.getElementById("footer-readiness").textContent = `交易准备度：${display(status.trading_readiness.status)}`;
   document.getElementById("footer-updated").textContent = `更新时间：${shared.generated_at_unix_ms}`;
-  setConnection("ready", "共享与运维状态已对齐", "控制中心正在消费版本化共享事实和本地运维投影", "只读");
+  setConnection("ready", "共享与运维状态已对齐", "控制中心正在消费版本化共享事实和受控本地生命周期能力", "受控");
 }
 function renderBlocked(error) {
   resetSurface("状态不可用，旧数据已清空");
@@ -969,13 +1160,75 @@ async function refreshControlCenter() {
     const shared = validateSharedStatus(await sharedResponse.json());
     const ops = validateOperationalProjection(await snapshotResponse.json(), shared);
     renderControlCenter(shared, ops, validateEventCorrelation(await correlationResponse.json(), shared));
+    return true;
   } catch (error) {
     renderBlocked(error instanceof Error ? error : new Error("控制中心状态读取失败"));
+    return false;
   } finally {
     button.disabled = false;
   }
 }
 
+async function refreshUntilLifecycleAligned(timeoutMs = 5000) {
+  const deadline = Date.now() + timeoutMs;
+  do {
+    if (await refreshControlCenter()) return;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  } while (Date.now() < deadline);
+  throw new Error("生命周期动作后状态投影未在时限内对齐");
+}
+
+async function executeLifecycleAction(action, nodeId) {
+  const capability = currentLifecycleActions.find((item) => item.action === action && item.target_node_id === nodeId);
+  if (!capability || !capability.enabled || lifecycleActionBusy) throw new Error("生命周期动作当前不可执行");
+  lifecycleActionBusy = true;
+  renderLifecycleActions(currentLifecycleActions, nodeId);
+  setLifecycleActionResult(`正在${display(action)}`, `${nodeId} · 等待 Supervisor 响应`);
+  try {
+    const endpoint = `/api/mvp/v1/control-center/nodes/${encodeURIComponent(nodeId)}/actions/${encodeURIComponent(action)}`;
+    const response = await fetch(endpoint, { method: "POST", headers: { "Accept": "application/json" }, cache: "no-store" });
+    const envelope = validateLifecycleActionEnvelope(await response.json(), nodeId, action);
+    const result = envelope.result;
+    if (response.ok && result.status !== "succeeded") throw new Error("生命周期动作成功响应状态异常");
+    if (!response.ok && result.status === "succeeded") throw new Error("生命周期动作错误响应状态异常");
+    if (response.ok) {
+      const expectedPrevious = action === "start" ? "stopped" : ["running", "paused"];
+      const previousMatches = Array.isArray(expectedPrevious) ? expectedPrevious.includes(result.previous_state) : result.previous_state === expectedPrevious;
+      const expectedCurrent = action === "start" ? "running" : "stopped";
+      if (!previousMatches || result.current_state !== expectedCurrent) throw new Error("生命周期动作状态转换异常");
+    }
+    pendingLifecycleAction = null;
+    await refreshUntilLifecycleAligned();
+    const message = dashboardValue(result.message);
+    setLifecycleActionResult(`${display(action)}${display(result.status)}`, `${message} · ${result.previous_state} → ${result.current_state}`, !response.ok);
+  } catch (error) {
+    currentLifecycleActions = [];
+    renderLifecycleActions([], nodeId);
+    setLifecycleActionResult("生命周期动作已阻断", error instanceof Error ? error.message : "动作响应不可验证", true);
+  } finally {
+    lifecycleActionBusy = false;
+    pendingLifecycleAction = null;
+    if (currentLifecycleActions.length === 2) renderLifecycleActions(currentLifecycleActions, nodeId);
+  }
+}
+
 document.getElementById("refresh").addEventListener("click", refreshControlCenter);
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-lifecycle-action]");
+  if (!button || button.disabled) return;
+  const action = button.getAttribute("data-lifecycle-action");
+  const nodeId = button.getAttribute("data-node-id");
+  if (!LIFECYCLE_ACTIONS.includes(action) || typeof nodeId !== "string" || nodeId.length === 0) {
+    setLifecycleActionResult("生命周期动作已阻断", "动作身份不可验证", true);
+    return;
+  }
+  if (pendingLifecycleAction !== action) {
+    pendingLifecycleAction = action;
+    renderLifecycleActions(currentLifecycleActions, nodeId);
+    setLifecycleActionResult(`确认${display(action)}`, `${nodeId} · 再次点击确认执行`);
+    return;
+  }
+  executeLifecycleAction(action, nodeId);
+});
 refreshControlCenter();
 "#;

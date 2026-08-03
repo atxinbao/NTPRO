@@ -92,6 +92,8 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
         "business-impact-list",
         "event-correlation-panel",
         "node-grid",
+        "lifecycle-action-buttons",
+        "lifecycle-action-result",
         "component-table",
         "observability-grid",
         "alert-list",
@@ -114,6 +116,9 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
         "requestedEventId",
         "portalEventLink",
         "validateOperationalProjection",
+        "validateLifecycleActionEnvelope",
+        "/api/mvp/v1/control-center/nodes/",
+        "data-lifecycle-action",
         "共享状态与运维节点身份不一致",
         "共享状态与运维 registry provenance 不一致",
         "控制中心 MVP 要求恰好一个运维节点",
@@ -121,6 +126,7 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
         "运维节点暴露未脱敏错误",
         "resetSurface(\"刷新中，旧数据已清空\")",
         "method: \"GET\"",
+        "method: \"POST\"",
         "cache: \"no-store\"",
     ] {
         assert!(
@@ -130,16 +136,19 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
     }
     assert_eq!(
         CONTROL_CENTER_JS.matches("fetch(").count(),
-        3,
-        "control center must request exactly the shared, minimized operational, and event correlation projections",
+        4,
+        "control center must request exactly three read projections and one lifecycle action endpoint",
     );
     for forbidden in [
         "/api/nodes/",
         "/api/server",
         r#""/api/snapshot""#,
         "/api/event-store",
-        "method: \"POST\"",
         "data-dashboard-action",
+        "/actions/pause",
+        "/actions/resume",
+        "/actions/reconnect_data",
+        "/actions/reconnect_execution",
         "submit_order",
         "cancel_order",
         "replace_order",
@@ -200,7 +209,17 @@ fn control_center_operational_projection_is_minimized_and_redacted() {
     assert_eq!(value["registry_path"], "registry.json");
     assert_eq!(value["node"]["error_present"], true);
     assert_eq!(value["boundaries"]["read_only"], true);
-    assert_eq!(value["boundaries"]["supervisor_actions_exposed"], false);
+    assert_eq!(value["boundaries"]["supervisor_actions_exposed"], true);
+    assert_eq!(
+        value["boundaries"]["unsupported_supervisor_actions_exposed"],
+        false
+    );
+    assert_eq!(value["boundaries"]["trading_controls_exposed"], false);
+    assert_eq!(value["lifecycle_actions"].as_array().map(Vec::len), Some(2));
+    assert_eq!(value["lifecycle_actions"][0]["action"], "start");
+    assert_eq!(value["lifecycle_actions"][0]["enabled"], false);
+    assert_eq!(value["lifecycle_actions"][1]["action"], "stop");
+    assert_eq!(value["lifecycle_actions"][1]["enabled"], true);
     assert_eq!(value["boundaries"]["raw_errors_exposed"], false);
     for forbidden in [
         "controls",
