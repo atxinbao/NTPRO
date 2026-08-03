@@ -15,29 +15,10 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-mvp-006-browser-"));
 const evidenceDir = process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
 fs.mkdirSync(evidenceDir, { recursive: true });
 const workspace = path.join(root, "workspace");
-const config = path.join(root, "node.toml");
-fs.writeFileSync(
-  config,
-  `[node]
-node_id = "strategy-instance-alpha"
+const config = path.resolve("configs/nodes/btc-ema-shadow.toml");
+if (!fs.existsSync(config)) throw new Error(`MVP browser fixture is missing: ${config}`);
 
-[strategy]
-strategy_id = "strategy-alpha"
-
-[market]
-venue = "SANDBOX"
-
-[execution]
-venue = "SANDBOX"
-
-[mvp]
-strategy_version = "v1"
-backtest_run_id = "backtest-alpha-001"
-backtest_result_ref = "artifact://backtests/backtest-alpha-001/summary.json"
-account_id = "SANDBOX-001"
-environment = "sandbox"
-`,
-);
+const readIfPresent = (filePath) => fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
 
 const port = await new Promise((resolve, reject) => {
   const listener = net.createServer();
@@ -60,8 +41,26 @@ const server = spawn(
 );
 server.stdout.on("data", (chunk) => serverLog.push(chunk.toString()));
 server.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
+const writeDiagnostics = (failure) => {
+  const nodeLogDir = path.join(workspace, "nodes", "mvp-node-001", "logs");
+  const nodeStdout = readIfPresent(path.join(nodeLogDir, "stdout.log"));
+  const nodeStderr = readIfPresent(path.join(nodeLogDir, "stderr.log"));
+  fs.writeFileSync(path.join(evidenceDir, "mvp-server.log"), serverLog.join(""));
+  fs.writeFileSync(path.join(evidenceDir, "ntpro-node-stdout.log"), nodeStdout);
+  fs.writeFileSync(path.join(evidenceDir, "ntpro-node-stderr.log"), nodeStderr);
+  if (failure) {
+    fs.writeFileSync(
+      path.join(evidenceDir, "result.json"),
+      `${JSON.stringify({
+        status: "fail",
+        error: failure instanceof Error ? failure.message : String(failure),
+      }, null, 2)}\n`,
+    );
+  }
+};
 
 let browser;
+let failure;
 try {
   let payload;
   const deadline = Date.now() + 30_000;
@@ -150,13 +149,20 @@ try {
   );
 
   console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 stale_clear=2");
+} catch (error) {
+  failure = error;
 } finally {
   if (browser) await browser.close();
-  server.kill("SIGINT");
-  await Promise.race([
-    new Promise((resolve) => server.once("exit", resolve)),
-    new Promise((resolve) => setTimeout(resolve, 5_000)),
-  ]);
+  if (server.exitCode === null && server.signalCode === null) {
+    server.kill("SIGINT");
+    await Promise.race([
+      new Promise((resolve) => server.once("exit", resolve)),
+      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    ]);
+  }
   if (server.exitCode === null) server.kill("SIGKILL");
+  writeDiagnostics(failure);
   fs.rmSync(root, { recursive: true, force: true });
 }
+
+if (failure) throw failure;
