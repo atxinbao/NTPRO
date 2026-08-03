@@ -40,14 +40,19 @@ jobs:
           git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tee /tmp/changed-files.txt
           heavy_rust=false
           release_verify=false
+          institution_workbench=false
           if grep -E '^(Cargo\.(toml|lock)|crates/|tests/|examples/|configs/)' /tmp/changed-files.txt >/dev/null; then
             heavy_rust=true
           fi
           if grep -E '^(\.github/(workflows|actions)/|scripts/ai/|docs/rust-cutover/(governance|release|golden_trace)/|tests/golden/|crates/governance/)' /tmp/changed-files.txt >/dev/null; then
             release_verify=true
           fi
+          if grep -E '^(crates/cli/src/dashboard/(institution_workbench\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_institution_workbench_(contract|browser)\.mjs)' /tmp/changed-files.txt >/dev/null; then
+            institution_workbench=true
+          fi
           echo "heavy_rust=$heavy_rust" >>"$GITHUB_OUTPUT"
           echo "release_verify=$release_verify" >>"$GITHUB_OUTPUT"
+          echo "institution_workbench=$institution_workbench" >>"$GITHUB_OUTPUT"
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
@@ -91,6 +96,33 @@ jobs:
       - name: CLI unit tests
         if: steps.changes.outputs.heavy_rust == 'true'
         run: cargo test -p nautilus-cli --lib
+      - name: Institution workbench contract replay
+        if: steps.changes.outputs.institution_workbench == 'true'
+        run: node scripts/ai/test_institution_workbench_contract.mjs
+      - name: Institution workbench browser smoke
+        if: steps.changes.outputs.institution_workbench == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends fonts-noto-cjk
+          fc-match "Noto Sans CJK SC"
+          cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
+          npm install \
+            --prefix "$RUNNER_TEMP/ntpro-playwright" \
+            --package-lock=false \
+            --no-save \
+            playwright-core@1.55.0
+          export NTPRO_PLAYWRIGHT_CORE_PATH="$RUNNER_TEMP/ntpro-playwright/node_modules/playwright-core"
+          export NTPRO_CHROME_BIN="$(command -v google-chrome || command -v chromium)"
+          export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-browser-evidence"
+          node scripts/ai/test_institution_workbench_browser.mjs
+      - name: Upload institution workbench browser evidence
+        if: always() && steps.changes.outputs.institution_workbench == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: institution-workbench-browser-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/ntpro-browser-evidence
+          if-no-files-found: error
       - name: Golden trace schema smoke
         run: scripts/ai/ntpro_governance.sh golden-trace tests/golden/schema_smoke.jsonl --mode validate-only
       - name: Rust-only runtime gate

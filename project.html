@@ -1942,7 +1942,7 @@
       <div class="brand-mark" aria-hidden="true">NT</div>
       <div>
         <p class="brand-name">NTPRO / 机构系统化交易平台蓝图</p>
-        <p class="brand-meta">审计代码面：MVP-005 merge + #1209 · 正式发布：v0.33.0 · 2026-08-02</p>
+        <p class="brand-meta">审计代码面：MVP-005A merge + #1211 · 正式发布：v0.33.0 · 2026-08-03</p>
       </div>
     </div>
     <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
@@ -1979,6 +1979,7 @@
             <span class="status ok">MVP-001 单节点运行基线已合并</span>
             <span class="status ok">M0 身份与四轴状态实现已交付</span>
             <span class="status ok">M2 共享只读 API 已交付</span>
+            <span class="status info">MVP-006 机构工作台已实现，待审查/合并</span>
             <span class="status ok">TTR-001 / TTR-002 已合并</span>
             <span class="status info">前端产品尚未完成，当前只读优先</span>
           </div>
@@ -2005,7 +2006,7 @@
         <section id="frontend-ia">
           <div class="section-head">
             <div>
-              <p class="eyebrow">机构产品信息架构 · 第七版</p>
+              <p class="eyebrow">机构产品信息架构 · 第八版</p>
               <h2>一个平台，两个门户，一个共享控制平面</h2>
               <p class="section-intro">
                 产品按责任和决策类型分开，而不是为每个岗位建立独立系统。机构工作台服务投资与交易业务，控制中心服务独立治理与平台运行；策略状态、审批、部署和事件通过同一控制合同交接。
@@ -2384,7 +2385,7 @@
               <h3>能力成熟度与产品承诺</h3>
               <p>代码存在不等于产品接口完成；每一项必须区分后端能力、浏览器可用合同和授权边界。</p>
             </div>
-            <span class="surface-index">审计代码面：MVP-005 merge + #1209 / 正式发布：v0.33.0 / 冻结基线：v0.32.0</span>
+            <span class="surface-index">审计代码面：MVP-005A merge + #1211 / 正式发布：v0.33.0 / 冻结基线：v0.32.0</span>
           </div>
 
           <div class="maturity-key" aria-label="能力成熟度图例">
@@ -2453,7 +2454,7 @@
           </div>
 
           <div class="diagram" aria-label="NTPRO 当前后端架构图">
-            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>审计代码面：MVP-005 merge <code>6bc2a7246534</code> + #1209；正式发布基线：v0.33.0 <code>0ef6fd9d8577</code></span></div>
+            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>审计代码面：MVP-005A merge <code>b621dc11a69c</code> + #1211；正式发布基线：v0.33.0 <code>0ef6fd9d8577</code></span></div>
             <div class="architecture-flow">
               <div class="arch-row">
                 <div class="arch-label">外部接入层</div>
@@ -2684,22 +2685,22 @@
               <div class="phase-time">只读接口 · API 已交付</div>
               <div class="phase-body">
                 <h3>共享产品状态合同</h3>
-                <p>MVP-005 已交付 <code>GET /api/mvp/v1/status</code>；两个最小界面的真实消费绑定仍待完成。</p>
+                <p>MVP-005 已交付 <code>GET /api/mvp/v1/status</code>；MVP-006 已实现机构工作台消费但尚未合并，控制中心仍待开发。</p>
                 <ul>
                   <li>版本化输出策略、账户、仓位、订单、成交、风险和节点状态。</li>
                   <li>包含来源、时效、错误信封和节点到策略实例的关联。</li>
                   <li>浏览器不读取原始事件存储，不直连交易所，不包含交易命令。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件 · 保持开放</strong>MVP-006 与 MVP-007 必须让两个门户实际消费同一版本化事实；API 已存在不能单独关闭 M2。</div>
+              <div class="exit-gate"><strong>退出条件 · 保持开放</strong>MVP-006 须先通过审查并合并；之后仍须 MVP-007 让控制中心消费同一版本化事实，才能关闭 M2。</div>
             </article>
 
             <article class="phase">
               <div class="phase-dot">M3</div>
-              <div class="phase-time">最小界面 · 未开始</div>
+              <div class="phase-time">最小界面 · 机构工作台待审查/合并</div>
               <div class="phase-body">
                 <h3>交易员视图 + 运维视图</h3>
-                <p>只实现支撑单节点 MVP 的必要页面，不扩张完整门户范围。</p>
+                <p>MVP-006 已实现机构工作台最小只读页面但尚未合并；控制中心仍待 MVP-007 完成。</p>
                 <ul>
                   <li>机构工作台展示策略/回测摘要和运行中的只读业务状态。</li>
                   <li>控制中心展示单节点生命周期、健康、日志、指标和事件。</li>
@@ -2761,7 +2762,8 @@
           <div class="verification"><strong>TTR-001 只读路由</strong><span>PR #1148 已合并 · 六个 v0.28 治理接口真实挂载 · hosted checks 全通过</span><span class="check-pass">已合并</span></div>
           <div class="verification"><strong>TTR-002 存储边界</strong><span>PR #1152 已合并 · 原始 Event Store / redb / run 路径保持 404</span><span class="check-pass">已合并</span></div>
           <div class="verification"><strong>业务读模型基础</strong><span>账户、仓位、订单、成交和风险投影已进入共享 API；浏览器消费绑定尚未完成</span><span class="check-partial">接口完成</span></div>
-          <div class="verification"><strong>前端产品状态</strong><span>机构工作台与控制中心尚未消费共享 API；M2 退出条件保持开放，M3 未开始</span><span class="check-partial">待开发</span></div>
+          <div class="verification"><strong>机构工作台</strong><span>MVP-006 · /institution-workbench · 只消费 GET /api/mvp/v1/status · fail closed</span><span class="check-partial">待审查/合并</span></div>
+          <div class="verification"><strong>前端产品状态</strong><span>控制中心尚未消费共享 API；M2 退出条件保持开放，M3 完成一半</span><span class="check-partial">控制中心待开发</span></div>
 
           <div class="research-lane">
             <strong>文档权威顺序</strong>
@@ -2798,7 +2800,7 @@
             <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
           </ul>
 
-          <p class="footer-note">信息架构版本：第七版 · 更新日期：2026-08-02 · 执行者：Codex · 审计代码面：MVP-005 merge <code>6bc2a7246534</code> + #1209 · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（不包含当前 MVP-003/004/005）</p>
+          <p class="footer-note">信息架构版本：第八版 · 更新日期：2026-08-03 · 执行者：Codex · 审计代码面：MVP-005A merge <code>b621dc11a69c</code> + #1211 · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（不包含当前 MVP-003/004/005/006）</p>
         </section>
       </div>
     </main>

@@ -71,12 +71,13 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         .local_addr()
         .context("failed to read dashboard server local address")?;
     println!(
-        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard",
+        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard institution_workbench_url=http://{}/institution-workbench",
         local_addr,
         registry_path.display(),
         workflow_root
             .as_ref()
             .map_or_else(|| "auto".to_string(), |path| path.display().to_string()),
+        local_addr,
         local_addr
     );
     axum::serve(
@@ -108,9 +109,24 @@ fn dashboard_router_with_workflow_root(
         .route("/dashboard", get(dashboard_shell))
         .route("/assets/dashboard.css", get(dashboard_css))
         .route("/assets/dashboard.js", get(dashboard_js))
+        .route(
+            "/institution-workbench",
+            get(institution_workbench_shell).head(reject_non_get),
+        )
+        .route(
+            "/assets/institution-workbench.css",
+            get(institution_workbench_css).head(reject_non_get),
+        )
+        .route(
+            "/assets/institution-workbench.js",
+            get(institution_workbench_js).head(reject_non_get),
+        )
         .route("/api/server", get(server_metadata_api))
         .route("/api/snapshot", get(snapshot_api))
-        .route("/api/mvp/v1/status", get(mvp_shared_status_api))
+        .route(
+            "/api/mvp/v1/status",
+            get(mvp_shared_status_api).head(reject_non_get),
+        )
         .route(
             "/api/v28/backend-closure/status",
             get(backend_closure_status_api),
@@ -205,6 +221,28 @@ async fn dashboard_js() -> impl IntoResponse {
         [(CONTENT_TYPE, "application/javascript; charset=utf-8")],
         DASHBOARD_JS,
     )
+}
+
+async fn institution_workbench_shell() -> Html<&'static str> {
+    Html(INSTITUTION_WORKBENCH_HTML)
+}
+
+async fn institution_workbench_css() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "text/css; charset=utf-8")],
+        INSTITUTION_WORKBENCH_CSS,
+    )
+}
+
+async fn institution_workbench_js() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "application/javascript; charset=utf-8")],
+        INSTITUTION_WORKBENCH_JS,
+    )
+}
+
+async fn reject_non_get() -> StatusCode {
+    StatusCode::METHOD_NOT_ALLOWED
 }
 
 async fn server_metadata_api(

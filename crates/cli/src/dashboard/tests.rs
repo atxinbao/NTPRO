@@ -40,8 +40,10 @@ use std::os::unix::fs::PermissionsExt;
 #[test]
 fn dashboard_module_ownership_boundaries_are_explicit() {
     let root = include_str!("../dashboard.rs");
+    let institution_workbench = include_str!("institution_workbench.rs");
     let rendering = include_str!("rendering.rs");
 
+    assert!(root.contains("mod institution_workbench;"));
     assert!(root.contains("mod rendering;"));
     assert!(root.contains("mod server;"));
     assert!(root.contains("mod trader_terminal_api;"));
@@ -55,6 +57,101 @@ fn dashboard_module_ownership_boundaries_are_explicit() {
     assert!(rendering.contains("pub(super) const DASHBOARD_HTML:"));
     assert!(rendering.contains("pub(super) const DASHBOARD_CSS:"));
     assert!(rendering.contains("pub(super) const DASHBOARD_JS:"));
+    assert!(institution_workbench.contains("//! 机构工作台静态 shell 与共享只读状态渲染资源。"));
+    assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_HTML:"));
+    assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_CSS:"));
+    assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_JS:"));
+}
+
+#[test]
+fn institution_workbench_consumes_only_shared_status_and_fails_closed() {
+    let server = include_str!("server.rs");
+    for route in [
+        r#""/institution-workbench""#,
+        "get(institution_workbench_shell).head(reject_non_get)",
+        r#""/assets/institution-workbench.css"#,
+        r#""/assets/institution-workbench.js"#,
+    ] {
+        assert!(
+            server.contains(route),
+            "dashboard server missing route {route}"
+        );
+    }
+    for mount in [
+        "axis-grid",
+        "identity-grid",
+        "business-grid",
+        "blocking-panel",
+        "source-list",
+        "boundary-list",
+    ] {
+        assert!(
+            INSTITUTION_WORKBENCH_HTML.contains(mount),
+            "institution workbench missing mount {mount}",
+        );
+    }
+    assert!(
+        INSTITUTION_WORKBENCH_HTML.contains("NTPRO 机构工作台"),
+        "institution workbench must identify its product role",
+    );
+    assert!(INSTITUTION_WORKBENCH_JS.contains("const SHARED_STATUS_URL = \"/api/mvp/v1/status\""),);
+    assert_eq!(
+        INSTITUTION_WORKBENCH_JS.matches("fetch(").count(),
+        1,
+        "institution workbench must have exactly one data request",
+    );
+    for required in [
+        "ntpro.mvp_shared_status_api.response.v1",
+        "ntpro.mvp_shared_status_api.v1",
+        "institution_workbench",
+        "validateSharedStatus",
+        "requireBoundary",
+        "requireAxis",
+        "requireDashboardValue",
+        "EXPECTED_IDENTITY_SCHEMA",
+        "EXPECTED_STATUS_SCHEMA",
+        "identity.contract_id !==",
+        r#"["readiness_status", "snapshot_id", "schema_version""#,
+        "read_only_product_contract",
+        "requireAxis(status.trading_readiness",
+        "resetSurface(\"刷新中，旧数据已清空\")",
+        "共享状态不可用，旧数据已清空",
+        "method: \"GET\"",
+        "cache: \"no-store\"",
+    ] {
+        assert!(
+            INSTITUTION_WORKBENCH_JS.contains(required),
+            "institution workbench missing contract marker {required}",
+        );
+    }
+    for forbidden in [
+        "/api/server",
+        "/api/snapshot",
+        "/api/nodes",
+        "/api/event-store",
+        "method: \"POST\"",
+        "data-dashboard-action",
+        "submit_order",
+        "cancel_order",
+        "replace_order",
+        "amend_order",
+        "flatten_position",
+        "retry_order_action",
+        "automatic_remediation_action",
+    ] {
+        assert!(
+            !INSTITUTION_WORKBENCH_JS.contains(forbidden),
+            "institution workbench must not expose {forbidden}",
+        );
+        assert!(
+            !INSTITUTION_WORKBENCH_HTML.contains(forbidden),
+            "institution workbench shell must not expose {forbidden}",
+        );
+    }
+    assert!(
+        INSTITUTION_WORKBENCH_CSS.contains("@media (max-width: 680px)"),
+        "institution workbench must define a narrow viewport layout",
+    );
 }
 
 #[test]
