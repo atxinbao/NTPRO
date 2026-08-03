@@ -30,7 +30,7 @@ use axum::{
 
 use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
-use super::mvp_status_api::mvp_shared_status_api;
+use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
 use super::trader_terminal_api::{
     audit_entries_api, backend_closure_status_api, deployment_state_api, permission_snapshot_api,
     provenance_drilldown_api, telemetry_health_api,
@@ -139,6 +139,10 @@ fn dashboard_router_with_workflow_root(
         .route(
             "/api/mvp/v1/status",
             get(mvp_shared_status_api).head(reject_non_get),
+        )
+        .route(
+            "/api/mvp/v1/event-correlation",
+            get(mvp_event_correlation_api).head(reject_non_get),
         )
         .route(
             "/api/mvp/v1/control-center",

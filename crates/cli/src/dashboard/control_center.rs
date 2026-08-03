@@ -385,6 +385,9 @@ pub(super) const CONTROL_CENTER_HTML: &str = r##"<!doctype html>
             <div><span class="eyebrow">业务影响</span><strong id="business-impact-title">等待共享状态</strong></div>
             <div id="business-impact-list" class="impact-list"></div>
           </div>
+          <div id="event-correlation" class="event-correlation-band">
+            <div id="event-correlation-panel" class="event-correlation-copy"><strong>等待事件关联</strong><span>尚未绑定业务影响</span></div>
+          </div>
         </section>
 
         <div class="content-grid">
@@ -509,6 +512,12 @@ main { min-height: 0; overflow: auto; padding: 20px 16px 32px; }
 .impact-band strong { font-size: 14px; }
 .impact-list { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px 12px; color: #526159; font-size: 11px; }
 .impact-list span { overflow-wrap: anywhere; }
+.event-correlation-band { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; margin-top: 10px; padding: 11px 12px; background: #ffffff; border: 1px solid #cbd7d1; border-radius: 6px; }
+.event-correlation-copy { display: grid; gap: 4px; min-width: 0; }
+.event-correlation-copy strong, .event-correlation-copy span { overflow-wrap: anywhere; }
+.event-correlation-copy span { color: #526159; font-size: 11px; }
+.portal-link { color: #0c6541; font-size: 12px; font-weight: 800; text-decoration: none; border-bottom: 1px solid currentColor; white-space: nowrap; }
+.portal-link:hover { color: #094d32; }
 
 .content-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
 .primary-column { min-width: 0; }
@@ -561,6 +570,8 @@ tr:last-child td { border-bottom: 0; }
   .axis-grid, .node-grid, .observability-grid { grid-template-columns: minmax(0, 1fr); }
   .impact-band { align-items: flex-start; flex-direction: column; }
   .impact-list { justify-content: flex-start; }
+  .event-correlation-band { grid-template-columns: minmax(0, 1fr); }
+  .portal-link { justify-self: start; white-space: normal; }
   .section-heading h1 { font-size: 21px; }
   .card-meta { grid-template-columns: 58px minmax(0, 1fr); }
   .table-wrap { overflow-x: visible; }
@@ -575,8 +586,11 @@ tr:last-child td { border-bottom: 0; }
 
 pub(super) const CONTROL_CENTER_JS: &str = r#"const SHARED_STATUS_URL = "/api/mvp/v1/status";
 const OPS_SNAPSHOT_URL = "/api/mvp/v1/control-center";
+const EVENT_CORRELATION_URL = "/api/mvp/v1/event-correlation";
 const EXPECTED_SHARED_SCHEMA = "ntpro.mvp_shared_status_api.response.v1";
 const EXPECTED_SHARED_CONTRACT = "ntpro.mvp_shared_status_api.v1";
+const EXPECTED_EVENT_SCHEMA = "ntpro.mvp_event_correlation_api.response.v1";
+const EXPECTED_EVENT_CONTRACT = "ntpro.mvp_event_correlation_api.v1";
 const EXPECTED_IDENTITY_SCHEMA = "ntpro.mvp_identity_contract.v1";
 const EXPECTED_STATUS_SCHEMA = "ntpro.mvp_status_contract.v1";
 const EXPECTED_OPS_SCHEMA = "ntpro.mvp_control_center_snapshot.v1";
@@ -716,6 +730,37 @@ function validateSharedStatus(payload) {
   }
   return payload;
 }
+function requestedEventId() {
+  const search = typeof location === "object" && typeof location.search === "string" ? location.search : "";
+  const values = new URLSearchParams(search).getAll("event_id");
+  if (values.length > 1) throw new Error("请求包含重复事件参数");
+  return values.length === 1 ? values[0] : null;
+}
+function validateEventCorrelation(payload, shared) {
+  const correlation = requireObject(payload, "event correlation");
+  if (correlation.schema_version !== EXPECTED_EVENT_SCHEMA) throw new Error("事件关联 schema 不匹配");
+  if (correlation.contract_version !== EXPECTED_EVENT_CONTRACT) throw new Error("事件关联 contract 不匹配");
+  const event = requireObject(correlation.event, "event correlation.event");
+  const links = requireObject(correlation.links, "event correlation.links");
+  const boundaries = requireObject(correlation.boundaries, "event correlation.boundaries");
+  for (const field of ["event_id", "event_kind", "event_source", "identity_contract_id", "node_id", "strategy_instance_id"]) requireString(event[field], `event correlation.event.${field}`);
+  if (event.event_kind !== "technical_health_observation" || event.event_source !== "projected_status_contract") throw new Error("事件关联不是已投影状态观察");
+  const identities = shared.identity.identities;
+  const expectedEventId = `mvp-status:v1:${encodeURIComponent(identities.node_id)}:${encodeURIComponent(identities.strategy_id)}:${encodeURIComponent(identities.strategy_instance_id)}:technical-health`;
+  if (event.event_id !== expectedEventId || event.identity_contract_id !== shared.identity.contract_id || event.node_id !== identities.node_id || event.strategy_instance_id !== identities.strategy_instance_id) throw new Error("事件关联与共享身份不一致");
+  if (links.institution_workbench_path !== "/institution-workbench" || links.control_center_path !== "/control-center") throw new Error("事件关联目标路径异常");
+  requireBoundary(boundaries, "read_only", true, "事件关联");
+  requireBoundary(boundaries, "projected_status_event", true, "事件关联");
+  for (const field of ["raw_event_store_exposed", "raw_event_payload_exposed", "raw_errors_exposed", "supervisor_actions_exposed", "trading_controls_exposed"]) requireBoundary(boundaries, field, false, "事件关联");
+  const serialized = JSON.stringify(correlation);
+  for (const forbidden of ["source_refs", "config_path", "registry_path", "node_status_path", "node_metrics_path", "unified_read_model_path", "last_error", "message", "credential", "controls"]) if (serialized.includes(`"${forbidden}"`)) throw new Error(`事件关联暴露禁止字段：${forbidden}`);
+  const requested = requestedEventId();
+  if (requested !== null && requested !== event.event_id) throw new Error("请求的事件与当前运行实例不一致");
+  return correlation;
+}
+function portalEventLink(path, eventId) {
+  return `${path}?event_id=${encodeURIComponent(eventId)}#event-correlation`;
+}
 function validateOperationalProjection(snapshot, shared) {
   const ops = requireObject(snapshot, "operational snapshot");
   if (ops.schema_version !== EXPECTED_OPS_SCHEMA) throw new Error("运维投影 schema 不匹配");
@@ -824,6 +869,7 @@ function resetSurface(message) {
   document.getElementById("node-grid").innerHTML = ["生命周期", "进程", "技术健康", "PID", "最近转换", "错误标记"].map(emptyCard).join("");
   document.getElementById("business-impact-title").textContent = "等待共享状态";
   document.getElementById("business-impact-list").innerHTML = "";
+  document.getElementById("event-correlation-panel").innerHTML = `<strong>等待事件关联</strong><span>${text(message)}</span>`;
   document.getElementById("component-table").innerHTML = `<div class="empty-state">${text(message)}</div>`;
   document.getElementById("observability-grid").innerHTML = ["日志", "指标"].map(emptyCard).join("");
   document.getElementById("alert-list").innerHTML = `<div class="empty-state">${text(message)}</div>`;
@@ -868,7 +914,7 @@ function observabilityCard(label, items, idField, valueField) {
   const rows = items.length === 0 ? `<div class="observability-row"><span>没有${text(label)}上报</span><span>未知</span></div>` : items.map((item) => `<div class="observability-row"><span>${text(item[idField])}</span><span>${text(display(valueField ? dashboardValue(item[valueField]) : item.availability))}</span></div>`).join("");
   return `<article class="observability-card"><div class="card-label">${text(label)}</div>${rows}</article>`;
 }
-function renderControlCenter(shared, ops) {
+function renderControlCenter(shared, ops, correlation) {
   const identities = shared.identity.identities;
   const status = shared.status;
   const snapshot = ops.snapshot;
@@ -879,6 +925,8 @@ function renderControlCenter(shared, ops) {
   document.getElementById("axis-grid").innerHTML = [axisCard("研究状态", status.research), axisCard("运行状态", status.runtime), axisCard("技术健康", status.technical_health), axisCard("交易准备度", status.trading_readiness)].join("");
   document.getElementById("business-impact-title").textContent = `${display(shared.business.health)} / ${display(shared.business.availability)}`;
   document.getElementById("business-impact-list").innerHTML = [["账户", shared.business.account], ["持仓", shared.business.positions], ["订单", shared.business.orders], ["成交", shared.business.fills], ["风险", shared.business.risk], ["生命周期", shared.business.lifecycle]].map(([label, value]) => `<span>${text(label)}：${text(display(dashboardValue(value.status)))}</span>`).join("");
+  const event = correlation.event;
+  document.getElementById("event-correlation-panel").innerHTML = `<strong>${text(event.event_id)}</strong><span>技术根因：${text(display(status.technical_health.status))} · 业务影响：${text(display(shared.business.health))}</span><a class="portal-link" href="${text(portalEventLink(correlation.links.institution_workbench_path, event.event_id))}">在机构工作台查看业务影响</a>`;
   document.getElementById("node-health").textContent = `${display(node.health)} / ${display(node.lifecycle_state)}`;
   document.getElementById("node-grid").innerHTML = [
     nodeCard("生命周期", node.lifecycle_state, "Supervisor lifecycle"),
@@ -914,12 +962,13 @@ async function refreshControlCenter() {
   setConnection("loading", "正在对齐共享与运维状态", "等待版本化合同和本地监督器投影", "读取中");
   try {
     const options = { method: "GET", headers: { "Accept": "application/json" }, cache: "no-store" };
-    const [sharedResponse, snapshotResponse] = await Promise.all([fetch(SHARED_STATUS_URL, options), fetch(OPS_SNAPSHOT_URL, options)]);
+    const [sharedResponse, snapshotResponse, correlationResponse] = await Promise.all([fetch(SHARED_STATUS_URL, options), fetch(OPS_SNAPSHOT_URL, options), fetch(EVENT_CORRELATION_URL, options)]);
     if (!sharedResponse.ok) throw new Error(`共享状态不可用（HTTP ${sharedResponse.status}）`);
     if (!snapshotResponse.ok) throw new Error(`运维投影不可用（HTTP ${snapshotResponse.status}）`);
+    if (!correlationResponse.ok) throw new Error(`事件关联不可用（HTTP ${correlationResponse.status}）`);
     const shared = validateSharedStatus(await sharedResponse.json());
     const ops = validateOperationalProjection(await snapshotResponse.json(), shared);
-    renderControlCenter(shared, ops);
+    renderControlCenter(shared, ops, validateEventCorrelation(await correlationResponse.json(), shared));
   } catch (error) {
     renderBlocked(error instanceof Error ? error : new Error("控制中心状态读取失败"));
   } finally {

@@ -9,6 +9,7 @@ if (!embedded) throw new Error("embedded institution workbench JavaScript not fo
 
 const ids = [
   "axis-grid", "identity-grid", "business-grid", "blocking-panel", "source-list",
+  "event-correlation-panel",
   "boundary-list", "context-strategy", "context-scope", "generated-at", "business-state",
   "footer-environment", "footer-account", "footer-venue", "footer-readiness", "footer-updated",
   "connection-banner", "connection-title", "connection-detail", "connection-badge", "sidebar-state",
@@ -130,14 +131,45 @@ const basePayload = {
   },
 };
 
+const eventId = "mvp-status:v1:node-1:btc-ema:instance-1:technical-health";
+const baseCorrelation = {
+  schema_version: "ntpro.mvp_event_correlation_api.response.v1",
+  contract_version: "ntpro.mvp_event_correlation_api.v1",
+  event: {
+    event_id: eventId,
+    event_kind: "technical_health_observation",
+    event_source: "projected_status_contract",
+    identity_contract_id: "node-1:btc-ema:instance-1",
+    node_id: "node-1",
+    strategy_instance_id: "instance-1",
+  },
+  links: {
+    institution_workbench_path: "/institution-workbench",
+    control_center_path: "/control-center",
+  },
+  boundaries: {
+    read_only: true,
+    projected_status_event: true,
+    raw_event_store_exposed: false,
+    raw_event_payload_exposed: false,
+    raw_errors_exposed: false,
+    supervisor_actions_exposed: false,
+    trading_controls_exposed: false,
+  },
+};
+
 let responsePayload = structuredClone(basePayload);
+let correlationPayload = structuredClone(baseCorrelation);
+const browserLocation = { search: "" };
 const context = vm.createContext({
   document: { getElementById: (id) => elements[id] },
-  fetch: async () => ({
-    ok: true,
-    status: 200,
-    json: async () => structuredClone(responsePayload),
-  }),
+  fetch: async (url) => {
+    if (url === "/api/mvp/v1/status") return { ok: true, status: 200, json: async () => structuredClone(responsePayload) };
+    if (url === "/api/mvp/v1/event-correlation") return { ok: true, status: 200, json: async () => structuredClone(correlationPayload) };
+    throw new Error(`unexpected URL ${url}`);
+  },
+  location: browserLocation,
+  URLSearchParams,
   console,
   Error,
 });
@@ -147,6 +179,9 @@ const refresh = () => vm.runInContext("refreshInstitutionWorkbench()", context);
 await new Promise((resolve) => setImmediate(resolve));
 if (elements["connection-title"].textContent !== "共享状态已验证") {
   throw new Error("valid shared status contract did not render");
+}
+if (!elements["event-correlation-panel"].innerHTML.includes("在控制中心查看技术根因") || !elements["event-correlation-panel"].innerHTML.includes(encodeURIComponent(eventId))) {
+  throw new Error("valid event correlation did not render the control center jump");
 }
 
 const cases = [
@@ -159,11 +194,22 @@ const cases = [
   ["error_with_non_error_availability", (value) => { value.status.runtime.error = "runtime failed"; }],
   ["healthy_axis_not_fresh", (value) => { value.status.technical_health.freshness = "stale"; }],
   ["healthy_axis_not_available", (value) => { value.status.technical_health.availability = "missing"; }],
+  ["event_identity_mismatch", (_value, correlation) => { correlation.event.identity_contract_id = "other"; }],
+  ["event_node_mismatch", (_value, correlation) => { correlation.event.node_id = "node-2"; }],
+  ["event_kind_mismatch", (_value, correlation) => { correlation.event.event_kind = "raw_event"; }],
+  ["event_target_drift", (_value, correlation) => { correlation.links.control_center_path = "/dashboard"; }],
+  ["event_boundary_true", (_value, correlation) => { correlation.boundaries.raw_event_store_exposed = true; }],
+  ["event_raw_field", (_value, correlation) => { correlation.event.message = "raw error"; }],
+  ["requested_event_mismatch", (_value, _correlation, location) => { location.search = "?event_id=forged"; }],
+  ["duplicate_event_valid_first", (_value, _correlation, location) => { location.search = `?event_id=${encodeURIComponent(eventId)}&event_id=forged`; }],
+  ["duplicate_event_valid_last", (_value, _correlation, location) => { location.search = `?event_id=forged&event_id=${encodeURIComponent(eventId)}`; }],
 ];
 
 for (const [name, mutate] of cases) {
   responsePayload = structuredClone(basePayload);
-  mutate(responsePayload);
+  correlationPayload = structuredClone(baseCorrelation);
+  browserLocation.search = "";
+  mutate(responsePayload, correlationPayload, browserLocation);
   await refresh();
   if (elements["connection-title"].textContent !== "机构工作台已阻断") {
     throw new Error(`${name} did not fail closed`);

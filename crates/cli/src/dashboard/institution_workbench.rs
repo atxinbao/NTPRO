@@ -74,6 +74,11 @@ pub(super) const INSTITUTION_WORKBENCH_HTML: &str = r##"<!doctype html>
               <div class="section-heading"><div><span class="eyebrow">业务约束</span><h2>风险与阻断原因</h2></div></div>
               <div id="blocking-panel" class="blocking-panel"></div>
             </section>
+
+            <section id="event-correlation" class="section-block">
+              <div class="section-heading"><div><span class="eyebrow">跨门户关联</span><h2>业务影响与技术根因</h2></div></div>
+              <div id="event-correlation-panel" class="event-correlation-panel"></div>
+            </section>
           </div>
 
           <aside id="evidence" class="evidence-panel" aria-label="当前状态证据">
@@ -177,7 +182,7 @@ main { width: min(1320px, calc(100vw - 228px)); margin: 20px auto 32px; }
 .axis-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .identity-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .business-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.axis-card, .identity-card, .business-card, .blocking-panel, .evidence-panel { background: #ffffff; border: 1px solid #cfd9d4; border-radius: 6px; }
+.axis-card, .identity-card, .business-card, .blocking-panel, .event-correlation-panel, .evidence-panel { background: #ffffff; border: 1px solid #cfd9d4; border-radius: 6px; }
 .axis-card, .identity-card, .business-card { padding: 13px; min-width: 0; }
 .card-label { color: #65726c; font-size: 11px; font-weight: 700; }
 .card-value { margin-top: 6px; font-size: 17px; font-weight: 800; overflow-wrap: anywhere; }
@@ -198,6 +203,12 @@ main { width: min(1320px, calc(100vw - 228px)); margin: 20px auto 32px; }
 .blocking-panel { padding: 14px; min-height: 72px; }
 .blocking-panel strong { display: block; margin-bottom: 6px; }
 .blocking-panel p { margin: 4px 0; color: #4e5d55; font-size: 13px; overflow-wrap: anywhere; }
+.event-correlation-panel { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 14px; min-height: 86px; }
+.event-correlation-copy { display: grid; gap: 5px; min-width: 0; }
+.event-correlation-copy strong, .event-correlation-copy span { overflow-wrap: anywhere; }
+.event-correlation-copy span { color: #53615a; font-size: 12px; }
+.portal-link { color: #0c6541; font-size: 12px; font-weight: 800; text-decoration: none; border-bottom: 1px solid currentColor; white-space: nowrap; }
+.portal-link:hover { color: #094d32; }
 .empty-state { color: #65726c; font-size: 13px; }
 .status-bar { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 9px 24px; background: #17231e; color: #c8d2cd; font-size: 11px; }
 
@@ -220,13 +231,18 @@ main { width: min(1320px, calc(100vw - 228px)); margin: 20px auto 32px; }
   .axis-grid, .identity-grid, .business-grid { grid-template-columns: 1fr; }
   .section-heading { align-items: flex-start; }
   .section-meta { max-width: 44%; }
+  .event-correlation-panel { grid-template-columns: 1fr; }
+  .portal-link { justify-self: start; white-space: normal; }
   .status-bar { padding: 9px 14px; }
 }
 "#;
 
 pub(super) const INSTITUTION_WORKBENCH_JS: &str = r#"const SHARED_STATUS_URL = "/api/mvp/v1/status";
+const EVENT_CORRELATION_URL = "/api/mvp/v1/event-correlation";
 const EXPECTED_SCHEMA = "ntpro.mvp_shared_status_api.response.v1";
 const EXPECTED_CONTRACT = "ntpro.mvp_shared_status_api.v1";
+const EXPECTED_EVENT_SCHEMA = "ntpro.mvp_event_correlation_api.response.v1";
+const EXPECTED_EVENT_CONTRACT = "ntpro.mvp_event_correlation_api.v1";
 const EXPECTED_IDENTITY_SCHEMA = "ntpro.mvp_identity_contract.v1";
 const EXPECTED_STATUS_SCHEMA = "ntpro.mvp_status_contract.v1";
 const DASHBOARD_AVAILABILITIES = ["available", "not_configured", "not_supported", "stale", "redacted", "unknown"];
@@ -367,12 +383,46 @@ function validateSharedStatus(payload) {
   return payload;
 }
 
+function requestedEventId() {
+  const search = typeof location === "object" && typeof location.search === "string" ? location.search : "";
+  const values = new URLSearchParams(search).getAll("event_id");
+  if (values.length > 1) throw new Error("请求包含重复事件参数");
+  return values.length === 1 ? values[0] : null;
+}
+function validateEventCorrelation(payload, shared) {
+  const correlation = requireObject(payload, "event correlation");
+  if (correlation.schema_version !== EXPECTED_EVENT_SCHEMA) throw new Error("事件关联 schema 不匹配");
+  if (correlation.contract_version !== EXPECTED_EVENT_CONTRACT) throw new Error("事件关联 contract 不匹配");
+  const event = requireObject(correlation.event, "event correlation.event");
+  const links = requireObject(correlation.links, "event correlation.links");
+  const boundaries = requireObject(correlation.boundaries, "event correlation.boundaries");
+  for (const field of ["event_id", "event_kind", "event_source", "identity_contract_id", "node_id", "strategy_instance_id"]) requireString(event[field], `event correlation.event.${field}`);
+  if (event.event_kind !== "technical_health_observation" || event.event_source !== "projected_status_contract") throw new Error("事件关联不是已投影状态观察");
+  const identities = shared.identity.identities;
+  const expectedEventId = `mvp-status:v1:${encodeURIComponent(identities.node_id)}:${encodeURIComponent(identities.strategy_id)}:${encodeURIComponent(identities.strategy_instance_id)}:technical-health`;
+  if (event.event_id !== expectedEventId || event.identity_contract_id !== shared.identity.contract_id || event.node_id !== identities.node_id || event.strategy_instance_id !== identities.strategy_instance_id) throw new Error("事件关联与共享身份不一致");
+  if (links.institution_workbench_path !== "/institution-workbench" || links.control_center_path !== "/control-center") throw new Error("事件关联目标路径异常");
+  requireBoundary(boundaries, "read_only", true, "事件关联");
+  requireBoundary(boundaries, "projected_status_event", true, "事件关联");
+  for (const field of ["raw_event_store_exposed", "raw_event_payload_exposed", "raw_errors_exposed", "supervisor_actions_exposed", "trading_controls_exposed"]) requireBoundary(boundaries, field, false, "事件关联");
+  const serialized = JSON.stringify(correlation);
+  for (const forbidden of ["source_refs", "config_path", "registry_path", "node_status_path", "node_metrics_path", "unified_read_model_path", "last_error", "message", "credential", "controls"]) if (serialized.includes(`"${forbidden}"`)) throw new Error(`事件关联暴露禁止字段：${forbidden}`);
+  const requested = requestedEventId();
+  if (requested !== null && requested !== event.event_id) throw new Error("请求的事件与当前运行实例不一致");
+  return correlation;
+}
+
+function portalEventLink(path, eventId) {
+  return `${path}?event_id=${encodeURIComponent(eventId)}#event-correlation`;
+}
+
 const emptyCard = (label) => `<div class="identity-card"><div class="card-label">${text(label)}</div><div class="card-value">等待共享状态</div></div>`;
 function resetSurface(message) {
   document.getElementById("axis-grid").innerHTML = ["研究状态", "运行状态", "技术健康", "交易准备度"].map(emptyCard).join("");
   document.getElementById("identity-grid").innerHTML = ["策略", "回测", "运行实例", "账户", "Venue", "环境"].map(emptyCard).join("");
   document.getElementById("business-grid").innerHTML = ["账户", "持仓", "订单", "成交", "风险", "生命周期"].map(emptyCard).join("");
   document.getElementById("blocking-panel").innerHTML = `<span class="empty-state">${text(message)}</span>`;
+  document.getElementById("event-correlation-panel").innerHTML = `<span class="empty-state">${text(message)}</span>`;
   document.getElementById("source-list").innerHTML = `<div class="source-item"><strong>来源</strong>等待已验证合同</div>`;
   document.getElementById("boundary-list").innerHTML = `<div class="boundary-item"><strong>只读边界</strong><span>未验证，保持阻断</span></div>`;
   document.getElementById("context-strategy").textContent = "策略未加载";
@@ -407,7 +457,7 @@ function businessCard(label, component) {
   const source = dashboardValue(component.source_ref);
   return `<article class="business-card"><div class="card-label">${text(label)}</div><div class="card-value status-${text(status)}">${text(display(summary))}</div><div class="card-meta"><span>${text(display(status))} / ${text(display(freshness))}</span><span>${text(source)}</span></div></article>`;
 }
-function renderSharedStatus(payload) {
+function renderSharedStatus(payload, correlation) {
   const identities = payload.identity.identities;
   const status = payload.status;
   const business = payload.business;
@@ -426,6 +476,8 @@ function renderSharedStatus(payload) {
   document.getElementById("business-state").textContent = `${display(business.availability)} / ${display(business.health)}`;
   document.getElementById("business-grid").innerHTML = [businessCard("账户", business.account), businessCard("持仓", business.positions), businessCard("订单", business.orders), businessCard("成交", business.fills), businessCard("风险", business.risk), businessCard("生命周期", business.lifecycle)].join("");
   document.getElementById("blocking-panel").innerHTML = `<strong>交易准备度保持阻断</strong><p>${text(display(dashboardValue(business.blocking_reasons)))}</p><p>${text(display(dashboardValue(business.diagnostic)))}</p>`;
+  const event = correlation.event;
+  document.getElementById("event-correlation-panel").innerHTML = `<div class="event-correlation-copy"><strong>${text(event.event_id)}</strong><span>业务影响：${text(display(business.health))} / ${text(display(business.availability))}</span><span>技术根因：${text(display(status.technical_health.status))} · 节点 ${text(event.node_id)}</span></div><a class="portal-link" href="${text(portalEventLink(correlation.links.control_center_path, event.event_id))}">在控制中心查看技术根因</a>`;
   document.getElementById("source-list").innerHTML = (payload.source_refs || []).map((source, index) => `<div class="source-item"><strong>来源 ${index + 1}</strong>${text(source)}</div>`).join("") || `<div class="source-item"><strong>来源</strong>未提供</div>`;
   document.getElementById("boundary-list").innerHTML = [["共享合同", payload.contract_version], ["只读", "已验证"], ["外部 Venue", "关闭"], ["订单提交与变更", "关闭"], ["自动重试与补救", "关闭"], ["真实订单", "关闭"]].map(([label, value]) => `<div class="boundary-item"><strong>${text(label)}</strong><span>${text(value)}</span></div>`).join("");
   document.getElementById("footer-environment").textContent = `环境：${display(identities.environment)}`;
@@ -445,9 +497,12 @@ async function refreshInstitutionWorkbench() {
   resetSurface("刷新中，旧数据已清空");
   setConnection("loading", "正在读取共享状态", "等待版本化只读合同", "读取中");
   try {
-    const response = await fetch(SHARED_STATUS_URL, { method: "GET", headers: { "Accept": "application/json" }, cache: "no-store" });
-    if (!response.ok) throw new Error(`共享状态不可用（HTTP ${response.status}）`);
-    renderSharedStatus(validateSharedStatus(await response.json()));
+    const options = { method: "GET", headers: { "Accept": "application/json" }, cache: "no-store" };
+    const [statusResponse, correlationResponse] = await Promise.all([fetch(SHARED_STATUS_URL, options), fetch(EVENT_CORRELATION_URL, options)]);
+    if (!statusResponse.ok) throw new Error(`共享状态不可用（HTTP ${statusResponse.status}）`);
+    if (!correlationResponse.ok) throw new Error(`事件关联不可用（HTTP ${correlationResponse.status}）`);
+    const shared = validateSharedStatus(await statusResponse.json());
+    renderSharedStatus(shared, validateEventCorrelation(await correlationResponse.json(), shared));
   } catch (error) {
     renderBlocked(error instanceof Error ? error : new Error("共享状态读取失败"));
   } finally {

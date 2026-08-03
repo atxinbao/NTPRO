@@ -25,7 +25,10 @@ const passResult = {
   valid: 1,
   boundary: 1,
   http_error: 1,
-  stale_clear: 2,
+  event_mismatch: 1,
+  duplicate_event: 1,
+  cross_portal_jump: 1,
+  stale_clear: 4,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
 };
@@ -92,18 +95,22 @@ const recordFailure = (error) => {
 };
 try {
   let payload;
+  let correlationPayload;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`${baseUrl}/api/mvp/v1/status`);
-      if (response.ok) {
-        payload = await response.json();
+      const [response, correlationResponse] = await Promise.all([
+        fetch(`${baseUrl}/api/mvp/v1/status`),
+        fetch(`${baseUrl}/api/mvp/v1/event-correlation`),
+      ]);
+      if (response.ok && correlationResponse.ok) {
+        [payload, correlationPayload] = await Promise.all([response.json(), correlationResponse.json()]);
         break;
       }
     } catch {}
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  if (!payload) throw new Error(`MVP status API did not become ready:\n${serverLog.join("")}`);
+  if (!payload || !correlationPayload) throw new Error(`MVP status and event correlation APIs did not become ready:\n${serverLog.join("")}`);
 
   browser = await chromium.launch({ executablePath: chrome, headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -126,6 +133,15 @@ try {
     if (scenario === "boundary_violation") response.boundaries.order_submission_allowed = true;
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) });
   });
+  await page.route("**/api/mvp/v1/event-correlation", async (route) => {
+    if (scenario !== "event_mismatch") {
+      await route.continue();
+      return;
+    }
+    const response = structuredClone(correlationPayload);
+    response.event.node_id = "mismatched-node";
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) });
+  });
 
   const waitForTitle = (title) => page.waitForFunction(
     (expected) => document.getElementById("connection-title")?.textContent === expected,
@@ -145,6 +161,9 @@ try {
   await waitForTitle("共享状态已验证");
   const strategy = await page.locator("#context-strategy").textContent();
   if (!strategy || strategy === "策略未加载") throw new Error("valid browser contract did not render identity");
+  const eventId = correlationPayload.event.event_id;
+  const technicalLink = page.locator("#event-correlation-panel .portal-link");
+  if (!await technicalLink.isVisible()) throw new Error("institution workbench did not render technical root jump");
   const cjkGlyphCheck = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 64;
@@ -169,8 +188,15 @@ try {
   if (wideOverflow) throw new Error("1440 viewport has horizontal overflow");
   await page.screenshot({ path: path.join(evidenceDir, "institution-workbench-1440.png"), fullPage: true });
 
+  await technicalLink.click();
+  await page.waitForURL((url) => url.pathname === "/control-center" && url.searchParams.get("event_id") === eventId && url.hash === "#event-correlation");
+  await waitForTitle("共享与运维状态已对齐");
+  if (!await page.locator("#event-correlation-panel").textContent().then((value) => value?.includes(eventId))) {
+    throw new Error("control center did not preserve the correlated event");
+  }
+
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload({ waitUntil: "networkidle" });
+  await page.goto(`${baseUrl}/institution-workbench`, { waitUntil: "networkidle" });
   await waitForTitle("共享状态已验证");
   const narrowOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth);
   if (narrowOverflow) throw new Error("390 viewport has horizontal overflow");
@@ -190,6 +216,21 @@ try {
   await waitForTitle("机构工作台已阻断");
   await assertCleared("HTTP error");
   await page.screenshot({ path: path.join(evidenceDir, "institution-workbench-http-error.png"), fullPage: true });
+
+  scenario = "valid";
+  await page.locator("#refresh").click();
+  await waitForTitle("共享状态已验证");
+  scenario = "event_mismatch";
+  await page.locator("#refresh").click();
+  await waitForTitle("机构工作台已阻断");
+  await assertCleared("event mismatch");
+  await page.screenshot({ path: path.join(evidenceDir, "institution-workbench-event-mismatch.png"), fullPage: true });
+
+  scenario = "valid";
+  await page.goto(`${baseUrl}/institution-workbench?event_id=${encodeURIComponent(eventId)}&event_id=forged`, { waitUntil: "networkidle" });
+  await waitForTitle("机构工作台已阻断");
+  await assertCleared("duplicate event parameter");
+  await page.screenshot({ path: path.join(evidenceDir, "institution-workbench-duplicate-event-blocked.png"), fullPage: true });
 
   if (browserErrors.length > 0) throw new Error(`browser console errors: ${browserErrors.join(" | ")}`);
 } catch (error) {
@@ -241,4 +282,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 stale_clear=2 cjk_glyphs=1 graceful_shutdown=1");
+console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");

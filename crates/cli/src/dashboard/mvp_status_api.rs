@@ -40,6 +40,8 @@ use super::{
 
 const MVP_SHARED_STATUS_API_CONTRACT_VERSION: &str = "ntpro.mvp_shared_status_api.v1";
 const MVP_SHARED_STATUS_API_SCHEMA_VERSION: &str = "ntpro.mvp_shared_status_api.response.v1";
+const MVP_EVENT_CORRELATION_CONTRACT_VERSION: &str = "ntpro.mvp_event_correlation_api.v1";
+const MVP_EVENT_CORRELATION_SCHEMA_VERSION: &str = "ntpro.mvp_event_correlation_api.response.v1";
 const MAX_CLOCK_SKEW_MS: u64 = 5_000;
 
 #[cfg(test)]
@@ -56,6 +58,42 @@ pub(super) struct MvpSharedStatusResponse {
     business: MvpBusinessReadModelSummary,
     source_refs: Vec<String>,
     boundaries: MvpSharedStatusBoundaries,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(super) struct MvpEventCorrelationResponse {
+    schema_version: String,
+    contract_version: String,
+    event: MvpCorrelatedStatusEvent,
+    links: MvpEventCorrelationLinks,
+    boundaries: MvpEventCorrelationBoundaries,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct MvpCorrelatedStatusEvent {
+    event_id: String,
+    event_kind: String,
+    event_source: String,
+    identity_contract_id: String,
+    node_id: String,
+    strategy_instance_id: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct MvpEventCorrelationLinks {
+    institution_workbench_path: String,
+    control_center_path: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct MvpEventCorrelationBoundaries {
+    read_only: bool,
+    projected_status_event: bool,
+    raw_event_store_exposed: bool,
+    raw_event_payload_exposed: bool,
+    raw_errors_exposed: bool,
+    supervisor_actions_exposed: bool,
+    trading_controls_exposed: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -136,6 +174,80 @@ pub(super) async fn mvp_shared_status_api(
     project_mvp_shared_status(&state, unix_time_ms())
         .map(Json)
         .map_err(shared_status_error_response)
+}
+
+pub(super) async fn mvp_event_correlation_api(
+    State(state): State<DashboardServerState>,
+) -> ApiResult<MvpEventCorrelationResponse> {
+    project_mvp_event_correlation(&state, unix_time_ms())
+        .map(Json)
+        .map_err(shared_status_error_response)
+}
+
+fn project_mvp_event_correlation(
+    state: &DashboardServerState,
+    now_unix_ms: u64,
+) -> Result<MvpEventCorrelationResponse, SharedStatusError> {
+    let shared = project_mvp_shared_status(state, now_unix_ms)?;
+    let identity = &shared.identity.identities;
+    let event_id = mvp_status_event_id(
+        &identity.node_id,
+        &identity.strategy_id,
+        &identity.strategy_instance_id,
+    );
+
+    Ok(MvpEventCorrelationResponse {
+        schema_version: MVP_EVENT_CORRELATION_SCHEMA_VERSION.to_string(),
+        contract_version: MVP_EVENT_CORRELATION_CONTRACT_VERSION.to_string(),
+        event: MvpCorrelatedStatusEvent {
+            event_id,
+            event_kind: "technical_health_observation".to_string(),
+            event_source: "projected_status_contract".to_string(),
+            identity_contract_id: shared.identity.contract_id.clone(),
+            node_id: identity.node_id.clone(),
+            strategy_instance_id: identity.strategy_instance_id.clone(),
+        },
+        links: MvpEventCorrelationLinks {
+            institution_workbench_path: "/institution-workbench".to_string(),
+            control_center_path: "/control-center".to_string(),
+        },
+        boundaries: MvpEventCorrelationBoundaries {
+            read_only: true,
+            projected_status_event: true,
+            raw_event_store_exposed: false,
+            raw_event_payload_exposed: false,
+            raw_errors_exposed: false,
+            supervisor_actions_exposed: false,
+            trading_controls_exposed: false,
+        },
+    })
+}
+
+fn mvp_status_event_id(node_id: &str, strategy_id: &str, strategy_instance_id: &str) -> String {
+    format!(
+        "mvp-status:v1:{}:{}:{}:technical-health",
+        encode_event_identity_component(node_id),
+        encode_event_identity_component(strategy_id),
+        encode_event_identity_component(strategy_instance_id)
+    )
+}
+
+fn encode_event_identity_component(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric()
+            || matches!(
+                byte,
+                b'-' | b'_' | b'.' | b'!' | b'~' | b'*' | b'\'' | b'(' | b')'
+            )
+        {
+            encoded.push(char::from(byte));
+        } else {
+            use std::fmt::Write as _;
+            let _ = write!(encoded, "%{byte:02X}");
+        }
+    }
+    encoded
 }
 
 fn project_mvp_shared_status(
