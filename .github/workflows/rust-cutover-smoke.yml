@@ -138,6 +138,12 @@ jobs:
           NTPRO_MVP_FAULT_EVIDENCE_DIR: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
         run: |
           set -euo pipefail
+          mkdir -p "$NTPRO_MVP_FAULT_EVIDENCE_DIR"
+          printf '%s\n' \
+            '{"schema_version":"ntpro.mvp_fault_matrix_evidence.v1","status":"fail","phase":"preflight","error":"fault matrix did not start; cargo build or runner setup failed"}' \
+            >"$NTPRO_MVP_FAULT_EVIDENCE_DIR/result.json"
+          printf '%s\n' 'mvp_fault_matrix=not_started' \
+            >"$NTPRO_MVP_FAULT_EVIDENCE_DIR/mvp-fault-matrix.log"
           cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
           node scripts/ai/test_mvp_fault_matrix.mjs
       - name: Upload MVP fault matrix evidence

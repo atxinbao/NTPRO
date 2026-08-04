@@ -30,6 +30,7 @@ use nautilus_live::status::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sysinfo::{Pid, ProcessesToUpdate, System};
 
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text, remove_file_if_exists},
@@ -119,6 +120,8 @@ pub struct SupervisorProcessIdentity {
     pub artifact_root: String,
     pub status_path: String,
     pub started_at: SnapshotValue<String>,
+    #[serde(default)]
+    pub os_start_time_secs: SnapshotValue<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1414,7 +1417,7 @@ impl SupervisorRegistryStore {
                     record.updated_at = SnapshotValue::available(transition_at);
                 }
             }
-            SupervisorProcessState::Stale if !pid_artifact_is_stale(record)? => {
+            SupervisorProcessState::Stale if pid_artifact_matches_live_identity(record)? => {
                 let transition_at = now_millis();
                 record.process.state = SupervisorProcessState::Running;
                 record.process.updated_at = SnapshotValue::available(transition_at.clone());
@@ -1455,6 +1458,18 @@ impl SupervisorRegistryStore {
             })?;
             match serde_json::from_str::<NodeStatus>(&raw) {
                 Ok(status) if status.node_id == record.node_id => {
+                    if record.process.state == SupervisorProcessState::Stale
+                        && record.last_known_status.started_at.value.is_none()
+                        && status.lifecycle_state == LifecycleStatus::Running
+                        && status.process_mode == ProcessMode::SpawnedProcess
+                        && status.artifact_root.value.as_deref()
+                            == Some(record.artifact_root.to_string_lossy().as_ref())
+                        && status.started_at.value.is_some()
+                        && pid_artifact_matches_live_os_identity(record)?
+                    {
+                        record.last_known_status = status.clone();
+                        write_or_remove_pid_artifact(record)?;
+                    }
                     record.status_artifact = RegistryArtifactState::Available;
                     record.last_known_status = status;
                 }
@@ -2352,12 +2367,21 @@ fn write_or_remove_pid_artifact(record: &SupervisorNodeRecord) -> anyhow::Result
 
     match record.process.pid.value {
         Some(pid) => {
+            let preserved_os_start_time = fs::read_to_string(&record.pid_path)
+                .ok()
+                .and_then(|raw| serde_json::from_str::<SupervisorPidArtifact>(&raw).ok())
+                .filter(|artifact| artifact.node_id == record.node_id && artifact.pid == pid)
+                .and_then(|artifact| artifact.process_identity)
+                .and_then(|identity| identity.os_start_time_secs.value);
             let artifact = SupervisorPidArtifact {
                 node_id: record.node_id.clone(),
                 pid,
                 state: record.process.state,
                 updated_at: record.process.updated_at.clone(),
-                process_identity: Some(SupervisorProcessIdentity::from_record(record)),
+                process_identity: Some(SupervisorProcessIdentity::from_record_with_os_start(
+                    record,
+                    preserved_os_start_time.or_else(|| live_process_start_time_secs(pid)),
+                )),
             };
             atomic_write_json(&record.pid_path, &artifact).with_context(|| {
                 format!(
@@ -2451,6 +2475,101 @@ fn pid_artifact_is_stale(record: &SupervisorNodeRecord) -> anyhow::Result<bool> 
     Ok(false)
 }
 
+fn pid_artifact_matches_live_identity(record: &SupervisorNodeRecord) -> anyhow::Result<bool> {
+    let Some(expected_pid) = record.process.pid.value else {
+        return Ok(false);
+    };
+    let Some(live_start_time) = live_process_start_time_secs(expected_pid) else {
+        return Ok(false);
+    };
+    if !record.pid_path.exists() || !record.status_path.exists() {
+        return Ok(false);
+    }
+
+    let pid_raw = fs::read_to_string(&record.pid_path).with_context(|| {
+        format!(
+            "failed to read pid artifact '{}'",
+            record.pid_path.display()
+        )
+    })?;
+    let Ok(artifact) = serde_json::from_str::<SupervisorPidArtifact>(&pid_raw) else {
+        return Ok(false);
+    };
+    let Some(identity) = artifact.process_identity.as_ref() else {
+        return Ok(false);
+    };
+    if artifact.node_id != record.node_id
+        || artifact.pid != expected_pid
+        || identity.node_id != record.node_id
+        || identity.artifact_root != record.artifact_root.display().to_string()
+        || identity.status_path != record.status_path.display().to_string()
+        || identity.os_start_time_secs.value != Some(live_start_time)
+    {
+        return Ok(false);
+    }
+
+    let status_raw = fs::read_to_string(&record.status_path).with_context(|| {
+        format!(
+            "failed to read status artifact '{}'",
+            record.status_path.display()
+        )
+    })?;
+    let Ok(status) = serde_json::from_str::<NodeStatus>(&status_raw) else {
+        return Ok(false);
+    };
+    let (Some(identity_started_at), Some(status_started_at)) = (
+        identity.started_at.value.as_deref(),
+        status.started_at.value.as_deref(),
+    ) else {
+        return Ok(false);
+    };
+
+    Ok(status.node_id == record.node_id
+        && status.lifecycle_state == LifecycleStatus::Running
+        && status.process_mode == ProcessMode::SpawnedProcess
+        && status.artifact_root.value.as_deref()
+            == Some(record.artifact_root.to_string_lossy().as_ref())
+        && identity_started_at == status_started_at)
+}
+
+fn pid_artifact_matches_live_os_identity(record: &SupervisorNodeRecord) -> anyhow::Result<bool> {
+    let Some(expected_pid) = record.process.pid.value else {
+        return Ok(false);
+    };
+    let Some(live_start_time) = live_process_start_time_secs(expected_pid) else {
+        return Ok(false);
+    };
+    if !record.pid_path.exists() {
+        return Ok(false);
+    }
+    let raw = fs::read_to_string(&record.pid_path).with_context(|| {
+        format!(
+            "failed to read pid artifact '{}'",
+            record.pid_path.display()
+        )
+    })?;
+    let Ok(artifact) = serde_json::from_str::<SupervisorPidArtifact>(&raw) else {
+        return Ok(false);
+    };
+    let Some(identity) = artifact.process_identity.as_ref() else {
+        return Ok(false);
+    };
+
+    Ok(artifact.node_id == record.node_id
+        && artifact.pid == expected_pid
+        && identity.node_id == record.node_id
+        && identity.artifact_root == record.artifact_root.display().to_string()
+        && identity.status_path == record.status_path.display().to_string()
+        && identity.os_start_time_secs.value == Some(live_start_time))
+}
+
+fn live_process_start_time_secs(pid: u32) -> Option<u64> {
+    let sys_pid = Pid::from_u32(pid);
+    let mut system = System::new();
+    system.refresh_processes(ProcessesToUpdate::Some(&[sys_pid]), true);
+    system.process(sys_pid).map(sysinfo::Process::start_time)
+}
+
 fn stopped_status_artifact(record: &SupervisorNodeRecord) -> Option<NodeStatus> {
     let raw = fs::read_to_string(&record.status_path).ok()?;
     let status = serde_json::from_str::<NodeStatus>(&raw).ok()?;
@@ -2461,11 +2580,27 @@ fn stopped_status_artifact(record: &SupervisorNodeRecord) -> Option<NodeStatus> 
 impl SupervisorProcessIdentity {
     #[must_use]
     pub fn from_record(record: &SupervisorNodeRecord) -> Self {
+        Self::from_record_with_os_start(
+            record,
+            record
+                .process
+                .pid
+                .value
+                .and_then(live_process_start_time_secs),
+        )
+    }
+
+    fn from_record_with_os_start(
+        record: &SupervisorNodeRecord,
+        os_start_time_secs: Option<u64>,
+    ) -> Self {
         Self {
             node_id: record.node_id.clone(),
             artifact_root: record.artifact_root.display().to_string(),
             status_path: record.status_path.display().to_string(),
             started_at: record.last_known_status.started_at.clone(),
+            os_start_time_secs: os_start_time_secs
+                .map_or_else(SnapshotValue::unknown, SnapshotValue::available),
         }
     }
 }
@@ -3640,6 +3775,7 @@ done
         .unwrap();
         let mut status = NodeStatus::unknown("sandbox-a");
         status.lifecycle_state = LifecycleStatus::Running;
+        status.process_mode = ProcessMode::SpawnedProcess;
         status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
         status.started_at = SnapshotValue::available("identity-1".to_string());
         fs::write(
@@ -3683,6 +3819,7 @@ done
         .unwrap();
         let mut status = NodeStatus::unknown("sandbox-a");
         status.lifecycle_state = LifecycleStatus::Running;
+        status.process_mode = ProcessMode::SpawnedProcess;
         status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
         status.started_at = SnapshotValue::available("identity-2".to_string());
         fs::write(
@@ -3717,6 +3854,7 @@ done
 
         let mut status = NodeStatus::unknown("sandbox-a");
         status.lifecycle_state = LifecycleStatus::Running;
+        status.process_mode = ProcessMode::SpawnedProcess;
         status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
         status.started_at = SnapshotValue::available("identity-1".to_string());
         fs::write(
@@ -3742,6 +3880,223 @@ done
         let pid_artifact: SupervisorPidArtifact =
             serde_json::from_str(&fs::read_to_string(&record.pid_path).unwrap()).unwrap();
         assert_eq!(pid_artifact.state, SupervisorProcessState::Running);
+    }
+
+    #[test]
+    fn refresh_status_completes_only_initial_stale_process_identity() {
+        let root = temp_root("initial-stale-identity");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(process::id()),
+                SupervisorProcessState::Running,
+            )
+            .unwrap();
+
+        fs::write(&record.status_path, "not-json\n").unwrap();
+        let invalid = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        assert_eq!(invalid.process.state, SupervisorProcessState::Stale);
+        assert!(invalid.last_known_status.started_at.value.is_none());
+
+        let mut status = NodeStatus::unknown("sandbox-a");
+        status.lifecycle_state = LifecycleStatus::Running;
+        status.process_mode = ProcessMode::SpawnedProcess;
+        status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
+        status.started_at = SnapshotValue::available("identity-1".to_string());
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+
+        let completed = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        assert_eq!(completed.process.state, SupervisorProcessState::Stale);
+        let recovered = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        assert_eq!(recovered.process.state, SupervisorProcessState::Running);
+        assert_eq!(
+            recovered.last_known_status.started_at.value.as_deref(),
+            Some("identity-1")
+        );
+    }
+
+    #[test]
+    fn refresh_process_state_rejects_incomplete_or_reused_stale_identity() {
+        for case in [
+            "pid_missing",
+            "pid_invalid",
+            "identity_missing",
+            "os_start_missing",
+            "os_start_mismatch",
+            "identity_started_at_missing",
+            "status_missing",
+            "status_invalid",
+            "status_not_running",
+            "status_not_spawned",
+            "status_artifact_root_missing",
+            "status_artifact_root_mismatch",
+            "status_started_at_missing",
+            "status_started_at_mismatch",
+        ] {
+            let root = temp_root(&format!("stale-revalidation-{case}"));
+            let store = SupervisorRegistryStore::new(root.join("registry.json"));
+            let config = write_config(&root, "sandbox-a");
+            let record = store
+                .register_node(RegisterNodeRequest {
+                    node_id: "sandbox-a".to_string(),
+                    config_path: config,
+                    artifact_root: None,
+                })
+                .unwrap();
+            store
+                .update_process(
+                    "sandbox-a",
+                    Some(process::id()),
+                    SupervisorProcessState::Running,
+                )
+                .unwrap();
+
+            let mut status = NodeStatus::unknown("sandbox-a");
+            status.lifecycle_state = LifecycleStatus::Running;
+            status.process_mode = ProcessMode::SpawnedProcess;
+            status.artifact_root =
+                SnapshotValue::available(record.artifact_root.display().to_string());
+            status.started_at = SnapshotValue::available("identity-1".to_string());
+            fs::write(
+                &record.status_path,
+                serde_json::to_string_pretty(&status).unwrap(),
+            )
+            .unwrap();
+            store.refresh_status_from_artifact("sandbox-a").unwrap();
+            store
+                .update_process(
+                    "sandbox-a",
+                    Some(process::id()),
+                    SupervisorProcessState::Stale,
+                )
+                .unwrap();
+            let mut pid_artifact: SupervisorPidArtifact =
+                serde_json::from_str(&fs::read_to_string(&record.pid_path).unwrap()).unwrap();
+
+            match case {
+                "pid_missing" => fs::remove_file(&record.pid_path).unwrap(),
+                "pid_invalid" => fs::write(&record.pid_path, "not-json\n").unwrap(),
+                "identity_missing" => {
+                    pid_artifact.process_identity = None;
+                    fs::write(
+                        &record.pid_path,
+                        serde_json::to_string_pretty(&pid_artifact).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "os_start_missing" => {
+                    pid_artifact
+                        .process_identity
+                        .as_mut()
+                        .unwrap()
+                        .os_start_time_secs = SnapshotValue::unknown();
+                    fs::write(
+                        &record.pid_path,
+                        serde_json::to_string_pretty(&pid_artifact).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "os_start_mismatch" => {
+                    let current = pid_artifact
+                        .process_identity
+                        .as_ref()
+                        .unwrap()
+                        .os_start_time_secs
+                        .value
+                        .unwrap();
+                    pid_artifact
+                        .process_identity
+                        .as_mut()
+                        .unwrap()
+                        .os_start_time_secs = SnapshotValue::available(current.saturating_add(1));
+                    fs::write(
+                        &record.pid_path,
+                        serde_json::to_string_pretty(&pid_artifact).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "identity_started_at_missing" => {
+                    pid_artifact.process_identity.as_mut().unwrap().started_at =
+                        SnapshotValue::unknown();
+                    fs::write(
+                        &record.pid_path,
+                        serde_json::to_string_pretty(&pid_artifact).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "status_missing" => fs::remove_file(&record.status_path).unwrap(),
+                "status_invalid" => fs::write(&record.status_path, "not-json\n").unwrap(),
+                "status_not_running" => {
+                    status.lifecycle_state = LifecycleStatus::Stopped;
+                    fs::write(
+                        &record.status_path,
+                        serde_json::to_string_pretty(&status).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "status_not_spawned" => {
+                    status.process_mode = ProcessMode::Unknown;
+                    fs::write(
+                        &record.status_path,
+                        serde_json::to_string_pretty(&status).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "status_artifact_root_missing" => {
+                    status.artifact_root = SnapshotValue::unknown();
+                    fs::write(
+                        &record.status_path,
+                        serde_json::to_string_pretty(&status).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "status_artifact_root_mismatch" => {
+                    status.artifact_root = SnapshotValue::available("wrong-root".to_string());
+                    fs::write(
+                        &record.status_path,
+                        serde_json::to_string_pretty(&status).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "status_started_at_missing" => {
+                    status.started_at = SnapshotValue::unknown();
+                    fs::write(
+                        &record.status_path,
+                        serde_json::to_string_pretty(&status).unwrap(),
+                    )
+                    .unwrap();
+                }
+                "status_started_at_mismatch" => {
+                    status.started_at = SnapshotValue::available("identity-2".to_string());
+                    fs::write(
+                        &record.status_path,
+                        serde_json::to_string_pretty(&status).unwrap(),
+                    )
+                    .unwrap();
+                }
+                _ => unreachable!(),
+            }
+
+            let refreshed = store.refresh_process_state("sandbox-a").unwrap();
+            assert_eq!(
+                refreshed.process.state,
+                SupervisorProcessState::Stale,
+                "case {case} must remain stale",
+            );
+        }
     }
 
     #[cfg(unix)]

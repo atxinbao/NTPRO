@@ -15,6 +15,7 @@ const evidenceDir = path.resolve(
 const resultPath = path.join(evidenceDir, "result.json");
 const logPath = path.join(evidenceDir, "mvp-fault-matrix.log");
 const sessions = [];
+const noAutomaticRecoveryObservationMs = 6_000;
 const statusFalseFields = [
   "http_success_implies_technical_health",
   "process_alive_implies_technical_health",
@@ -202,7 +203,12 @@ const assertNotHealthy = (body, label, expectedRuntimeStatuses = ["running", "un
 const registryPath = (session) => path.join(session.workspace, "supervisor/registry.json");
 const identityPath = (session) => path.join(session.workspace, "mvp/identity_contract.json");
 const statusContractPath = (session) => path.join(session.workspace, "mvp/status_contract.json");
-const nodeRecord = (session) => readJson(registryPath(session)).nodes?.["mvp-node-001"];
+const nodeRecord = (session) => {
+  const record = readJson(registryPath(session)).nodes?.["mvp-node-001"];
+  const pid = record?.process?.pid?.value;
+  if (Number.isInteger(pid) && pid > 0) session.observedNodePids.add(pid);
+  return record;
+};
 const nodePid = (session) => {
   const pid = nodeRecord(session)?.process?.pid?.value;
   assert(Number.isInteger(pid) && pid > 0, `${session.name} registry omitted node PID`);
@@ -219,7 +225,14 @@ const startSession = async (name) => {
   assert(!fs.existsSync(workspace), `${name} workspace must start absent`);
   const port = await freePort();
   const baseUrl = `http://127.0.0.1:${port}`;
-  const session = { name, workspace, baseUrl, serverLog: "", server: undefined };
+  const session = {
+    name,
+    workspace,
+    baseUrl,
+    serverLog: "",
+    server: undefined,
+    observedNodePids: new Set(),
+  };
   const server = spawn(
     nautilusBin,
     [
@@ -259,6 +272,7 @@ const startSession = async (name) => {
     "ntpro_mvp_operator_access",
   );
   await waitHealthy(session);
+  nodePid(session);
   return session;
 };
 
@@ -292,6 +306,11 @@ const stopSession = async (session) => {
   assert(session.server.exitCode === 0, `${session.name} server exited with code ${session.server.exitCode}`);
 };
 const cleanupSession = async (session) => {
+  try {
+    nodeRecord(session);
+  } catch {
+    session.serverLog += "\ncleanup_registry=unavailable\n";
+  }
   if (!serverExited(session.server)) {
     session.server.kill("SIGINT");
     if (!await waitForServerExit(session.server, 12_000)) {
@@ -299,28 +318,71 @@ const cleanupSession = async (session) => {
       await waitForServerExit(session.server, 5_000);
     }
   }
-  let pid;
-  try {
-    pid = nodeRecord(session)?.process?.pid?.value;
-  } catch {
-    return;
-  }
-  if (!Number.isInteger(pid) || !processIsAlive(pid)) return;
-  process.kill(pid, "SIGCONT");
-  process.kill(pid, "SIGTERM");
-  const stopped = await waitFor(`cleanup of ${session.name} node ${pid}`, 5_000, () => (
-    !processIsAlive(pid) ? true : undefined
-  )).catch(() => false);
-  if (!stopped && processIsAlive(pid)) {
-    process.kill(pid, "SIGKILL");
-    await waitFor(`forced cleanup of ${session.name} node ${pid}`, 5_000, () => (
+
+  for (const pid of session.observedNodePids) {
+    if (!processIsAlive(pid)) continue;
+    for (const signal of ["SIGCONT", "SIGTERM"]) {
+      try {
+        process.kill(pid, signal);
+      } catch (error) {
+        if (error?.code !== "ESRCH") throw error;
+      }
+    }
+    const stopped = await waitFor(`cleanup of ${session.name} node ${pid}`, 5_000, () => (
       !processIsAlive(pid) ? true : undefined
-    ));
+    )).catch(() => false);
+    if (!stopped && processIsAlive(pid)) {
+      process.kill(pid, "SIGKILL");
+      await waitFor(`forced cleanup of ${session.name} node ${pid}`, 5_000, () => (
+        !processIsAlive(pid) ? true : undefined
+      ));
+    }
   }
+  const leakedPids = [...session.observedNodePids].filter(processIsAlive);
+  assert(leakedPids.length === 0, `${session.name} leaked node PIDs: ${leakedPids.join(",")}`);
+  session.cleanupVerified = true;
 };
 const actionUrl = (session, action) => (
   `${session.baseUrl}/api/mvp/v1/control-center/nodes/mvp-node-001/actions/${action}`
 );
+
+const observeNoAutomaticRecovery = async (
+  session,
+  label,
+  expectedProcessState,
+  expectedPid,
+  verifyShared,
+) => {
+  const initialRecord = nodeRecord(session);
+  const eventsPath = initialRecord?.events_log_path;
+  const initialEvents = eventsPath && fs.existsSync(eventsPath) ? fs.readFileSync(eventsPath, "utf8") : "";
+  const startedAt = Date.now();
+  let samples = 0;
+
+  while (Date.now() - startedAt < noAutomaticRecoveryObservationMs) {
+    const record = nodeRecord(session);
+    assert(record?.process?.state === expectedProcessState, `${label} process state changed automatically`);
+    assert(record?.process?.pid?.value === expectedPid, `${label} process PID changed automatically`);
+    const response = await fetchJson(`${session.baseUrl}/api/mvp/v1/status`, session.institutionCookie);
+    verifyShared(response);
+    samples += 1;
+    await sleep(500);
+  }
+
+  const finalEvents = eventsPath && fs.existsSync(eventsPath) ? fs.readFileSync(eventsPath, "utf8") : "";
+  assert(finalEvents === initialEvents, `${label} lifecycle events changed without operator action`);
+  assert(samples >= 10, `${label} observation did not span enough heartbeat samples`);
+  return {
+    duration_ms: Date.now() - startedAt,
+    heartbeat_interval_ms: 1_000,
+    samples,
+    expected_process_state: expectedProcessState,
+    expected_pid: expectedPid ?? null,
+    observed_pids: [...session.observedNodePids],
+    lifecycle_events_unchanged: true,
+    automatic_action_observed: false,
+  };
+};
 
 const runFrozenArtifactFault = async (session, name, inject, observe) => {
   await waitHealthy(session);
@@ -516,6 +578,22 @@ const gracefulExitMatrix = async () => {
   });
   assertFalseFields(snapshot.body.boundaries, "external_sigterm.control_center", operationalFalseFields);
 
+  const noAutomaticRecovery = await observeNoAutomaticRecovery(
+    session,
+    "external SIGTERM",
+    "stopped",
+    undefined,
+    (response) => {
+      assert(response.status === 200, `external SIGTERM observation returned ${response.status}`);
+      assert(response.body.status?.runtime?.status === "stopped", "external SIGTERM runtime changed");
+      assert(
+        response.body.status?.technical_health?.status === "not_running",
+        "external SIGTERM technical health changed",
+      );
+      assertSharedBoundaries(response.body, "external_sigterm.observation");
+    },
+  );
+
   const start = await fetchJson(actionUrl(session, "start"), session.operatorCookie, { method: "POST" });
   assert(start.status === 200, `SIGTERM recovery start expected 200, got ${start.status}`);
   assert(start.body.result?.status === "succeeded", "SIGTERM recovery start did not succeed");
@@ -530,6 +608,7 @@ const gracefulExitMatrix = async () => {
     signal: "SIGTERM",
     detected_state: "stopped",
     automatic_restart: false,
+    no_automatic_recovery_observation: noAutomaticRecovery,
     recovery: "operator_start",
     recovered_state: "running",
   };
@@ -551,10 +630,20 @@ const hardKillMatrix = async () => {
   assertNotHealthy(stale.body, "hard_kill", ["unknown"]);
   assert(stale.body.status.runtime.reasons?.includes("supervisor_process_state_stale"), "hard-kill stale reason missing");
 
-  await sleep(1_500);
-  const noRestart = nodeRecord(session);
-  assert(noRestart?.process?.state === "stale", "hard-kill state changed without operator action");
-  assert(noRestart?.process?.pid?.value === originalPid, "hard-kill unexpectedly created a new PID");
+  const noAutomaticRecovery = await observeNoAutomaticRecovery(
+    session,
+    "hard-kill",
+    "stale",
+    originalPid,
+    (response) => {
+      assert(response.status === 200, `hard-kill observation returned ${response.status}`);
+      assertNotHealthy(response.body, "hard_kill.observation", ["unknown"]);
+      assert(
+        response.body.status.runtime.reasons?.includes("supervisor_process_state_stale"),
+        "hard-kill observation lost stale reason",
+      );
+    },
+  );
 
   const unauthenticated = await fetchJson(actionUrl(session, "stop"), undefined, { method: "POST" });
   assert(unauthenticated.status === 403, `hard-kill unauthenticated action expected 403, got ${unauthenticated.status}`);
@@ -600,6 +689,7 @@ const hardKillMatrix = async () => {
     detected_process_state: "stale",
     detected_runtime_state: "unknown",
     automatic_restart: false,
+    no_automatic_recovery_observation: noAutomaticRecovery,
     failed_portal_stop_status: 500,
     recovery: "explicit_supervisor_start",
     recovered_state: "running",
@@ -623,6 +713,10 @@ try {
   const artifacts = await artifactMatrix();
   const gracefulExit = await gracefulExitMatrix();
   const hardKill = await hardKillMatrix();
+  const automaticActionObserved = [gracefulExit, hardKill].some(
+    (entry) => entry.no_automatic_recovery_observation.automatic_action_observed,
+  );
+  assert(!automaticActionObserved, "process matrix observed an automatic recovery action");
   passResult = {
     schema_version: "ntpro.mvp_fault_matrix_evidence.v1",
     status: "pass",
@@ -636,10 +730,10 @@ try {
       artifact_fault_cases: artifacts.length,
       process_fault_cases: 2,
       fail_closed: true,
-      manual_recovery_only: true,
-      automatic_retry_allowed: false,
-      automatic_remediation_allowed: false,
-      automatic_recovery_allowed: false,
+      manual_recovery_only: !automaticActionObserved,
+      automatic_retry_allowed: automaticActionObserved,
+      automatic_remediation_allowed: automaticActionObserved,
+      automatic_recovery_allowed: automaticActionObserved,
     },
     boundaries: {
       single_supervisor: true,
@@ -677,6 +771,10 @@ try {
       failure ||= error instanceof Error ? error : new Error(String(error));
     }
   }
+  const cleanupComplete = sessions.every((session) => session.cleanupVerified === true);
+  if (!cleanupComplete) {
+    failure ||= new Error("one or more fault-matrix sessions did not prove node cleanup");
+  }
   const logs = sessions
     .map((session) => `== ${session.name} ==\n${session.serverLog}`)
     .join("\n");
@@ -697,7 +795,7 @@ try {
     "result.json contains a role cookie",
   );
   fs.writeFileSync(resultPath, serialized);
-  if (process.env.NTPRO_MVP_FAULT_KEEP_ROOT !== "1") {
+  if (process.env.NTPRO_MVP_FAULT_KEEP_ROOT !== "1" && cleanupComplete) {
     try {
       fs.rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     } catch (error) {
