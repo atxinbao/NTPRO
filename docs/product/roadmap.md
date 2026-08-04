@@ -117,15 +117,17 @@ Chrome artifacts。机构工作台继续保持只读。
 退出条件已满足：机构用户能够回答“策略现在发生了什么”，运维能够回答“节点为什么是
 这个状态”，两者引用同一运行实例和事件证据。M3 完成不授权真实交易、多节点或生产 IAM。
 
-### M4：MVP 验收与冻结（下一阶段）
+### M4：MVP 验收与冻结（进行中）
 
 - 执行干净环境启动、确定性回测、单节点沙盒运行、故障注入和恢复验证。
 - 验证空、错误、陈旧、降级、未授权和身份不匹配状态。
 - 完成桌面与窄屏浏览器验证、性能基线、发布说明和回滚说明。
 
-当前进度：MVP-011 / issue #1229 已启动干净临时工作区、双次确定性 Rust 回测、单节点
-sandbox stop/start、双角色访问边界和 graceful shutdown 的固定验收合同。当前仅有本地
-验证，待 PR 审查、hosted smoke 与 artifact；M4 保持开放。
+当前进度：MVP-011 / issue #1229 / PR #1230 已交付干净临时工作区、双次确定性 Rust
+回测、单节点 sandbox stop/start、双角色访问边界和 graceful shutdown 固定验收，hosted
+run `30913047250` 与结构化 artifact 已通过。MVP-012 / issue #1231 正在补齐 status、
+metrics、代际、identity、外部 SIGTERM 和 SIGKILL 的真实故障矩阵；恢复语义限定为人工
+显式操作，不开放自动 retry、restart、remediation 或 recovery。M4 保持开放。
 
 退出条件：完整闭环可以重复演示和审计；所有真实交易能力继续关闭；MVP 冻结后再
 决定是否独立立项多节点、多账户或生产交易能力。

@@ -43,6 +43,7 @@ jobs:
           institution_workbench=false
           control_center=false
           mvp_acceptance=false
+          mvp_fault_matrix=false
           if grep -E '^(Cargo\.(toml|lock)|crates/|tests/|examples/|configs/)' /tmp/changed-files.txt >/dev/null; then
             heavy_rust=true
           fi
@@ -58,11 +59,15 @@ jobs:
           if grep -E '^(Cargo\.(toml|lock)|\.cargo/|crates/|scripts/ai/test_mvp_acceptance\.mjs|configs/nodes/btc-ema-shadow\.toml|examples/rust/backtest/minimal_engine_smoke\.toml|\.github/workflows/rust-cutover-smoke\.yml)' /tmp/changed-files.txt >/dev/null; then
             mvp_acceptance=true
           fi
+          if grep -E '^(Cargo\.(toml|lock)|\.cargo/|crates/|scripts/ai/test_mvp_fault_matrix\.mjs|configs/nodes/btc-ema-shadow\.toml|\.github/workflows/rust-cutover-smoke\.yml)' /tmp/changed-files.txt >/dev/null; then
+            mvp_fault_matrix=true
+          fi
           echo "heavy_rust=$heavy_rust" >>"$GITHUB_OUTPUT"
           echo "release_verify=$release_verify" >>"$GITHUB_OUTPUT"
           echo "institution_workbench=$institution_workbench" >>"$GITHUB_OUTPUT"
           echo "control_center=$control_center" >>"$GITHUB_OUTPUT"
           echo "mvp_acceptance=$mvp_acceptance" >>"$GITHUB_OUTPUT"
+          echo "mvp_fault_matrix=$mvp_fault_matrix" >>"$GITHUB_OUTPUT"
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
@@ -126,6 +131,27 @@ jobs:
         with:
           name: mvp-acceptance-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-mvp-acceptance-evidence
+          if-no-files-found: error
+      - name: MVP single-node fault matrix
+        if: steps.changes.outputs.mvp_fault_matrix == 'true'
+        env:
+          NTPRO_MVP_FAULT_EVIDENCE_DIR: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$NTPRO_MVP_FAULT_EVIDENCE_DIR"
+          printf '%s\n' \
+            '{"schema_version":"ntpro.mvp_fault_matrix_evidence.v1","status":"fail","phase":"preflight","error":"fault matrix did not start; cargo build or runner setup failed"}' \
+            >"$NTPRO_MVP_FAULT_EVIDENCE_DIR/result.json"
+          printf '%s\n' 'mvp_fault_matrix=not_started' \
+            >"$NTPRO_MVP_FAULT_EVIDENCE_DIR/mvp-fault-matrix.log"
+          cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
+          node scripts/ai/test_mvp_fault_matrix.mjs
+      - name: Upload MVP fault matrix evidence
+        if: always() && steps.changes.outputs.mvp_fault_matrix == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mvp-fault-matrix-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
           if-no-files-found: error
       - name: Product portal browser smoke
         if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.control_center == 'true'
