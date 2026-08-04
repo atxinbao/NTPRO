@@ -31,4 +31,8 @@ ignore = [
   # no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41
   "RUSTSEC-2026-0194",
   "RUSTSEC-2026-0195",
+  # rkyv 0.7.46 is only rust_decimal's disabled optional dependency; no active workspace path.
+  # cargo-deny intentionally does not ignore this advisory, so enabling the feature fails closed.
+  # Remove when rust_decimal supports rkyv >=0.8.17 or scanners exclude inactive optional deps.
+  "RUSTSEC-2026-0235",
 ]

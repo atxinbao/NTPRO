@@ -68,6 +68,10 @@ id = "RUSTSEC-2026-0195"
 reason = "quick-xml namespace-declaration allocation DoS via object_store cloud features; DataFusion 53 pins object_store 0.13.x and no compatible upgrade currently resolves quick-xml >=0.41"
 
 [[IgnoredVulns]]
+id = "RUSTSEC-2026-0235"
+reason = "rkyv 0.7.46 is present only as rust_decimal's disabled optional dependency; remove when rust_decimal supports rkyv >=0.8.17 or scanners exclude inactive optional dependencies"
+
+[[IgnoredVulns]]
 id = "GHSA-7gcm-g887-7qv7"
 reason = "protobuf JSON recursion DoS, no fix available yet, low risk for internal use (we don't parse untrusted JSON with protobuf)"
 
