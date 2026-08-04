@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
+source scripts/ai/toolchain_env.sh
+
 PACKAGES="${NTPRO_PRODUCT_LINT_PACKAGES:-nautilus-cli nautilus-live nautilus-backtest nautilus-sandbox}"
 EXTRA_CARGO_ARGS="${NTPRO_PRODUCT_LINT_EXTRA_CARGO_ARGS:-}"
 

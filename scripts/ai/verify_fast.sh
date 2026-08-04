@@ -5,6 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 source scripts/ai/toolchain_env.sh
 
+scripts/ai/check_rust_toolchain_pin.sh
+
 FEATURES="${NAUTILUS_RUST_FEATURES:-arrow,ffi,high-precision,streaming,defi}"
 VERIFY_FAST_CARGO_CHECK="${VERIFY_FAST_CARGO_CHECK:-0}"
 VERIFY_FAST_CLIPPY="${VERIFY_FAST_CLIPPY:-0}"

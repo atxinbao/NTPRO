@@ -124,9 +124,12 @@ jobs:
           df -h
           sudo rm -rf /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/lib/android /usr/local/share/boost /usr/share/dotnet || true
           df -h
+      - name: Resolve pinned Rust toolchain
+        id: rust
+        run: echo "toolchain=$(bash scripts/rust-toolchain.sh)" >>"$GITHUB_OUTPUT"
       - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
         with:
-          toolchain: 1.95.0
+          toolchain: ${{ steps.rust.outputs.toolchain }}
           components: rustfmt, clippy
           cache: false
           override: true

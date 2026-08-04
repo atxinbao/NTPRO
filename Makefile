@@ -1,5 +1,18 @@
 # Variables
 # -----------------------------------------------------------------------------
+# rust-toolchain.toml 是 Make 目标的唯一 Rust 版本来源。
+NTPRO_RUST_TOOLCHAIN := $(shell bash scripts/rust-toolchain.sh)
+NTPRO_CARGO_RUST_VERSION := $(shell awk -F'"' '/^[[:space:]]*rust-version[[:space:]]*=/{print $$2; exit}' Cargo.toml)
+ifneq ($(NTPRO_RUST_TOOLCHAIN),$(NTPRO_CARGO_RUST_VERSION))
+$(error rust-toolchain.toml ($(NTPRO_RUST_TOOLCHAIN)) and Cargo.toml rust-version ($(NTPRO_CARGO_RUST_VERSION)) differ)
+endif
+NTPRO_CARGO_BIN := $(shell rustup which cargo --toolchain $(NTPRO_RUST_TOOLCHAIN))
+NTPRO_RUSTC_BIN := $(shell rustup which rustc --toolchain $(NTPRO_RUST_TOOLCHAIN))
+export PATH := $(dir $(NTPRO_CARGO_BIN)):$(PATH)
+export CARGO := $(NTPRO_CARGO_BIN)
+export RUSTC := $(NTPRO_RUSTC_BIN)
+export RUSTUP_TOOLCHAIN := $(NTPRO_RUST_TOOLCHAIN)
+
 # Tool versions from Cargo.toml [workspace.metadata.tools]
 CARGO_AUDIT_VERSION := $(shell bash scripts/cargo-tool-version.sh cargo-audit)
 CARGO_DENY_VERSION := $(shell bash scripts/cargo-tool-version.sh cargo-deny)

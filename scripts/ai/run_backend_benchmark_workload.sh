@@ -11,14 +11,10 @@ REPOSITORY="$2"
 COMMIT_SHA="$3"
 OUTPUT_JSON="$4"
 TARGET_DIR="$5"
-RUST_TOOLCHAIN="${NTPRO_RUST_TOOLCHAIN:-1.95.0}"
-if command -v rustup >/dev/null 2>&1; then
-  CARGO_BIN="${CARGO:-$(rustup which --toolchain "$RUST_TOOLCHAIN" cargo)}"
-  RUSTC_BIN="${RUSTC:-$(rustup which --toolchain "$RUST_TOOLCHAIN" rustc)}"
-else
-  CARGO_BIN="${CARGO:-$(command -v cargo)}"
-  RUSTC_BIN="${RUSTC:-$(command -v rustc)}"
-fi
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$SCRIPT_ROOT/scripts/ai/toolchain_env.sh"
+CARGO_BIN="$NTPRO_CARGO"
+RUSTC_BIN="$NTPRO_RUSTC"
 mkdir -p "$(dirname "$OUTPUT_JSON")"
 OUTPUT_DIR="$(cd "$(dirname "$OUTPUT_JSON")" && pwd)"
 
