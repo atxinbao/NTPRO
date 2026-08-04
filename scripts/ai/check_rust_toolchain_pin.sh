@@ -20,16 +20,17 @@ source scripts/ai/toolchain_env.sh
 direct_cargo_scripts=0
 while IFS= read -r script; do
   direct_cargo_scripts=$((direct_cargo_scripts + 1))
-  if ! rg -q 'toolchain_env\.sh' "$script"; then
+  if ! grep -Eq 'toolchain_env\.sh' "$script"; then
     echo "direct Cargo script does not load toolchain_env.sh: $script" >&2
     exit 1
   fi
 done < <(
-  rg -l '(^|[;&|()[:space:]])cargo([[:space:]]+\+[^[:space:]]+)?[[:space:]]+(audit|bench|binstall|build|check|clippy|deny|doc|fetch|fmt|hack|install|llvm-cov|metadata|miri|nextest|publish|run|search|test|update|upgrade|vet)' \
-    scripts --glob '*.sh' --glob '*.bash'
+  find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 \
+    | xargs -0 grep -El '(^|[;&|()[:space:]])cargo([[:space:]]+\+[^[:space:]]+)?[[:space:]]+(audit|bench|binstall|build|check|clippy|deny|doc|fetch|fmt|hack|install|llvm-cov|metadata|miri|nextest|publish|run|search|test|update|upgrade|vet)' \
+    | sort
 )
 
-if rg -q 'toolchain:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+' .github/workflows; then
+if grep -ERq --include='*.yml' 'toolchain:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+' .github/workflows; then
   echo "workflow contains a duplicated literal Rust toolchain version" >&2
   exit 1
 fi
@@ -46,15 +47,15 @@ for workflow in \
     'toolchain="$(bash scripts/rust-toolchain.sh)"' \
     '[[ -n "$toolchain" ]]' \
     "printf 'toolchain=%s\\n' \"\$toolchain\" >>\"\$GITHUB_OUTPUT\""; do
-    if ! rg -Fq "$required_line" "$workflow"; then
+    if ! grep -Fq "$required_line" "$workflow"; then
       echo "workflow toolchain resolution is not fail closed: $workflow" >&2
       exit 1
     fi
   done
 done
 
-if ! rg -q '^override CARGO := \$\(NTPRO_RUSTUP_BIN\) run \$\(NTPRO_RUST_TOOLCHAIN\) cargo$' Makefile \
-  || ! rg -q '^override CARGO_NIGHTLY := \$\(NTPRO_RUSTUP_BIN\) run nightly cargo$' Makefile; then
+if ! grep -Eq '^override CARGO := \$\(NTPRO_RUSTUP_BIN\) run \$\(NTPRO_RUST_TOOLCHAIN\) cargo$' Makefile \
+  || ! grep -Eq '^override CARGO_NIGHTLY := \$\(NTPRO_RUSTUP_BIN\) run nightly cargo$' Makefile; then
   echo "Makefile does not preserve canonical and nightly toolchain bindings" >&2
   exit 1
 fi
