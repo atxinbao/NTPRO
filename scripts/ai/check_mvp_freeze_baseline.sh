@@ -88,12 +88,12 @@ for phrase in \
   '不创建 tag 或 GitHub Release' \
   '不得使用自动 restart/retry' \
   '必须建立独立 GitHub issue'; do
-  rg -Fq "$phrase" "$RELEASE_DOC" || fail "release/rollback statement missing: $phrase"
+  grep -Fq "$phrase" "$RELEASE_DOC" || fail "release/rollback statement missing: $phrase"
 done
 
-rg -Fq 'M4：MVP 验收与冻结（MVP-013 合并即完成）' "$ROADMAP" \
+grep -Fq 'M4：MVP 验收与冻结（MVP-013 合并即完成）' "$ROADMAP" \
   || fail "roadmap does not bind M4 completion to MVP-013 merge"
-rg -Fq 'MVP-013 最终验收与冻结' "$PROJECT_PAGE" \
+grep -Fq 'MVP-013 最终验收与冻结' "$PROJECT_PAGE" \
   || fail "project page does not expose the final MVP freeze candidate"
 
 if "$negative_selftest"; then
