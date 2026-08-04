@@ -42,6 +42,7 @@ jobs:
           release_verify=false
           institution_workbench=false
           control_center=false
+          mvp_acceptance=false
           if grep -E '^(Cargo\.(toml|lock)|crates/|tests/|examples/|configs/)' /tmp/changed-files.txt >/dev/null; then
             heavy_rust=true
           fi
@@ -54,10 +55,14 @@ jobs:
           if grep -E '^(crates/cli/src/dashboard/(control_center\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_control_center_(contract|browser)\.mjs)' /tmp/changed-files.txt >/dev/null; then
             control_center=true
           fi
+          if grep -E '^(crates/cli/src/(mvp\.rs|mvp_contract\.rs|dashboard\.rs|dashboard/(institution_workbench\.rs|control_center\.rs|mvp_status_api\.rs|server\.rs|server/tests\.rs))|scripts/ai/test_mvp_acceptance\.mjs|configs/nodes/btc-ema-shadow\.toml|examples/rust/backtest/minimal_engine_smoke\.toml|\.github/workflows/rust-cutover-smoke\.yml)' /tmp/changed-files.txt >/dev/null; then
+            mvp_acceptance=true
+          fi
           echo "heavy_rust=$heavy_rust" >>"$GITHUB_OUTPUT"
           echo "release_verify=$release_verify" >>"$GITHUB_OUTPUT"
           echo "institution_workbench=$institution_workbench" >>"$GITHUB_OUTPUT"
           echo "control_center=$control_center" >>"$GITHUB_OUTPUT"
+          echo "mvp_acceptance=$mvp_acceptance" >>"$GITHUB_OUTPUT"
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
@@ -107,6 +112,21 @@ jobs:
       - name: Control center contract replay
         if: steps.changes.outputs.control_center == 'true'
         run: node scripts/ai/test_control_center_contract.mjs
+      - name: MVP clean deterministic acceptance
+        if: steps.changes.outputs.mvp_acceptance == 'true'
+        env:
+          NTPRO_MVP_ACCEPTANCE_EVIDENCE_DIR: ${{ runner.temp }}/ntpro-mvp-acceptance-evidence
+        run: |
+          set -euo pipefail
+          cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
+          node scripts/ai/test_mvp_acceptance.mjs
+      - name: Upload MVP acceptance evidence
+        if: always() && steps.changes.outputs.mvp_acceptance == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mvp-acceptance-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/ntpro-mvp-acceptance-evidence
+          if-no-files-found: error
       - name: Product portal browser smoke
         if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.control_center == 'true'
         run: |
