@@ -156,6 +156,11 @@ install_from_archive() {
 fallback_build_from_source() {
   # Only attempt if this looks like a Nautilus repo checkout
   if [ -f "crates/cli/Cargo.toml" ]; then
+    if [ ! -f "scripts/ai/toolchain_env.sh" ]; then
+      echo "Source fallback requires scripts/ai/toolchain_env.sh" >&2
+      return 1
+    fi
+    source scripts/ai/toolchain_env.sh
     echo "Falling back to building from source (cargo install)"
     local build_success=0
     if command -v make > /dev/null 2>&1; then
