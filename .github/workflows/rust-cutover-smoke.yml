@@ -44,6 +44,7 @@ jobs:
           control_center=false
           mvp_acceptance=false
           mvp_fault_matrix=false
+          mvp_final_acceptance=false
           if grep -E '^(Cargo\.(toml|lock)|crates/|tests/|examples/|configs/)' /tmp/changed-files.txt >/dev/null; then
             heavy_rust=true
           fi
@@ -62,12 +63,20 @@ jobs:
           if grep -E '^(Cargo\.(toml|lock)|\.cargo/|crates/|scripts/ai/test_mvp_fault_matrix\.mjs|configs/nodes/btc-ema-shadow\.toml|\.github/workflows/rust-cutover-smoke\.yml)' /tmp/changed-files.txt >/dev/null; then
             mvp_fault_matrix=true
           fi
+          if grep -E '^(docs/product/(mvp_freeze_manifest\.json|mvp_release_and_rollback\.md|roadmap\.md)|docs/rust-cutover/(tasks|evidence)/MVP-01[23]\.md|scripts/ai/check_mvp_freeze_baseline\.sh|README\.md|project\.html|\.github/workflows/rust-cutover-smoke\.yml)' /tmp/changed-files.txt >/dev/null; then
+            mvp_final_acceptance=true
+            institution_workbench=true
+            control_center=true
+            mvp_acceptance=true
+            mvp_fault_matrix=true
+          fi
           echo "heavy_rust=$heavy_rust" >>"$GITHUB_OUTPUT"
           echo "release_verify=$release_verify" >>"$GITHUB_OUTPUT"
           echo "institution_workbench=$institution_workbench" >>"$GITHUB_OUTPUT"
           echo "control_center=$control_center" >>"$GITHUB_OUTPUT"
           echo "mvp_acceptance=$mvp_acceptance" >>"$GITHUB_OUTPUT"
           echo "mvp_fault_matrix=$mvp_fault_matrix" >>"$GITHUB_OUTPUT"
+          echo "mvp_final_acceptance=$mvp_final_acceptance" >>"$GITHUB_OUTPUT"
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
@@ -146,6 +155,10 @@ jobs:
             >"$NTPRO_MVP_FAULT_EVIDENCE_DIR/mvp-fault-matrix.log"
           cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
           node scripts/ai/test_mvp_fault_matrix.mjs
+
+      - name: MVP freeze candidate contract
+        if: steps.changes.outputs.mvp_final_acceptance == 'true'
+        run: scripts/ai/check_mvp_freeze_baseline.sh
       - name: Upload MVP fault matrix evidence
         if: always() && steps.changes.outputs.mvp_fault_matrix == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -191,6 +204,57 @@ jobs:
         with:
           name: control-center-browser-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-control-center-browser-evidence
+          if-no-files-found: error
+
+      - name: Build MVP final acceptance summary
+        if: always() && steps.changes.outputs.mvp_final_acceptance == 'true'
+        env:
+          FINAL_DIR: ${{ runner.temp }}/ntpro-mvp-final-acceptance
+          ACCEPTANCE_RESULT: ${{ runner.temp }}/ntpro-mvp-acceptance-evidence/result.json
+          FAULT_RESULT: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence/result.json
+          INSTITUTION_RESULT: ${{ runner.temp }}/ntpro-browser-evidence/result.json
+          CONTROL_RESULT: ${{ runner.temp }}/ntpro-control-center-browser-evidence/result.json
+        run: |
+          set -euo pipefail
+          mkdir -p "$FINAL_DIR"
+          status=pass
+          for result in "$ACCEPTANCE_RESULT" "$FAULT_RESULT" "$INSTITUTION_RESULT" "$CONTROL_RESULT"; do
+            if [[ ! -f "$result" ]] || [[ "$(jq -r '.status // "missing"' "$result")" != "pass" ]]; then
+              status=fail
+            fi
+          done
+          jq -n \
+            --arg status "$status" \
+            --arg commit_sha "$GITHUB_SHA" \
+            --arg deterministic_status "$(jq -r '.status // "missing"' "$ACCEPTANCE_RESULT" 2>/dev/null || echo missing)" \
+            --arg fault_status "$(jq -r '.status // "missing"' "$FAULT_RESULT" 2>/dev/null || echo missing)" \
+            --arg institution_status "$(jq -r '.status // "missing"' "$INSTITUTION_RESULT" 2>/dev/null || echo missing)" \
+            --arg control_status "$(jq -r '.status // "missing"' "$CONTROL_RESULT" 2>/dev/null || echo missing)" \
+            '{
+              schema_version: "ntpro.mvp_final_acceptance_evidence.v1",
+              status: $status,
+              commit_sha: $commit_sha,
+              deterministic_loop: $deterministic_status,
+              fault_matrix: $fault_status,
+              institution_browser: $institution_status,
+              control_center_browser: $control_status,
+              browser_viewports: ["1440x1000", "390x844"],
+              production_trading_authority: false
+            }' >"$FINAL_DIR/result.json"
+          shasum -a 256 \
+            "$ACCEPTANCE_RESULT" \
+            "$FAULT_RESULT" \
+            "$INSTITUTION_RESULT" \
+            "$CONTROL_RESULT" \
+            >"$FINAL_DIR/component-sha256.txt" 2>/dev/null || true
+          [[ "$status" == "pass" ]]
+
+      - name: Upload MVP final acceptance summary
+        if: always() && steps.changes.outputs.mvp_final_acceptance == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mvp-final-acceptance-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/ntpro-mvp-final-acceptance
           if-no-files-found: error
       - name: Golden trace schema smoke
         run: scripts/ai/ntpro_governance.sh golden-trace tests/golden/schema_smoke.jsonl --mode validate-only
