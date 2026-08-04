@@ -100,6 +100,11 @@ for workflow in \
     echo "workflow toolchain resolution is not one ordered fail-closed block: $workflow" >&2
     exit 1
   fi
+  setup_action_count="$(grep -c '^      - uses: actions-rust-lang/setup-rust-toolchain@' "$workflow")"
+  if [ "$setup_action_count" -ne 1 ]; then
+    echo "workflow must contain exactly one setup-rust-toolchain action: $workflow" >&2
+    exit 1
+  fi
   actual_setup_consumer="$(awk '
     /^      - uses: actions-rust-lang\/setup-rust-toolchain@/ { capture = 1 }
     capture { print }
