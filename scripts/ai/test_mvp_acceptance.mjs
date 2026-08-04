@@ -8,9 +8,9 @@ import { spawn, spawnSync } from "node:child_process";
 const nautilusBin = path.resolve(process.env.NTPRO_NAUTILUS_BIN || "target/debug/nautilus");
 const nodeBin = path.resolve(process.env.NTPRO_NODE_BIN || "target/debug/ntpro-node");
 const nodeConfig = path.resolve(process.env.NTPRO_MVP_CONFIG || "configs/nodes/btc-ema-shadow.toml");
-const backtestConfig = path.resolve(
-  process.env.NTPRO_MVP_BACKTEST_CONFIG || "examples/rust/backtest/minimal_engine_smoke.toml",
-);
+const backtestConfigArg = process.env.NTPRO_MVP_BACKTEST_CONFIG
+  || "examples/rust/backtest/minimal_engine_smoke.toml";
+const backtestConfig = path.resolve(backtestConfigArg);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-mvp-011-acceptance-"));
 const evidenceDir = path.resolve(
   process.env.NTPRO_MVP_ACCEPTANCE_EVIDENCE_DIR
@@ -246,8 +246,8 @@ try {
   assert(!fs.existsSync(workspace), "MVP workspace must not exist before acceptance starts");
 
   const runId = "mvp-011-deterministic-engine-smoke";
-  run(["backtest", "run", "--config", backtestConfig, "--run-id", runId, "--output", backtestA]);
-  run(["backtest", "run", "--config", backtestConfig, "--run-id", runId, "--output", backtestB]);
+  run(["backtest", "run", "--config", backtestConfigArg, "--run-id", runId, "--output", backtestA]);
+  run(["backtest", "run", "--config", backtestConfigArg, "--run-id", runId, "--output", backtestB]);
   const summaryA = fs.readFileSync(path.join(backtestA, "summary.txt"));
   const summaryB = fs.readFileSync(path.join(backtestB, "summary.txt"));
   assert(summaryA.equals(summaryB), "deterministic backtest summaries differ");
