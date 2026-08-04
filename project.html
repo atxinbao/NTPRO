@@ -1942,7 +1942,7 @@
       <div class="brand-mark" aria-hidden="true">NT</div>
       <div>
         <p class="brand-name">NTPRO / 机构系统化交易平台蓝图</p>
-        <p class="brand-meta">审计代码面：MVP-010 merge · 正式发布：v0.33.0 · 2026-08-04</p>
+        <p class="brand-meta">审计代码面：MVP-012 merge · 正式发布：v0.33.0 · 2026-08-05</p>
       </div>
     </div>
     <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
@@ -1983,7 +1983,8 @@
             <span class="status ok">MVP-007 控制中心已合并，M2 已完成</span>
             <span class="status ok">MVP-010 生命周期动作已合并，M3 已完成</span>
             <span class="status ok">TTR-001 / TTR-002 已合并</span>
-            <span class="status info">下一阶段：M4 MVP 验收与冻结</span>
+            <span class="status ok">MVP-012 故障矩阵已合并</span>
+            <span class="status info">MVP-013 最终验收与冻结</span>
           </div>
 
           <div class="summary-callout">
@@ -1993,7 +1994,7 @@
 
           <div class="summary-callout">
             <strong>MVP 当前进度与北极星</strong>
-            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；MVP-003/004 已交付身份追溯与四轴状态合同，MVP-005 已交付共享只读状态 API，MVP-006/007 已完成双门户只读消费，MVP-008/009/010 已完成事件关联、角色边界和本地生命周期动作，M3 正式收口；下一阶段执行 M4 验收冻结，多节点编排和真实交易继续后置。
+            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；MVP-003/004 已交付身份追溯与四轴状态合同，MVP-005 已交付共享只读状态 API，MVP-006/007 已完成双门户只读消费，MVP-008/009/010 已完成事件关联、角色边界和本地生命周期动作，MVP-011/012 已完成确定性闭环和真实故障矩阵；MVP-013 正在执行浏览器、性能、发布/回滚与最终冻结，多节点编排和真实交易继续后置。
           </div>
 
           <div class="metric-grid" aria-label="项目指标">
@@ -2715,17 +2716,17 @@
 
             <article class="phase">
               <div class="phase-dot">M4</div>
-              <div class="phase-time">验收冻结 · 下一阶段</div>
+              <div class="phase-time">验收冻结 · 最终候选</div>
               <div class="phase-body">
                 <h3>可重复演示与审计</h3>
-                <p>用干净环境和故障场景证明这条闭环真正可交付。</p>
+                <p>MVP-011/012 已证明干净确定性闭环和 11-case 故障恢复；MVP-013 在同一 final head 完成双门户浏览器、性能和冻结治理。</p>
                 <ul>
                   <li>验证确定性回测、单节点运行、异常退出和恢复。</li>
                   <li>验证空、错误、陈旧、降级、未授权和身份不匹配状态。</li>
                   <li>完成浏览器、性能基线、发布说明和回滚说明。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>完整 MVP 可以重复运行、演示和审计；真实交易保持关闭；后续能力重新独立立项。</div>
+              <div class="exit-gate"><strong>退出条件 · MVP-013 合并生效</strong>final head 的五类 MVP artifact、六组性能 job、required checks 和独立审查全部通过后，完整 MVP 冻结；真实交易保持关闭；后续能力重新独立立项。</div>
             </article>
           </div>
         </section>
@@ -2770,7 +2771,8 @@
           <div class="verification"><strong>跨门户事件关联</strong><span>issue #1217 / PR #1218 已合并 · 同一 event_id 双向跳转 · 串线与重复参数 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
           <div class="verification"><strong>服务端角色边界</strong><span>issue #1221 / PR #1222 已合并 · 双角色独立会话 · 未授权、错角色和直接 API 绕过 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
           <div class="verification"><strong>控制中心生命周期动作</strong><span>issue #1225 / PR #1226 已合并 · 本地单节点 sandbox start/stop · scope、并发与目标状态 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
-          <div class="verification"><strong>前端产品状态</strong><span>M2 双门户只读消费及 M3 事件跳转、角色边界和本地生命周期动作均已完成；下一阶段进入 M4 验收冻结</span><span class="check-pass">M3 已完成</span></div>
+          <div class="verification"><strong>MVP-012 故障矩阵</strong><span>issue #1231 / PR #1232 已合并 · 11-case 真实进程/工件故障 · 人工恢复 · hosted artifact 通过</span><span class="check-pass">已交付</span></div>
+          <div class="verification"><strong>MVP-013 最终冻结</strong><span>issue #1233 / PR #1236 · 双门户双视口、确定性闭环、故障矩阵、六组性能和发布/回滚合同</span><span class="check-pass">合并后生效</span></div>
 
           <div class="research-lane">
             <strong>文档权威顺序</strong>
@@ -2807,7 +2809,7 @@
             <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
           </ul>
 
-          <p class="footer-note">信息架构版本：第十一版 · 更新日期：2026-08-04 · 执行者：Codex · 审计代码面：MVP-010 merge <code>97fdd88a82fa</code> · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（M3 已完成，进入 M4 MVP 验收与冻结）</p>
+          <p class="footer-note">信息架构版本：第十二版 · 更新日期：2026-08-05 · 执行者：Codex · 审计代码面：MVP-012 merge <code>751b0c70d859</code> · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（MVP-013 合并后完成 M4 最终冻结）</p>
         </section>
       </div>
     </main>

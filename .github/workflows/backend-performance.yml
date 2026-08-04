@@ -12,6 +12,9 @@ on:
       - "scripts/ai/run_backend_benchmark_workload.sh"
       - "docs/rust-cutover/governance/backend_performance_baseline.json"
       - "docs/rust-cutover/governance/backend_performance_hosted_contract.json"
+      - "docs/product/mvp_freeze_manifest.json"
+      - "docs/product/mvp_release_and_rollback.md"
+      - "scripts/ai/check_mvp_freeze_baseline.sh"
   schedule:
     - cron: "31 3 * * 0"
   workflow_dispatch:
