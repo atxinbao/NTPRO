@@ -92,6 +92,8 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
         "business-impact-list",
         "event-correlation-panel",
         "node-grid",
+        "lifecycle-action-buttons",
+        "lifecycle-action-result",
         "component-table",
         "observability-grid",
         "alert-list",
@@ -114,6 +116,9 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
         "requestedEventId",
         "portalEventLink",
         "validateOperationalProjection",
+        "validateLifecycleActionEnvelope",
+        "/api/mvp/v1/control-center/nodes/",
+        "data-lifecycle-action",
         "共享状态与运维节点身份不一致",
         "共享状态与运维 registry provenance 不一致",
         "控制中心 MVP 要求恰好一个运维节点",
@@ -121,6 +126,7 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
         "运维节点暴露未脱敏错误",
         "resetSurface(\"刷新中，旧数据已清空\")",
         "method: \"GET\"",
+        "method: \"POST\"",
         "cache: \"no-store\"",
     ] {
         assert!(
@@ -130,16 +136,19 @@ fn control_center_correlates_shared_and_operational_status_and_fails_closed() {
     }
     assert_eq!(
         CONTROL_CENTER_JS.matches("fetch(").count(),
-        3,
-        "control center must request exactly the shared, minimized operational, and event correlation projections",
+        4,
+        "control center must request exactly three read projections and one lifecycle action endpoint",
     );
     for forbidden in [
         "/api/nodes/",
         "/api/server",
         r#""/api/snapshot""#,
         "/api/event-store",
-        "method: \"POST\"",
         "data-dashboard-action",
+        "/actions/pause",
+        "/actions/resume",
+        "/actions/reconnect_data",
+        "/actions/reconnect_execution",
         "submit_order",
         "cancel_order",
         "replace_order",
@@ -200,7 +209,17 @@ fn control_center_operational_projection_is_minimized_and_redacted() {
     assert_eq!(value["registry_path"], "registry.json");
     assert_eq!(value["node"]["error_present"], true);
     assert_eq!(value["boundaries"]["read_only"], true);
-    assert_eq!(value["boundaries"]["supervisor_actions_exposed"], false);
+    assert_eq!(value["boundaries"]["supervisor_actions_exposed"], true);
+    assert_eq!(
+        value["boundaries"]["unsupported_supervisor_actions_exposed"],
+        false
+    );
+    assert_eq!(value["boundaries"]["trading_controls_exposed"], false);
+    assert_eq!(value["lifecycle_actions"].as_array().map(Vec::len), Some(2));
+    assert_eq!(value["lifecycle_actions"][0]["action"], "start");
+    assert_eq!(value["lifecycle_actions"][0]["enabled"], false);
+    assert_eq!(value["lifecycle_actions"][1]["action"], "stop");
+    assert_eq!(value["lifecycle_actions"][1]["enabled"], true);
     assert_eq!(value["boundaries"]["raw_errors_exposed"], false);
     for forbidden in [
         "controls",
@@ -233,12 +252,20 @@ fn control_center_operational_projection_rejects_scope_and_boundary_drift() {
     let two_nodes =
         DashboardSnapshot::from_nodes("2026-08-03T12:00:00Z", vec![node.clone(), node.clone()]);
     assert_eq!(
+        validate_control_center_action_scope(&two_nodes, "sandbox-a").err(),
+        Some("single_node_contract_violation")
+    );
+    assert_eq!(
         project_control_center_snapshot(Path::new("registry.json"), two_nodes).unwrap_err(),
         "single_node_contract_violation"
     );
 
     let mut boundary_drift = DashboardSnapshot::from_nodes("2026-08-03T12:00:00Z", vec![node]);
     boundary_drift.overview.external_venue_connection = true;
+    assert_eq!(
+        validate_control_center_action_scope(&boundary_drift, "sandbox-a").err(),
+        Some("operational_boundary_violation")
+    );
     assert_eq!(
         project_control_center_snapshot(Path::new("registry.json"), boundary_drift).unwrap_err(),
         "operational_boundary_violation"
@@ -255,6 +282,17 @@ fn control_center_operational_projection_rejects_scope_and_boundary_drift() {
     assert_eq!(
         project_control_center_snapshot(Path::new("registry.json"), count_drift).unwrap_err(),
         "overview_node_count_mismatch"
+    );
+
+    let valid = DashboardSnapshot::from_nodes(
+        "2026-08-03T12:00:00Z",
+        vec![DashboardNodeSummary::from_status(&NodeStatus::unknown(
+            "sandbox-a",
+        ))],
+    );
+    assert_eq!(
+        validate_control_center_action_scope(&valid, "sandbox-b").err(),
+        Some("action_target_node_mismatch")
     );
 }
 
@@ -7790,6 +7828,7 @@ async fn dashboard_http_server_rejects_missing_and_stopped_control_actions() {
         registry_path,
         workflow_root: None,
         ntpro_node_bin: root.join("ntpro-node-missing"),
+        lifecycle_action_lock: Arc::new(Mutex::new(())),
     };
     let (status, Json(unknown_action)) =
         control_action_response(&state, "sandbox-a", "reboot").unwrap();
@@ -7936,16 +7975,48 @@ async fn dashboard_http_server_starts_and_stops_fixture_node() {
     )
     .await;
 
-    let stopped = http_request(addr, "POST", "/api/nodes/sandbox-a/actions/stop").await;
-    assert_http_ok(&stopped, "stop fixture node");
-    let stopped_value: Value = serde_json::from_str(response_body(&stopped)).unwrap();
-    assert_eq!(stopped_value["status"], "succeeded");
-    assert_eq!(stopped_value["previous_state"], "running");
-    assert_eq!(stopped_value["current_state"], "stopped");
+    let stop_path = "/api/mvp/v1/control-center/nodes/sandbox-a/actions/stop";
+    let (first_stop, second_stop) = tokio::join!(
+        http_request(addr, "POST", stop_path),
+        http_request(addr, "POST", stop_path),
+    );
+    let stop_responses = [&first_stop, &second_stop];
     assert_eq!(
-        stopped_value["error_code"],
+        stop_responses
+            .iter()
+            .filter(|response| response.contains("HTTP/1.1 200 OK"))
+            .count(),
+        1,
+        "concurrent stop must produce exactly one success",
+    );
+    assert_eq!(
+        stop_responses
+            .iter()
+            .filter(|response| response.contains("HTTP/1.1 409 Conflict"))
+            .count(),
+        1,
+        "concurrent stop must reject the duplicate transition",
+    );
+    let stopped = if first_stop.contains("HTTP/1.1 200 OK") {
+        &first_stop
+    } else {
+        &second_stop
+    };
+    let rejected = if first_stop.contains("HTTP/1.1 409 Conflict") {
+        &first_stop
+    } else {
+        &second_stop
+    };
+    let stopped_value: Value = serde_json::from_str(response_body(stopped)).unwrap();
+    assert_eq!(stopped_value["result"]["status"], "succeeded");
+    assert_eq!(stopped_value["result"]["previous_state"], "running");
+    assert_eq!(stopped_value["result"]["current_state"], "stopped");
+    assert_eq!(
+        stopped_value["result"]["error_code"],
         json!({"availability": "unknown"})
     );
+    assert!(response_body(rejected).contains("\"status\":\"rejected\""));
+    assert!(response_body(rejected).contains("\"value\":\"invalid_lifecycle_state\""));
 
     let after = http_request(addr, "GET", "/api/snapshot").await;
     let after_value: Value = serde_json::from_str(response_body(&after)).unwrap();
@@ -7957,6 +8028,56 @@ async fn dashboard_http_server_starts_and_stops_fixture_node() {
             .iter()
             .any(|control| control["action"] == "start:sandbox-a" && control["enabled"] == true)
     );
+
+    server.abort();
+}
+
+#[tokio::test]
+async fn control_center_lifecycle_api_rejects_multi_node_and_wrong_target_scope() {
+    let root = temp_root("mvp-control-scope");
+    let registry_path = root.join("registry.json");
+    let first = node_record(&root, "sandbox-a");
+    let second = node_record(&root, "sandbox-b");
+    write_registry(&registry_path, [first.clone(), second]);
+
+    let listener_result = tokio::net::TcpListener::bind("127.0.0.1:0").await;
+    assert!(listener_result.is_ok());
+    let Ok(listener) = listener_result else {
+        return;
+    };
+    let addr_result = listener.local_addr();
+    assert!(addr_result.is_ok());
+    let Ok(addr) = addr_result else {
+        return;
+    };
+    let server_registry_path = registry_path.clone();
+    let missing_bin = root.join("ntpro-node-missing");
+    let server = tokio::spawn(async move {
+        let _ = axum::serve(
+            listener,
+            dashboard_router(server_registry_path, missing_bin),
+        )
+        .await;
+    });
+
+    let multi_node = http_request(
+        addr,
+        "POST",
+        "/api/mvp/v1/control-center/nodes/sandbox-a/actions/start",
+    )
+    .await;
+    assert!(multi_node.contains("HTTP/1.1 503 Service Unavailable"));
+    assert!(response_body(&multi_node).contains("control_center_scope_violation"));
+
+    write_registry(&registry_path, [first]);
+    let wrong_target = http_request(
+        addr,
+        "POST",
+        "/api/mvp/v1/control-center/nodes/sandbox-b/actions/start",
+    )
+    .await;
+    assert!(wrong_target.contains("HTTP/1.1 404 Not Found"));
+    assert!(response_body(&wrong_target).contains("node_not_found"));
 
     server.abort();
 }

@@ -1673,6 +1673,11 @@ impl SupervisorRegistryStore {
                 .value
                 .with_context(|| format!("node '{}' has no process pid", request.node_id))?;
             let stop_file = stop_file_path(record);
+            ensure!(
+                !stop_file.exists(),
+                "node '{}' stop is already requested",
+                request.node_id
+            );
             if let Some(parent) = stop_file.parent() {
                 fs::create_dir_all(parent).with_context(|| {
                     format!("failed to create stop directory '{}'", parent.display())

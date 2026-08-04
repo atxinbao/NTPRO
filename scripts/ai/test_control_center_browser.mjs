@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const { chromium } = require(playwrightPath);
 const chrome = process.env.NTPRO_CHROME_BIN || "google-chrome";
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-mvp-007-browser-"));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-mvp-010-browser-"));
 const evidenceDir = process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
 fs.mkdirSync(evidenceDir, { recursive: true });
 const workspace = path.join(root, "workspace");
@@ -35,6 +35,8 @@ const passResult = {
   status: "pass",
   viewports: ["1440x1000", "390x844"],
   valid: 1,
+  lifecycle_action: 1,
+  lifecycle_operator_only: 1,
   shared_boundary: 1,
   node_mismatch: 1,
   ops_http_error: 1,
@@ -106,6 +108,7 @@ const waitForServerExit = (timeoutMs) => {
 
 let browser;
 let failure;
+let scenario = "startup";
 const recordFailure = (error) => {
   const next = error instanceof Error ? error : new Error(String(error));
   const message = redactAccessTokens(next.message);
@@ -161,6 +164,26 @@ try {
     redirect: "manual",
   });
   if (wrongRole.status !== 403) throw new Error(`operator role reached institution workbench: ${wrongRole.status}`);
+  const institutionToken = institutionAccessUrl.searchParams.get("access_token");
+  if (!institutionToken) throw new Error("institution bootstrap token missing");
+  const lifecycleActionPath = `${baseUrl}/api/mvp/v1/control-center/nodes/mvp-node-001/actions/stop`;
+  const unauthorizedAction = await fetch(lifecycleActionPath, { method: "POST", redirect: "manual" });
+  if (unauthorizedAction.status !== 403) throw new Error(`unauthorized lifecycle action expected 403, got ${unauthorizedAction.status}`);
+  const institutionAction = await fetch(lifecycleActionPath, {
+    method: "POST",
+    headers: { cookie: `ntpro_mvp_institution_access=${institutionToken}` },
+    redirect: "manual",
+  });
+  if (institutionAction.status !== 403) throw new Error(`institution role reached lifecycle action: ${institutionAction.status}`);
+  const operatorCookie = `ntpro_mvp_operator_access=${operatorToken}`;
+  const lifecycleGet = await fetch(lifecycleActionPath, { headers: { cookie: operatorCookie }, redirect: "manual" });
+  if (lifecycleGet.status !== 405) throw new Error(`lifecycle GET expected 405, got ${lifecycleGet.status}`);
+  const unsupportedAction = await fetch(`${baseUrl}/api/mvp/v1/control-center/nodes/mvp-node-001/actions/pause`, {
+    method: "POST",
+    headers: { cookie: operatorCookie },
+    redirect: "manual",
+  });
+  if (unsupportedAction.status !== 404) throw new Error(`unsupported lifecycle action expected 404, got ${unsupportedAction.status}`);
   const serializedSnapshot = JSON.stringify(snapshotPayload);
   for (const forbidden of ["controls", "production_mutation_evidence", "read_model_runtime", "last_error", "message", "notes", "account_ref"]) {
     if (serializedSnapshot.includes(`\"${forbidden}\"`)) throw new Error(`operational API exposed forbidden field: ${forbidden}`);
@@ -174,7 +197,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   const browserErrors = [];
-  let scenario = "valid";
+  scenario = "valid";
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error" && scenario !== "ops_http_error") browserErrors.push(message.text());
@@ -215,12 +238,23 @@ try {
     (expected) => document.getElementById("connection-title")?.textContent === expected,
     title,
   );
+  const refreshPage = async (expectedTitle) => {
+    await page.evaluate(() => refreshControlCenter());
+    const state = await page.evaluate(() => ({
+      title: document.getElementById("connection-title")?.textContent,
+      detail: document.getElementById("connection-detail")?.textContent,
+    }));
+    if (state.title !== expectedTitle) {
+      throw new Error(`refresh expected ${expectedTitle}, got ${state.title}: ${state.detail}`);
+    }
+  };
   const assertCleared = async (name) => {
     const state = await page.evaluate(() => ({
       node: document.getElementById("context-node")?.textContent,
       components: document.getElementById("component-table")?.textContent,
+      actions: document.getElementById("lifecycle-action-buttons")?.textContent,
     }));
-    if (state.node !== "节点未加载" || !state.components?.includes("旧数据已清空")) {
+    if (state.node !== "节点未加载" || !state.components?.includes("旧数据已清空") || !state.actions?.includes("操作不可用")) {
       throw new Error(`${name} retained stale control center data`);
     }
   };
@@ -233,8 +267,13 @@ try {
   const node = await page.locator("#context-node").textContent();
   if (!node || node === "节点未加载") throw new Error("valid browser contract did not render node identity");
   const buttons = await page.locator("button").allTextContents();
-  if (buttons.length !== 1 || buttons[0].trim() !== "刷新") {
+  if (buttons.length !== 3 || !buttons.includes("刷新") || !buttons.includes("启动") || !buttons.includes("停止")) {
     throw new Error(`control center exposed unexpected action controls: ${buttons.join(" | ")}`);
+  }
+  const startButton = page.locator('[data-lifecycle-action="start"]');
+  const stopButton = page.locator('[data-lifecycle-action="stop"]');
+  if (!await startButton.isDisabled() || await stopButton.isDisabled()) {
+    throw new Error("running node did not expose stop-only lifecycle capability");
   }
   const businessImpact = await page.locator("#business-impact-list").textContent();
   if (!businessImpact?.includes("风险")) throw new Error("valid browser contract did not render business impact");
@@ -265,6 +304,24 @@ try {
   if (wideOverflow) throw new Error("1440 viewport has horizontal overflow");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-1440.png"), fullPage: true });
 
+  await stopButton.click();
+  if (await stopButton.textContent() !== "确认停止") throw new Error("stop action did not require explicit confirmation");
+  await stopButton.click();
+  await page.waitForFunction(() => document.getElementById("lifecycle-action-result")?.textContent?.includes("running → stopped"));
+  if (await startButton.isDisabled() || !await stopButton.isDisabled()) {
+    throw new Error("stopped node did not expose start-only lifecycle capability");
+  }
+  await page.screenshot({ path: path.join(evidenceDir, "control-center-lifecycle-stopped.png"), fullPage: true });
+
+  await startButton.click();
+  if (await startButton.textContent() !== "确认启动") throw new Error("start action did not require explicit confirmation");
+  await startButton.click();
+  await page.waitForFunction(() => document.getElementById("lifecycle-action-result")?.textContent?.includes("stopped → running"));
+  if (!await startButton.isDisabled() || await stopButton.isDisabled()) {
+    throw new Error("restarted node did not restore stop-only lifecycle capability");
+  }
+  await page.screenshot({ path: path.join(evidenceDir, "control-center-lifecycle-running.png"), fullPage: true });
+
   await businessLink.click();
   await page.waitForURL((url) => url.pathname === "/institution-workbench" && url.searchParams.get("event_id") === eventId && url.hash === "#event-correlation");
   await waitForTitle("共享状态已验证");
@@ -280,34 +337,27 @@ try {
   await page.screenshot({ path: path.join(evidenceDir, "control-center-390.png"), fullPage: true });
 
   scenario = "shared_boundary";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("shared boundary violation");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-shared-boundary-blocked.png"), fullPage: true });
 
   scenario = "valid";
-  await page.locator("#refresh").click();
-  await waitForTitle("共享与运维状态已对齐");
+  await refreshPage("共享与运维状态已对齐");
   scenario = "node_mismatch";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("node mismatch");
 
   scenario = "valid";
-  await page.locator("#refresh").click();
-  await waitForTitle("共享与运维状态已对齐");
+  await refreshPage("共享与运维状态已对齐");
   scenario = "ops_http_error";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("operations HTTP error");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-ops-http-error.png"), fullPage: true });
 
   scenario = "valid";
-  await page.locator("#refresh").click();
-  await waitForTitle("共享与运维状态已对齐");
+  await refreshPage("共享与运维状态已对齐");
   scenario = "event_mismatch";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("event mismatch");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-event-mismatch.png"), fullPage: true });
 
@@ -319,7 +369,8 @@ try {
 
   if (browserErrors.length > 0) throw new Error(`browser console errors: ${browserErrors.join(" | ")}`);
 } catch (error) {
-  recordFailure(error);
+  const message = error instanceof Error ? error.message : String(error);
+  recordFailure(new Error(`scenario=${scenario}: ${message}`));
 } finally {
   if (browser) {
     try {
@@ -358,4 +409,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 diagnostic_redaction_selftest=1 stale_clear=5 cjk_glyphs=1 graceful_shutdown=1");
+console.log("control_center_browser=pass viewports=1440x1000,390x844 valid=1 lifecycle_action=1 lifecycle_operator_only=1 shared_boundary=1 node_mismatch=1 ops_http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 diagnostic_redaction_selftest=1 stale_clear=5 cjk_glyphs=1 graceful_shutdown=1");

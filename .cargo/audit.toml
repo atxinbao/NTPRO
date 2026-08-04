@@ -1,10 +1,11 @@
 # cargo-audit configuration
 # https://github.com/rustsec/rustsec/blob/main/cargo-audit/audit.toml.example
 #
-# Mirrors deny.toml [advisories] ignore list, plus two advisories that
+# Mirrors deny.toml [advisories] ignore list, plus three advisories that
 # cargo-audit surfaces but cargo-deny does not match against the lockfile:
 #   - RUSTSEC-2024-0388 (derivative, unmaintained via alloy-primitives -> ruint -> ark-ff)
 #   - RUSTSEC-2023-0071 (rsa Marvin Attack, transitive via sqlx-mysql, no upstream fix)
+#   - RUSTSEC-2026-0235 (inactive optional rkyv via rust_decimal)
 
 [advisories]
 ignore = [
@@ -31,4 +32,8 @@ ignore = [
   # no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41
   "RUSTSEC-2026-0194",
   "RUSTSEC-2026-0195",
+  # rkyv 0.7.46 is only rust_decimal's disabled optional dependency; no active workspace path.
+  # cargo-deny intentionally does not ignore this advisory, so enabling the feature fails closed.
+  # Remove when rust_decimal supports rkyv >=0.8.17 or scanners exclude inactive optional deps.
+  "RUSTSEC-2026-0235",
 ]

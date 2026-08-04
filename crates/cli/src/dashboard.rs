@@ -19,6 +19,7 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Component, Path as FsPath, PathBuf},
+    sync::{Arc, Mutex},
     time::Duration,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -59,8 +60,10 @@ mod server;
 mod trader_terminal_api;
 
 use control_center::{
-    CONTROL_CENTER_CSS, CONTROL_CENTER_HTML, CONTROL_CENTER_JS, ControlCenterOperationalSnapshot,
-    project_control_center_snapshot,
+    CONTROL_CENTER_CSS, CONTROL_CENTER_HTML, CONTROL_CENTER_JS,
+    ControlCenterLifecycleActionEnvelope, ControlCenterOperationalSnapshot,
+    project_control_center_lifecycle_action, project_control_center_snapshot,
+    validate_control_center_action_scope,
 };
 use institution_workbench::{
     INSTITUTION_WORKBENCH_CSS, INSTITUTION_WORKBENCH_HTML, INSTITUTION_WORKBENCH_JS,
@@ -293,6 +296,7 @@ struct DashboardServerState {
     registry_path: PathBuf,
     workflow_root: Option<PathBuf>,
     ntpro_node_bin: PathBuf,
+    lifecycle_action_lock: Arc<Mutex<()>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -313,10 +317,35 @@ fn control_action_response(
     node_id: &str,
     action: &str,
 ) -> ApiStatusResult<ControlActionResponse> {
-    let started_at = generated_at_now();
+    let Ok(_action_guard) = state.lifecycle_action_lock.lock() else {
+        return Err(server_error_response(
+            "control_action_lock_unavailable",
+            "本地控制动作串行锁不可用",
+        ));
+    };
+    control_action_response_locked(state, node_id, action)
+}
+
+fn control_action_response_locked(
+    state: &DashboardServerState,
+    node_id: &str,
+    action: &str,
+) -> ApiStatusResult<ControlActionResponse> {
     let snapshot = load_dashboard_snapshot(state)?;
+    Ok(control_action_response_for_snapshot_locked(
+        state, &snapshot, node_id, action,
+    ))
+}
+
+fn control_action_response_for_snapshot_locked(
+    state: &DashboardServerState,
+    snapshot: &DashboardSnapshot,
+    node_id: &str,
+    action: &str,
+) -> (StatusCode, Json<ControlActionResponse>) {
+    let started_at = generated_at_now();
     let Some(node) = snapshot.nodes.iter().find(|node| node.node_id == node_id) else {
-        return Ok((
+        return (
             StatusCode::NOT_FOUND,
             Json(action_response(ControlActionResponseParts {
                 action,
@@ -328,12 +357,12 @@ fn control_action_response(
                 error_code: DashboardValue::available("node_not_found".to_string()),
                 message: DashboardValue::available("本地监督器注册表中没有找到该节点".to_string()),
             })),
-        ));
+        );
     };
     let previous_state = node.lifecycle_state;
 
     match action {
-        "start" if previous_state != LifecycleStatus::Stopped => Ok((
+        "start" if previous_state != LifecycleStatus::Stopped => (
             StatusCode::CONFLICT,
             Json(action_response(ControlActionResponseParts {
                 action,
@@ -345,14 +374,14 @@ fn control_action_response(
                 error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
                 message: DashboardValue::available("只有已停止的节点可以启动".to_string()),
             })),
-        )),
+        ),
         "stop"
             if !matches!(
                 previous_state,
                 LifecycleStatus::Running | LifecycleStatus::Paused
             ) =>
         {
-            Ok((
+            (
                 StatusCode::CONFLICT,
                 Json(action_response(ControlActionResponseParts {
                     action,
@@ -366,9 +395,9 @@ fn control_action_response(
                         "只有运行中或已暂停的节点可以停止".to_string(),
                     ),
                 })),
-            ))
+            )
         }
-        "pause" if previous_state != LifecycleStatus::Running => Ok((
+        "pause" if previous_state != LifecycleStatus::Running => (
             StatusCode::CONFLICT,
             Json(action_response(ControlActionResponseParts {
                 action,
@@ -380,8 +409,8 @@ fn control_action_response(
                 error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
                 message: DashboardValue::available("只有运行中的节点可以暂停".to_string()),
             })),
-        )),
-        "resume" if previous_state != LifecycleStatus::Paused => Ok((
+        ),
+        "resume" if previous_state != LifecycleStatus::Paused => (
             StatusCode::CONFLICT,
             Json(action_response(ControlActionResponseParts {
                 action,
@@ -393,14 +422,14 @@ fn control_action_response(
                 error_code: DashboardValue::available("invalid_lifecycle_state".to_string()),
                 message: DashboardValue::available("只有已暂停的节点可以恢复".to_string()),
             })),
-        )),
+        ),
         "reconnect_data" | "reconnect_execution"
             if !matches!(
                 previous_state,
                 LifecycleStatus::Running | LifecycleStatus::Paused
             ) =>
         {
-            Ok((
+            (
                 StatusCode::CONFLICT,
                 Json(action_response(ControlActionResponseParts {
                     action,
@@ -414,30 +443,17 @@ fn control_action_response(
                         "只有运行中或已暂停的节点可以执行重连控制".to_string(),
                     ),
                 })),
-            ))
+            )
         }
-        "start" => Ok(run_start_action(state, node_id, previous_state, started_at)),
-        "stop" => Ok(run_stop_action(state, node_id, previous_state, started_at)),
-        "pause" => Ok(run_pause_action(state, node_id, previous_state, started_at)),
-        "resume" => Ok(run_resume_action(
-            state,
-            node_id,
-            previous_state,
-            started_at,
-        )),
-        "reconnect_data" => Ok(run_reconnect_data_action(
-            state,
-            node_id,
-            previous_state,
-            started_at,
-        )),
-        "reconnect_execution" => Ok(run_reconnect_execution_action(
-            state,
-            node_id,
-            previous_state,
-            started_at,
-        )),
-        _ => Ok((
+        "start" => run_start_action(state, node_id, previous_state, started_at),
+        "stop" => run_stop_action(state, node_id, previous_state, started_at),
+        "pause" => run_pause_action(state, node_id, previous_state, started_at),
+        "resume" => run_resume_action(state, node_id, previous_state, started_at),
+        "reconnect_data" => run_reconnect_data_action(state, node_id, previous_state, started_at),
+        "reconnect_execution" => {
+            run_reconnect_execution_action(state, node_id, previous_state, started_at)
+        }
+        _ => (
             StatusCode::NOT_IMPLEMENTED,
             Json(action_response(ControlActionResponseParts {
                 action,
@@ -449,7 +465,7 @@ fn control_action_response(
                 error_code: DashboardValue::available("unsupported_control_action".to_string()),
                 message: DashboardValue::available("当前本地控制台暂不支持该控制动作".to_string()),
             })),
-        )),
+        ),
     }
 }
 
