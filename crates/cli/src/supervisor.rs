@@ -30,7 +30,7 @@ use nautilus_live::status::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sysinfo::{Pid, ProcessesToUpdate, System};
+use sysinfo::{Pid, ProcessStatus, ProcessesToUpdate, System};
 
 use crate::{
     artifacts::{atomic_write_json, atomic_write_text, remove_file_if_exists},
@@ -2480,10 +2480,7 @@ fn pid_artifact_matches_live_identity(record: &SupervisorNodeRecord) -> anyhow::
     let Some(expected_pid) = record.process.pid.value else {
         return Ok(false);
     };
-    if !process_is_alive(expected_pid) {
-        return Ok(false);
-    }
-    let Some(live_start_time) = live_process_start_time_secs(expected_pid) else {
+    let Some(live_start_time) = strict_live_process_start_time_secs(expected_pid) else {
         return Ok(false);
     };
     if !record.pid_path.exists() || !record.status_path.exists() {
@@ -2542,10 +2539,7 @@ fn pid_artifact_matches_initial_live_os_identity(
     let Some(expected_pid) = record.process.pid.value else {
         return Ok(false);
     };
-    if !process_is_alive(expected_pid) {
-        return Ok(false);
-    }
-    let Some(live_start_time) = live_process_start_time_secs(expected_pid) else {
+    let Some(live_start_time) = strict_live_process_start_time_secs(expected_pid) else {
         return Ok(false);
     };
     if !record.pid_path.exists() {
@@ -2578,6 +2572,26 @@ fn live_process_start_time_secs(pid: u32) -> Option<u64> {
     let mut system = System::new();
     system.refresh_processes(ProcessesToUpdate::Some(&[sys_pid]), true);
     system.process(sys_pid).map(sysinfo::Process::start_time)
+}
+
+fn strict_live_process_start_time_secs(pid: u32) -> Option<u64> {
+    let sys_pid = Pid::from_u32(pid);
+    let mut system = System::new();
+    system.refresh_processes(ProcessesToUpdate::Some(&[sys_pid]), true);
+    let process = system.process(sys_pid)?;
+    strict_revalidation_status_is_alive(process.status()).then(|| process.start_time())
+}
+
+const fn strict_revalidation_status_is_alive(status: ProcessStatus) -> bool {
+    matches!(
+        status,
+        ProcessStatus::Idle
+            | ProcessStatus::Run
+            | ProcessStatus::Sleep
+            | ProcessStatus::Wakekill
+            | ProcessStatus::Waking
+            | ProcessStatus::UninterruptibleDiskSleep
+    )
 }
 
 fn stopped_status_artifact(record: &SupervisorNodeRecord) -> Option<NodeStatus> {
@@ -2660,6 +2674,28 @@ mod tests {
         SUPERVISOR_PROCESS_TEST_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
+    #[test]
+    fn strict_revalidation_rejects_terminated_or_unconfirmed_process_states() {
+        for status in [
+            ProcessStatus::Zombie,
+            ProcessStatus::Dead,
+            ProcessStatus::Unknown(0),
+            ProcessStatus::Stop,
+            ProcessStatus::Tracing,
+            ProcessStatus::Suspended,
+        ] {
+            assert!(!strict_revalidation_status_is_alive(status));
+        }
+        for status in [
+            ProcessStatus::Idle,
+            ProcessStatus::Run,
+            ProcessStatus::Sleep,
+            ProcessStatus::UninterruptibleDiskSleep,
+        ] {
+            assert!(strict_revalidation_status_is_alive(status));
+        }
     }
 
     fn temp_root(name: &str) -> PathBuf {
