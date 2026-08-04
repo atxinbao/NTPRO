@@ -5,7 +5,7 @@
   "executor": "Codex",
   "classification": "v33-separately-scoped",
   "baseline_commit": "0b7c13b25e39c34fa8d94f236212204a8a54bf4f",
-  "last_rebased_by": "MVP-011",
+  "last_rebased_by": "MVP-012",
   "last_rebased_at": "2026-08-04",
   "status": "local_validated_hosted_review_pending",
   "count_policy": "The canonical scan is reproducible and hash-checked; explicit cfg(test) module ranges are test_inline owned while ambiguous mixed-source items remain production owned.",
@@ -35,14 +35,14 @@
     "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
     "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
     "summary": {
-      "total_matches": 29299,
+      "total_matches": 29307,
       "matched_files": 1221,
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
         "production": 2697,
         "test": 14877,
-        "test_inline": 10405
+        "test_inline": 10413
       },
       "by_signal": {
         "TODO": 163,
@@ -52,9 +52,9 @@
         "todo_macro": 18,
         "unsafe": 1922,
         "unused": 96,
-        "unwrap": 19553
+        "unwrap": 19561
       },
-      "canonical_sha256": "1100ac0afedcf8b2fdf868cec0f5e9f8bf4b1bdd0d5942427ae48910776ed960"
+      "canonical_sha256": "5cf769f7fff3f4a956a2bed35b658372c4f7fc022bca309bcb37101b48bca2b3"
     },
     "limitations": [
       "Dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",

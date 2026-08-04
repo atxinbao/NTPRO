@@ -1395,24 +1395,33 @@ impl SupervisorRegistryStore {
             .get_mut(node_id)
             .with_context(|| format!("node '{node_id}' is not registered"))?;
 
-        if record.process.state == SupervisorProcessState::Running && pid_artifact_is_stale(record)?
-        {
-            let transition_at = now_millis();
-            if let Some(stopped_status) = stopped_status_artifact(record) {
-                record.process = SupervisorProcessRecord {
-                    pid: SnapshotValue::not_configured(),
-                    state: SupervisorProcessState::Stopped,
-                    updated_at: SnapshotValue::available(transition_at.clone()),
-                };
-                record.last_known_status = stopped_status;
-                record.status_artifact = RegistryArtifactState::Available;
-                record.updated_at = SnapshotValue::available(transition_at);
-                write_or_remove_pid_artifact(record)?;
-            } else {
-                record.process.state = SupervisorProcessState::Stale;
+        match record.process.state {
+            SupervisorProcessState::Running if pid_artifact_is_stale(record)? => {
+                let transition_at = now_millis();
+                if let Some(stopped_status) = stopped_status_artifact(record) {
+                    record.process = SupervisorProcessRecord {
+                        pid: SnapshotValue::not_configured(),
+                        state: SupervisorProcessState::Stopped,
+                        updated_at: SnapshotValue::available(transition_at.clone()),
+                    };
+                    record.last_known_status = stopped_status;
+                    record.status_artifact = RegistryArtifactState::Available;
+                    record.updated_at = SnapshotValue::available(transition_at);
+                    write_or_remove_pid_artifact(record)?;
+                } else {
+                    record.process.state = SupervisorProcessState::Stale;
+                    record.process.updated_at = SnapshotValue::available(transition_at.clone());
+                    record.updated_at = SnapshotValue::available(transition_at);
+                }
+            }
+            SupervisorProcessState::Stale if !pid_artifact_is_stale(record)? => {
+                let transition_at = now_millis();
+                record.process.state = SupervisorProcessState::Running;
                 record.process.updated_at = SnapshotValue::available(transition_at.clone());
                 record.updated_at = SnapshotValue::available(transition_at);
+                write_or_remove_pid_artifact(record)?;
             }
+            _ => {}
         }
 
         let updated = record.clone();
@@ -3684,6 +3693,55 @@ done
 
         let refreshed = store.refresh_process_state("sandbox-a").unwrap();
         assert_eq!(refreshed.process.state, SupervisorProcessState::Stale);
+    }
+
+    #[test]
+    fn refresh_process_state_revalidates_stale_live_process_identity() {
+        let root = temp_root("process-identity-revalidated");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(process::id()),
+                SupervisorProcessState::Running,
+            )
+            .unwrap();
+
+        let mut status = NodeStatus::unknown("sandbox-a");
+        status.lifecycle_state = LifecycleStatus::Running;
+        status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
+        status.started_at = SnapshotValue::available("identity-1".to_string());
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+        store.refresh_status_from_artifact("sandbox-a").unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(process::id()),
+                SupervisorProcessState::Stale,
+            )
+            .unwrap();
+
+        let refreshed = store.refresh_process_state("sandbox-a").unwrap();
+        assert_eq!(refreshed.process.state, SupervisorProcessState::Running);
+        assert_eq!(
+            refreshed.last_known_status.lifecycle_state,
+            LifecycleStatus::Running
+        );
+        let pid_artifact: SupervisorPidArtifact =
+            serde_json::from_str(&fs::read_to_string(&record.pid_path).unwrap()).unwrap();
+        assert_eq!(pid_artifact.state, SupervisorProcessState::Running);
     }
 
     #[cfg(unix)]
