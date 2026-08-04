@@ -7,6 +7,9 @@
 #   CRATES_IO_CHECK_USER_AGENT     - crates.io API User-Agent header
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ai/toolchain_env.sh"
+
 crates_io_api_url="${CRATES_IO_API_URL:-https://crates.io/api/v1}"
 crates_io_check_delay_seconds="${CRATES_IO_CHECK_DELAY_SECONDS:-1}"
 curl_retries="${CURL_RETRIES:-5}"

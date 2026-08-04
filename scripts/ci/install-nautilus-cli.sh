@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ai/toolchain_env.sh"
+
 # Install Nautilus CLI from prebuilt tarball with retries.
 # Falls back to building from source if needed.
 # Set NAUTILUS_CLI_FORCE_SOURCE=1 to always build from source (e.g., on nightly branch).

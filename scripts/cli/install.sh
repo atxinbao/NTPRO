@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ai/toolchain_env.sh"
+
 # Nautilus CLI installer
 # - Downloads the latest nautilus binary for the current platform from R2
 # - Verifies sha256 against the published checksums

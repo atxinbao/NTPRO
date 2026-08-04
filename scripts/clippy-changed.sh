@@ -4,6 +4,9 @@
 # changes, or when no crate-level changes can be identified.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/ai/toolchain_env.sh"
+
 DESIRED_FEATURES=(ffi high-precision defi)
 PROFILE="${CARGO_CI_PROFILE:-nextest}"
 export HIGH_PRECISION="${HIGH_PRECISION:-1}"

@@ -4,16 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-RUN_NEGATIVE_SELFTEST="${NTPRO_TOOLCHAIN_NEGATIVE_SELFTEST:-1}"
-case "$RUN_NEGATIVE_SELFTEST" in
-  0) negative_selftest=false ;;
-  1) negative_selftest=true ;;
-  *)
-    echo "NTPRO_TOOLCHAIN_NEGATIVE_SELFTEST must be 0 or 1" >&2
-    exit 1
-    ;;
-esac
-
 source scripts/ai/toolchain_env.sh
 
 [[ "$(command -v cargo)" == "$NTPRO_CARGO" ]] || {
@@ -30,13 +20,13 @@ source scripts/ai/toolchain_env.sh
 direct_cargo_scripts=0
 while IFS= read -r script; do
   direct_cargo_scripts=$((direct_cargo_scripts + 1))
-  if ! rg -q '^source (scripts/ai/toolchain_env\.sh|"\$SCRIPT_ROOT/scripts/ai/toolchain_env\.sh")' "$script"; then
+  if ! rg -q 'toolchain_env\.sh' "$script"; then
     echo "direct Cargo script does not load toolchain_env.sh: $script" >&2
     exit 1
   fi
 done < <(
-  rg -l '(^|[[:space:]])cargo[[:space:]]+(bench|build|check|clippy|fmt|metadata|run|test)' \
-    scripts/ai --glob '*.sh'
+  rg -l '(^|[;&|()[:space:]])cargo([[:space:]]+\+[^[:space:]]+)?[[:space:]]+(audit|bench|binstall|build|check|clippy|deny|doc|fetch|fmt|hack|install|llvm-cov|metadata|miri|nextest|publish|run|search|test|update|upgrade|vet)' \
+    scripts --glob '*.sh' --glob '*.bash'
 )
 
 if rg -q 'toolchain:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+' .github/workflows; then
@@ -44,31 +34,59 @@ if rg -q 'toolchain:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+' .github/workflows; then
   exit 1
 fi
 
-if "$negative_selftest"; then
-  tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/ntpro-toolchain-pin.XXXXXX")"
-  trap 'rm -rf "$tmpdir"' EXIT
+workflow_toolchain_bindings=0
+for workflow in \
+  .github/workflows/rust-cutover-smoke.yml \
+  .github/workflows/backend-performance.yml \
+  .github/workflows/release-tag.yml \
+  .github/workflows/release-publish.yml; do
+  workflow_toolchain_bindings=$((workflow_toolchain_bindings + 1))
+  for required_line in \
+    'set -euo pipefail' \
+    'toolchain="$(bash scripts/rust-toolchain.sh)"' \
+    '[[ -n "$toolchain" ]]' \
+    "printf 'toolchain=%s\\n' \"\$toolchain\" >>\"\$GITHUB_OUTPUT\""; do
+    if ! rg -Fq "$required_line" "$workflow"; then
+      echo "workflow toolchain resolution is not fail closed: $workflow" >&2
+      exit 1
+    fi
+  done
+done
 
-  if NTPRO_RUST_TOOLCHAIN=1.87.0 \
-    bash -c 'source scripts/ai/toolchain_env.sh' >/dev/null 2>&1; then
-    echo "toolchain negative selftest accepted environment override" >&2
-    exit 1
-  fi
-
-  printf '%s\n' '[toolchain]' 'channel = "stable"' >"$tmpdir/stable.toml"
-  if NTPRO_RUST_TOOLCHAIN_FILE="$tmpdir/stable.toml" \
-    bash scripts/rust-toolchain.sh >/dev/null 2>&1; then
-    echo "toolchain negative selftest accepted floating stable" >&2
-    exit 1
-  fi
-
-  printf '%s\n' '[toolchain]' 'channel = "1.87.0"' >"$tmpdir/old.toml"
-  if NTPRO_RUST_TOOLCHAIN_FILE="$tmpdir/old.toml" \
-    bash -c 'source scripts/ai/toolchain_env.sh' >/dev/null 2>&1; then
-    echo "toolchain negative selftest accepted Cargo.toml mismatch" >&2
-    exit 1
-  fi
-
-  echo "rust_toolchain_negative_selftest=pass cases=3"
+if ! rg -q '^override CARGO := \$\(NTPRO_RUSTUP_BIN\) run \$\(NTPRO_RUST_TOOLCHAIN\) cargo$' Makefile \
+  || ! rg -q '^override CARGO_NIGHTLY := \$\(NTPRO_RUSTUP_BIN\) run nightly cargo$' Makefile; then
+  echo "Makefile does not preserve canonical and nightly toolchain bindings" >&2
+  exit 1
 fi
 
-echo "rust_toolchain_pin=pass toolchain=$NTPRO_RUST_TOOLCHAIN cargo=$NTPRO_CARGO rustc=$NTPRO_RUSTC direct_cargo_scripts=$direct_cargo_scripts workflow_literals=0"
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/ntpro-toolchain-pin.XXXXXX")"
+trap 'rm -rf "$tmpdir"' EXIT
+
+if NTPRO_RUST_TOOLCHAIN=1.87.0 \
+  bash -c 'source scripts/ai/toolchain_env.sh' >/dev/null 2>&1; then
+  echo "toolchain negative selftest accepted environment override" >&2
+  exit 1
+fi
+
+mkdir -p "$tmpdir/stable/scripts"
+cp scripts/rust-toolchain.sh "$tmpdir/stable/scripts/rust-toolchain.sh"
+printf '%s\n' '[toolchain]' 'channel = "stable"' >"$tmpdir/stable/rust-toolchain.toml"
+if bash "$tmpdir/stable/scripts/rust-toolchain.sh" >/dev/null 2>&1; then
+  echo "toolchain negative selftest accepted floating stable" >&2
+  exit 1
+fi
+
+mkdir -p "$tmpdir/mismatch/scripts/ai"
+cp scripts/rust-toolchain.sh "$tmpdir/mismatch/scripts/rust-toolchain.sh"
+cp scripts/ai/toolchain_env.sh "$tmpdir/mismatch/scripts/ai/toolchain_env.sh"
+printf '%s\n' '[toolchain]' 'channel = "1.87.0"' >"$tmpdir/mismatch/rust-toolchain.toml"
+printf '%s\n' '[workspace]' 'members = []' '' '[workspace.package]' 'rust-version = "1.95.0"' \
+  >"$tmpdir/mismatch/Cargo.toml"
+if bash -c 'source "$1"' _ "$tmpdir/mismatch/scripts/ai/toolchain_env.sh" >/dev/null 2>&1; then
+  echo "toolchain negative selftest accepted Cargo.toml mismatch" >&2
+  exit 1
+fi
+
+echo "rust_toolchain_negative_selftest=pass cases=3"
+
+echo "rust_toolchain_pin=pass toolchain=$NTPRO_RUST_TOOLCHAIN cargo=$NTPRO_CARGO rustc=$NTPRO_RUSTC direct_cargo_scripts=$direct_cargo_scripts workflow_bindings=$workflow_toolchain_bindings workflow_literals=0"

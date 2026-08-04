@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Resolve rust-toolchain.toml relative to this script's location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLCHAIN_FILE="${NTPRO_RUST_TOOLCHAIN_FILE:-${SCRIPT_DIR}/../rust-toolchain.toml}"
+TOOLCHAIN_FILE="${SCRIPT_DIR}/../rust-toolchain.toml"
 
 # Check that rust-toolchain.toml exists
 if [[ ! -f "$TOOLCHAIN_FILE" ]]; then
