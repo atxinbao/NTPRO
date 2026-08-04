@@ -1942,7 +1942,7 @@
       <div class="brand-mark" aria-hidden="true">NT</div>
       <div>
         <p class="brand-name">NTPRO / 机构系统化交易平台蓝图</p>
-        <p class="brand-meta">审计代码面：MVP-007 merge · 正式发布：v0.33.0 · 2026-08-03</p>
+        <p class="brand-meta">审计代码面：MVP-010 merge · 正式发布：v0.33.0 · 2026-08-04</p>
       </div>
     </div>
     <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
@@ -1981,8 +1981,9 @@
             <span class="status ok">M2 共享只读 API 已交付</span>
             <span class="status ok">MVP-006 机构工作台已合并</span>
             <span class="status ok">MVP-007 控制中心已合并，M2 已完成</span>
+            <span class="status ok">MVP-010 生命周期动作已合并，M3 已完成</span>
             <span class="status ok">TTR-001 / TTR-002 已合并</span>
-            <span class="status info">前端产品尚未完成，当前只读优先</span>
+            <span class="status info">下一阶段：M4 MVP 验收与冻结</span>
           </div>
 
           <div class="summary-callout">
@@ -1992,7 +1993,7 @@
 
           <div class="summary-callout">
             <strong>MVP 当前进度与北极星</strong>
-            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；MVP-003/004 已交付身份追溯与四轴状态合同，MVP-005 已交付共享只读状态 API，MVP-006/007 已完成双门户只读消费，M2 正式收口；多节点编排和真实交易全部后置。
+            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；MVP-003/004 已交付身份追溯与四轴状态合同，MVP-005 已交付共享只读状态 API，MVP-006/007 已完成双门户只读消费，MVP-008/009/010 已完成事件关联、角色边界和本地生命周期动作，M3 正式收口；下一阶段执行 M4 验收冻结，多节点编排和真实交易继续后置。
           </div>
 
           <div class="metric-grid" aria-label="项目指标">
@@ -2386,7 +2387,7 @@
               <h3>能力成熟度与产品承诺</h3>
               <p>代码存在不等于产品接口完成；每一项必须区分后端能力、浏览器可用合同和授权边界。</p>
             </div>
-            <span class="surface-index">审计代码面：MVP-007 merge / 正式发布：v0.33.0 / 冻结基线：v0.32.0</span>
+            <span class="surface-index">审计代码面：MVP-010 merge / 正式发布：v0.33.0 / 冻结基线：v0.32.0</span>
           </div>
 
           <div class="maturity-key" aria-label="能力成熟度图例">
@@ -2455,7 +2456,7 @@
           </div>
 
           <div class="diagram" aria-label="NTPRO 当前后端架构图">
-            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>审计代码面：MVP-007 merge <code>5caf48ee2288</code>；正式发布基线：v0.33.0 <code>0ef6fd9d8577</code></span></div>
+            <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>审计代码面：MVP-010 merge <code>97fdd88a82fa</code>；正式发布基线：v0.33.0 <code>0ef6fd9d8577</code></span></div>
             <div class="architecture-flow">
               <div class="arch-row">
                 <div class="arch-label">外部接入层</div>
@@ -2698,7 +2699,7 @@
 
             <article class="phase">
               <div class="phase-dot">M3</div>
-              <div class="phase-time">最小界面 · 只读入口已实现</div>
+              <div class="phase-time">最小界面 · 已完成</div>
               <div class="phase-body">
                 <h3>交易员视图 + 运维视图</h3>
                 <p>MVP-006 已合并机构工作台最小只读页面；MVP-007 提供控制中心单节点、组件、日志、指标、告警、来源和关闭边界页面。</p>
@@ -2706,14 +2707,15 @@
                   <li>机构工作台展示策略/回测摘要和运行中的只读业务状态。</li>
                   <li>控制中心展示单节点生命周期、健康、日志、指标和事件。</li>
                   <li>MVP-008 已将业务影响与技术根因通过同一运行实例和事件编号连接。</li>
+                  <li>MVP-009 已交付服务端角色边界，MVP-010 已交付本地 sandbox 节点 start/stop。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件 · 保持开放</strong>跨门户事件跳转已由 issue #1217 / PR #1218 交付，服务端角色访问边界已由 issue #1221 / PR #1222 交付；仅剩生命周期动作产品化。</div>
+              <div class="exit-gate"><strong>退出条件 · 已满足</strong>跨门户事件跳转由 issue #1217 / PR #1218 交付，角色边界由 issue #1221 / PR #1222 交付，生命周期动作由 issue #1225 / PR #1226 交付；M3 正式关闭。</div>
             </article>
 
             <article class="phase">
               <div class="phase-dot">M4</div>
-              <div class="phase-time">验收冻结</div>
+              <div class="phase-time">验收冻结 · 下一阶段</div>
               <div class="phase-body">
                 <h3>可重复演示与审计</h3>
                 <p>用干净环境和故障场景证明这条闭环真正可交付。</p>
@@ -2767,7 +2769,8 @@
           <div class="verification"><strong>控制中心</strong><span>issue #1213 / PR #1214 已合并 · /control-center · 共享状态与专用最小运维快照 · fail closed</span><span class="check-pass">已合并</span></div>
           <div class="verification"><strong>跨门户事件关联</strong><span>issue #1217 / PR #1218 已合并 · 同一 event_id 双向跳转 · 串线与重复参数 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
           <div class="verification"><strong>服务端角色边界</strong><span>issue #1221 / PR #1222 已合并 · 双角色独立会话 · 未授权、错角色和直接 API 绕过 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
-          <div class="verification"><strong>前端产品状态</strong><span>M2 双门户只读消费、MVP-008 事件跳转和 MVP-009 服务端角色边界已完成；M3 仅剩生命周期动作产品化</span><span class="check-partial">M3 保持开放</span></div>
+          <div class="verification"><strong>控制中心生命周期动作</strong><span>issue #1225 / PR #1226 已合并 · 本地单节点 sandbox start/stop · scope、并发与目标状态 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
+          <div class="verification"><strong>前端产品状态</strong><span>M2 双门户只读消费及 M3 事件跳转、角色边界和本地生命周期动作均已完成；下一阶段进入 M4 验收冻结</span><span class="check-pass">M3 已完成</span></div>
 
           <div class="research-lane">
             <strong>文档权威顺序</strong>
@@ -2804,7 +2807,7 @@
             <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
           </ul>
 
-          <p class="footer-note">信息架构版本：第十版 · 更新日期：2026-08-03 · 执行者：Codex · 审计代码面：MVP-007 merge <code>5caf48ee2288</code> · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（MVP-007 已合并但尚未进入正式发布）</p>
+          <p class="footer-note">信息架构版本：第十一版 · 更新日期：2026-08-04 · 执行者：Codex · 审计代码面：MVP-010 merge <code>97fdd88a82fa</code> · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（M3 已完成，进入 M4 MVP 验收与冻结）</p>
         </section>
       </div>
     </main>
