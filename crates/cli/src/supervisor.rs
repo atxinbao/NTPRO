@@ -1465,7 +1465,7 @@ impl SupervisorRegistryStore {
                         && status.artifact_root.value.as_deref()
                             == Some(record.artifact_root.to_string_lossy().as_ref())
                         && status.started_at.value.is_some()
-                        && pid_artifact_matches_live_os_identity(record)?
+                        && pid_artifact_matches_initial_live_os_identity(record)?
                     {
                         record.last_known_status = status.clone();
                         write_or_remove_pid_artifact(record)?;
@@ -2457,21 +2457,22 @@ fn pid_artifact_is_stale(record: &SupervisorNodeRecord) -> anyhow::Result<bool> 
     if status.node_id != identity.node_id {
         return Ok(true);
     }
-    if status
-        .artifact_root
-        .value
-        .as_deref()
-        .is_some_and(|artifact_root| artifact_root != identity.artifact_root)
-    {
+    if status.artifact_root.value.as_deref() != Some(identity.artifact_root.as_str()) {
         return Ok(true);
     }
-    if let (Some(expected), Some(actual)) = (
-        identity.started_at.value.as_deref(),
-        status.started_at.value.as_deref(),
-    ) {
+    if let Some(expected) = identity.started_at.value.as_deref() {
+        if !matches!(
+            status.lifecycle_state,
+            LifecycleStatus::Running | LifecycleStatus::Paused
+        ) || status.process_mode != ProcessMode::SpawnedProcess
+        {
+            return Ok(true);
+        }
+        let Some(actual) = status.started_at.value.as_deref() else {
+            return Ok(true);
+        };
         return Ok(expected != actual);
     }
-
     Ok(false)
 }
 
@@ -2532,7 +2533,9 @@ fn pid_artifact_matches_live_identity(record: &SupervisorNodeRecord) -> anyhow::
         && identity_started_at == status_started_at)
 }
 
-fn pid_artifact_matches_live_os_identity(record: &SupervisorNodeRecord) -> anyhow::Result<bool> {
+fn pid_artifact_matches_initial_live_os_identity(
+    record: &SupervisorNodeRecord,
+) -> anyhow::Result<bool> {
     let Some(expected_pid) = record.process.pid.value else {
         return Ok(false);
     };
@@ -2560,6 +2563,7 @@ fn pid_artifact_matches_live_os_identity(record: &SupervisorNodeRecord) -> anyho
         && identity.node_id == record.node_id
         && identity.artifact_root == record.artifact_root.display().to_string()
         && identity.status_path == record.status_path.display().to_string()
+        && identity.started_at.value.is_none()
         && identity.os_start_time_secs.value == Some(live_start_time))
 }
 
@@ -3924,6 +3928,72 @@ done
         assert_eq!(recovered.process.state, SupervisorProcessState::Running);
         assert_eq!(
             recovered.last_known_status.started_at.value.as_deref(),
+            Some("identity-1")
+        );
+    }
+
+    #[test]
+    fn refresh_status_never_recompletes_established_process_identity() {
+        let root = temp_root("established-identity-cannot-recomplete");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let record = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        store
+            .update_process(
+                "sandbox-a",
+                Some(process::id()),
+                SupervisorProcessState::Running,
+            )
+            .unwrap();
+
+        let mut status = NodeStatus::unknown("sandbox-a");
+        status.lifecycle_state = LifecycleStatus::Running;
+        status.process_mode = ProcessMode::SpawnedProcess;
+        status.artifact_root = SnapshotValue::available(record.artifact_root.display().to_string());
+        status.started_at = SnapshotValue::available("identity-1".to_string());
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+        let established = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        write_or_remove_pid_artifact(&established).unwrap();
+
+        status.started_at = SnapshotValue::unknown();
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+        let cropped = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        assert_eq!(cropped.process.state, SupervisorProcessState::Stale);
+
+        status.started_at = SnapshotValue::available("identity-2".to_string());
+        fs::write(
+            &record.status_path,
+            serde_json::to_string_pretty(&status).unwrap(),
+        )
+        .unwrap();
+        let replaced = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        assert_eq!(replaced.process.state, SupervisorProcessState::Stale);
+        let still_stale = store.refresh_status_from_artifact("sandbox-a").unwrap();
+        assert_eq!(still_stale.process.state, SupervisorProcessState::Stale);
+
+        let pid_artifact: SupervisorPidArtifact =
+            serde_json::from_str(&fs::read_to_string(&record.pid_path).unwrap()).unwrap();
+        assert_eq!(
+            pid_artifact
+                .process_identity
+                .unwrap()
+                .started_at
+                .value
+                .as_deref(),
             Some("identity-1")
         );
     }
