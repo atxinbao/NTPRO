@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../ai/toolchain_env.sh"
-
 # Nautilus CLI installer
 # - Downloads the latest nautilus binary for the current platform from R2
 # - Verifies sha256 against the published checksums
@@ -159,6 +156,11 @@ install_from_archive() {
 fallback_build_from_source() {
   # Only attempt if this looks like a Nautilus repo checkout
   if [ -f "crates/cli/Cargo.toml" ]; then
+    if [ ! -f "scripts/ai/toolchain_env.sh" ]; then
+      echo "Source fallback requires scripts/ai/toolchain_env.sh" >&2
+      return 1
+    fi
+    source scripts/ai/toolchain_env.sh
     echo "Falling back to building from source (cargo install)"
     local build_success=0
     if command -v make > /dev/null 2>&1; then
