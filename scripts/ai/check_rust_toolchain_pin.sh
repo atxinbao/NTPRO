@@ -67,7 +67,7 @@ done <<EOF
 $actual_direct_cargo_scripts
 EOF
 
-if grep -ERq --include='*.yml' 'toolchain:[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+' .github/workflows; then
+if grep -ERq --include='*.yml' "toolchain:[[:space:]]*['\"]?[0-9]+\.[0-9]+\.[0-9]+" .github/workflows; then
   echo "workflow contains a duplicated literal Rust toolchain version" >&2
   exit 1
 fi
@@ -81,6 +81,10 @@ expected_workflow_block="$(printf '%s\n' \
   '          toolchain="$(bash scripts/rust-toolchain.sh)"' \
   '          [[ -n "$toolchain" ]]' \
   "          printf 'toolchain=%s\\n' \"\$toolchain\" >>\"\$GITHUB_OUTPUT\"")"
+expected_setup_consumer="$(printf '%s\n' \
+  '      - uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0' \
+  '        with:' \
+  '          toolchain: ${{ steps.rust.outputs.toolchain }}')"
 for workflow in \
   .github/workflows/rust-cutover-smoke.yml \
   .github/workflows/backend-performance.yml \
@@ -94,6 +98,15 @@ for workflow in \
   ' "$workflow")"
   if [ "$actual_workflow_block" != "$expected_workflow_block" ]; then
     echo "workflow toolchain resolution is not one ordered fail-closed block: $workflow" >&2
+    exit 1
+  fi
+  actual_setup_consumer="$(awk '
+    /^      - uses: actions-rust-lang\/setup-rust-toolchain@/ { capture = 1 }
+    capture { print }
+    capture && /^          toolchain:/ { exit }
+  ' "$workflow")"
+  if [ "$actual_setup_consumer" != "$expected_setup_consumer" ]; then
+    echo "workflow setup action does not consume the canonical toolchain output: $workflow" >&2
     exit 1
   fi
 done
