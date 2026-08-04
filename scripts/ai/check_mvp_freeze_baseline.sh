@@ -127,6 +127,7 @@ manifest_contract_valid() {
       "scripts/ai/test_mvp_acceptance.mjs",
       "scripts/ai/test_mvp_fault_matrix.mjs"
     ]
+    and all(.frozen_source_sha256[]; type == "string" and test("^[0-9a-f]{64}$"))
     and .post_freeze_change_policy == {
       "separate_issue_required":true,
       "explicit_owner_approval_required":true,
@@ -139,12 +140,16 @@ manifest_contract_valid() {
 
 source_hashes_valid() {
   local candidate="$1"
-  local source expected_sha actual_sha
+  local source expected_sha actual_sha source_hash_rows
+  source_hash_rows="$(
+    jq -r '.frozen_source_sha256 | to_entries[] | [.key, .value] | @tsv' "$candidate"
+  )" || return 1
+  [[ -n "$source_hash_rows" ]] || return 1
   while IFS=$'\t' read -r source expected_sha; do
     [[ -f "$source" ]] || return 1
     actual_sha="$(shasum -a 256 "$source" | awk '{print $1}')"
     [[ "$actual_sha" == "$expected_sha" ]] || return 1
-  done < <(jq -r '.frozen_source_sha256 | to_entries[] | [.key, .value] | @tsv' "$candidate")
+  done <<<"$source_hash_rows"
 }
 
 manifest_contract_valid "$MANIFEST" || fail "manifest contract mismatch"
@@ -195,6 +200,10 @@ jq 'del(.frozen_source_sha256["crates/cli/src/mvp.rs"])' \
   "$MANIFEST" >"$tmpdir/missing-source.json"
 expect_rejected "missing frozen source" "$tmpdir/missing-source.json"
 
-echo "mvp_freeze_negative_selftest=pass cases=6"
+jq '.frozen_source_sha256["crates/cli/src/mvp.rs"] = {"bypass": true}' \
+  "$MANIFEST" >"$tmpdir/invalid-source-hash-type.json"
+expect_rejected "invalid frozen source hash type" "$tmpdir/invalid-source-hash-type.json"
+
+echo "mvp_freeze_negative_selftest=pass cases=7"
 
 echo "mvp_freeze_baseline=pass tasks=19 phases=5 boundaries=19 frozen_sources=13 browser_viewports=2 performance_workloads=6"
