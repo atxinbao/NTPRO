@@ -233,6 +233,7 @@ fn dashboard_router_with_workflow_root(
         registry_path,
         workflow_root,
         ntpro_node_bin,
+        lifecycle_action_lock: Arc::new(std::sync::Mutex::new(())),
     };
     let public_routes = Router::new()
         .route("/", get(dashboard_shell).head(reject_non_get))
@@ -766,29 +767,86 @@ fn control_center_lifecycle_action_response(
     node_id: &str,
     action: &str,
 ) -> (StatusCode, Json<ControlCenterLifecycleActionEnvelope>) {
-    let (status, result) = match control_action_response(state, node_id, action) {
-        Ok((status, Json(result))) => (status, result),
-        Err((status, _)) => {
-            let started_at = generated_at_now();
-            (
-                status,
-                action_response(ControlActionResponseParts {
-                    action,
-                    node_id,
-                    status: ControlActionStatus::Failed,
-                    previous_state: LifecycleStatus::Unknown,
-                    current_state: LifecycleStatus::Unknown,
-                    started_at,
-                    error_code: DashboardValue::available(
-                        "lifecycle_snapshot_unavailable".to_string(),
-                    ),
-                    message: DashboardValue::available(
-                        "节点生命周期状态不可用，动作未执行".to_string(),
-                    ),
-                }),
-            )
+    let Ok(_action_guard) = state.lifecycle_action_lock.lock() else {
+        return control_center_lifecycle_action_error(
+            StatusCode::SERVICE_UNAVAILABLE,
+            node_id,
+            action,
+            "control_action_lock_unavailable",
+            "本地控制动作串行锁不可用，动作未执行",
+        );
+    };
+    let snapshot = match load_dashboard_snapshot(state) {
+        Ok(snapshot) => snapshot,
+        Err(_) => {
+            return control_center_lifecycle_action_error(
+                StatusCode::SERVICE_UNAVAILABLE,
+                node_id,
+                action,
+                "lifecycle_snapshot_unavailable",
+                "节点生命周期状态不可用，动作未执行",
+            );
         }
     };
+    match validate_control_center_action_scope(&snapshot, node_id) {
+        Ok(_) => {}
+        Err("action_target_node_mismatch") => {
+            return control_center_lifecycle_action_error(
+                StatusCode::NOT_FOUND,
+                node_id,
+                action,
+                "node_not_found",
+                "单节点 sandbox 合同中没有找到目标节点，动作未执行",
+            );
+        }
+        Err(_) => {
+            return control_center_lifecycle_action_error(
+                StatusCode::SERVICE_UNAVAILABLE,
+                node_id,
+                action,
+                "control_center_scope_violation",
+                "单节点 sandbox 生命周期边界未通过，动作未执行",
+            );
+        }
+    }
+
+    let (status, result) = match control_action_response_locked(state, node_id, action) {
+        Ok((status, Json(result))) => (status, result),
+        Err((status, _)) => {
+            return control_center_lifecycle_action_error(
+                status,
+                node_id,
+                action,
+                "lifecycle_snapshot_unavailable",
+                "节点生命周期状态不可用，动作未执行",
+            );
+        }
+    };
+    (
+        status,
+        Json(project_control_center_lifecycle_action(
+            node_id, action, result,
+        )),
+    )
+}
+
+fn control_center_lifecycle_action_error(
+    status: StatusCode,
+    node_id: &str,
+    action: &str,
+    error_code: &str,
+    message: &str,
+) -> (StatusCode, Json<ControlCenterLifecycleActionEnvelope>) {
+    let result = action_response(ControlActionResponseParts {
+        action,
+        node_id,
+        status: ControlActionStatus::Failed,
+        previous_state: LifecycleStatus::Unknown,
+        current_state: LifecycleStatus::Unknown,
+        started_at: generated_at_now(),
+        error_code: DashboardValue::available(error_code.to_string()),
+        message: DashboardValue::available(message.to_string()),
+    });
     (
         status,
         Json(project_control_center_lifecycle_action(

@@ -233,46 +233,7 @@ pub(super) fn project_control_center_snapshot(
     registry_path: &Path,
     snapshot: DashboardSnapshot,
 ) -> Result<ControlCenterOperationalSnapshot, &'static str> {
-    if snapshot.nodes.len() != 1 || snapshot.overview.node_count != 1 {
-        return Err("single_node_contract_violation");
-    }
-    if !snapshot.overview.sandbox_only
-        || snapshot.overview.external_venue_connection
-        || snapshot.overview.production_venue_connection
-        || snapshot.overview.testnet_public_network_connection
-        || snapshot.overview.external_network_attempted
-        || snapshot.overview.real_orders_submitted
-    {
-        return Err("operational_boundary_violation");
-    }
-    let node = snapshot
-        .nodes
-        .into_iter()
-        .next()
-        .ok_or("single_node_contract_violation")?;
-    if node.external_venue_connection || node.real_orders_submitted {
-        return Err("node_boundary_violation");
-    }
-    let expected_counts = match node.lifecycle_state {
-        LifecycleStatus::Running => (1, 0, 0, 0),
-        LifecycleStatus::Stopped => (0, 1, 0, 0),
-        LifecycleStatus::Error => (0, 0, 1, 0),
-        LifecycleStatus::Unknown => (0, 0, 0, 1),
-        LifecycleStatus::Starting
-        | LifecycleStatus::Pausing
-        | LifecycleStatus::Paused
-        | LifecycleStatus::Resuming
-        | LifecycleStatus::Stopping => (0, 0, 0, 0),
-    };
-    if (
-        snapshot.overview.running_nodes,
-        snapshot.overview.stopped_nodes,
-        snapshot.overview.error_nodes,
-        snapshot.overview.unknown_nodes,
-    ) != expected_counts
-    {
-        return Err("overview_node_count_mismatch");
-    }
+    let node = validate_control_center_snapshot_scope(&snapshot)?.clone();
 
     let generated_at = normalize_control_center_value(snapshot.generated_at)?;
     let latest_transition_at =
@@ -440,6 +401,63 @@ pub(super) fn project_control_center_snapshot(
             raw_errors_exposed: false,
         },
     })
+}
+
+fn validate_control_center_snapshot_scope(
+    snapshot: &DashboardSnapshot,
+) -> Result<&DashboardNodeSummary, &'static str> {
+    if snapshot.nodes.len() != 1 || snapshot.overview.node_count != 1 {
+        return Err("single_node_contract_violation");
+    }
+    if !snapshot.overview.sandbox_only
+        || snapshot.overview.external_venue_connection
+        || snapshot.overview.production_venue_connection
+        || snapshot.overview.testnet_public_network_connection
+        || snapshot.overview.external_network_attempted
+        || snapshot.overview.real_orders_submitted
+    {
+        return Err("operational_boundary_violation");
+    }
+    let node = snapshot
+        .nodes
+        .first()
+        .ok_or("single_node_contract_violation")?;
+    if node.external_venue_connection || node.real_orders_submitted {
+        return Err("node_boundary_violation");
+    }
+    let expected_counts = match node.lifecycle_state {
+        LifecycleStatus::Running => (1, 0, 0, 0),
+        LifecycleStatus::Stopped => (0, 1, 0, 0),
+        LifecycleStatus::Error => (0, 0, 1, 0),
+        LifecycleStatus::Unknown => (0, 0, 0, 1),
+        LifecycleStatus::Starting
+        | LifecycleStatus::Pausing
+        | LifecycleStatus::Paused
+        | LifecycleStatus::Resuming
+        | LifecycleStatus::Stopping => (0, 0, 0, 0),
+    };
+    if (
+        snapshot.overview.running_nodes,
+        snapshot.overview.stopped_nodes,
+        snapshot.overview.error_nodes,
+        snapshot.overview.unknown_nodes,
+    ) != expected_counts
+    {
+        return Err("overview_node_count_mismatch");
+    }
+
+    Ok(node)
+}
+
+pub(super) fn validate_control_center_action_scope(
+    snapshot: &DashboardSnapshot,
+    target_node_id: &str,
+) -> Result<LifecycleStatus, &'static str> {
+    let node = validate_control_center_snapshot_scope(snapshot)?;
+    if node.node_id != target_node_id {
+        return Err("action_target_node_mismatch");
+    }
+    Ok(node.lifecycle_state)
 }
 
 pub(super) const CONTROL_CENTER_HTML: &str = r##"<!doctype html>
@@ -1146,7 +1164,7 @@ function renderBlocked(error) {
   resetSurface("状态不可用，旧数据已清空");
   setConnection("blocked", "控制中心已阻断", error.message, "Fail closed");
 }
-async function refreshControlCenter() {
+async function refreshControlCenter(expectedLifecycleState = null) {
   const button = document.getElementById("refresh");
   button.disabled = true;
   resetSurface("刷新中，旧数据已清空");
@@ -1159,6 +1177,7 @@ async function refreshControlCenter() {
     if (!correlationResponse.ok) throw new Error(`事件关联不可用（HTTP ${correlationResponse.status}）`);
     const shared = validateSharedStatus(await sharedResponse.json());
     const ops = validateOperationalProjection(await snapshotResponse.json(), shared);
+    if (expectedLifecycleState !== null && ops.node.lifecycle_state !== expectedLifecycleState) throw new Error(`生命周期最终状态未对齐：期待 ${expectedLifecycleState}`);
     renderControlCenter(shared, ops, validateEventCorrelation(await correlationResponse.json(), shared));
     return true;
   } catch (error) {
@@ -1169,10 +1188,10 @@ async function refreshControlCenter() {
   }
 }
 
-async function refreshUntilLifecycleAligned(timeoutMs = 5000) {
+async function refreshUntilLifecycleAligned(expectedLifecycleState, timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
   do {
-    if (await refreshControlCenter()) return;
+    if (await refreshControlCenter(expectedLifecycleState)) return;
     await new Promise((resolve) => setTimeout(resolve, 200));
   } while (Date.now() < deadline);
   throw new Error("生命周期动作后状态投影未在时限内对齐");
@@ -1191,14 +1210,15 @@ async function executeLifecycleAction(action, nodeId) {
     const result = envelope.result;
     if (response.ok && result.status !== "succeeded") throw new Error("生命周期动作成功响应状态异常");
     if (!response.ok && result.status === "succeeded") throw new Error("生命周期动作错误响应状态异常");
+    let expectedCurrent = null;
     if (response.ok) {
       const expectedPrevious = action === "start" ? "stopped" : ["running", "paused"];
       const previousMatches = Array.isArray(expectedPrevious) ? expectedPrevious.includes(result.previous_state) : result.previous_state === expectedPrevious;
-      const expectedCurrent = action === "start" ? "running" : "stopped";
+      expectedCurrent = action === "start" ? "running" : "stopped";
       if (!previousMatches || result.current_state !== expectedCurrent) throw new Error("生命周期动作状态转换异常");
     }
     pendingLifecycleAction = null;
-    await refreshUntilLifecycleAligned();
+    await refreshUntilLifecycleAligned(expectedCurrent);
     const message = dashboardValue(result.message);
     setLifecycleActionResult(`${display(action)}${display(result.status)}`, `${message} · ${result.previous_state} → ${result.current_state}`, !response.ok);
   } catch (error) {

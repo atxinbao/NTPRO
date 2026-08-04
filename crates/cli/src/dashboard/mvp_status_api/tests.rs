@@ -1,4 +1,8 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use serde_json::json;
 
@@ -177,6 +181,7 @@ environment = "sandbox"
                 registry_path,
                 workflow_root: None,
                 ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
+                lifecycle_action_lock: Arc::new(Mutex::new(())),
             },
             identity,
             status,

@@ -108,6 +108,7 @@ const waitForServerExit = (timeoutMs) => {
 
 let browser;
 let failure;
+let scenario = "startup";
 const recordFailure = (error) => {
   const next = error instanceof Error ? error : new Error(String(error));
   const message = redactAccessTokens(next.message);
@@ -196,7 +197,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
   const browserErrors = [];
-  let scenario = "valid";
+  scenario = "valid";
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error" && scenario !== "ops_http_error") browserErrors.push(message.text());
@@ -237,6 +238,16 @@ try {
     (expected) => document.getElementById("connection-title")?.textContent === expected,
     title,
   );
+  const refreshPage = async (expectedTitle) => {
+    await page.evaluate(() => refreshControlCenter());
+    const state = await page.evaluate(() => ({
+      title: document.getElementById("connection-title")?.textContent,
+      detail: document.getElementById("connection-detail")?.textContent,
+    }));
+    if (state.title !== expectedTitle) {
+      throw new Error(`refresh expected ${expectedTitle}, got ${state.title}: ${state.detail}`);
+    }
+  };
   const assertCleared = async (name) => {
     const state = await page.evaluate(() => ({
       node: document.getElementById("context-node")?.textContent,
@@ -326,34 +337,27 @@ try {
   await page.screenshot({ path: path.join(evidenceDir, "control-center-390.png"), fullPage: true });
 
   scenario = "shared_boundary";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("shared boundary violation");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-shared-boundary-blocked.png"), fullPage: true });
 
   scenario = "valid";
-  await page.locator("#refresh").click();
-  await waitForTitle("共享与运维状态已对齐");
+  await refreshPage("共享与运维状态已对齐");
   scenario = "node_mismatch";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("node mismatch");
 
   scenario = "valid";
-  await page.locator("#refresh").click();
-  await waitForTitle("共享与运维状态已对齐");
+  await refreshPage("共享与运维状态已对齐");
   scenario = "ops_http_error";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("operations HTTP error");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-ops-http-error.png"), fullPage: true });
 
   scenario = "valid";
-  await page.locator("#refresh").click();
-  await waitForTitle("共享与运维状态已对齐");
+  await refreshPage("共享与运维状态已对齐");
   scenario = "event_mismatch";
-  await page.locator("#refresh").click();
-  await waitForTitle("控制中心已阻断");
+  await refreshPage("控制中心已阻断");
   await assertCleared("event mismatch");
   await page.screenshot({ path: path.join(evidenceDir, "control-center-event-mismatch.png"), fullPage: true });
 
@@ -365,7 +369,8 @@ try {
 
   if (browserErrors.length > 0) throw new Error(`browser console errors: ${browserErrors.join(" | ")}`);
 } catch (error) {
-  recordFailure(error);
+  const message = error instanceof Error ? error.message : String(error);
+  recordFailure(new Error(`scenario=${scenario}: ${message}`));
 } finally {
   if (browser) {
     try {

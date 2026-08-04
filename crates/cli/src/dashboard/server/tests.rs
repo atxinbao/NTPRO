@@ -364,7 +364,7 @@ async fn control_center_lifecycle_actions_are_post_only_and_return_closed_envelo
     for action in ["start", "stop"] {
         let path = format!("/api/mvp/v1/control-center/nodes/mvp-node-001/actions/{action}");
         let (status, body) = router_request(&router, Method::POST, &path).await;
-        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+        assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{path}");
         let value_result = serde_json::from_slice::<Value>(&body);
         assert!(
             value_result.is_ok(),
@@ -383,8 +383,11 @@ async fn control_center_lifecycle_actions_are_post_only_and_return_closed_envelo
         );
         assert_eq!(value["target_node_id"], "mvp-node-001");
         assert_eq!(value["action_name"], action);
-        assert_eq!(value["result"]["status"], "rejected");
-        assert_eq!(value["result"]["error_code"]["value"], "node_not_found");
+        assert_eq!(value["result"]["status"], "failed");
+        assert_eq!(
+            value["result"]["error_code"]["value"],
+            "control_center_scope_violation"
+        );
         assert_eq!(value["boundaries"]["supervisor_lifecycle_action"], true);
         for field in [
             "external_venue_connection",
@@ -612,7 +615,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
     let action_path = "/api/mvp/v1/control-center/nodes/mvp-node-001/actions/start";
     let response =
         router_response(&router, Method::POST, action_path, Some(&operator_cookie)).await;
-    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_private_response_headers(&response, action_path);
     let response = router_response(
         &router,

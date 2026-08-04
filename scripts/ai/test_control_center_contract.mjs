@@ -342,6 +342,16 @@ if (!elements["lifecycle-action-buttons"].innerHTML.includes("data-lifecycle-act
   throw new Error("post-action refresh did not render the new start capability");
 }
 
+shared = structuredClone(baseShared);
+snapshot = structuredClone(baseSnapshot);
+correlation = structuredClone(baseCorrelation);
+if (await vm.runInContext('refreshControlCenter("stopped")', context)) {
+  throw new Error("post-action refresh accepted an aligned but incorrect final lifecycle state");
+}
+if (!elements["lifecycle-action-buttons"].innerHTML.includes("操作不可用")) {
+  throw new Error("incorrect post-action final lifecycle state did not clear action controls");
+}
+
 const cases = [
   ["missing_consumer", () => { shared.consumers = ["institution_workbench"]; }],
   ["shared_boundary_true", () => { shared.boundaries.order_submission_allowed = true; }],
@@ -443,4 +453,4 @@ for (const [name, mutate] of actionCases) {
   if (!rejected) throw new Error(`${name} lifecycle action envelope did not fail closed`);
 }
 
-console.log(`control_center_contract=pass valid=1 lifecycle_action=1 fail_closed=${cases.length + actionCases.length} stale_clear=${cases.length}`);
+console.log(`control_center_contract=pass valid=1 lifecycle_action=1 post_action_target_mismatch=1 fail_closed=${cases.length + actionCases.length + 1} stale_clear=${cases.length + 1}`);

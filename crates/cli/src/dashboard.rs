@@ -19,6 +19,7 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Component, Path as FsPath, PathBuf},
+    sync::{Arc, Mutex},
     time::Duration,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -62,6 +63,7 @@ use control_center::{
     CONTROL_CENTER_CSS, CONTROL_CENTER_HTML, CONTROL_CENTER_JS,
     ControlCenterLifecycleActionEnvelope, ControlCenterOperationalSnapshot,
     project_control_center_lifecycle_action, project_control_center_snapshot,
+    validate_control_center_action_scope,
 };
 use institution_workbench::{
     INSTITUTION_WORKBENCH_CSS, INSTITUTION_WORKBENCH_HTML, INSTITUTION_WORKBENCH_JS,
@@ -294,6 +296,7 @@ struct DashboardServerState {
     registry_path: PathBuf,
     workflow_root: Option<PathBuf>,
     ntpro_node_bin: PathBuf,
+    lifecycle_action_lock: Arc<Mutex<()>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -310,6 +313,20 @@ type ApiStatusResult<T> = Result<(StatusCode, Json<T>), (StatusCode, Json<Value>
 type SnapshotLoadResult = Result<DashboardSnapshot, (StatusCode, Json<Value>)>;
 
 fn control_action_response(
+    state: &DashboardServerState,
+    node_id: &str,
+    action: &str,
+) -> ApiStatusResult<ControlActionResponse> {
+    let Ok(_action_guard) = state.lifecycle_action_lock.lock() else {
+        return Err(server_error_response(
+            "control_action_lock_unavailable",
+            "本地控制动作串行锁不可用",
+        ));
+    };
+    control_action_response_locked(state, node_id, action)
+}
+
+fn control_action_response_locked(
     state: &DashboardServerState,
     node_id: &str,
     action: &str,

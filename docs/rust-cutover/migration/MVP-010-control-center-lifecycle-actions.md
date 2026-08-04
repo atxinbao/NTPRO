@@ -26,7 +26,9 @@ result 内的 action id、前后状态和显式边界，不能只根据 HTTP 2xx
 - 继续使用 v1 schema 的控制中心客户端必须升级为 v2，否则应 fail closed；
 - 不得从生命周期状态自行推导未知动作，也不得调用旧 Dashboard 的 unversioned API；
 - action 成功后应重新读取共享状态、运维快照和事件关联，等待三者身份与状态一致；
+- 三个投影一致仍不够，最终节点生命周期必须等于 start 的 `running` 或 stop 的 `stopped`；
 - `409`、`404`、`403`、`405` 或无法验证的响应都表示动作未被产品合同确认；
+- 单节点 sandbox 或任一外部/真实交易边界无法证明时返回 `503`，动作不会进入 Supervisor；
 - action message 和 error code 已脱敏，不应尝试获取原始进程或 adapter 错误。
 
 ## 保持关闭的能力
