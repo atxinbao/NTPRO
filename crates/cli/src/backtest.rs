@@ -19,6 +19,8 @@ use std::{
 };
 
 use anyhow::Context;
+#[cfg(test)]
+use nautilus_backtest::result::BacktestResult;
 use nautilus_backtest::{
     config::{BacktestEngineConfig, SimulatedVenueConfig},
     engine::BacktestEngine,
@@ -180,7 +182,8 @@ fn run_backtest_engine_smoke(
         .with_context(|| format!("failed to create output dir '{}'", output_dir.display()))?;
 
     let strategy = resolve_ema_cross_strategy(&config.strategy)?;
-    let quotes_loaded = run_ema_cross_engine(config, &strategy)?;
+    let engine_run = run_ema_cross_engine(config, &strategy)?;
+    let quotes_loaded = engine_run.quotes_loaded;
 
     let summary_path = output_dir.join("summary.txt");
     let summary = format!(
@@ -219,6 +222,12 @@ struct EmaCrossStrategySettings {
     slow_period: usize,
 }
 
+struct EmaCrossEngineRun {
+    quotes_loaded: usize,
+    #[cfg(test)]
+    result: BacktestResult,
+}
+
 fn resolve_ema_cross_strategy(
     config: &MinimalStrategyConfig,
 ) -> anyhow::Result<EmaCrossStrategySettings> {
@@ -245,7 +254,7 @@ fn resolve_ema_cross_strategy(
 fn run_ema_cross_engine(
     config: &MinimalBacktestConfig,
     strategy: &EmaCrossStrategySettings,
-) -> anyhow::Result<usize> {
+) -> anyhow::Result<EmaCrossEngineRun> {
     let mut engine = BacktestEngine::new(BacktestEngineConfig::default())?;
 
     engine.add_venue(
@@ -274,7 +283,14 @@ fn run_ema_cross_engine(
     engine.add_data(quotes, None, true, true)?;
     engine.run(None, None, None, false)?;
 
-    Ok(quotes_loaded)
+    #[cfg(test)]
+    let result = engine.get_result();
+
+    Ok(EmaCrossEngineRun {
+        quotes_loaded,
+        #[cfg(test)]
+        result,
+    })
 }
 
 fn quote(instrument_id: InstrumentId, bid: &str, ask: &str, ts: u64) -> Data {
@@ -399,8 +415,13 @@ fn resolve_output_dir(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
     use crate::opt::BacktestRunOpt;
+    use serde_json::{Value, json};
+
+    const MVP_EMA_CASE_ID: &str = "mvp.ema_cross_deterministic.001";
 
     fn write_config(name: &str, content: &str) -> PathBuf {
         let dir =
@@ -531,5 +552,117 @@ dir = "{}"
         assert!(summary.contains("mode=engine-smoke"));
         assert!(summary.contains("engine_started=true"));
         assert!(summary.contains("runtime_status=completed"));
+    }
+
+    #[test]
+    fn mvp_ema_strategy_product_path_has_canonical_result() {
+        let config_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("examples/rust/backtest/minimal_engine_smoke.toml");
+        let config = load_minimal_backtest_config(&config_path).unwrap();
+        let strategy = resolve_ema_cross_strategy(&config.strategy).unwrap();
+        let engine_run = run_ema_cross_engine(&config, &strategy).unwrap();
+        let actual = canonical_mvp_ema_result(&config, &engine_run);
+
+        println!(
+            "mvp_ema_canonical_result={}",
+            serde_json::to_string(&actual).expect("canonical result should serialize")
+        );
+
+        let expected = json!({
+            "backtest_end": "1735689719000000000",
+            "backtest_start": "1735689600000000000",
+            "case_id": "mvp.ema_cross_deterministic.001",
+            "general_stats": {
+                "Long Ratio": "0.330000000000",
+            },
+            "instrument_id": "AUD/USD.SIM",
+            "iterations": 120,
+            "pnl_stats": {
+                "USD": {
+                    "Avg Loser": "-1.306666666667",
+                    "Avg Winner": "NaN",
+                    "Expectancy": "-1.306666666667",
+                    "Max Loser": "-1.310000000000",
+                    "Max Winner": "NaN",
+                    "Min Loser": "-1.300000000000",
+                    "Min Winner": "NaN",
+                    "PnL (total)": "-3.920000000042",
+                    "PnL% (total)": "-0.000392000000",
+                    "Win Rate": "0.000000000000",
+                },
+            },
+            "quotes": 120,
+            "return_stats": {
+                "Average (Return)": "NaN",
+                "Average Loss (Return)": "NaN",
+                "Average Win (Return)": "NaN",
+                "Profit Factor": "NaN",
+                "Returns Volatility (252 days)": "NaN",
+                "Risk Return Ratio": "NaN",
+                "Sharpe Ratio (252 days)": "NaN",
+                "Sortino Ratio (252 days)": "NaN",
+            },
+            "strategy": "ema-cross",
+            "total_events": 9,
+            "total_orders": 3,
+            "total_positions": 3,
+        });
+        assert_eq!(
+            actual, expected,
+            "MVP EMA product path result must remain deterministic"
+        );
+    }
+
+    fn canonical_mvp_ema_result(
+        config: &MinimalBacktestConfig,
+        engine_run: &EmaCrossEngineRun,
+    ) -> Value {
+        let result = &engine_run.result;
+        let pnl_stats = result
+            .stats_pnls
+            .iter()
+            .map(|(currency, stats)| {
+                let values = stats
+                    .iter()
+                    .map(|(name, value)| (name.clone(), canonical_float(*value)))
+                    .collect::<BTreeMap<_, _>>();
+                (currency.clone(), values)
+            })
+            .collect::<BTreeMap<_, _>>();
+        let return_stats = result
+            .stats_returns
+            .iter()
+            .map(|(name, value)| (name.clone(), canonical_float(*value)))
+            .collect::<BTreeMap<_, _>>();
+        let general_stats = result
+            .stats_general
+            .iter()
+            .map(|(name, value)| (name.clone(), canonical_float(*value)))
+            .collect::<BTreeMap<_, _>>();
+
+        json!({
+            "case_id": MVP_EMA_CASE_ID,
+            "instrument_id": config.data.instrument_id,
+            "strategy": config.strategy.name,
+            "quotes": engine_run.quotes_loaded,
+            "iterations": result.iterations,
+            "total_events": result.total_events,
+            "total_orders": result.total_orders,
+            "total_positions": result.total_positions,
+            "backtest_start": result.backtest_start.map(|value| value.as_u64().to_string()),
+            "backtest_end": result.backtest_end.map(|value| value.as_u64().to_string()),
+            "pnl_stats": pnl_stats,
+            "return_stats": return_stats,
+            "general_stats": general_stats,
+        })
+    }
+
+    fn canonical_float(value: f64) -> String {
+        if value.is_finite() {
+            format!("{value:.12}")
+        } else {
+            value.to_string()
+        }
     }
 }

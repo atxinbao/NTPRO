@@ -138,12 +138,12 @@ const runStrategyGolden = () => {
   const result = spawnSync(
     cargoBin,
     [
-      "test", "--quiet", "-p", "nautilus-backtest", "--test", "golden_trace_backtest",
-      "rust_backtest_engine_replays_mvp_ema_strategy_canonical_result", "--", "--nocapture",
+      "test", "--quiet", "-p", "nautilus-cli", "--lib",
+      "backtest::tests::mvp_ema_strategy_product_path_has_canonical_result", "--", "--nocapture",
     ],
     {
       encoding: "utf8",
-      timeout: 180_000,
+      timeout: 600_000,
       maxBuffer: 10 * 1024 * 1024,
       env: { ...process.env, NO_COLOR: "1" },
     },

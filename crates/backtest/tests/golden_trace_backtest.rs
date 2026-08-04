@@ -14,7 +14,6 @@
 // -------------------------------------------------------------------------------------------------
 
 use std::{
-    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -30,11 +29,9 @@ use nautilus_model::{
     instruments::{Instrument, InstrumentAny, stubs::crypto_perpetual_ethusdt},
     types::{Money, Price, Quantity},
 };
-use nautilus_trading::examples::strategies::EmaCross;
 use serde_json::{Value, json};
 
 const CASE_ID: &str = "backtest_live.single_quote_replay.001";
-const MVP_EMA_CASE_ID: &str = "mvp.ema_cross_deterministic.001";
 
 #[test]
 fn rust_backtest_engine_replays_single_quote_golden_trace() {
@@ -48,162 +45,6 @@ fn rust_backtest_engine_replays_single_quote_golden_trace() {
         actual_event, *expected_event,
         "Rust BacktestEngine output must match the backtest golden trace"
     );
-}
-
-#[test]
-fn rust_backtest_engine_replays_mvp_ema_strategy_canonical_result() {
-    let actual = run_mvp_ema_backtest();
-    println!(
-        "mvp_ema_canonical_result={}",
-        serde_json::to_string(&actual).expect("canonical result should serialize")
-    );
-
-    let expected = json!({
-        "backtest_end": "1735689719000000000",
-        "backtest_start": "1735689600000000000",
-        "case_id": "mvp.ema_cross_deterministic.001",
-        "general_stats": {
-            "Long Ratio": "0.330000000000",
-        },
-        "instrument_id": "AUD/USD.SIM",
-        "iterations": 120,
-        "pnl_stats": {
-            "USD": {
-                "Avg Loser": "-1.306666666667",
-                "Avg Winner": "NaN",
-                "Expectancy": "-1.306666666667",
-                "Max Loser": "-1.310000000000",
-                "Max Winner": "NaN",
-                "Min Loser": "-1.300000000000",
-                "Min Winner": "NaN",
-                "PnL (total)": "-3.920000000042",
-                "PnL% (total)": "-0.000392000000",
-                "Win Rate": "0.000000000000",
-            },
-        },
-        "quotes": 120,
-        "return_stats": {
-            "Average (Return)": "NaN",
-            "Average Loss (Return)": "NaN",
-            "Average Win (Return)": "NaN",
-            "Profit Factor": "NaN",
-            "Returns Volatility (252 days)": "NaN",
-            "Risk Return Ratio": "NaN",
-            "Sharpe Ratio (252 days)": "NaN",
-            "Sortino Ratio (252 days)": "NaN",
-        },
-        "strategy": "ema-cross",
-        "total_events": 9,
-        "total_orders": 3,
-        "total_positions": 3,
-    });
-    assert_eq!(
-        actual, expected,
-        "MVP EMA strategy result must remain deterministic"
-    );
-}
-
-fn run_mvp_ema_backtest() -> Value {
-    let mut engine = BacktestEngine::new(BacktestEngineConfig::default()).unwrap();
-    engine
-        .add_venue(
-            SimulatedVenueConfig::builder()
-                .venue(Venue::from("SIM"))
-                .oms_type(OmsType::Hedging)
-                .account_type(AccountType::Margin)
-                .book_type(BookType::L1_MBP)
-                .starting_balances(vec![Money::from("1_000_000 USD")])
-                .build(),
-        )
-        .unwrap();
-
-    let instrument = InstrumentAny::CurrencyPair(nautilus_model::instruments::stubs::audusd_sim());
-    let instrument_id = instrument.id();
-    engine.add_instrument(&instrument).unwrap();
-    engine
-        .add_strategy(EmaCross::new(
-            instrument_id,
-            Quantity::from("100000"),
-            10,
-            20,
-        ))
-        .unwrap();
-    engine
-        .add_data(mvp_ema_quotes(instrument_id), None, true, true)
-        .unwrap();
-    engine
-        .run(None, None, Some(MVP_EMA_CASE_ID.to_string()), false)
-        .unwrap();
-
-    let result = engine.get_result();
-    let pnl_stats = result
-        .stats_pnls
-        .iter()
-        .map(|(currency, stats)| {
-            let values = stats
-                .iter()
-                .map(|(name, value)| (name.clone(), canonical_float(*value)))
-                .collect::<BTreeMap<_, _>>();
-            (currency.clone(), values)
-        })
-        .collect::<BTreeMap<_, _>>();
-    let return_stats = result
-        .stats_returns
-        .iter()
-        .map(|(name, value)| (name.clone(), canonical_float(*value)))
-        .collect::<BTreeMap<_, _>>();
-    let general_stats = result
-        .stats_general
-        .iter()
-        .map(|(name, value)| (name.clone(), canonical_float(*value)))
-        .collect::<BTreeMap<_, _>>();
-
-    json!({
-        "case_id": MVP_EMA_CASE_ID,
-        "instrument_id": instrument_id.to_string(),
-        "strategy": "ema-cross",
-        "quotes": 120,
-        "iterations": result.iterations,
-        "total_events": result.total_events,
-        "total_orders": result.total_orders,
-        "total_positions": result.total_positions,
-        "backtest_start": result.backtest_start.map(|value| value.as_u64().to_string()),
-        "backtest_end": result.backtest_end.map(|value| value.as_u64().to_string()),
-        "pnl_stats": pnl_stats,
-        "return_stats": return_stats,
-        "general_stats": general_stats,
-    })
-}
-
-fn mvp_ema_quotes(instrument_id: InstrumentId) -> Vec<Data> {
-    let spread = 0.00020;
-    let base_ts: u64 = 1_735_689_600_000_000_000;
-    let interval: u64 = 1_000_000_000;
-    (0..120)
-        .map(|tick| {
-            let cycle = tick as f64 / 12.0;
-            let mid = 0.65000 + (cycle.sin() * 0.00400) + ((tick % 40) as f64 * 0.00008);
-            let bid = format!("{mid:.5}");
-            let ask = format!("{:.5}", mid + spread);
-            Data::Quote(QuoteTick::new(
-                instrument_id,
-                Price::from(bid),
-                Price::from(ask),
-                Quantity::from("100000"),
-                Quantity::from("100000"),
-                (base_ts + tick as u64 * interval).into(),
-                (base_ts + tick as u64 * interval).into(),
-            ))
-        })
-        .collect()
-}
-
-fn canonical_float(value: f64) -> String {
-    if value.is_finite() {
-        format!("{value:.12}")
-    } else {
-        value.to_string()
-    }
 }
 
 fn repository_root() -> PathBuf {
