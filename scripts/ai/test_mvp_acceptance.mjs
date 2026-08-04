@@ -7,6 +7,7 @@ import { spawn, spawnSync } from "node:child_process";
 
 const nautilusBin = path.resolve(process.env.NTPRO_NAUTILUS_BIN || "target/debug/nautilus");
 const nodeBin = path.resolve(process.env.NTPRO_NODE_BIN || "target/debug/ntpro-node");
+const cargoBin = process.env.NTPRO_CARGO_BIN || "cargo";
 const nodeConfig = path.resolve(process.env.NTPRO_MVP_CONFIG || "configs/nodes/btc-ema-shadow.toml");
 const backtestConfigArg = process.env.NTPRO_MVP_BACKTEST_CONFIG
   || "examples/rust/backtest/minimal_engine_smoke.toml";
@@ -74,6 +75,7 @@ const actionFalseFields = [
   "automatic_remediation_allowed",
   "real_orders_submitted",
 ];
+const expectedStrategyResultSha256 = "5d1e0903a1060f75b28b30241d2f086c6d2dec1faf171ddf0fb40bf09d369e1c";
 
 fs.mkdirSync(evidenceDir, { recursive: true });
 
@@ -131,6 +133,35 @@ const run = (args) => {
     `command exited ${result.status}: ${redact(result.stderr || result.stdout)}`,
   );
   return result;
+};
+const runStrategyGolden = () => {
+  const result = spawnSync(
+    cargoBin,
+    [
+      "test", "--quiet", "-p", "nautilus-backtest", "--test", "golden_trace_backtest",
+      "rust_backtest_engine_replays_mvp_ema_strategy_canonical_result", "--", "--nocapture",
+    ],
+    {
+      encoding: "utf8",
+      timeout: 180_000,
+      maxBuffer: 10 * 1024 * 1024,
+      env: { ...process.env, NO_COLOR: "1" },
+    },
+  );
+  assert(!result.error, `strategy golden test failed to start: ${result.error?.message}`);
+  assert(
+    result.status === 0,
+    `strategy golden test exited ${result.status}: ${redact(result.stderr || result.stdout)}`,
+  );
+  const output = `${result.stdout}\n${result.stderr}`;
+  const canonical = output.match(/mvp_ema_canonical_result=(\{.*\})/)?.[1];
+  assert(canonical, "strategy golden test omitted canonical result");
+  const parsed = JSON.parse(canonical);
+  assert(parsed.total_events > 0, "strategy golden result must contain events");
+  assert(parsed.total_orders > 0, "strategy golden result must contain orders");
+  assert(parsed.total_positions > 0, "strategy golden result must contain positions");
+  assert(Object.keys(parsed.pnl_stats || {}).length > 0, "strategy golden result omitted PnL stats");
+  return { canonical, parsed };
 };
 const bootstrapCookie = async (accessUrl, expectedPath, expectedCookie) => {
   const response = await fetch(accessUrl, { redirect: "manual", signal: AbortSignal.timeout(5_000) });
@@ -261,6 +292,17 @@ try {
   ]) {
     assert(summaryText.includes(expected), `backtest summary omitted ${expected}`);
   }
+  const strategyGoldenA = runStrategyGolden();
+  const strategyGoldenB = runStrategyGolden();
+  assert(
+    strategyGoldenA.canonical === strategyGoldenB.canonical,
+    "strategy golden canonical results differ",
+  );
+  const strategyResultSha256 = sha256(strategyGoldenA.canonical);
+  assert(
+    strategyResultSha256 === expectedStrategyResultSha256,
+    `strategy golden digest drifted: expected ${expectedStrategyResultSha256}, got ${strategyResultSha256}`,
+  );
 
   const port = await new Promise((resolve, reject) => {
     const listener = net.createServer();
@@ -292,6 +334,9 @@ try {
     const operator = serverLog.match(/control_center_url=(\S+)/)?.[1];
     return institution && operator ? { institution, operator } : undefined;
   });
+  if (process.env.NTPRO_MVP_ACCEPTANCE_FORCE_TOKEN_FAILURE === "1") {
+    throw new Error(`forced token-bearing failure: ${access.institution}`);
+  }
   const institutionCookie = await bootstrapCookie(
     access.institution,
     "/institution-workbench",
@@ -393,6 +438,12 @@ try {
       summary_sha256: sha256(summaryA),
       quotes_loaded: 120,
       runtime_status: "completed",
+      strategy_result_runs: 2,
+      strategy_result_sha256: strategyResultSha256,
+      total_events: strategyGoldenA.parsed.total_events,
+      total_orders: strategyGoldenA.parsed.total_orders,
+      total_positions: strategyGoldenA.parsed.total_positions,
+      pnl_currencies: Object.keys(strategyGoldenA.parsed.pnl_stats),
     },
     clean_workspace: { initial_state: "absent", isolated_temp_root: true },
     runtime: {
@@ -444,13 +495,20 @@ try {
     ? { schema_version: "ntpro.mvp_acceptance_evidence.v1", status: "fail", error: redact(failure.message) }
     : passResult;
   const serialized = `${JSON.stringify(result, null, 2)}\n`;
-  assert(!serialized.includes("access_token="), "result.json contains an access token parameter");
-  assert(!/ntpro_mvp_(institution|operator)_access=/.test(serialized), "result.json contains a role cookie");
+  assert(!/access_token=(?!\[REDACTED\])/.test(serialized), "result.json contains an access token");
+  assert(
+    !/ntpro_mvp_(institution|operator)_access=(?!\[REDACTED\])/.test(serialized),
+    "result.json contains a role cookie",
+  );
   fs.writeFileSync(resultPath, serialized);
   fs.rmSync(root, { recursive: true, force: true });
 }
 
-if (failure) throw failure;
-console.log(
-  `mvp_acceptance=pass deterministic_runs=2 summary_sha256=${passResult.deterministic_backtest.summary_sha256} node_count=1 transitions=running,stopped,running,stopped role_boundary=pass graceful_shutdown=pass`,
-);
+if (failure) {
+  console.error(`mvp_acceptance=fail error=${redact(failure.message)}`);
+  process.exitCode = 1;
+} else {
+  console.log(
+    `mvp_acceptance=pass deterministic_runs=2 summary_sha256=${passResult.deterministic_backtest.summary_sha256} node_count=1 transitions=running,stopped,running,stopped role_boundary=pass graceful_shutdown=pass`,
+  );
+}

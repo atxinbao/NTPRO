@@ -55,7 +55,7 @@ jobs:
           if grep -E '^(crates/cli/src/dashboard/(control_center\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_control_center_(contract|browser)\.mjs)' /tmp/changed-files.txt >/dev/null; then
             control_center=true
           fi
-          if grep -E '^(crates/cli/src/(mvp\.rs|mvp_contract\.rs|dashboard\.rs|dashboard/(institution_workbench\.rs|control_center\.rs|mvp_status_api\.rs|server\.rs|server/tests\.rs))|scripts/ai/test_mvp_acceptance\.mjs|configs/nodes/btc-ema-shadow\.toml|examples/rust/backtest/minimal_engine_smoke\.toml|\.github/workflows/rust-cutover-smoke\.yml)' /tmp/changed-files.txt >/dev/null; then
+          if grep -E '^(Cargo\.(toml|lock)|crates/(cli/src/|backtest/|live/|trading/|execution/|portfolio/|risk/|model/|common/|system/|adapters/sandbox/)|scripts/ai/test_mvp_acceptance\.mjs|configs/nodes/btc-ema-shadow\.toml|examples/rust/backtest/minimal_engine_smoke\.toml|\.github/workflows/rust-cutover-smoke\.yml)' /tmp/changed-files.txt >/dev/null; then
             mvp_acceptance=true
           fi
           echo "heavy_rust=$heavy_rust" >>"$GITHUB_OUTPUT"
