@@ -19,6 +19,9 @@
 #   CARGO_PUBLISH_USER_AGENT           - crates.io API User-Agent header
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../ai/toolchain_env.sh"
+
 check_only=false
 if [[ "${1:-}" == "--check" ]]; then
   check_only=true

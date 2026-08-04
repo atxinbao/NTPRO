@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/ai/toolchain_env.sh"
+
 if [ $# -ne 1 ]; then
   echo "Usage: $0 <crate-name>" >&2
   exit 1
