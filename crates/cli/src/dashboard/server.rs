@@ -810,18 +810,8 @@ fn control_center_lifecycle_action_response(
         }
     }
 
-    let (status, result) = match control_action_response_locked(state, node_id, action) {
-        Ok((status, Json(result))) => (status, result),
-        Err((status, _)) => {
-            return control_center_lifecycle_action_error(
-                status,
-                node_id,
-                action,
-                "lifecycle_snapshot_unavailable",
-                "节点生命周期状态不可用，动作未执行",
-            );
-        }
-    };
+    let (status, Json(result)) =
+        control_action_response_for_snapshot_locked(state, &snapshot, node_id, action);
     (
         status,
         Json(project_control_center_lifecycle_action(
