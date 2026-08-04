@@ -59,8 +59,9 @@ ignore = [
   { id = "RUSTSEC-2026-0194", reason = "quick-xml via object_store cloud features; no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41" },
   { id = "RUSTSEC-2026-0195", reason = "quick-xml via object_store cloud features; no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41" },
 
-  # NOTE: cargo-audit also flags RUSTSEC-2024-0388 (derivative) and RUSTSEC-2023-0071 (rsa)
-  # which cargo-deny does not surface; those are listed only in .cargo/audit.toml.
+  # NOTE: cargo-audit also flags RUSTSEC-2024-0388 (derivative), RUSTSEC-2023-0071 (rsa),
+  # and inactive optional RUSTSEC-2026-0235 (rkyv), which cargo-deny does not surface;
+  # those are listed only in .cargo/audit.toml.
 ]
 
 # =============================================================================
