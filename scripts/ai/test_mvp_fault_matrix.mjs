@@ -278,7 +278,10 @@ const startSession = async (name) => {
 
 const waitShared = (session, description, predicate) => waitFor(description, 12_000, async () => {
   const response = await fetchJson(`${session.baseUrl}/api/mvp/v1/status`, session.institutionCookie);
-  return predicate(response) ? response : undefined;
+  if (predicate(response)) return response;
+  throw new Error(
+    `status=${response.status} runtime=${response.body.status?.runtime?.status} process_reasons=${JSON.stringify(response.body.status?.runtime?.reasons || [])} technical=${response.body.status?.technical_health?.status} freshness=${response.body.status?.technical_health?.freshness} error_code=${response.body.error_code || "none"}`,
+  );
 });
 const waitHealthy = (session) => waitShared(session, `${session.name} healthy projection`, (response) => {
   if (response.status !== 200) {

@@ -2480,6 +2480,9 @@ fn pid_artifact_matches_live_identity(record: &SupervisorNodeRecord) -> anyhow::
     let Some(expected_pid) = record.process.pid.value else {
         return Ok(false);
     };
+    if !process_is_alive(expected_pid) {
+        return Ok(false);
+    }
     let Some(live_start_time) = live_process_start_time_secs(expected_pid) else {
         return Ok(false);
     };
@@ -2539,6 +2542,9 @@ fn pid_artifact_matches_initial_live_os_identity(
     let Some(expected_pid) = record.process.pid.value else {
         return Ok(false);
     };
+    if !process_is_alive(expected_pid) {
+        return Ok(false);
+    }
     let Some(live_start_time) = live_process_start_time_secs(expected_pid) else {
         return Ok(false);
     };
