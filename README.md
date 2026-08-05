@@ -40,8 +40,9 @@ PR #1198 已交付 `nautilus mvp serve`：一个 Supervisor 注册、启动并�
 MVP-007 已合并，机构工作台和控制中心均消费版本化共享状态。M2 双门户消费退出条件
 已满足；MVP-008 已交付跨门户事件关联与只读跳转；MVP-009 已交付本地双门户服务端
 角色访问边界；MVP-010 已交付控制中心本地单节点 sandbox start/stop。M3 已完成；
-MVP-011/012 已完成确定性闭环和 11-case 单节点故障矩阵，MVP-013 正在执行双门户
-浏览器、性能、发布/回滚说明和最终冻结。详细状态以
+MVP-011/012 已完成确定性闭环和 11-case 单节点故障矩阵；MVP-013 / PR #1236 已完成
+双门户浏览器、性能、发布/回滚说明和最终冻结，M4 文档治理已由 PR #1238 收口。
+M0-M4 当前均已交付或冻结。详细状态以
 [`docs/product/roadmap.md`](docs/product/roadmap.md) 为准。
 
 多节点生产编排、多账户/多 Venue 扩展、真实订单提交、订单变更和产品级实盘终端
@@ -49,6 +50,9 @@ MVP-011/012 已完成确定性闭环和 11-case 单节点故障矩阵，MVP-013 
 [`docs/product/mvp_freeze_manifest.json`](docs/product/mvp_freeze_manifest.json)，本地发布与
 人工回滚步骤见
 [`docs/product/mvp_release_and_rollback.md`](docs/product/mvp_release_and_rollback.md)。
+
+面向交易员、运维和首次接触项目人员的中文运行说明见
+[`NTPRO 系统运行与运营操作说明书`](docs/product/ntpro_system_operations_manual.md)。
 
 ## 正式版本
 
