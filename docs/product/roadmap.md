@@ -5,140 +5,128 @@ Canonical repository path: `docs/product/roadmap.md`.
 Date: 2026-08-05
 Executor: Codex
 
-NTPRO is a Rust-only release workspace for the trading engine cutover from
-NautilusTrader. The current public source release is `ntpro-rust-only-v0.33.0`, the v0.33.0 Backend Maintenance release.
-No backend patch is scheduled. The frozen v0.32.0 baseline remains under
-`backend-freeze-governance`; the active release track is `backend-maintenance`.
-The next capability family is `v0.34.0+`.
+## 当前正确北极星
 
-The active governance contract is
-`docs/rust-cutover/governance/backend_freeze_policy.md`. The v0.33.0 maintenance
-track passed `docs/rust-cutover/governance/v0_33_plus_intake_policy.md` before
-milestone creation and implementation. The registry's historical `v0.33.0+`
-family remains separately scoped only. Future tracks must repeat that intake.
+NTPRO 当前只建设一个策略工作台：同一个不可变 `StrategyVersion` 可以分别运行
+Backtest、Demo（代码中的 Sandbox）和真实 Live，并在一个入口中完成配置、运行、观察、
+比较和复盘。
 
-## 当前产品北极星：完成单节点 MVP
-
-PR #1198 已交付 `nautilus mvp serve` 单 Supervisor + 单节点运行入口；
-MVP-003/004 已交付对象追溯与四轴状态合同，MVP-005 已交付稳定只读状态 API。
-下一步不扩展到多节点平台、分布式编排或真实交易，只完成双门户消费绑定和这条
-基线的产品闭环：
+Live 是必须交付的产品能力，不是可选远期设想。当前 v0.32.0 后端冻结基线和 v0.33.0
+维护版本仍禁止真实 Venue、真实订单和交易控件，因此“必达目标”和“当前未开放”必须
+同时成立。
 
 ```text
-策略版本 + 回测结果
-        |
-        v
-一个 Supervisor -> 一个 ntpro-node -> 一个策略实例
-                                      -> 一个沙盒账户 / Venue
-        |
-        +-> 控制中心：节点生命周期、健康、日志、指标和事件
-        +-> 机构工作台：账户、仓位、订单、成交、风险和策略状态只读视图
+Strategy
+  └─ StrategyVersion（不可变）
+       ├─ Backtest Run：历史数据 + BacktestEngine + 模拟执行
+       ├─ Demo Run：实时/沙盒数据 + LiveNode + 模拟执行
+       └─ Live Run：实时数据 + LiveNode + 真实适配器、账户与 Venue
 ```
 
-Supervisor 是运行控制层，节点是后端进程边界，策略实例是节点承载的业务运行单元，
-交易终端是读取业务投影的前端工作空间。`node_id`、`strategy_id` 和工作空间身份
-必须分别建模，不得写成同一个对象。
+三种模式共享策略逻辑、参数结构、订单语义、风险指标和证据格式。每个 Run 独立记录
+`run_id`、`environment`、数据、配置、适配器、账户、Venue、权限、订单、成交、持仓、
+风险和结果。Backtest 或 Demo 通过不能自动产生 Live 权限。
 
-### MVP 范围
+## 当前用户与产品入口
 
-- 一份可追溯的策略定义与版本；
-- 一次可复现的确定性回测及结果摘要；
-- 一个 Supervisor 注册并管理一个 `ntpro-node`；
-- 一个节点运行一个策略实例，并绑定一个沙盒账户与 Venue；
-- 控制中心完成注册、启动、停止、状态、健康、日志和指标查看；
-- 机构工作台只读展示策略、账户、仓位、订单、成交和风险状态；
-- 两个门户通过同一版本化状态合同关联策略实例与节点，不复制交易状态机。
+当前默认用户是策略研发和运行人员，而不是平台运维团队。用户只需要进入策略工作台：
 
-### 明确非目标
+- 管理策略与不可变版本；
+- 创建和复现 Backtest；
+- 启动并观察 Demo；
+- 在明确准入后启动和观察真实 Live；
+- 比较三种模式的收益、回撤、滑点、成交质量、风险事件和稳定性；
+- 从任何结果追溯策略、版本、Run、数据、配置、账户和 Venue。
 
-- 多 Supervisor、多节点生产编排和跨主机调度；
-- 多账户、多策略和多 Venue 的生产隔离；
-- 真实订单提交、撤单、改单、重试、自动恢复或自动补救；
-- 产品级实盘终端、桌面交付和外部多用户生产部署；
-- 将 HTTP 成功、节点进程存活或回测完成解释为交易健康、盈利或生产准入。
+Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系统状态可以作为辅助诊断
+入口，但不主导产品导航。多机构、多节点和集中运维平台在策略三模式闭环完成后再独立
+规划。
 
-## MVP 交付 Roadmap
+## 当前代码与能力边界
 
-### M0：对象与状态合同（实现已交付）
+- `Environment` 已定义 Backtest、Sandbox、Live；
+- `BacktestEngine` 已提供历史事件回放和模拟执行；
+- `LiveNodeBuilder` 接受 Sandbox 与 Live，两种实时模式复用同一运行语义；
+- 当前 `nautilus mvp serve` 只启动单 Supervisor + 单 Sandbox node；
+- M0-M4 单节点 Demo MVP 已完成并冻结；
+- 当前真实订单、外部 Venue、产品级 Live 终端和 Live 操作权限仍为 false。
 
-- 固定 `strategy_id`、`strategy_version`、`backtest_run_id`、`node_id`、
-  `strategy_instance_id`、`account_id`、`venue_id` 和 `environment`。
-- 分离研究状态、运行状态、技术健康和交易准备度。
-- 定义两个门户共享的来源、时效、错误、缺失和降级语义。
+代码存在不等于产品完成。Backtest 引擎、Sandbox 节点和 `Environment::Live` 枚举都
+不能代替策略工作台、稳定产品合同、真实适配器或端到端 Live 验收。
 
-退出条件：同一策略实例可以从回测结果追溯到节点、账户和 Venue；任何状态都不会
-用 HTTP 200 或进程存活代替业务健康。
+## 策略三模式 Roadmap
 
-实现证据：issue #1203/#1205、PR #1204/#1206，以及
-`docs/rust-cutover/evidence/MVP-003.md` 和 `MVP-004.md`。技术退出条件已满足；
-MVP-003 缺少合并前独立审查记录，MVP-004 的 GitHub 审批记录晚于合并时间，该历史
-治理例外由 issue #1209 如实收口，不改写远端事实。
+### S0：策略、版本与运行资源
 
-### M1：Supervisor + 单节点运行基线（已交付）
+- 建立 `Strategy`、不可变 `StrategyVersion` 和独立 `Run` 三层产品资源；
+- 固定三模式共享的参数、数据需求、订单语义、风险指标和证据格式；
+- 每个 Run 显式绑定 Environment、适配器、账户、Venue、配置和结果；
+- 定义创建、排队、运行、停止、完成、失败和取消等稳定状态与错误合同。
 
-- #1198 已新增 `nautilus mvp serve`，复用注册表和节点进程路径完成注册、启动与停止。
-- Dashboard 启动失败、Ctrl-C 和正常退出时回收节点，并保留运行日志与指标入口。
-- 当前 Unified Read Model 产物缺失时保持 fail-closed；对象追溯已由 M0 交付，共享
-  API 已由 M2 交付，机构工作台消费已由 MVP-006 合并交付。
+退出条件：同一 StrategyVersion 可创建三类 Run，身份、状态、来源和错误合同稳定；
+任何模式都不能修改已经冻结的版本。
 
-基线证据：issue #1197、PR #1198 和 `docs/rust-cutover/evidence/MVP-001.md`。
-这不代表暂停/恢复、多节点编排、完整前端或真实交易已经交付。
+### S1：Backtest 产品化
 
-### M2：最小只读产品接口（已完成）
+- 在策略工作台选择版本、数据集、时间范围、资金和模拟 Venue；
+- 展示状态、交易明细、持仓、收益、回撤、风险、日志和来源；
+- 支持多个版本与参数 Run 的确定性比较、复现和留证；
+- 将已有 BacktestEngine 接入产品 API，不要求用户操作命令行。
 
-- 版本化输出策略、账户、仓位、订单、成交、风险和节点状态。
-- 提供快照、时效、来源、错误信封和节点到策略实例的关联。
-- 浏览器不读取原始事件存储，不直接连接交易所，不包含交易命令。
+退出条件：用户可以在页面完成创建、运行、查看、比较和复现 Backtest，并追溯到同一
+StrategyVersion。
 
-接口证据：issue #1207、PR #1208、`GET /api/mvp/v1/status` 和
-`docs/rust-cutover/evidence/MVP-005.md`。API 合同、fail-closed 校验和只读边界已
-交付；MVP-006 已合并 `/institution-workbench`，并只消费该接口。
+### S2：Demo 产品化
 
-退出条件已满足：机构工作台和控制中心只消费稳定投影；相同事实按角色显示，但证据
-编号和状态语义一致。机构工作台消费由 issue #1211 / PR #1212 交付；控制中心由
-issue #1213 / PR #1214 交付，并关联同一共享合同与专用最小运维投影。PR #1214 的
-Rust Cutover Smoke run `30828100856` 与双门户浏览器工件均成功。
+- 选择同一 StrategyVersion 创建 Demo Run，不复制策略代码；
+- 接入已冻结的单 Supervisor + 单 Sandbox node；
+- 展示实时数据、信号、订单意图、模拟成交、持仓、风险和技术健康；
+- 在同一视图比较 Demo 与 Backtest 的行为和结果差异。
 
-### M3：双角色最小界面（已完成）
+退出条件：Demo 闭环可由策略工作台完整操作和解释，真实订单继续关闭，任何 Demo
+结果都不会自动开启 Live。
 
-- 机构工作台交付策略/回测摘要和运行中的账户、仓位、订单、成交、风险只读页面。
-- 控制中心交付单节点注册、生命周期、健康、日志、指标和事件页面。
-- 通过共享状态链接在业务影响与技术根因之间跳转，不混合两个门户的一级导航。
+### S3：真实 Live 产品能力
 
-当前进度：MVP-006 已合并机构工作台的策略/回测身份、四轴状态、账户、持仓、订单、
-成交、风险、生命周期、来源与边界视图；MVP-007 提供控制中心单节点、组件、日志、
-指标、告警、来源和关闭边界视图；MVP-008 / PR #1218 已交付同一运行实例的最小事件
-关联、双向 URL 跳转、串线与重复参数阻断；MVP-009 / PR #1222 已交付本地双门户
-服务端角色访问边界、独立会话、未授权与错角色阻断，并通过双门户 hosted Chrome
-artifact 验证；MVP-010 / PR #1226 已交付 operator-only 的版本化 start/stop、单节点
-sandbox scope、并发串行化和动作后目标状态验证，并通过最终 14 项 hosted checks 与双门户
-Chrome artifacts。机构工作台继续保持只读。
+- 在同一 LiveNode 与 StrategyVersion 语义上接入真实市场数据和执行适配器；
+- 建设真实账户、Venue、凭证、连接状态、订单提交、撤改和成交回报；
+- 建设持仓对账、风险门禁、最小权限、幂等、审计和人工停机；
+- 验证断连、重复回报、部分成交、状态漂移、恢复和回滚场景；
+- 在策略工作台提供受控 Live Run，而不是另建一套 Live 策略。
 
-退出条件已满足：机构用户能够回答“策略现在发生了什么”，运维能够回答“节点为什么是
-这个状态”，两者引用同一运行实例和事件证据。M3 完成不授权真实交易、多节点或生产 IAM。
+退出条件：真实账户与 Venue 在独立授权下完成受控端到端交易；异常和恢复场景
+fail closed；Live 权限不会从 Backtest 或 Demo 自动继承。
+
+### S4：三模式闭环与产品冻结
+
+- 统一比较三种模式的收益、回撤、滑点、成交质量、风险和稳定性；
+- 从任一结果追溯策略版本、数据、配置、账户、Venue 和审计证据；
+- 完成浏览器、性能、故障、操作手册、发布和回滚验收；
+- 固定产品声明、页面能力、API 合同和实际交易边界。
+
+退出条件：一个策略版本可以在 Backtest、Demo、Live 中独立运行并统一复盘，用户能够
+形成下一策略版本，三模式闭环可重复演示、审计和交付。
+
+## 已冻结的技术基础
+
+M0-M4 已交付并冻结以下基础能力：
+
+- 稳定身份与四轴状态合同；
+- 单 Supervisor + 单 Sandbox node 生命周期；
+- 版本化只读 MVP 状态 API；
+- 机构工作台与控制中心的历史最小只读页面；
+- 角色边界、本地 start/stop、事件关联和人工恢复；
+- 确定性回放、11 项故障矩阵、浏览器和性能验收。
 
 ### M4：MVP 验收与冻结（MVP-013 合并即完成）
 
-- 执行干净环境启动、确定性回测、单节点沙盒运行、故障注入和恢复验证。
-- 验证空、错误、陈旧、降级、未授权和身份不匹配状态。
-- 完成桌面与窄屏浏览器验证、性能基线、发布说明和回滚说明。
+MVP-013 / PR #1236 已完成并冻结 M4。No backend patch is scheduled. v0.32.0 继续由
+`backend-freeze-governance` 管理；S0-S4 属于 `v0.33.0+` separately scoped 产品能力，
+不改写冻结基线或自动继承真实交易权限。
 
-当前进度：MVP-011 / issue #1229 / PR #1230 已交付干净临时工作区、双次确定性 Rust
-回测、单节点 sandbox stop/start、双角色访问边界和 graceful shutdown 固定验收，hosted
-run `30913047250` 与结构化 artifact 已通过。MVP-012 / issue #1231 / PR #1232 已完成
-status、metrics、代际、identity、外部 SIGTERM 和 SIGKILL 的 11-case 真实故障矩阵；
-hosted run `30927875748` 与 artifact 已通过，恢复继续限定为人工显式操作。
-
-完成状态：MVP-013 / issue #1233 / PR #1236 已在同一 final head 完成确定性闭环、故障
-矩阵、机构工作台和控制中心桌面/窄屏 Chrome 验收，以及既有六工作负载性能合同；
-`docs/product/mvp_freeze_manifest.json` 和中文发布/人工回滚说明已经固定。PR #1236 已于
-2026-08-04 合并，Issue #1233 已关闭，M4 已完成并冻结；本次冻结不需要新后端 tag 或
-GitHub Release。
-
-退出条件：完整闭环可以重复演示和审计；所有真实交易能力继续关闭；冻结源、范围和
-后续变更入口由机器守卫固定。MVP-013 final head 已通过独立审查、五类 MVP hosted
-artifact、六组性能 job 和 required checks，并已合并，因此退出条件已经满足。冻结后
-任何多节点、多账户或生产交易能力必须独立立项，不从本 MVP 继承关闭能力。
+这些能力是 S0-S4 的技术基础，不再作为当前产品北极星。历史任务、PR 和冻结证据继续
+保留在 `docs/rust-cutover/` 和 `docs/product/mvp_freeze_manifest.json`，不得因为产品
+路线调整而改写。
 
 ## Current Release Surface
 
