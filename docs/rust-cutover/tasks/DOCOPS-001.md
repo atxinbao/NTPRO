@@ -3,7 +3,7 @@
 Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1239
-GitHub PR: PENDING
+GitHub PR: #1240
 Risk: low
 Owner role: Docs & Developer Experience Agent
 Review role: Verification & Release Gatekeeper
