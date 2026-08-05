@@ -3,10 +3,11 @@
 Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1247
+GitHub PR: #1248
 Risk: low
 Owner role: Docs & Developer Experience Agent
 Review role: Verification & Release Gatekeeper
-Status: READY_FOR_PR
+Status: HOSTED_VALIDATION_IN_PROGRESS
 
 ## 目标
 

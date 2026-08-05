@@ -3,7 +3,8 @@
 Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1247
-Status: HOSTED_VALIDATION_PENDING
+GitHub PR: #1248
+Status: FINAL_HOSTED_VALIDATION_PENDING
 
 ## 变更范围
 
@@ -24,7 +25,20 @@ Cargo、产品页面、MVP 冻结源或 release 文件。
 
 ## Hosted 证据
 
-等待 PR 首轮 run 后回写 run ID、实际分类、step/job 状态与耗时。
+首轮 docs-only Hosted 验证：
+
+- Rust Cutover Smoke run `30999228447`：success；job 从 `10:53:28Z` 到
+  `10:55:32Z`，实际 124 秒；
+- heavy Rust、release verify、CLI tests、MVP acceptance、fault matrix、MVP freeze
+  candidate、两个门户 contract/browser 与 final summary 全部 skipped；
+- 固定治理 gate、golden trace schema、Rust-only 与 Cython removal 均通过；
+- security-audit run `30999228351`：`changes` success / 23 秒；zizmor、cargo-audit、
+  cargo-deny、cargo-vet、osv-scanner 全部 skipped；
+- 九类分类结果符合预期，安全 workflow 从原来的 6 个实际 jobs 收敛为 1 个实际 job。
+
+首轮 smoke 比 120 秒目标多 4 秒。步骤计时显示 `Release surface current guard` 占 67
+秒，原因是首次为新 workflow 缓存键编译 `ntpro-governance`；真实 MVP、故障矩阵和浏览器
+验收均未运行。当前 evidence-only 提交将触发第二轮 docs-only run，用于验证热缓存时长。
 
 ## 行为影响
 
