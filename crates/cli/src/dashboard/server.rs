@@ -475,38 +475,86 @@ pub(crate) fn validate_strategy_workbench_dist(dist_path: &Path) -> anyhow::Resu
         "strategy workbench assets directory '{}' does not exist",
         assets_path.display(),
     );
-    for extension in ["js", "css"] {
-        let referenced_hashed_asset = fs::read_dir(&assets_path)
-            .with_context(|| {
-                format!(
-                    "failed to inspect strategy workbench assets '{}'",
-                    assets_path.display()
-                )
-            })?
-            .filter_map(Result::ok)
-            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
-            .filter_map(|entry| entry.file_name().into_string().ok())
-            .filter(|name| name.ends_with(&format!(".{extension}")))
-            .any(|name| {
-                let Some((_, hash_and_extension)) = name.split_once('-') else {
-                    return false;
-                };
-                let hash = hash_and_extension
-                    .strip_suffix(&format!(".{extension}"))
-                    .unwrap_or_default();
-                hash.len() >= 6
-                    && hash
-                        .bytes()
-                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
-                    && index.contains(&format!("/strategy-workbench/assets/{name}"))
-            });
+    let references = strategy_workbench_asset_references(&index);
+    ensure!(
+        !references.is_empty(),
+        "strategy workbench entrypoint '{}' does not reference any assets under /strategy-workbench/assets/",
+        index_path.display(),
+    );
+    let mut has_hashed_js = false;
+    let mut has_hashed_css = false;
+    for reference in references {
+        let relative_path = Path::new(reference);
         ensure!(
-            referenced_hashed_asset,
-            "strategy workbench entrypoint '{}' must reference a hashed .{extension} asset under /strategy-workbench/assets/",
+            relative_path
+                .components()
+                .all(|component| matches!(component, std::path::Component::Normal(_))),
+            "strategy workbench entrypoint '{}' contains invalid asset path '{reference}'",
             index_path.display(),
         );
+        let asset_path = assets_path.join(relative_path);
+        ensure!(
+            asset_path.is_file(),
+            "strategy workbench entrypoint '{}' references missing asset '{}'",
+            index_path.display(),
+            asset_path.display(),
+        );
+
+        let extension = relative_path.extension().and_then(|value| value.to_str());
+        if let Some(extension @ ("js" | "css")) = extension {
+            let file_name = relative_path
+                .file_name()
+                .and_then(|value| value.to_str())
+                .with_context(|| format!("invalid strategy workbench asset '{reference}'"))?;
+            ensure!(
+                is_hashed_strategy_workbench_asset(file_name, extension),
+                "strategy workbench entrypoint '{}' must reference only hashed .{} assets under /strategy-workbench/assets/",
+                index_path.display(),
+                extension,
+            );
+            has_hashed_js |= extension == "js";
+            has_hashed_css |= extension == "css";
+        }
     }
+    ensure!(
+        has_hashed_js && has_hashed_css,
+        "strategy workbench entrypoint '{}' must reference hashed .js and .css assets under /strategy-workbench/assets/",
+        index_path.display(),
+    );
     Ok(())
+}
+
+fn strategy_workbench_asset_references(index: &str) -> Vec<&str> {
+    const PREFIX: &str = "/strategy-workbench/assets/";
+    let mut references = Vec::new();
+    let mut remaining = index;
+    while let Some(position) = remaining.find(PREFIX) {
+        remaining = &remaining[position + PREFIX.len()..];
+        let end = remaining
+            .find(|character: char| {
+                character.is_ascii_whitespace()
+                    || matches!(character, '"' | '\'' | '<' | '>' | '?' | '#')
+            })
+            .unwrap_or(remaining.len());
+        if end > 0 {
+            references.push(&remaining[..end]);
+        }
+        remaining = &remaining[end..];
+    }
+    references
+}
+
+fn is_hashed_strategy_workbench_asset(file_name: &str, extension: &str) -> bool {
+    let Some((_, hash_and_extension)) = file_name.split_once('-') else {
+        return false;
+    };
+    let Some(hash) = hash_and_extension.strip_suffix(&format!(".{extension}")) else {
+        return false;
+    };
+    hash.len() >= 6
+        && hash
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
 }
 
 fn strategy_workbench_routes(dist_path: &Path) -> Router<DashboardServerState> {

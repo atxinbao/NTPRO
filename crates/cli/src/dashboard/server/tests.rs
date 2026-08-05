@@ -372,6 +372,24 @@ fn strategy_workbench_dist_requires_react_entrypoint_and_hashed_assets() {
     let error = validate_strategy_workbench_dist(&root)
         .expect_err("bundle without hashed JS and CSS must fail closed");
     assert!(error.to_string().contains("hashed .js asset"));
+
+    fs::write(
+        root.join("index.html"),
+        concat!(
+            "<div id=\"root\"></div>",
+            "<link rel=\"modulepreload\" href=\"/strategy-workbench/assets/chunk-abcdef.js\">",
+            "<script src=\"/strategy-workbench/assets/missing-abcdef.js\"></script>",
+            "<link rel=\"stylesheet\" href=\"/strategy-workbench/assets/style-abcdef.css\">",
+        ),
+    )
+    .expect("partial fixture index must be written");
+    fs::write(root.join("assets/chunk-abcdef.js"), "void 0;")
+        .expect("partial fixture chunk must be written");
+    fs::write(root.join("assets/style-abcdef.css"), ":root {}")
+        .expect("partial fixture stylesheet must be written");
+    let error = validate_strategy_workbench_dist(&root)
+        .expect_err("bundle with one missing referenced asset must fail closed");
+    assert!(error.to_string().contains("references missing asset"));
     let _ = fs::remove_dir_all(root);
 }
 
