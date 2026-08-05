@@ -28,21 +28,28 @@ assert_output() {
 }
 
 docs_output="$(classify docs-only project.html README.md docs/product/roadmap.md)"
-for key in heavy_rust institution_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance security_workflow security_dependencies; do
+for key in heavy_rust institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance security_workflow security_dependencies; do
   assert_output "$docs_output" "$key=false"
 done
 
 runtime_output="$(classify runtime crates/cli/src/dashboard/server.rs)"
 assert_output "$runtime_output" "heavy_rust=true"
 assert_output "$runtime_output" "institution_workbench=true"
+assert_output "$runtime_output" "strategy_workbench=true"
 assert_output "$runtime_output" "control_center=true"
 assert_output "$runtime_output" "mvp_acceptance=true"
 assert_output "$runtime_output" "mvp_fault_matrix=true"
 
 freeze_output="$(classify freeze docs/product/mvp_freeze_manifest.json)"
-for key in institution_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance; do
+for key in institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance; do
   assert_output "$freeze_output" "$key=true"
 done
+
+strategy_output="$(classify strategy-workbench crates/cli/src/dashboard/strategy_workbench.rs)"
+assert_output "$strategy_output" "heavy_rust=true"
+assert_output "$strategy_output" "strategy_workbench=true"
+assert_output "$strategy_output" "institution_workbench=false"
+assert_output "$strategy_output" "control_center=false"
 
 cargo_output="$(classify cargo Cargo.lock)"
 assert_output "$cargo_output" "heavy_rust=true"
@@ -155,4 +162,4 @@ if ! grep -F "cancel-in-progress: \${{ github.event_name == 'pull_request' }}" \
   exit 1
 fi
 
-echo "ci_change_classifier_selftest=pass cases=15"
+echo "ci_change_classifier_selftest=pass cases=16"
