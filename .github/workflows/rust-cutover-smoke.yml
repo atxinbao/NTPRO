@@ -45,7 +45,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          git diff --name-only "$BASE_SHA" "$HEAD_SHA" | tee /tmp/changed-files.txt
+          git diff --no-renames --name-only "$BASE_SHA" "$HEAD_SHA" | tee /tmp/changed-files.txt
           scripts/ci/classify-ci-changes.sh /tmp/changed-files.txt
       - name: CI change classifier self-test
         run: scripts/ci/test-ci-change-classifier.sh

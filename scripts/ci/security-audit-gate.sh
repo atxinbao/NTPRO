@@ -39,6 +39,9 @@ case "$EVENT_NAME" in
     if ! git cat-file -e "${base}^{commit}" 2> /dev/null; then
       force_full "push base SHA ${base} is unavailable"
     fi
+    if [[ -z "$head" ]] || ! git cat-file -e "${head}^{commit}" 2> /dev/null; then
+      force_full "push head SHA ${head:-<empty>} is unavailable"
+    fi
     ;;
   pull_request)
     # The PR event payload freezes base.sha at PR creation time, so intervening
@@ -46,6 +49,9 @@ case "$EVENT_NAME" in
     # merge-base with the current base-branch tip so the gate reflects only
     # the PR's own changes.
     head="$PR_HEAD_SHA"
+    if [[ -z "$head" ]] || ! git cat-file -e "${head}^{commit}" 2> /dev/null; then
+      force_full "pull request head SHA ${head:-<empty>} is unavailable"
+    fi
     if ! base="$(git merge-base "origin/${PR_BASE_REF}" "$head" 2> /dev/null)"; then
       force_full "cannot compute merge-base against origin/${PR_BASE_REF}"
     fi
@@ -58,5 +64,8 @@ case "$EVENT_NAME" in
     ;;
 esac
 
-git diff --name-only "$base" "$head" | tee "$changed_files"
+if ! git diff --no-renames --name-only "$base" "$head" >"$changed_files"; then
+  force_full "git diff failed for ${base}..${head}"
+fi
+cat "$changed_files"
 scripts/ci/classify-ci-changes.sh "$changed_files"
