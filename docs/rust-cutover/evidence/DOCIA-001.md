@@ -3,7 +3,7 @@
 Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1241
-GitHub PR: PENDING
+GitHub PR: #1242
 Status: DONE_ON_MERGE
 
 ## 权威事实
