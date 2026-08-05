@@ -1382,12 +1382,8 @@
       font-weight: 800;
     }
 
-    .product-shell[data-portal="trader"] .product-primary-nav::before {
-      content: "投资与交易";
-    }
-
-    .product-shell[data-portal="control"] .product-primary-nav::before {
-      content: "平台与治理";
+    .product-shell[data-portal="strategy"] .product-primary-nav::before {
+      content: "策略闭环";
     }
 
     .product-primary-nav span {
@@ -2132,11 +2128,11 @@
     <aside class="sidebar" aria-label="文档导航">
       <p class="sidebar-label" id="sidebar-title">产品说明</p>
       <nav class="nav-group" data-nav-part="product" aria-label="产品说明导航">
-        <a class="nav-link active" href="#overview">项目是什么</a>
-        <a class="nav-link" href="#product-operation">怎么商业运营</a>
-        <a class="nav-link" href="#product-portals">两个门户</a>
-        <a class="nav-link" href="#frontend-ia">产品信息架构</a>
-        <a class="nav-link" href="#roadmap">产品路线</a>
+        <a class="nav-link active" href="#overview">当前北极星</a>
+        <a class="nav-link" href="#product-operation">策略闭环</a>
+        <a class="nav-link" href="#product-portals">三种模式</a>
+        <a class="nav-link" href="#frontend-ia">策略工作台</a>
+        <a class="nav-link" href="#roadmap">推进路线</a>
       </nav>
       <nav class="nav-group" data-nav-part="technical" aria-label="技术说明导航" hidden>
         <a class="nav-link" href="#backend">系统拓扑</a>
@@ -2147,40 +2143,40 @@
       </nav>
       <a class="nav-link" href="changelog.html">项目变更记录</a>
       <div class="sidebar-note">
-        产品说明面向所有人；技术说明面向研发、架构、运维和审计。两部分都不会把规划写成已经交付的能力。
+        产品说明只讲策略人员如何完成闭环；技术说明解释引擎、节点和当前边界。Live 是正式目标，但尚未开放真实交易。
       </div>
     </aside>
 
     <main>
       <div class="content">
         <section id="overview" data-document-part="product">
-          <p class="eyebrow">产品说明 · 所有人都能看懂</p>
-          <h1>帮助机构把策略从研究带到运行，并持续看清交易和系统状态。</h1>
+          <p class="eyebrow">产品说明 · 最终当前北极星</p>
+          <h1>让同一个策略从 Backtest 走到 Demo，再进入真实 Live。</h1>
           <p class="lead">
-            NTPRO 面向量化自营、系统化对冲基金、做市和多策略交易团队。交易员和研究员在机构工作台管理策略与业务状态，运维和风控在控制中心管理系统运行；两个门户看到的是同一套事实，但各自只做职责范围内的事情。
+            NTPRO 当前只聚焦量化策略闭环。用户固定一个策略版本，用历史数据回测，在沙盒环境验证实时运行，满足独立 Live 准入条件后连接真实账户和 Venue；三种模式共享策略逻辑、参数结构、订单语义、风险指标和证据格式。
           </p>
           <div class="status-row" aria-label="项目状态">
-            <span class="status ok">v0.33.0 后端维护版已发布</span>
-            <span class="status ok">v0.32.0 后端冻结基线保持有效</span>
-            <span class="status ok">单节点 MVP：M0-M4 已完成并冻结</span>
-            <span class="status info">当前是本地沙盒，不是真实交易系统</span>
+            <span class="status ok">Backtest：Rust 引擎已存在</span>
+            <span class="status ok">Demo：单节点 Sandbox MVP 已冻结</span>
+            <span class="status info">Live：正式产品目标，当前未开放</span>
+            <span class="status info">当前真实订单权限为 false</span>
           </div>
 
           <div class="summary-callout">
-            <strong>产品解决什么问题</strong>
-            把策略研发、回测验证、运行观察、交易监控、风险判断和系统运维连接起来，让业务人员知道“策略正在发生什么”，让技术人员知道“系统为什么是这个状态”。
+            <strong>一句话北极星</strong>
+            一个量化人员可以在同一个策略工作台中完成策略版本固定、Backtest、Demo、Live、跨模式比较和复盘，不需要理解 Supervisor、node、Axum 或 Rust 底层实现。
           </div>
 
           <div class="summary-callout">
-            <strong>当前真实能力</strong>
-            当前可以在本机启动一个 Supervisor 和一个沙盒节点，运行一个策略实例，并通过两个只读门户查看状态。真实交易、多节点生产调度、自动故障转移和产品级实盘终端尚未交付。
+            <strong>产品合同</strong>
+            同一个 <code>Strategy + StrategyVersion</code> 可以产生多个独立 Run。Backtest 使用历史回放；Demo 和 Live 由同一套实时节点语义承载，只替换数据源、执行适配器、账户、Venue 和运行授权，不复制策略代码。
           </div>
 
           <div class="metric-grid" aria-label="项目指标">
-            <div class="metric"><span class="metric-value">1</span><span class="metric-label">统一机构交易平台</span></div>
-            <div class="metric"><span class="metric-value">2</span><span class="metric-label">职责分开的产品门户</span></div>
-            <div class="metric"><span class="metric-value">4</span><span class="metric-label">独立判断的状态维度</span></div>
-            <div class="metric"><span class="metric-value">1</span><span class="metric-label">当前沙盒节点基线</span></div>
+            <div class="metric"><span class="metric-value">1</span><span class="metric-label">统一策略资产</span></div>
+            <div class="metric"><span class="metric-value">3</span><span class="metric-label">运行模式</span></div>
+            <div class="metric"><span class="metric-value">1:N</span><span class="metric-label">策略版本到运行记录</span></div>
+            <div class="metric"><span class="metric-value">1</span><span class="metric-label">当前 Demo 节点基线</span></div>
             <div class="metric"><span class="metric-value">0</span><span class="metric-label">当前允许的真实订单</span></div>
           </div>
         </section>
@@ -2188,525 +2184,212 @@
         <section id="product-operation" data-document-part="product">
           <div class="section-head">
             <div>
-              <p class="eyebrow">产品说明 · 商业运营</p>
-              <h2>正常运营是一条持续闭环，不是启动节点就结束</h2>
-              <p class="section-intro">客户、策略、审批、运行、监控、对账和复盘必须连续起来，每一步都有明确责任人和可追溯记录。</p>
+              <p class="eyebrow">产品说明 · 策略闭环</p>
+              <h2>产品从一个策略版本开始，也回到下一个策略版本</h2>
+              <p class="section-intro">研究、验证、运行和复盘使用同一身份链；切换模式不复制策略，也不丢失数据、配置和结果来源。</p>
             </div>
           </div>
 
-          <div class="business-flow" aria-label="机构交易商业运营流程">
-            <div class="business-step"><small>01</small><strong>客户与账户准备</strong><span>建立机构、用户、账户、交易场所、数据范围和风险额度。</span></div>
-            <div class="business-step"><small>02</small><strong>策略研发与回测</strong><span>研究策略、固定版本，用历史数据验证结果和风险。</span></div>
-            <div class="business-step"><small>03</small><strong>独立审批</strong><span>风控和审批人员确认策略、账户、限额和运行范围。</span></div>
-            <div class="business-step"><small>04</small><strong>部署与启动</strong><span>运维把批准的策略实例部署到合适的运行节点。</span></div>
-            <div class="business-step"><small>05</small><strong>盘中交易与观察</strong><span>交易员看订单、成交、仓位和风险，运维看节点、连接和告警。</span></div>
-            <div class="business-step"><small>06</small><strong>故障与人工恢复</strong><span>先停止扩大影响，再核对外部账户和内部状态，确认后恢复。</span></div>
-            <div class="business-step"><small>07</small><strong>收盘对账与报告</strong><span>核对订单、成交、持仓、资金、费用和系统记录。</span></div>
-            <div class="business-step"><small>08</small><strong>复盘与迭代</strong><span>评估策略和系统表现，经过同样流程发布下一版本。</span></div>
+          <div class="business-flow" aria-label="策略三模式闭环">
+            <div class="business-step"><small>01</small><strong>创建策略</strong><span>定义策略逻辑、参数结构、数据需求和风险约束。</span></div>
+            <div class="business-step"><small>02</small><strong>固定版本</strong><span>保存不可变的代码、参数、数据引用和版本标识。</span></div>
+            <div class="business-step"><small>03</small><strong>Backtest</strong><span>在历史数据上执行确定性回放，检查交易与风险结果。</span></div>
+            <div class="business-step"><small>04</small><strong>结果比较</strong><span>比较不同版本和参数的收益、回撤、成交与稳定性。</span></div>
+            <div class="business-step"><small>05</small><strong>Demo</strong><span>同一版本进入 Sandbox，验证实时数据、订单语义和运行稳定性。</span></div>
+            <div class="business-step"><small>06</small><strong>Live 准入</strong><span>单独绑定真实账户、Venue、适配器、风险限额和人工授权。</span></div>
+            <div class="business-step"><small>07</small><strong>Live 运行</strong><span>在真实市场运行，并持续观察订单、成交、持仓、风险和健康。</span></div>
+            <div class="business-step"><small>08</small><strong>复盘迭代</strong><span>统一对比三种模式的结果，形成下一策略版本。</span></div>
           </div>
 
           <div class="summary-callout">
-            <strong>这是商业运营目标，不是当前能力声明</strong>
-            当前 MVP 只完成本地沙盒单节点、共享只读状态、双门户观察和人工 start/stop。客户生产账户、真实交易、收盘清算、多节点调度和故障转移仍需后续独立建设与授权。
+            <strong>共享策略，不共享运行权限</strong>
+            Backtest、Demo、Live 使用同一个策略版本，但每个 Run 都有独立的模式、数据、配置、账户、Venue、时间范围、订单、成交、持仓、风险和证据。Backtest 或 Demo 通过不能自动开启 Live。
           </div>
 
           <div class="decision-grid">
-            <div class="decision"><h3>策略不能自己批准自己</h3><p>研究、审批、部署和运行由不同职责完成，避免一个人同时创造规则又绕过规则。</p></div>
-            <div class="decision"><h3>系统健康不等于允许交易</h3><p>页面正常、进程存活和回测完成，都不能代替明确的风险与交易授权。</p></div>
-            <div class="decision"><h3>故障恢复前先对账</h3><p>节点故障后先确认真实订单和持仓，避免在其他节点恢复时产生重复交易。</p></div>
+            <div class="decision"><h3>策略版本不可漂移</h3><p>进入任何模式后，代码和参数快照保持不可变；修改必须生成新版本。</p></div>
+            <div class="decision"><h3>三种模式语义一致</h3><p>订单、成交、持仓和风险使用同一领域模型，差异只来自数据与执行环境。</p></div>
+            <div class="decision"><h3>Live 独立授权</h3><p>真实账户、真实 Venue 和订单发送必须经过单独准入，不能由回测收益或进程健康推导。</p></div>
           </div>
         </section>
 
         <section id="product-portals" data-document-part="product">
           <div class="section-head">
             <div>
-              <p class="eyebrow">产品说明 · 目标用户入口</p>
-              <h2>前台服务交易业务，后台保障系统运行</h2>
-              <p class="section-intro">以下是商业产品的职责定位，不是当前完成度清单。不是每个 node 配一个工作台；目标是一套机构工作台聚合策略和账户，一套控制中心管理所有运行节点。</p>
+              <p class="eyebrow">产品说明 · 三种模式</p>
+              <h2>模式不同，策略资产和观察语言相同</h2>
+              <p class="section-intro">产品使用 Backtest、Demo、Live 三个明确名称；代码中的 Demo 对应 <code>Environment::Sandbox</code>。</p>
             </div>
           </div>
 
-          <div class="plain-portal-grid">
-            <article class="plain-portal business">
-              <h3>机构工作台</h3>
-              <p>给交易员、研究员、组合负责人和业务风控使用。</p>
-              <ul class="plain-list">
-                <li>管理策略版本、回测结果和发布申请</li>
-                <li>查看账户、持仓、订单、成交和盈亏</li>
-                <li>查看业务风险、拒绝原因和影响范围</li>
-                <li>从业务异常跳转到同一事件的技术状态</li>
-              </ul>
-            </article>
-            <article class="plain-portal system">
-              <h3>平台控制中心</h3>
-              <p>给平台管理员、技术运维、独立风控和审计使用。</p>
-              <ul class="plain-list">
-                <li>管理组织、权限、账户、数据源和配置</li>
-                <li>管理节点、策略部署、连接和运行状态</li>
-                <li>查看日志、指标、告警、变更和审计证据</li>
-                <li>按批准流程停止、恢复或回滚运行实例</li>
-              </ul>
-            </article>
+          <div class="mvp-principles" aria-label="策略运行模式合同">
+            <div class="mvp-principle"><small>BACKTEST</small><strong>历史验证</strong><span>历史数据 + BacktestEngine + 模拟撮合；当前已有 Rust 底层能力，产品闭环待整合。</span></div>
+            <div class="mvp-principle"><small>DEMO / SANDBOX</small><strong>实时验证</strong><span>实时或沙盒数据 + LiveNode + 模拟执行；当前单节点 MVP 已完成并冻结。</span></div>
+            <div class="mvp-principle"><small>LIVE</small><strong>真实交易</strong><span>实时数据 + 同一 LiveNode 语义 + 真实适配器和账户；正式目标，当前未开放。</span></div>
           </div>
 
-          <div class="handoff-strip" aria-label="双门户协作方式">
-            <div><strong>机构工作台发现业务影响</strong><span>哪个策略、账户、订单或持仓出现问题</span></div>
-            <div class="handoff-arrow" aria-hidden="true">↔</div>
-            <div><strong>控制中心定位技术原因</strong><span>哪个节点、连接、部署或组件导致问题</span></div>
+          <div class="handoff-strip" aria-label="策略三模式关系">
+            <div><strong>共享部分</strong><span>Strategy、StrategyVersion、参数结构、订单语义、风险指标和证据格式</span></div>
+            <div class="handoff-arrow" aria-hidden="true">+</div>
+            <div><strong>每次运行独立</strong><span>Run ID、Environment、数据、账户、Venue、适配器、权限和结果</span></div>
           </div>
 
           <div class="summary-callout">
-            <strong>继续了解系统怎么运行</strong>
-            日常启动、巡检、停止和故障处理见 <a href="docs/product/ntpro_system_operations_manual.md">《NTPRO 系统运行与运营操作说明书》</a>。需要查看代码架构、API、状态合同和验收证据时，切换到顶部“技术说明”。
+            <strong>当前状态必须如实显示</strong>
+            产品导航可以出现 Live，但当前必须显示“未开放”，不得渲染真实启动、下单、撤单、改单或平仓入口。Live 产品能力需要在后续高风险任务中独立实现和验收。
           </div>
         </section>
 
         <section id="frontend-ia" data-document-part="product">
           <div class="section-head">
             <div>
-              <p class="eyebrow">产品说明 · 详细信息架构</p>
-              <h2>一个平台，两个门户，一个共享控制平面</h2>
+              <p class="eyebrow">产品说明 · 策略工作台</p>
+              <h2>一个策略入口，贯通 Backtest、Demo 和 Live</h2>
               <p class="section-intro">
-                产品按责任和决策类型分开，而不是为每个岗位建立独立系统。机构工作台服务投资与交易业务，控制中心服务独立治理与平台运行；策略状态、审批、部署和事件通过同一控制合同交接。
+                默认用户是策略研发和运行人员。产品围绕策略、版本和 Run 组织，不把节点、接口、部署或机构治理放到第一层；技术状态只在需要排障时进入辅助页面。
               </p>
             </div>
           </div>
 
-          <div class="summary-callout">
-            <strong>系统定义与目标用户</strong>
-            NTPRO 是面向量化自营交易公司、系统化对冲基金、做市和多策略交易团队的机构系统化交易平台。重点解决多策略、多账户、多交易场所下的研究验证、组合观察、执行监控、风险控制、生产运行和审计追踪；首期不承担基金会计、托管结算、客户报告等传统资产管理后台职责。
-          </div>
-
-          <div class="mvp-principles" aria-label="机构信息架构原则">
-            <div class="mvp-principle"><small>原则一</small><strong>按责任拆门户</strong><span>机构用户做投资、策略和交易决策；控制团队做审批、部署和系统治理。</span></div>
-            <div class="mvp-principle"><small>原则二</small><strong>按对象组织业务</strong><span>组合、账簿、策略、账户和运行实例使用稳定标识，不以技术模块作为入口。</span></div>
-            <div class="mvp-principle"><small>原则三</small><strong>一套事实，多种投影</strong><span>业务影响与技术根因来自同一事件，不复制交易状态机，不建立第三个门户。</span></div>
-          </div>
-
-          <div class="surface-heading">
-            <div>
-              <h3>角色与产品入口</h3>
-              <p>八类职责映射到两个门户，角色决定数据范围和操作权限，但不会扩张成八套导航。</p>
-            </div>
-            <span class="surface-index">职责分离 / 最小权限 / 统一审计</span>
-          </div>
-
-          <div class="module-table-wrap">
-            <table>
-              <thead><tr><th>角色</th><th>主要入口</th><th>核心任务</th><th>明确不负责</th></tr></thead>
-              <tbody>
-                <tr><td><strong>组合经理</strong></td><td>机构工作台</td><td>组合、账簿、敞口、策略配置与业务风险</td><td>节点恢复、凭证和生产部署</td></tr>
-                <tr><td><strong>机构交易员</strong></td><td>机构工作台</td><td>订单、成交、仓位、执行质量与盘中异常</td><td>模型审批、原始日志和平台权限</td></tr>
-                <tr><td><strong>量化研究员</strong></td><td>机构工作台</td><td>策略版本、数据绑定、回测、对比和发布申请</td><td>自行批准或部署生产版本</td></tr>
-                <tr><td><strong>业务风险人员</strong></td><td>机构工作台</td><td>限额、风险状态、拒绝原因和业务影响</td><td>修改运行节点或执行适配器</td></tr>
-                <tr><td><strong>模型审批人员</strong></td><td>控制中心</td><td>独立验证、审批、到期和撤销</td><td>策略研究和收益优化</td></tr>
-                <tr><td><strong>平台运维人员</strong></td><td>控制中心</td><td>部署、节点、连接、遥测、事件和恢复</td><td>投资决策和执行算法选择</td></tr>
-                <tr><td><strong>平台管理员</strong></td><td>控制中心</td><td>机构、交易台、角色、数据源、账户和凭证</td><td>替用户作出交易决策</td></tr>
-                <tr><td><strong>审计人员</strong></td><td>控制中心</td><td>审批、部署、操作、来源和变更证据</td><td>修改策略、订单或运行状态</td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="mvp-core-map">
-            <section class="mvp-core-domain">
-              <h3>NTPRO 机构工作台</h3>
-              <p>面向机构业务用户，围绕组合、策略和交易结果连续工作。</p>
-              <div class="mvp-core-items">
-                <div class="mvp-core-item"><strong>组合与交易</strong><span>账簿、仓位、订单、成交和执行质量。</span></div>
-                <div class="mvp-core-item"><strong>策略研发</strong><span>策略库、版本、回测、模拟和发布申请。</span></div>
-                <div class="mvp-core-item"><strong>风险与限额</strong><span>业务风险、拒绝、准备度和影响范围。</span></div>
-                <div class="mvp-core-item"><strong>分析与报告</strong><span>表现、证据、异常和业务报告。</span></div>
-              </div>
-            </section>
-            <section class="mvp-core-domain system">
-              <h3>NTPRO 控制中心</h3>
-              <p>面向独立控制和平台团队，管理治理与生产运行。</p>
-              <div class="mvp-core-items">
-                <div class="mvp-core-item"><strong>组织与权限</strong><span>机构、交易台、角色、范围和环境。</span></div>
-                <div class="mvp-core-item"><strong>模型与部署</strong><span>审批、候选版本、快照、发布和回滚。</span></div>
-                <div class="mvp-core-item"><strong>数据与账户</strong><span>数据源、品种、连接、账户和凭证。</span></div>
-                <div class="mvp-core-item"><strong>运行与审计</strong><span>节点、日志、指标、事件、恢复和留证。</span></div>
-              </div>
-            </section>
-          </div>
-
-          <div class="surface-heading">
-            <div>
-              <h3>门户一 · 机构工作台</h3>
-              <p>策略管理和回测属于机构业务门户，但审批和生产部署不在此处完成。</p>
-            </div>
-            <span class="surface-index">机构 / 交易台 / 账簿 / 组合</span>
-          </div>
-
           <div class="shell-decision">
-            <strong>框架定稿：固定壳层，动态任务页签</strong>
-            <p>左侧只放稳定业务域；顶部只放机构范围、账户/环境、搜索和当前任务页签；主画布承接业务工作；底部固定承接高频活动；右侧抽屉只解释当前选中对象；最底部状态栏持续显示数据、账户、交易场所、风险和时效。</p>
+            <strong>页面框架定稿：策略工作台是主产品</strong>
+            <p>左侧承接策略闭环；顶部固定策略、版本、模式和运行范围；主画布展示当前 Run 与跨模式比较；右侧解释准入和证据；底部承接持仓、活动、成交和日志；状态栏持续显示数据、账户、Venue、风险和节点时效。</p>
           </div>
 
-          <div class="product-shell drawer-open" data-portal="trader" aria-label="NTPRO 机构工作台框架">
+          <div class="product-shell drawer-open" data-portal="strategy" aria-label="NTPRO 策略工作台框架">
             <aside class="product-rail">
               <div class="product-brand">
                 <span>NT</span>
-                <div><strong>NTPRO</strong><small>机构工作台</small></div>
+                <div><strong>NTPRO</strong><small>策略工作台</small></div>
               </div>
-              <nav class="product-primary-nav" aria-label="机构工作台一级栏目">
+              <nav class="product-primary-nav" aria-label="策略工作台一级栏目">
                 <span class="active" data-short="总">总览</span>
-                <span data-short="组">组合</span>
-                <span data-short="交">交易</span>
                 <span data-short="策">策略</span>
-                <span data-short="测">回测</span>
+                <span data-short="测">Backtest</span>
+                <span data-short="演">Demo</span>
+                <span data-short="实">Live</span>
+                <span data-short="运">运行</span>
+                <span data-short="数">数据</span>
                 <span data-short="险">风险</span>
-                <span data-short="报">报告</span>
+                <span data-short="态">系统状态</span>
               </nav>
-              <div class="product-rail-foot"><span>● 数据在线</span><small>只读优先</small></div>
+              <div class="product-rail-foot"><span>● Demo 在线</span><small>Live 未开放</small></div>
             </aside>
 
             <div class="product-stage">
               <header class="product-topbar">
-                <span class="product-scope">机构<strong>示例量化基金</strong></span>
-                <span class="product-scope">账簿<strong>主策略账簿</strong></span>
-                <span class="product-scope">环境<strong>模拟</strong></span>
-                <span class="product-search">搜索策略、账户、订单或品种</span>
-                <span class="product-live">业务数据实时</span>
+                <span class="product-scope">策略<strong>BTC 动量</strong></span>
+                <span class="product-scope">版本<strong>v12 · 已冻结</strong></span>
+                <span class="product-scope">模式<strong>Demo</strong></span>
+                <span class="product-search">搜索策略、Run、订单或品种</span>
+                <span class="product-live">Sandbox 实时</span>
               </header>
 
-              <nav class="product-tabs" aria-label="已打开任务">
-                <span class="product-tab active"><em></em>主策略账簿</span>
-                <span class="product-tab">BTC 动量 v12</span>
-                <span class="product-tab">风险事件 R-204</span>
-                <span class="product-tab">＋ 打开任务</span>
+              <nav class="product-tabs" aria-label="策略运行模式">
+                <span class="product-tab">Backtest · 已完成</span>
+                <span class="product-tab active"><em></em>Demo · 运行中</span>
+                <span class="product-tab">Live · 未开放</span>
+                <span class="product-tab">运行对比</span>
               </nav>
 
               <div class="product-workarea">
                 <div class="product-canvas" role="main">
                   <div class="product-canvas-head">
-                    <div><h4>机构交易总览</h4><p>组合、策略、订单、风险和需要处理的业务事项保持在同一上下文。</p></div>
-                    <span class="maturity backend">只读优先</span>
+                    <div><h4>BTC 动量 v12</h4><p>同一策略版本在三种模式下使用一致的订单、成交、持仓和风险语言。</p></div>
+                    <span class="maturity backend">Demo / Sandbox</span>
                   </div>
                   <div class="product-summary">
-                    <div class="product-metric"><span>组合净值</span><strong>128,420,680</strong><small>今日 +1.73%</small></div>
-                    <div class="product-metric"><span>可用资金</span><strong>91,260,400</strong><small>71.1% 可用</small></div>
-                    <div class="product-metric"><span>活动策略</span><strong>12</strong><small>9 正常 / 3 关注</small></div>
-                    <div class="product-metric"><span>风险状态</span><strong>受限</strong><small class="warn">1 项需要处理</small></div>
+                    <div class="product-metric"><span>当前 Run</span><strong>RUN-D-1042</strong><small>运行 03:42:18</small></div>
+                    <div class="product-metric"><span>累计收益</span><strong>+8.42%</strong><small>Backtest +11.06%</small></div>
+                    <div class="product-metric"><span>最大回撤</span><strong>-2.18%</strong><small>限额 -6.00%</small></div>
+                    <div class="product-metric"><span>Live 准入</span><strong>未开放</strong><small class="warn">真实权限为 false</small></div>
                   </div>
                   <div class="product-grid">
                     <section class="product-panel">
-                      <div class="product-panel-title"><span>组合表现与敞口</span><span>主策略账簿 · 今日</span></div>
-                      <div class="product-chart" aria-label="组合表现示意图"></div>
+                      <div class="product-panel-title"><span>策略表现</span><span>Demo 与 Backtest 对比</span></div>
+                      <div class="product-chart" aria-label="策略三模式表现示意图"></div>
                     </section>
                     <section class="product-panel">
-                      <div class="product-panel-title"><span>业务优先级</span><span>按影响排序</span></div>
+                      <div class="product-panel-title"><span>模式推进</span><span>按当前版本判断</span></div>
                       <div class="product-priority">
-                        <div class="critical"><strong>BTC 集中度接近限额</strong><span>影响主策略账簿，需交易员复核。</span></div>
-                        <div class="warning"><strong>行情时效降级</strong><span>ETH 组合展示受限，禁止误判为健康。</span></div>
-                        <div><strong>策略版本待提交</strong><span>BTC 动量 v12 已完成回测，尚未申请审批。</span></div>
+                        <div><strong>Backtest 已完成</strong><span>历史回放、交易明细和风险结果已留证。</span></div>
+                        <div class="warning"><strong>Demo 正在观察</strong><span>验证实时数据、订单语义和运行稳定性。</span></div>
+                        <div class="critical"><strong>Live 尚未开放</strong><span>真实适配器、账户、Venue、风控和授权仍待实现。</span></div>
                       </div>
                     </section>
                   </div>
                 </div>
 
-                <aside class="product-inspector" aria-label="当前对象详情">
-                  <button class="product-drawer-toggle" type="button" aria-label="收起当前对象详情" title="收起当前对象详情" aria-expanded="true">›</button>
+                <aside class="product-inspector" aria-label="当前策略运行详情">
+                  <button class="product-drawer-toggle" type="button" aria-label="收起当前策略运行详情" title="收起当前策略运行详情" aria-expanded="true">›</button>
                   <div class="product-inspector-body">
-                    <strong>当前对象 · BTC 动量 v12</strong>
-                    <div class="product-kv"><span>业务状态</span><strong>候选版本</strong></div>
-                    <div class="product-kv"><span>回测状态</span><strong>已完成</strong></div>
-                    <div class="product-kv"><span>模拟运行</span><strong>受限</strong></div>
-                    <div class="product-kv"><span>发布申请</span><strong>未提交</strong></div>
-                    <div class="product-kv"><span>数据时效</span><strong>184 ms</strong></div>
-                    <div class="product-kv"><span>来源</span><strong>策略版本快照</strong></div>
+                    <strong>当前 Run · RUN-D-1042</strong>
+                    <div class="product-kv"><span>策略版本</span><strong>BTC 动量 v12</strong></div>
+                    <div class="product-kv"><span>Environment</span><strong>Sandbox</strong></div>
+                    <div class="product-kv"><span>账户</span><strong>DEMO-001</strong></div>
+                    <div class="product-kv"><span>Venue</span><strong>Sandbox</strong></div>
+                    <div class="product-kv"><span>风险状态</span><strong>正常</strong></div>
+                    <div class="product-kv"><span>真实订单</span><strong>禁止</strong></div>
                   </div>
                 </aside>
               </div>
 
-              <section class="product-dock" aria-label="机构工作台活动区">
+              <section class="product-dock" aria-label="策略工作台活动区">
                 <div class="product-dock-tabs">
-                  <button class="product-dock-tab active" type="button" data-dock-label="持仓">持仓 3</button>
+                  <button class="product-dock-tab active" type="button" data-dock-label="持仓">持仓 2</button>
                   <button class="product-dock-tab" type="button" data-dock-label="活动">活动 4</button>
                   <button class="product-dock-tab" type="button" data-dock-label="成交">成交 18</button>
                   <button class="product-dock-tab" type="button" data-dock-label="日志">日志</button>
                 </div>
                 <table class="product-dock-table">
-                  <thead><tr><th class="product-dock-label">持仓</th><th>方向 / 数量</th><th>开仓均价</th><th>标记价格</th><th>未实现盈亏</th><th>关联策略</th></tr></thead>
+                  <thead><tr><th class="product-dock-label">持仓</th><th>方向 / 数量</th><th>开仓均价</th><th>标记价格</th><th>未实现盈亏</th><th>运行模式</th></tr></thead>
                   <tbody>
-                    <tr><td>BTCUSDT 永续</td><td>多 · 0.32</td><td>65,323.4</td><td>66,842.1</td><td><strong>+486.24</strong></td><td>BTC 动量 v12</td></tr>
-                    <tr><td>XAUUSDT 永续</td><td>多 · 3.00</td><td>2,372.1</td><td>2,388.4</td><td><strong>+48.90</strong></td><td>突破 4H</td></tr>
+                    <tr><td>BTCUSDT 永续</td><td>多 · 0.32</td><td>65,323.4</td><td>66,842.1</td><td><strong>+486.24</strong></td><td>Demo</td></tr>
+                    <tr><td>ETHUSDT 永续</td><td>空 · 2.40</td><td>3,498.7</td><td>3,472.3</td><td><strong>+63.36</strong></td><td>Demo</td></tr>
                   </tbody>
                 </table>
               </section>
 
               <footer class="product-statusbar">
                 <span>行情 62 ms</span>
-                <span>账户同步 184 ms</span>
-                <span>风险引擎 28 ms</span>
-                <span class="warn">ETH 数据受限</span>
-                <span>主策略账簿 · 模拟 · 截止 20:52:18</span>
+                <span>账户 DEMO-001</span>
+                <span>Venue Sandbox</span>
+                <span>风险正常</span>
+                <span>node-001 · Demo · 截止 20:52:18</span>
               </footer>
             </div>
           </div>
 
           <div class="column-contract">
             <article>
-              <h4>机构工作台栏目合同</h4>
+              <h4>默认栏目合同</h4>
               <dl>
-                <dt>左侧菜单</dt><dd>总览、组合、交易、策略、回测、风险、报告</dd>
-                <dt>顶部栏目</dt><dd>机构范围、账簿/账户、环境、全局搜索、动态任务页签</dd>
-                <dt>底部活动区</dt><dd>持仓、活动、成交、日志</dd>
-                <dt>右侧抽屉</dt><dd>策略、订单、持仓、风险事件的详情、来源与允许动作</dd>
-                <dt>状态栏</dt><dd>行情、账户、交易场所、风险、延迟、时效和当前范围</dd>
+                <dt>左侧菜单</dt><dd>总览、策略、Backtest、Demo、Live、运行、数据、风险、系统状态</dd>
+                <dt>顶部栏目</dt><dd>策略、版本、模式、账户/Venue 和搜索；始终保留运行上下文</dd>
+                <dt>主画布</dt><dd>当前 Run、结果、风险和跨模式比较，不展示底层进程管理</dd>
+                <dt>底部活动区</dt><dd>持仓、活动、成交、日志，随策略版本与 Run 联动</dd>
+                <dt>右侧抽屉</dt><dd>当前 Run 的配置、来源、准入状态和允许动作</dd>
               </dl>
             </article>
             <article>
-              <h4>栏目设计约束</h4>
+              <h4>模式合同</h4>
               <dl>
-                <dt>不重复</dt><dd>左侧是产品域，顶部是正在处理的对象，两者不建立同名导航。</dd>
-                <dt>不串岗</dt><dd>节点、凭证、部署、恢复和技术根因不进入机构工作台一级栏目。</dd>
-                <dt>不失焦</dt><dd>切换策略、订单或风险对象时，账户、账簿和环境范围始终保留。</dd>
-                <dt>不误导</dt><dd>HTTP 成功、回测完成和审批通过都不能被显示为生产运行健康。</dd>
-                <dt>不越权</dt><dd>当前只允许查询和预览，真实交易操作继续由独立授权范围决定。</dd>
+                <dt>同一策略</dt><dd>三种模式引用同一个不可变 StrategyVersion，不复制代码和参数定义</dd>
+                <dt>独立运行</dt><dd>每次 Run 分别记录 Environment、数据、账户、Venue、适配器、权限和结果</dd>
+                <dt>一致语义</dt><dd>订单、成交、持仓、风险和证据格式在三种模式中保持一致</dd>
+                <dt>独立准入</dt><dd>Demo 通过不自动开启 Live；真实订单必须由后续能力单独授权</dd>
+                <dt>如实呈现</dt><dd>当前 Live 显示为未开放，不渲染可执行真实交易控件</dd>
               </dl>
             </article>
           </div>
 
-          <div class="surface-heading">
-            <div>
-              <h3>门户二 · 控制中心</h3>
-              <p>独立审批、平台运维、管理员和审计人员管理治理与生产运行，不参与投资决策。</p>
-            </div>
-            <span class="surface-index">控制 / 运维 / 管理 / 审计</span>
-          </div>
-
-          <div class="product-shell drawer-open" data-portal="control" aria-label="NTPRO 控制中心框架">
-            <aside class="product-rail">
-              <div class="product-brand">
-                <span>NT</span>
-                <div><strong>NTPRO</strong><small>控制中心</small></div>
-              </div>
-              <nav class="product-primary-nav" aria-label="控制中心一级栏目">
-                <span class="active" data-short="控">总览</span>
-                <span data-short="审">审批</span>
-                <span data-short="数">数据账户</span>
-                <span data-short="部">部署</span>
-                <span data-short="运">运行</span>
-                <span data-short="事">事件</span>
-                <span data-short="证">审计</span>
-              </nav>
-              <div class="product-rail-foot"><span>● 控制面在线</span><small>受控模式</small></div>
-            </aside>
-
-            <div class="product-stage">
-              <header class="product-topbar">
-                <span class="product-scope">机构<strong>示例量化基金</strong></span>
-                <span class="product-scope">环境<strong>模拟</strong></span>
-                <span class="product-scope">值班组<strong>平台运行组</strong></span>
-                <span class="product-search">搜索节点、部署、账户或事件</span>
-                <span class="product-live">控制面在线</span>
-              </header>
-
-              <nav class="product-tabs" aria-label="已打开控制任务">
-                <span class="product-tab active"><em></em>控制总览</span>
-                <span class="product-tab">部署 DEP-1042</span>
-                <span class="product-tab">事件 INC-204</span>
-                <span class="product-tab">＋ 打开任务</span>
-              </nav>
-
-              <div class="product-workarea">
-                <div class="product-canvas" role="main">
-                  <div class="product-canvas-head">
-                    <div><h4>平台控制总览</h4><p>审批、部署、账户、节点和事件围绕生产控制链组织，不展示交易机会。</p></div>
-                    <span class="maturity current">受控操作 · 全程审计</span>
-                  </div>
-                  <div class="product-summary">
-                    <div class="product-metric"><span>待审批模型</span><strong>2</strong><small>独立复核</small></div>
-                    <div class="product-metric"><span>部署准备度</span><strong>受限</strong><small class="warn">1 项配置漂移</small></div>
-                    <div class="product-metric"><span>运行实例</span><strong>18 / 20</strong><small>2 个降级</small></div>
-                    <div class="product-metric"><span>平台事件</span><strong>3</strong><small class="warn">1 个高优先级</small></div>
-                  </div>
-                  <div class="product-grid">
-                    <section class="product-panel">
-                      <div class="product-panel-title"><span>运行健康与事件趋势</span><span>过去 24 小时</span></div>
-                      <div class="product-chart" aria-label="运行健康趋势示意图"></div>
-                    </section>
-                    <section class="product-panel">
-                      <div class="product-panel-title"><span>控制优先级</span><span>按生产影响排序</span></div>
-                      <div class="product-priority">
-                        <div class="critical"><strong>Binance 网关心跳陈旧</strong><span>影响两个账簿，交易员终端已显示业务受限。</span></div>
-                        <div class="warning"><strong>部署版本漂移</strong><span>DEP-1042 与批准快照不一致，禁止继续。</span></div>
-                        <div><strong>模型审批即将到期</strong><span>策略 BTC 动量 v12 需重新独立验证。</span></div>
-                      </div>
-                    </section>
-                  </div>
-                </div>
-
-                <aside class="product-inspector" aria-label="当前控制对象详情">
-                  <button class="product-drawer-toggle" type="button" aria-label="收起当前控制对象详情" title="收起当前控制对象详情" aria-expanded="true">›</button>
-                  <div class="product-inspector-body">
-                    <strong>当前对象 · INC-204</strong>
-                    <div class="product-kv"><span>严重度</span><strong>高</strong></div>
-                    <div class="product-kv"><span>技术状态</span><strong>处理中</strong></div>
-                    <div class="product-kv"><span>业务影响</span><strong>2 个账簿</strong></div>
-                    <div class="product-kv"><span>责任组</span><strong>平台运行组</strong></div>
-                    <div class="product-kv"><span>最后心跳</span><strong>4.8 秒前</strong></div>
-                    <div class="product-kv"><span>审计来源</span><strong>运行事件流</strong></div>
-                  </div>
-                </aside>
-              </div>
-
-              <section class="product-dock" aria-label="控制中心活动区">
-                <div class="product-dock-tabs">
-                  <button class="product-dock-tab active" type="button" data-dock-label="告警">告警 3</button>
-                  <button class="product-dock-tab" type="button" data-dock-label="任务">任务 7</button>
-                  <button class="product-dock-tab" type="button" data-dock-label="变更">变更 4</button>
-                  <button class="product-dock-tab" type="button" data-dock-label="日志">日志</button>
-                </div>
-                <table class="product-dock-table">
-                  <thead><tr><th class="product-dock-label">告警</th><th>对象</th><th>状态</th><th>业务影响</th><th>责任组</th><th>更新时间</th></tr></thead>
-                  <tbody>
-                    <tr><td>INC-204</td><td>Binance 网关</td><td>处理中</td><td>2 个账簿受限</td><td>平台运行组</td><td><strong>刚刚</strong></td></tr>
-                    <tr><td>DEP-1042</td><td>策略部署</td><td>已阻断</td><td>未进入生产</td><td>发布控制组</td><td><strong>2 分钟前</strong></td></tr>
-                  </tbody>
-                </table>
-              </section>
-
-              <footer class="product-statusbar">
-                <span>控制 API 38 ms</span>
-                <span>事件队列正常</span>
-                <span>18 / 20 节点健康</span>
-                <span class="warn">1 个网关降级</span>
-                <span>模拟环境 · 平台运行组 · 截止 20:52:18</span>
-              </footer>
-            </div>
-          </div>
-
-          <div class="column-contract">
-            <article>
-              <h4>控制中心栏目合同</h4>
-              <dl>
-                <dt>左侧菜单</dt><dd>控制总览、审批、数据与账户、部署、运行、事件、审计</dd>
-                <dt>顶部栏目</dt><dd>机构范围、环境、值班组、全局搜索、动态控制任务页签</dd>
-                <dt>底部活动区</dt><dd>告警、任务、变更、日志</dd>
-                <dt>右侧抽屉</dt><dd>节点、部署、账户、审批、事件的根因、影响、责任人与证据</dd>
-                <dt>状态栏</dt><dd>控制接口、事件队列、节点、网关、值班与数据时效</dd>
-              </dl>
-            </article>
-            <article>
-              <h4>跨门户状态连接</h4>
-              <dl>
-                <dt>策略状态</dt><dd>研究中 → 回测完成 → 候选 → 审批中 → 已批准 → 已部署 → 运行中 → 受限/退役</dd>
-                <dt>前台视角</dt><dd>展示业务状态、影响、退回原因和允许发起的申请，不展示技术恢复控件。</dd>
-                <dt>后台视角</dt><dd>展示审批、部署、节点、根因、负责人、回执和审计，不修改投资判断。</dd>
-                <dt>共享标识</dt><dd>策略版本、部署、账户、账簿和事件使用稳定编号跨门户互链。</dd>
-                <dt>事实边界</dt><dd>两个门户消费同一事实合同，但按职责获得不同字段与允许动作。</dd>
-              </dl>
-            </article>
-          </div>
-
-          <div class="surface-heading">
-            <div>
-              <h3>页面风格与样式定稿</h3>
-              <p>沿用 project.html 原有的浅灰文档底色、炭黑框架和墨绿工作台层级，只吸收 Figma 参考中的布局关系，不替换项目既有视觉语言。</p>
-            </div>
-            <span class="surface-index">原有底色 / 炭黑墨绿 / 数据优先</span>
-          </div>
-
-          <div class="style-contract" aria-label="页面视觉规范">
-            <div>
-              <strong>风格结论</strong>
-              <span>保持项目原有视觉基线。两个门户共享炭黑墨绿壳层、密度和交互规则，通过栏目与对象语义区分职责，不建立第二套配色。</span>
-              <div class="style-swatch"><i style="background:#f4f6f3"></i><i style="background:#202925"></i><i style="background:#0d1411"></i><i style="background:#17201c"></i><i style="background:#36d399"></i><i style="background:#e6a64c"></i></div>
-            </div>
-            <div><strong>层级</strong><span>深灰壳层、一级边框和稳定分区。表格、图表和对象详情优先，不使用嵌套卡片、装饰渐变或大面积品牌色。</span></div>
-            <div><strong>色彩</strong><span>蓝色只表示选中与导航；绿色表示正常或正向；红色表示风险或拒绝；琥珀表示关注、陈旧或受限。</span></div>
-            <div><strong>文字与数字</strong><span>中文使用系统无衬线字体；业务数字使用等宽或表格数字。标题紧凑，正文不承担操作说明书角色。</span></div>
-            <div><strong>尺寸与密度</strong><span>桌面左栏约 152-164px，窄屏折叠为 56px；顶部范围栏 42px、任务页签 36px、状态栏 24px，控件圆角 3-4px。</span></div>
-          </div>
-
-          <div class="surface-heading">
-            <div>
-              <h3>共享控制平面的对象合同</h3>
-              <p>两个门户通过稳定标识互相引用；层级、资产、运行和证据不是一棵被强行简化的树。</p>
-            </div>
-            <span class="surface-index">一套事实 / 两个角色投影</span>
-          </div>
-
-          <div class="mvp-object-chain" aria-label="共享控制平面对象合同">
-            <div class="mvp-object"><small>01 / 机构范围</small><strong>机构与交易台</strong><span>法律实体、交易台、账簿、组合和授权范围。</span></div>
-            <div class="mvp-object"><small>02 / 策略资产</small><strong>策略与版本</strong><span>负责人、逻辑、参数、数据绑定和变更记录。</span></div>
-            <div class="mvp-object"><small>03 / 验证证据</small><strong>回测与候选</strong><span>数据版本、配置快照、交易明细和审批申请。</span></div>
-            <div class="mvp-object"><small>04 / 运行绑定</small><strong>部署与账户</strong><span>策略版本、账户、交易场所、品种和运行模式。</span></div>
-            <div class="mvp-object"><small>05 / 业务事实</small><strong>组合与交易</strong><span>仓位、订单、成交、风险、对账和业务影响。</span></div>
-            <div class="mvp-object"><small>06 / 控制证据</small><strong>状态与审计</strong><span>节点、遥测、事件、审批、回执和变更来源。</span></div>
-          </div>
-
-          <div class="surface-heading">
-            <div>
-              <h3>能力成熟度与产品承诺</h3>
-              <p>代码存在不等于产品接口完成；每一项必须区分后端能力、浏览器可用合同和授权边界。</p>
-            </div>
-            <span class="surface-index">审计代码面：MVP-010 merge / 正式发布：v0.33.0 / 冻结基线：v0.32.0</span>
-          </div>
-
-          <div class="maturity-key" aria-label="能力成熟度图例">
-            <span class="maturity current">已落地只读</span>
-            <span class="maturity backend">后端或接口已有，页面待接入</span>
-            <span class="maturity target">目标产品合同</span>
-            <span class="maturity forbidden">当前未授权</span>
-          </div>
-
-          <div class="module-table-wrap">
-            <table>
-              <thead><tr><th>能力域</th><th>机构工作台</th><th>控制中心</th><th>成熟度与依据</th></tr></thead>
-              <tbody>
-                <tr><td><strong>机构、交易台与账簿</strong></td><td>切换业务范围和组合上下文</td><td>维护组织关系、角色和环境</td><td><span class="maturity target">目标产品合同</span></td></tr>
-                <tr><td><strong>账户、仓位、订单与成交</strong></td><td>业务主视图、来源和时效</td><td>仅显示绑定、同步和影响范围</td><td><span class="maturity backend">共享只读 API 与双门户最小消费已实现</span></td></tr>
-                <tr><td><strong>策略与回测</strong></td><td>策略库、版本、运行、结果和对比</td><td>独立审批、版本冻结和部署授权</td><td><span class="maturity backend">引擎与命令行存在，产品资源合同待建</span></td></tr>
-                <tr><td><strong>风险与交易准备度</strong></td><td>限额、拒绝、受限动作和业务影响</td><td>数据、账户、风险、部署和技术根因</td><td><span class="maturity backend">共享状态投影与双门户只读入口已实现</span></td></tr>
-                <tr><td><strong>后台治理与运维状态</strong></td><td>只接收业务影响摘要和事件链接</td><td>关闭状态、来源、审计、遥测、权限和部署</td><td><span class="maturity current">v0.28 六个只读接口已挂载</span></td></tr>
-                <tr><td><strong>节点、日志与指标</strong></td><td>不进入一级导航</td><td>生命周期、指标、日志和技术事件</td><td><span class="maturity current">本地仪表盘接口已存在</span></td></tr>
-                <tr><td><strong>身份、授权与数据范围</strong></td><td>按机构、交易台、账簿和角色过滤</td><td>管理身份、角色、权限和凭证</td><td><span class="maturity target">目标产品合同</span></td></tr>
-                <tr><td><strong>真实交易与自动恢复</strong></td><td>不渲染下单、撤改、重试或清仓控件</td><td>不得以运维页面绕过交易门禁</td><td><span class="maturity forbidden">冻结边界明确为 false</span></td></tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="surface-heading">
-            <div>
-              <h3>跨门户交接合同</h3>
-              <p>交接不是复制页面，而是由明确责任人改变状态，并让双方看到同一证据的不同视图。</p>
-            </div>
-            <span class="surface-index">申请 / 审批 / 部署 / 事件 / 审计</span>
-          </div>
-
-          <div class="mvp-core-map">
-            <section class="mvp-core-domain">
-              <h3>策略发布交接</h3>
-              <p>量化研究员提交候选，模型审批人员独立复核，平台运维人员部署，机构用户查看生效结果。</p>
-              <div class="mvp-core-items">
-                <div class="mvp-core-item"><strong>机构工作台</strong><span>候选版本、回测证据、申请状态和退回原因。</span></div>
-                <div class="mvp-core-item"><strong>控制中心</strong><span>审批证据、有效期、部署快照、回滚和审计。</span></div>
-              </div>
-            </section>
-            <section class="mvp-core-domain system">
-              <h3>运行事件交接</h3>
-              <p>控制中心处理技术根因与恢复，机构工作台只呈现受影响账簿、策略和允许的业务动作。</p>
-              <div class="mvp-core-items">
-                <div class="mvp-core-item"><strong>机构工作台</strong><span>业务影响、准备度、降级状态和事件链接。</span></div>
-                <div class="mvp-core-item"><strong>控制中心</strong><span>组件链、日志、指标、负责人、处置和回执。</span></div>
-              </div>
-            </section>
-          </div>
-
-          <div class="research-lane">
-            <strong>第三版收敛结论</strong>
-            <span>策略是机构工作台中的核心业务资产，但不是整个产品唯一入口。组织治理与系统运维必须独立进入控制中心；共享控制平面只连接身份、状态、审批和证据。任何前端实现都不得把后端能力、发布证据或接口成功误写成真实交易授权。</span>
-          </div>
         </section>
 
         <section id="backend" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 系统拓扑</p>
-              <h2>当前交付的是本地单节点沙盒</h2>
+              <h2>当前技术基线是本地单节点 Demo</h2>
               <p class="section-intro">代码入口为 <code>nautilus mvp serve</code>。一个进程内的 <code>MvpRuntime</code> 使用 <code>SupervisorRegistryStore</code> 注册并启动一个 <code>ntpro-node</code>，随后启动 Axum HTTP 服务提供两个门户。</p>
             </div>
           </div>
@@ -2721,6 +2404,11 @@
           <div class="summary-callout">
             <strong>部署边界</strong>
             当前没有远程 node agent、共享注册中心、多主机调度或自动故障转移。一个节点也不等于一套工作台；两个门户是同一运行实例上的集中视图。
+          </div>
+
+          <div class="summary-callout">
+            <strong>三模式与代码的对应关系</strong>
+            <code>Environment</code> 已定义 Backtest、Sandbox、Live；历史回放由 <code>BacktestEngine</code> 承载，Demo 与 Live 共享 <code>LiveNode</code> 的实时运行语义。当前 CLI 只构建 Sandbox 节点，真实 Live 的适配器、账户、Venue 和订单权限尚未接入。
           </div>
 
           <details class="technical-details">
@@ -2827,8 +2515,8 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 合同与接口</p>
-              <h2>两个门户共享状态事实，权限和操作范围不同</h2>
-              <p class="section-intro">路由由 <code>crates/cli/src/dashboard/server.rs</code> 挂载；状态语义由 <code>crates/cli/src/mvp_contract.rs</code> 定义。</p>
+              <h2>当前 MVP 接口仍服务双门户技术基线</h2>
+              <p class="section-intro">路由由 <code>crates/cli/src/dashboard/server.rs</code> 挂载；状态语义由 <code>crates/cli/src/mvp_contract.rs</code> 定义。下一阶段策略工作台需要在此基础上新增 StrategyVersion 与 Run 产品合同。</p>
             </div>
           </div>
 
@@ -2908,11 +2596,102 @@
         <section id="roadmap" data-document-part="product">
           <div class="section-head">
             <div>
-              <p class="eyebrow">当前产品北极星</p>
-              <h2>在单节点运行基线上完成产品 MVP</h2>
-              <p class="section-intro">PR #1198 至 #1236 已完成单 Supervisor + 单节点运行、对象追溯、四轴状态、共享只读 API、双门户、故障矩阵、浏览器和性能验收。M0-M4 已完成并冻结；多节点平台、分布式调度和真实交易必须独立立项。</p>
+              <p class="eyebrow">产品说明 · 推进路线</p>
+              <h2>先做完整策略闭环，再扩展机构平台</h2>
+              <p class="section-intro">既有 M0-M4 提供单节点 Demo 技术基线。下一阶段只围绕同一策略的 Backtest、Demo、Live 三模式产品化推进；真实 Live 是必达能力，但必须作为独立高风险阶段实现和验收。</p>
             </div>
           </div>
+
+          <div class="summary-callout">
+            <strong>Roadmap 判断标准</strong>
+            不是“有引擎、有命令或能启动节点”就算产品完成。用户必须能在策略工作台中创建版本、发起 Run、查看结果、比较模式、理解失败原因，并在明确准入后运行真实 Live。
+          </div>
+
+          <div class="roadmap" aria-label="策略三模式产品路线">
+            <article class="phase">
+              <div class="phase-dot">S0</div>
+              <div class="phase-time">产品合同 · 下一阶段</div>
+              <div class="phase-body">
+                <h3>策略、版本与运行资源</h3>
+                <p>建立一个可贯穿三种模式的产品身份链，避免 Backtest、Demo 和 Live 各自形成孤立入口。</p>
+                <ul>
+                  <li>固定 Strategy、不可变 StrategyVersion 和独立 Run 三层资源。</li>
+                  <li>统一参数、数据需求、订单语义、风险指标和证据格式。</li>
+                  <li>每个 Run 明确记录 Environment、适配器、账户、Venue、配置和结果。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>同一 StrategyVersion 可创建三类 Run，身份、状态、来源和错误合同稳定；任何模式都不能修改已冻结版本。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">S1</div>
+              <div class="phase-time">Backtest · 产品化</div>
+              <div class="phase-body">
+                <h3>历史验证闭环</h3>
+                <p>把已有 Rust BacktestEngine 从底层能力变成策略工作台中的完整用户流程。</p>
+                <ul>
+                  <li>选择策略版本、数据集、时间范围、资金和模拟 Venue。</li>
+                  <li>展示运行状态、交易明细、持仓、收益、回撤、风险和日志。</li>
+                  <li>支持多个版本与参数 Run 的确定性比较和结果留证。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>用户无需命令行即可完成创建、运行、查看、比较和复现 Backtest，结果可追溯到同一 StrategyVersion。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">S2</div>
+              <div class="phase-time">Demo · 产品化</div>
+              <div class="phase-body">
+                <h3>实时沙盒验证</h3>
+                <p>将已经冻结的单 Supervisor + 单 Sandbox 节点接入同一策略工作台。</p>
+                <ul>
+                  <li>直接选择通过验证的 StrategyVersion 创建 Demo Run。</li>
+                  <li>观察实时数据、信号、订单意图、模拟成交、持仓、风险和健康。</li>
+                  <li>把 Demo 与 Backtest 的行为和结果差异放在同一比较视图。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>Demo 不复制策略代码；工作台可完整解释运行状态和模式差异，真实订单仍保持关闭。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">S3</div>
+              <div class="phase-time">Live · 必达能力</div>
+              <div class="phase-body">
+                <h3>真实交易产品能力</h3>
+                <p>在同一 LiveNode 和 StrategyVersion 语义上接入真实数据与执行，不另建一套 Live 策略。</p>
+                <ul>
+                  <li>建设真实 Venue 数据/执行适配器、账户绑定、凭证和连接状态。</li>
+                  <li>实现订单提交、撤改、成交回报、持仓对账、风险门禁和人工停机。</li>
+                  <li>建立 Live 独立准入、最小权限、幂等、审计、恢复和回滚证据。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>真实账户和 Venue 在独立授权下完成受控端到端交易；异常、断连、重复回报和恢复场景 fail closed，并证明不会由 Demo 自动继承权限。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">S4</div>
+              <div class="phase-time">三模式闭环 · 产品冻结</div>
+              <div class="phase-body">
+                <h3>统一比较与持续迭代</h3>
+                <p>让策略人员在一个工作台中判断历史、沙盒和真实运行之间的偏差，并形成下一版本。</p>
+                <ul>
+                  <li>统一比较收益、回撤、滑点、成交质量、风险事件和运行稳定性。</li>
+                  <li>从任何结果追溯策略版本、数据、配置、账户、Venue 和证据。</li>
+                  <li>完成浏览器、性能、故障、操作手册、发布和回滚验收。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>一个策略版本可在三种模式中独立运行并统一复盘，产品声明、页面能力和实际交易边界完全一致。</div>
+            </article>
+          </div>
+
+          <div class="decision-grid">
+            <div class="decision"><h3>当前先做 S0</h3><p>先固定策略、版本和 Run 合同，后续页面、API 和三种引擎接入才不会重复建模。</p></div>
+            <div class="decision"><h3>Live 不是 Sandbox 开关</h3><p>策略代码相同，但真实数据、执行、账户、风控、授权和故障处置必须单独建设。</p></div>
+            <div class="decision"><h3>平台化后置</h3><p>多机构、多节点、集中运维和复杂角色治理在策略三模式闭环完成后再独立规划。</p></div>
+          </div>
+
+          <details class="technical-details">
+            <summary>展开已冻结的 M0-M4 单节点 MVP 历史路线</summary>
 
           <div class="summary-callout">
             <strong>MVP 完成后的真实体验</strong>
@@ -3026,13 +2805,14 @@
               <div class="exit-gate"><strong>退出条件 · 已满足</strong>final head 的五类 MVP artifact、六组性能 job、required checks 和独立审查全部通过，PR #1236 已合并，完整 MVP 已冻结；真实交易保持关闭；后续能力重新独立立项。</div>
             </article>
           </div>
+          </details>
         </section>
 
         <section id="acceptance" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 边界与验证</p>
-              <h2>MVP 已冻结，但真实交易能力仍为关闭</h2>
+              <h2>Demo 基线已冻结，Live 目标尚未实现</h2>
               <p class="section-intro">权威边界来自 <code>docs/product/mvp_freeze_manifest.json</code>。当前冻结拓扑为一个 Supervisor、一个节点、一个策略实例、一个账户、一个 Venue 和 sandbox 环境。</p>
             </div>
           </div>
@@ -3042,6 +2822,7 @@
             <span class="status info">机构工作台只读</span>
             <span class="status info">控制中心仅 start / stop</span>
             <span class="status info">真实订单与外部 Venue 关闭</span>
+            <span class="status info">Live 是 S3 必达目标</span>
             <span class="status info">多节点编排与自动恢复关闭</span>
           </div>
 
@@ -3067,12 +2848,15 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 代码入口</p>
-              <h2>从五个入口核对文档与实现</h2>
+              <h2>从八个入口核对文档与实现</h2>
               <p class="section-intro">产品描述必须能回到当前源码或冻结清单。历史计划和设计稿不能覆盖代码事实。</p>
             </div>
           </div>
 
           <ul class="source-list">
+            <li><a href="crates/common/src/enums.rs"><code>enums.rs</code>：Backtest、Sandbox、Live 三种 Environment</a></li>
+            <li><a href="crates/backtest/src/engine.rs"><code>backtest/engine.rs</code>：历史事件回放与模拟执行引擎</a></li>
+            <li><a href="crates/live/src/builder.rs"><code>live/builder.rs</code>：Sandbox 与 Live 共用的 LiveNode 构建边界</a></li>
             <li><a href="crates/cli/src/mvp.rs"><code>mvp.rs</code>：MVP 启动、状态刷新与退出回收</a></li>
             <li><a href="crates/cli/src/supervisor.rs"><code>supervisor.rs</code>：节点注册、进程生命周期与本地 registry</a></li>
             <li><a href="crates/cli/src/mvp_contract.rs"><code>mvp_contract.rs</code>：身份、四轴状态、来源与关闭边界</a></li>
@@ -3133,7 +2917,7 @@
           </ul>
           </details>
 
-          <p class="footer-note">项目说明版本：第十四版 · 更新日期：2026-08-05 · 执行者：Codex · 产品说明详细、技术说明简约且与当前代码合同对齐 · 单节点 MVP M0-M4 已完成并冻结 · 正式发布基线：v0.33.0</p>
+          <p class="footer-note">项目说明版本：第十五版 · 更新日期：2026-08-05 · 执行者：Codex · 当前北极星为同一策略的 Backtest / Demo / Live 三模式闭环 · Demo 单节点 MVP M0-M4 已冻结 · Live 是必达目标但尚未开放 · 正式发布基线：v0.33.0</p>
         </section>
       </div>
     </main>
@@ -3239,63 +3023,33 @@
     });
 
     const dockViews = {
-      trader: {
+      strategy: {
         '持仓': {
-          head: ['持仓', '方向 / 数量', '开仓均价', '标记价格', '未实现盈亏', '关联策略'],
+          head: ['持仓', '方向 / 数量', '开仓均价', '标记价格', '未实现盈亏', '运行模式'],
           rows: [
-            ['BTCUSDT 永续', '多 · 0.32', '65,323.4', '66,842.1', '<strong>+486.24</strong>', 'BTC 动量 v12'],
-            ['XAUUSDT 永续', '多 · 3.00', '2,372.1', '2,388.4', '<strong>+48.90</strong>', '突破 4H'],
+            ['BTCUSDT 永续', '多 · 0.32', '65,323.4', '66,842.1', '<strong>+486.24</strong>', 'Demo'],
+            ['ETHUSDT 永续', '空 · 2.40', '3,498.7', '3,472.3', '<strong>+63.36</strong>', 'Demo'],
           ],
         },
         '活动': {
-          head: ['活动', '对象', '类型', '状态', '业务影响', '更新时间'],
+          head: ['时间', 'Run', '模式', '事件', '状态', '来源'],
           rows: [
-            ['ACT-204', 'BTC 动量 v12', '发布申请', '待提交', '不影响当前运行', '<strong>刚刚</strong>'],
-            ['ACT-199', '主策略账簿', '风险复核', '处理中', '新增订单受限', '<strong>3 分钟前</strong>'],
+            ['20:52:18', 'RUN-D-1042', 'Demo', '策略心跳', '正常', '<strong>LiveNode</strong>'],
+            ['20:48:22', 'RUN-B-1038', 'Backtest', '结果冻结', '已完成', '<strong>BacktestEngine</strong>'],
           ],
         },
         '成交': {
-          head: ['时间', '品种', '方向', '数量', '价格', '关联策略'],
+          head: ['时间', '品种', '方向', '数量', '价格', '运行模式'],
           rows: [
-            ['20:48:22', 'BTCUSDT', '买入', '0.08', '66,812.4', '<strong>BTC 动量 v12</strong>'],
-            ['20:42:06', 'XAUUSDT', '买入', '1.00', '2,386.2', '<strong>突破 4H</strong>'],
+            ['20:48:22', 'BTCUSDT', '买入', '0.08', '66,812.4', '<strong>Demo</strong>'],
+            ['20:42:06', 'ETHUSDT', '卖出', '0.60', '3,479.8', '<strong>Demo</strong>'],
           ],
         },
         '日志': {
-          head: ['时间', '级别', '对象', '事件', '结果', '来源'],
+          head: ['时间', '级别', 'Run', '事件', '结果', '来源'],
           rows: [
-            ['20:52:18', '信息', '主策略账簿', '快照更新', '已接受', '<strong>业务读模型</strong>'],
-            ['20:51:44', '关注', 'ETH 行情', '时效检查', '已降级', '<strong>行情状态流</strong>'],
-          ],
-        },
-      },
-      control: {
-        '告警': {
-          head: ['告警', '对象', '状态', '业务影响', '责任组', '更新时间'],
-          rows: [
-            ['INC-204', 'Binance 网关', '处理中', '2 个账簿受限', '平台运行组', '<strong>刚刚</strong>'],
-            ['DEP-1042', '策略部署', '已阻断', '未进入生产', '发布控制组', '<strong>2 分钟前</strong>'],
-          ],
-        },
-        '任务': {
-          head: ['任务', '类型', '对象', '状态', '负责人', '截止时间'],
-          rows: [
-            ['TASK-812', '事件处置', 'INC-204', '进行中', '平台运行组', '<strong>21:10</strong>'],
-            ['TASK-804', '独立复核', 'BTC 动量 v12', '待处理', '模型审批组', '<strong>明日</strong>'],
-          ],
-        },
-        '变更': {
-          head: ['变更', '范围', '版本', '状态', '审批', '更新时间'],
-          rows: [
-            ['CHG-441', 'Binance 网关', 'v33.4', '已回退', '已批准', '<strong>5 分钟前</strong>'],
-            ['CHG-438', '风险配置', 'risk-2026.07', '已生效', '双人复核', '<strong>1 小时前</strong>'],
-          ],
-        },
-        '日志': {
-          head: ['时间', '组件', '级别', '事件', '结果', '审计引用'],
-          rows: [
-            ['20:52:18', '控制接口', '信息', '状态读取', '成功', '<strong>AUD-8821</strong>'],
-            ['20:51:59', '部署守卫', '警告', '版本漂移', '已阻断', '<strong>AUD-8819</strong>'],
+            ['20:52:18', '信息', 'RUN-D-1042', '状态刷新', '已接受', '<strong>策略运行投影</strong>'],
+            ['20:51:44', '关注', 'RUN-D-1042', 'Live 准入检查', '未开放', '<strong>冻结边界</strong>'],
           ],
         },
       },
