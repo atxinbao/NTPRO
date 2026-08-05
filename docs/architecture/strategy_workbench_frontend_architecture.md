@@ -61,7 +61,7 @@ retry 或 remediation 控件，也不得用 fixture、HTTP 200 或进程存活�
 ```text
 React + TypeScript
 Vite
-React Router
+TanStack Router
 TanStack Query
 CSS Modules + CSS design tokens
 Lucide React
@@ -75,7 +75,7 @@ Playwright
 - React 将页面拆成可复用组件，适合策略上下文、密集表格、状态面板和活动 Dock；
 - TypeScript 约束 API 数据、路由参数、模式状态和错误分支；
 - Vite 提供开发服务器，并构建可由 Axum 提供的静态资源；
-- React Router 管理策略、版本、Run 与比较页面的 URL 状态；
+- TanStack Router 管理策略、版本、Run 与比较页面的类型化 URL 状态；
 - TanStack Query 管理服务端状态、缓存、刷新、失效与请求错误；
 - CSS Modules 保留当前终端风格，CSS design tokens 固定颜色、间距、字号和密度；
 - Lucide 提供一致的界面图标，不在业务代码中维护手写 SVG；
@@ -89,7 +89,7 @@ Playwright
 
 - React TypeScript：https://react.dev/learn/typescript
 - Vite Guide：https://vite.dev/guide/
-- React Router：https://reactrouter.com/start/framework/installation
+- TanStack Router：https://tanstack.com/router/latest
 - TanStack Query：https://tanstack.com/query/latest/docs/framework/react/overview
 - Playwright：https://playwright.dev/docs/intro
 
@@ -262,6 +262,7 @@ CI 按路径分类：纯前端变更执行前端 lint、类型、单测、构建
 ```text
 FEA-001 前端架构文档
   -> FEF-001 前端工程底座
+  -> FEI-001 Axum 静态资源接入与旧页面迁移
   -> S0-API-001 产品资源只读合同
   -> SWB-002 策略总览与 Run 详情
   -> S1 Backtest 产品化
@@ -270,16 +271,25 @@ FEA-001 前端架构文档
   -> S4 三模式比较、验收与冻结
 ```
 
-`FEF-001` 与 `S0-API-001` 可以在各自合同明确后并行，但 `SWB-002` 必须同时依赖两者。
-旧 Rust 内嵌页面在新应用达到同等只读、响应式、错误和边界验收前继续保留；达到等价后再由
-独立迁移任务删除内嵌 HTML/CSS/JavaScript，禁止在底座任务中提前移除回退能力。
+`FEI-001` 依赖 `FEF-001`。`FEF-001` 与 `S0-API-001` 可以并行，但 `SWB-002` 必须同时
+依赖 `FEI-001` 与 `S0-API-001`。旧 Rust 内嵌页面在新应用达到同等只读、响应式、错误和
+边界验收前继续保留；由 `FEI-001` 定义生产静态资源打包、Axum SPA 回退和旧页面迁移，
+禁止在底座任务中提前移除回退能力或提交临时 `dist/`。
 
 ## 12. FEF-001 退出条件
 
 - `apps/strategy-workbench/` 可开发、测试和生产构建；
 - 当前页面框架已组件化，中文信息架构与视觉风格不倒退；
-- Axum 可以提供构建后的静态资源和 SPA 路由；
+- Vite 可生成生产静态资源，`dist/` 保持未跟踪；
 - typed API client、错误边界、查询 Provider、测试 fixture 与 Playwright 基础可用；
 - `/api/mvp/v1/status` 仅作为当前只读状态桥接；
 - 不声称 Strategy、StrategyVersion、Run、Backtest、Demo 或 Live 产品页已完成；
 - 不新增真实交易能力或生产 Node.js 运行时。
+
+## 13. FEI-001 退出条件
+
+- 生产静态资源打包方式不要求 Cargo 隐式运行 npm；
+- Axum 提供带 hash 的前端资源和 `/strategy-workbench/*` SPA 回退；
+- API 404/405 不被 SPA 回退吞掉，访问与 token 清理边界保持成立；
+- 新应用达到旧页面的只读、错误、桌面与移动验收；
+- 旧 Rust 内嵌 HTML、CSS 与 JavaScript 只在等价验收后删除。

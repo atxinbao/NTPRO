@@ -49,6 +49,34 @@ jobs:
           scripts/ci/classify-ci-changes.sh /tmp/changed-files.txt
       - name: CI change classifier self-test
         run: scripts/ci/test-ci-change-classifier.sh
+      - name: Set up frontend Node.js
+        if: steps.changes.outputs.frontend_app == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22.23.1'
+          cache: npm
+          cache-dependency-path: apps/strategy-workbench/package-lock.json
+      - name: Strategy workbench frontend gate
+        if: steps.changes.outputs.frontend_app == 'true'
+        working-directory: apps/strategy-workbench
+        run: |
+          npm ci
+          npm run audit
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm run test
+          npm run build
+          npm run test:e2e
+      - name: Upload strategy workbench frontend evidence
+        if: always() && steps.changes.outputs.frontend_app == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: strategy-workbench-frontend-${{ github.event.pull_request.number }}
+          path: |
+            apps/strategy-workbench/test-results
+            apps/strategy-workbench/playwright-report
+          if-no-files-found: error
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard

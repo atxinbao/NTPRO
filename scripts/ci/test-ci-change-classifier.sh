@@ -28,7 +28,7 @@ assert_output() {
 }
 
 docs_output="$(classify docs-only project.html README.md docs/product/roadmap.md)"
-for key in heavy_rust institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance security_workflow security_dependencies; do
+for key in heavy_rust institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance security_workflow security_dependencies frontend_app; do
   assert_output "$docs_output" "$key=false"
 done
 
@@ -50,6 +50,12 @@ assert_output "$strategy_output" "heavy_rust=true"
 assert_output "$strategy_output" "strategy_workbench=true"
 assert_output "$strategy_output" "institution_workbench=false"
 assert_output "$strategy_output" "control_center=false"
+
+frontend_output="$(classify frontend-app apps/strategy-workbench/src/pages/OverviewPage.tsx apps/strategy-workbench/package-lock.json)"
+assert_output "$frontend_output" "frontend_app=true"
+assert_output "$frontend_output" "heavy_rust=false"
+assert_output "$frontend_output" "strategy_workbench=false"
+assert_output "$frontend_output" "mvp_acceptance=false"
 
 cargo_output="$(classify cargo Cargo.lock)"
 assert_output "$cargo_output" "heavy_rust=true"
@@ -162,4 +168,4 @@ if ! grep -F "cancel-in-progress: \${{ github.event_name == 'pull_request' }}" \
   exit 1
 fi
 
-echo "ci_change_classifier_selftest=pass cases=16"
+echo "ci_change_classifier_selftest=pass cases=17"

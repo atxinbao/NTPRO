@@ -1,0 +1,29 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter,
+    "Noto Sans CJK SC",
+    "Noto Sans CJK",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --bg: #0d1411;
+  --raised: #14201b;
+  --panel: #17201c;
+  --panel-strong: #111a16;
+  --selected: #26342e;
+  --line: #34423b;
+  --line-soft: #303e37;
+  --muted: #91a39a;
+  --dim: #71847a;
+  --text: #e7eee9;
+  --green: #55e6ad;
+  --blue: #6eb5ff;
+  --amber: #e6a64c;
+  --red: #ff8a82;
+}

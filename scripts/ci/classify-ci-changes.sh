@@ -31,9 +31,14 @@ mvp_fault_matrix=false
 mvp_final_acceptance=false
 security_workflow=false
 security_dependencies=false
+frontend_app=false
 
 if matches '^(Cargo\.(toml|lock)|crates/|tests/|examples/|configs/)'; then
   heavy_rust=true
+fi
+
+if matches '^apps/strategy-workbench/'; then
+  frontend_app=true
 fi
 
 if matches '^(\.github/(workflows|actions)/|scripts/ai/|docs/rust-cutover/(governance|release|golden_trace)/|tests/golden/|crates/governance/|scripts/ci/(classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
@@ -103,7 +108,8 @@ for name in \
   mvp_fault_matrix \
   mvp_final_acceptance \
   security_workflow \
-  security_dependencies; do
+  security_dependencies \
+  frontend_app; do
   value="${!name}"
   printf '%s=%s\n' "$name" "$value" | tee -a "$GITHUB_OUTPUT"
 done
@@ -124,7 +130,8 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
       mvp_fault_matrix \
       mvp_final_acceptance \
       security_workflow \
-      security_dependencies; do
+      security_dependencies \
+      frontend_app; do
       printf '| `%s` | `%s` |\n' "$name" "${!name}"
     done
   } >>"$GITHUB_STEP_SUMMARY"
