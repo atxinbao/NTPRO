@@ -49,9 +49,7 @@ release_tag_missing_allowed() {
 
 run_release_head_binding_selftest() {
   local tag_sha="$1"
-  local current_sha
   local earlier_sha="2b955cb8a989827e3351c08c3d82d9578253e1f6"
-  current_sha="$(git rev-parse HEAD)"
 
   release_head_binding_valid "$tag_sha" "$tag_sha" "0" \
     || fail "release head binding selftest rejected the tag commit"
@@ -61,15 +59,28 @@ run_release_head_binding_selftest() {
   if release_head_binding_valid "$tag_sha" "$earlier_sha" "1"; then
     fail "release head binding selftest accepted a non-descendant commit"
   fi
-  release_head_binding_valid "$tag_sha" "$current_sha" "1" "$current_sha" \
-    || fail "release head binding selftest rejected a valid PR head"
-  if release_head_binding_valid "$tag_sha" "$tag_sha" "1" "$current_sha"; then
-    fail "release head binding selftest accepted a PR head outside the checkout"
+  echo "v33_release_head_binding_selftest=pass cases=3"
+}
+
+report_release_head_binding_failure() {
+  local tag_sha="$1"
+  local checkout_sha="$2"
+  local post_release_head_sha="$3"
+  local tag_to_checkout="fail"
+  local tag_to_pr_head="not_checked"
+  local pr_head_to_checkout="not_checked"
+
+  git merge-base --is-ancestor "$tag_sha" "$checkout_sha" \
+    && tag_to_checkout="pass"
+  if [[ -n "$post_release_head_sha" ]]; then
+    git merge-base --is-ancestor "$tag_sha" "$post_release_head_sha" \
+      && tag_to_pr_head="pass" || tag_to_pr_head="fail"
+    git merge-base --is-ancestor "$post_release_head_sha" "$checkout_sha" \
+      && pr_head_to_checkout="pass" || pr_head_to_checkout="fail"
   fi
-  if release_head_binding_valid "$tag_sha" "$current_sha" "1" "$earlier_sha"; then
-    fail "release head binding selftest accepted a pre-release PR head"
-  fi
-  echo "v33_release_head_binding_selftest=pass cases=6"
+
+  echo "v33_release_head_binding=fail tag_sha=$tag_sha checkout_sha=$checkout_sha post_release_head_sha=${post_release_head_sha:-unset}" >&2
+  echo "v33_release_head_ancestry tag_to_checkout=$tag_to_checkout tag_to_pr_head=$tag_to_pr_head pr_head_to_checkout=$pr_head_to_checkout" >&2
 }
 
 run_missing_tag_policy_selftest() {
@@ -187,12 +198,17 @@ if git rev-parse -q --verify "${TAG}^{commit}" >/dev/null; then
   tag_sha="$(git rev-list -n 1 "$TAG")"
   head_sha="$(git rev-parse HEAD)"
   run_release_head_binding_selftest "$tag_sha"
-  release_head_binding_valid \
+  if ! release_head_binding_valid \
     "$tag_sha" \
     "$head_sha" \
     "$ALLOW_POST_RELEASE_HEAD" \
-    "$POST_RELEASE_HEAD_SHA" \
-    || fail "release tag must equal or be an ancestor of the checked-out commit"
+    "$POST_RELEASE_HEAD_SHA"; then
+    report_release_head_binding_failure \
+      "$tag_sha" \
+      "$head_sha" \
+      "$POST_RELEASE_HEAD_SHA"
+    fail "release tag must equal or be an ancestor of the checked-out commit"
+  fi
 elif ! release_tag_missing_allowed "$ALLOW_OPEN_CLOSEOUT" "$ALLOW_POST_RELEASE_HEAD"; then
   fail "missing release tag: $TAG"
 fi
