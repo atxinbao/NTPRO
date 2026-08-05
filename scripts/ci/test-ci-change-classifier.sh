@@ -28,7 +28,7 @@ assert_output() {
 }
 
 docs_output="$(classify docs-only project.html README.md docs/product/roadmap.md)"
-for key in heavy_rust institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance security_workflow security_dependencies; do
+for key in heavy_rust institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance security_workflow security_dependencies frontend_app; do
   assert_output "$docs_output" "$key=false"
 done
 
@@ -50,6 +50,12 @@ assert_output "$strategy_output" "heavy_rust=true"
 assert_output "$strategy_output" "strategy_workbench=true"
 assert_output "$strategy_output" "institution_workbench=false"
 assert_output "$strategy_output" "control_center=false"
+
+frontend_output="$(classify frontend-app apps/strategy-workbench/src/pages/OverviewPage.tsx apps/strategy-workbench/package-lock.json)"
+assert_output "$frontend_output" "frontend_app=true"
+assert_output "$frontend_output" "heavy_rust=false"
+assert_output "$frontend_output" "strategy_workbench=false"
+assert_output "$frontend_output" "mvp_acceptance=false"
 
 cargo_output="$(classify cargo Cargo.lock)"
 assert_output "$cargo_output" "heavy_rust=true"
@@ -96,6 +102,7 @@ run_security_gate() {
   local pr_head_sha="$3"
   local push_before_sha="$4"
   local push_after_sha="$5"
+  local pr_merge_sha="${6:-}"
   local output="$tmp_dir/security-${case_name}.output"
   : >"$output"
   (
@@ -104,6 +111,7 @@ run_security_gate() {
       EVENT_NAME="$event_name" \
       PR_BASE_REF=main \
       PR_HEAD_SHA="$pr_head_sha" \
+      PR_MERGE_SHA="$pr_merge_sha" \
       PUSH_BEFORE_SHA="$push_before_sha" \
       PUSH_AFTER_SHA="$push_after_sha" \
       scripts/ci/security-audit-gate.sh >/dev/null
@@ -135,6 +143,19 @@ event_output="$(run_security_gate push-dependency push '' "$rename_head" "$depen
 assert_output "$event_output" "security_workflow=false"
 assert_output "$event_output" "security_dependencies=true"
 
+merge_tree="$(git -C "$fixture" rev-parse "${dependency_head}^{tree}")"
+merge_sha="$(printf '%s\n' 'synthetic pull request merge' | git -C "$fixture" commit-tree \
+  "$merge_tree" -p "$base_sha" -p "$dependency_head")"
+event_output="$(run_security_gate pr-merge-depth-two pull_request "$dependency_head" '' '' "$merge_sha")"
+assert_output "$event_output" "security_workflow=true"
+assert_output "$event_output" "security_dependencies=true"
+
+invalid_merge_sha="$(printf '%s\n' 'invalid synthetic merge' | git -C "$fixture" commit-tree \
+  "$merge_tree" -p "$dependency_head" -p "$base_sha")"
+event_output="$(run_security_gate pr-invalid-merge pull_request "$dependency_head" '' '' "$invalid_merge_sha")"
+assert_output "$event_output" "security_workflow=true"
+assert_output "$event_output" "security_dependencies=true"
+
 for event_name in schedule workflow_dispatch; do
   event_output="$(run_security_gate "$event_name" "$event_name" '' '' '')"
   assert_output "$event_output" "security_workflow=true"
@@ -162,4 +183,4 @@ if ! grep -F "cancel-in-progress: \${{ github.event_name == 'pull_request' }}" \
   exit 1
 fi
 
-echo "ci_change_classifier_selftest=pass cases=16"
+echo "ci_change_classifier_selftest=pass cases=19"

@@ -9,6 +9,7 @@ REPO="${NTPRO_RELEASE_REPOSITORY:-${GITHUB_REPOSITORY:-atxinbao/NTPRO}}"
 ALLOW_OPEN_CLOSEOUT="${NTPRO_V33_ALLOW_OPEN_CLOSEOUT:-${NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG:-0}}"
 ALLOW_OFFLINE="${NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE:-0}"
 ALLOW_POST_RELEASE_HEAD="${NTPRO_V33_ALLOW_POST_RELEASE_HEAD:-0}"
+POST_RELEASE_HEAD_SHA="${NTPRO_V33_POST_RELEASE_HEAD_SHA:-}"
 TAG="ntpro-rust-only-v0.33.0"
 
 fail() {
@@ -16,16 +17,69 @@ fail() {
   exit 1
 }
 
-release_head_binding_valid() {
+release_compare_payload_valid() {
+  local payload="$1"
+  local tag_sha="$2"
+  local head_sha="$3"
+
+  jq -e \
+    --arg tag_sha "$tag_sha" \
+    --arg head_sha "$head_sha" '
+      (.status == "ahead" or .status == "identical")
+      and .base_commit.sha == $tag_sha
+      and .merge_base_commit.sha == $tag_sha
+      and .behind_by == 0
+      and .ahead_by >= 0
+      and (
+        (
+          .status == "ahead"
+          and (.commits | length) > 0
+          and .commits[-1].sha == $head_sha
+        )
+        or (
+          .status == "identical"
+          and $head_sha == $tag_sha
+          and (.commits | length) == 0
+        )
+      )
+    ' <<<"$payload" >/dev/null
+}
+
+release_remote_ancestry_valid() {
   local tag_sha="$1"
   local head_sha="$2"
+  local payload
+
+  command -v gh >/dev/null 2>&1 || return 1
+  gh auth status >/dev/null 2>&1 || return 1
+  payload="$(gh api "repos/$REPO/compare/${tag_sha}...${head_sha}")" \
+    || return 1
+  release_compare_payload_valid "$payload" "$tag_sha" "$head_sha"
+}
+
+release_head_binding_valid() {
+  local tag_sha="$1"
+  local checkout_sha="$2"
   local allow_post_release_head="$3"
+  local post_release_head_sha="${4:-}"
 
   [[ "$allow_post_release_head" == "0" || "$allow_post_release_head" == "1" ]] \
     || return 1
-  [[ "$tag_sha" == "$head_sha" ]] && return 0
+  if [[ -n "$post_release_head_sha" ]]; then
+    [[ "$allow_post_release_head" == "1" ]] || return 1
+    git rev-parse -q --verify "${post_release_head_sha}^{commit}" >/dev/null \
+      || return 1
+    git merge-base --is-ancestor "$post_release_head_sha" "$checkout_sha" \
+      || return 1
+    git merge-base --is-ancestor "$tag_sha" "$post_release_head_sha" \
+      && return 0
+    release_remote_ancestry_valid "$tag_sha" "$post_release_head_sha"
+    return $?
+  fi
+
+  [[ "$tag_sha" == "$checkout_sha" ]] && return 0
   [[ "$allow_post_release_head" == "1" ]] || return 1
-  git merge-base --is-ancestor "$tag_sha" "$head_sha"
+  git merge-base --is-ancestor "$tag_sha" "$checkout_sha"
 }
 
 release_tag_missing_allowed() {
@@ -50,6 +104,27 @@ run_release_head_binding_selftest() {
   echo "v33_release_head_binding_selftest=pass cases=3"
 }
 
+report_release_head_binding_failure() {
+  local tag_sha="$1"
+  local checkout_sha="$2"
+  local post_release_head_sha="$3"
+  local tag_to_checkout="fail"
+  local tag_to_pr_head="not_checked"
+  local pr_head_to_checkout="not_checked"
+
+  git merge-base --is-ancestor "$tag_sha" "$checkout_sha" \
+    && tag_to_checkout="pass"
+  if [[ -n "$post_release_head_sha" ]]; then
+    git merge-base --is-ancestor "$tag_sha" "$post_release_head_sha" \
+      && tag_to_pr_head="pass" || tag_to_pr_head="fail"
+    git merge-base --is-ancestor "$post_release_head_sha" "$checkout_sha" \
+      && pr_head_to_checkout="pass" || pr_head_to_checkout="fail"
+  fi
+
+  echo "v33_release_head_binding=fail tag_sha=$tag_sha checkout_sha=$checkout_sha post_release_head_sha=${post_release_head_sha:-unset}" >&2
+  echo "v33_release_head_ancestry tag_to_checkout=$tag_to_checkout tag_to_pr_head=$tag_to_pr_head pr_head_to_checkout=$pr_head_to_checkout" >&2
+}
+
 run_missing_tag_policy_selftest() {
   release_tag_missing_allowed "1" "0" \
     || fail "missing tag policy selftest rejected pre-tag closeout"
@@ -60,6 +135,35 @@ run_missing_tag_policy_selftest() {
     fail "missing tag policy selftest accepted strict mode"
   fi
   echo "v33_missing_tag_policy_selftest=pass cases=3"
+}
+
+run_release_compare_payload_selftest() {
+  local tag_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  local head_sha="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  local valid_payload
+  local diverged_payload
+  local wrong_head_payload
+
+  valid_payload="$(jq -n --arg tag "$tag_sha" --arg head "$head_sha" '{
+    status: "ahead",
+    ahead_by: 2,
+    behind_by: 0,
+    base_commit: {sha: $tag},
+    merge_base_commit: {sha: $tag},
+    commits: [{sha: $head}]
+  }')"
+  diverged_payload="$(jq '.status = "diverged" | .behind_by = 1' <<<"$valid_payload")"
+  wrong_head_payload="$(jq '.commits[-1].sha = "cccccccccccccccccccccccccccccccccccccccc"' <<<"$valid_payload")"
+
+  release_compare_payload_valid "$valid_payload" "$tag_sha" "$head_sha" \
+    || fail "release compare payload selftest rejected an ahead commit"
+  if release_compare_payload_valid "$diverged_payload" "$tag_sha" "$head_sha"; then
+    fail "release compare payload selftest accepted diverged history"
+  fi
+  if release_compare_payload_valid "$wrong_head_payload" "$tag_sha" "$head_sha"; then
+    fail "release compare payload selftest accepted the wrong head"
+  fi
+  echo "v33_release_compare_payload_selftest=pass cases=3"
 }
 
 validate_manifest() {
@@ -112,6 +216,14 @@ validate_manifest() {
 command -v jq >/dev/null 2>&1 || fail "jq is required"
 [[ "$ALLOW_POST_RELEASE_HEAD" == "0" || "$ALLOW_POST_RELEASE_HEAD" == "1" ]] \
   || fail "NTPRO_V33_ALLOW_POST_RELEASE_HEAD must be 0 or 1"
+if [[ -n "$POST_RELEASE_HEAD_SHA" ]]; then
+  [[ "$ALLOW_POST_RELEASE_HEAD" == "1" ]] \
+    || fail "NTPRO_V33_POST_RELEASE_HEAD_SHA requires post-release mode"
+  [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]] \
+    || fail "NTPRO_V33_POST_RELEASE_HEAD_SHA is only valid for pull_request checks"
+  [[ "$POST_RELEASE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] \
+    || fail "NTPRO_V33_POST_RELEASE_HEAD_SHA must be a full commit SHA"
+fi
 validate_manifest "$MANIFEST" || fail "manifest structure or boundary mismatch"
 
 while IFS= read -r path; do
@@ -139,6 +251,7 @@ scripts/ai/check_backend_freeze_baseline.sh
 scripts/ai/check_release_surface_current.sh
 
 run_missing_tag_policy_selftest
+run_release_compare_payload_selftest
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
@@ -157,8 +270,17 @@ if git rev-parse -q --verify "${TAG}^{commit}" >/dev/null; then
   tag_sha="$(git rev-list -n 1 "$TAG")"
   head_sha="$(git rev-parse HEAD)"
   run_release_head_binding_selftest "$tag_sha"
-  release_head_binding_valid "$tag_sha" "$head_sha" "$ALLOW_POST_RELEASE_HEAD" \
-    || fail "release tag must equal or be an ancestor of the checked-out commit"
+  if ! release_head_binding_valid \
+    "$tag_sha" \
+    "$head_sha" \
+    "$ALLOW_POST_RELEASE_HEAD" \
+    "$POST_RELEASE_HEAD_SHA"; then
+    report_release_head_binding_failure \
+      "$tag_sha" \
+      "$head_sha" \
+      "$POST_RELEASE_HEAD_SHA"
+    fail "release tag must equal or be an ancestor of the checked-out commit"
+  fi
 elif ! release_tag_missing_allowed "$ALLOW_OPEN_CLOSEOUT" "$ALLOW_POST_RELEASE_HEAD"; then
   fail "missing release tag: $TAG"
 fi

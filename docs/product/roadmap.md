@@ -65,14 +65,16 @@ JavaScript，只消费 `GET /api/mvp/v1/status`。它证明页面框架和只读
 ```text
 FEA-001 前端架构文档
   -> FEF-001 React / TypeScript / Vite 工程底座
+  -> FEI-001 Axum 静态资源接入与旧页面迁移
   -> S0-API-001 Strategy / StrategyVersion / Run 只读产品合同
   -> SWB-002 策略总览与 Run 详情纵向切片
   -> S1-S4 三模式产品闭环
 ```
 
-`FEF-001` 与 `S0-API-001` 可以在合同确定后并行，`SWB-002` 必须同时依赖两者。不得先把
-全部栏目建设成使用假数据的空页面；fixture 只能用于组件和浏览器测试，生产页面必须绑定
-真实产品 API。Node.js 只用于前端开发与构建，生产运行时继续由 Rust/Axum 承担。
+`FEI-001` 依赖 `FEF-001`；`FEF-001` 与 `S0-API-001` 可以并行，`SWB-002` 必须同时
+依赖 `FEI-001` 与 `S0-API-001`。不得先把全部栏目建设成使用假数据的空页面；fixture
+只能用于组件和浏览器测试，生产页面必须绑定真实产品 API。Node.js 只用于前端开发与构建，
+生产运行时继续由 Rust/Axum 承担。
 
 ## 策略三模式 Roadmap
 

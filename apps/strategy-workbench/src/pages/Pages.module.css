@@ -1,0 +1,359 @@
+.pageHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.pageHeading h1 {
+  margin-top: 4px;
+  font-size: 19px;
+}
+
+.pageHeading p {
+  max-width: 760px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.blockedBadge {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border: 1px solid #75423e;
+  border-radius: 3px;
+  color: var(--red);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.connectionBanner {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border: 1px solid #665336;
+  border-left: 3px solid var(--amber);
+  background: #171d19;
+}
+
+.connectionBanner div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.connectionBanner strong {
+  font-size: 10px;
+}
+
+.connectionBanner span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connectionBanner em {
+  flex: 0 0 auto;
+  color: var(--amber);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.connectionReady {
+  border-color: #286c53;
+  border-left-color: var(--green);
+}
+
+.connectionReady em {
+  color: var(--green);
+}
+
+.connectionBlocked {
+  border-color: #75423e;
+  border-left-color: var(--red);
+}
+
+.connectionBlocked em {
+  color: var(--red);
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.metricGrid article {
+  min-width: 0;
+  min-height: 72px;
+  padding: 10px;
+  border-right: 1px solid var(--line);
+}
+
+.metricGrid article:last-child {
+  border-right: 0;
+}
+
+.metricGrid span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.metricGrid strong {
+  display: block;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 14px;
+}
+
+.metricGrid small {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--green);
+  font-size: 8px;
+}
+
+.warning {
+  color: var(--amber) !important;
+}
+
+.mainGrid,
+.statusGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(230px, 0.45fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.statusGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.panel > header {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel h2 {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.panel header > span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.modeProgress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--line);
+}
+
+.modeProgress article {
+  display: grid;
+  min-width: 0;
+  min-height: 66px;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  padding: 8px;
+  border-right: 1px solid var(--line);
+}
+
+.modeProgress article:last-child {
+  border-right: 0;
+}
+
+.modeProgress article > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid #456354;
+  border-radius: 50%;
+  color: var(--green);
+  font-size: 8px;
+}
+
+.modeProgress strong,
+.modeProgress small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.modeProgress strong {
+  font-size: 9px;
+}
+
+.modeProgress small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.modeProgress em {
+  color: var(--muted);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.modeStepActive {
+  background: #192720;
+}
+
+.modeStepBlocked > span,
+.modeStepBlocked em {
+  border-color: #75423e !important;
+  color: var(--red) !important;
+}
+
+.tableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.axisList {
+  display: grid;
+}
+
+.axisItem {
+  display: flex;
+  min-height: 45px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.axisItem:last-child {
+  border-bottom: 0;
+}
+
+.axisItem div {
+  display: grid;
+  gap: 3px;
+}
+
+.axisItem strong {
+  font-size: 9px;
+}
+
+.axisItem small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.axisItem span {
+  color: var(--green);
+  font-size: 8px;
+}
+
+.sourceRows {
+  display: grid;
+}
+
+.sourceRows div {
+  display: grid;
+  min-height: 45px;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.sourceRows div:last-child {
+  border-bottom: 0;
+}
+
+.sourceRows span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.sourceRows strong {
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 9px;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .pageHeading {
+    display: grid;
+  }
+
+  .blockedBadge {
+    justify-self: start;
+  }
+
+  .metricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metricGrid article:nth-child(2) {
+    border-right: 0;
+  }
+
+  .metricGrid article:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mainGrid,
+  .statusGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .modeProgress {
+    grid-template-columns: 1fr;
+  }
+
+  .modeProgress article {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .modeProgress article:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .metricGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .metricGrid article {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .metricGrid article:last-child {
+    border-bottom: 0;
+  }
+}

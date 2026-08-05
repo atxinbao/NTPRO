@@ -49,6 +49,34 @@ jobs:
           scripts/ci/classify-ci-changes.sh /tmp/changed-files.txt
       - name: CI change classifier self-test
         run: scripts/ci/test-ci-change-classifier.sh
+      - name: Set up frontend Node.js
+        if: steps.changes.outputs.frontend_app == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22.23.1'
+          cache: npm
+          cache-dependency-path: apps/strategy-workbench/package-lock.json
+      - name: Strategy workbench frontend gate
+        if: steps.changes.outputs.frontend_app == 'true'
+        working-directory: apps/strategy-workbench
+        run: |
+          npm ci
+          npm run audit
+          npm run format:check
+          npm run lint
+          npm run typecheck
+          npm run test
+          npm run build
+          npm run test:e2e
+      - name: Upload strategy workbench frontend evidence
+        if: always() && steps.changes.outputs.frontend_app == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: strategy-workbench-frontend-${{ github.event.pull_request.number }}
+          path: |
+            apps/strategy-workbench/test-results
+            apps/strategy-workbench/playwright-report
+          if-no-files-found: error
       - name: Format and toolchain check
         run: scripts/ai/verify_fast.sh
       - name: Release surface current guard
@@ -84,6 +112,8 @@ jobs:
           NTPRO_RELEASE_PUBLISH_AFTER_GATE_LIVE_CURRENT: "0"
           NTPRO_RELEASE_PUBLICATION_ALLOW_OFFLINE: "1"
           NTPRO_V33_ALLOW_POST_RELEASE_HEAD: "1"
+          NTPRO_V33_POST_RELEASE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           find scripts -type f \( -name '*.sh' -o -name '*.bash' \) -print0 | xargs -0 bash -n
           scripts/ai/verify_release.sh current-governance backend-freeze-baseline v33-maintenance-release
@@ -102,6 +132,7 @@ jobs:
         if: steps.changes.outputs.control_center == 'true'
         run: node scripts/ai/test_control_center_contract.mjs
       - name: MVP clean deterministic acceptance
+        id: mvp_acceptance
         if: steps.changes.outputs.mvp_acceptance == 'true'
         env:
           NTPRO_MVP_ACCEPTANCE_EVIDENCE_DIR: ${{ runner.temp }}/ntpro-mvp-acceptance-evidence
@@ -110,13 +141,14 @@ jobs:
           cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
           node scripts/ai/test_mvp_acceptance.mjs
       - name: Upload MVP acceptance evidence
-        if: always() && steps.changes.outputs.mvp_acceptance == 'true'
+        if: always() && steps.changes.outputs.mvp_acceptance == 'true' && steps.mvp_acceptance.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mvp-acceptance-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-mvp-acceptance-evidence
           if-no-files-found: error
       - name: MVP single-node fault matrix
+        id: mvp_fault_matrix
         if: steps.changes.outputs.mvp_fault_matrix == 'true'
         env:
           NTPRO_MVP_FAULT_EVIDENCE_DIR: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
@@ -135,13 +167,14 @@ jobs:
         if: steps.changes.outputs.mvp_final_acceptance == 'true'
         run: scripts/ai/check_mvp_freeze_baseline.sh
       - name: Upload MVP fault matrix evidence
-        if: always() && steps.changes.outputs.mvp_fault_matrix == 'true'
+        if: always() && steps.changes.outputs.mvp_fault_matrix == 'true' && steps.mvp_fault_matrix.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mvp-fault-matrix-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
           if-no-files-found: error
       - name: Product portal browser smoke
+        id: portal_browser
         if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.strategy_workbench == 'true' || steps.changes.outputs.control_center == 'true'
         run: |
           set -euo pipefail
@@ -171,21 +204,21 @@ jobs:
           fi
           exit "$portal_status"
       - name: Upload institution workbench browser evidence
-        if: always() && steps.changes.outputs.institution_workbench == 'true'
+        if: always() && steps.changes.outputs.institution_workbench == 'true' && steps.portal_browser.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: institution-workbench-browser-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-browser-evidence
           if-no-files-found: error
       - name: Upload control center browser evidence
-        if: always() && steps.changes.outputs.control_center == 'true'
+        if: always() && steps.changes.outputs.control_center == 'true' && steps.portal_browser.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: control-center-browser-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-control-center-browser-evidence
           if-no-files-found: error
       - name: Upload strategy workbench browser evidence
-        if: always() && steps.changes.outputs.strategy_workbench == 'true'
+        if: always() && steps.changes.outputs.strategy_workbench == 'true' && steps.portal_browser.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: strategy-workbench-browser-${{ github.event.pull_request.number }}
@@ -193,7 +226,8 @@ jobs:
           if-no-files-found: error
 
       - name: Build MVP final acceptance summary
-        if: always() && steps.changes.outputs.mvp_final_acceptance == 'true'
+        id: mvp_final_summary
+        if: always() && steps.changes.outputs.mvp_final_acceptance == 'true' && steps.mvp_acceptance.outcome != 'skipped' && steps.mvp_fault_matrix.outcome != 'skipped' && steps.portal_browser.outcome != 'skipped'
         env:
           FINAL_DIR: ${{ runner.temp }}/ntpro-mvp-final-acceptance
           ACCEPTANCE_RESULT: ${{ runner.temp }}/ntpro-mvp-acceptance-evidence/result.json
@@ -236,7 +270,7 @@ jobs:
           [[ "$status" == "pass" ]]
 
       - name: Upload MVP final acceptance summary
-        if: always() && steps.changes.outputs.mvp_final_acceptance == 'true'
+        if: always() && steps.changes.outputs.mvp_final_acceptance == 'true' && steps.mvp_final_summary.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mvp-final-acceptance-${{ github.event.pull_request.number }}
