@@ -11,9 +11,9 @@ NTPRO 当前只建设一个策略工作台：同一个不可变 `StrategyVersion
 Backtest、Demo（代码中的 Sandbox）和真实 Live，并在一个入口中完成配置、运行、观察、
 比较和复盘。
 
-Live 是必须交付的产品能力，不是可选远期设想。当前 v0.32.0 后端冻结基线和 v0.33.0
-维护版本仍禁止真实 Venue、真实订单和交易控件，因此“必达目标”和“当前未开放”必须
-同时成立。
+Live 是必须交付的产品能力，不是可选远期设想。v0.32.0 后端冻结基线保持有效。
+当前 v0.33.0 维护版本仍禁止真实 Venue、真实订单和交易控件，因此“必达目标”和
+“当前未开放”必须同时成立。
 
 ```text
 Strategy
@@ -123,6 +123,10 @@ M0-M4 已交付并冻结以下基础能力：
 MVP-013 / PR #1236 已完成并冻结 M4。No backend patch is scheduled. v0.32.0 继续由
 `backend-freeze-governance` 管理；S0-S4 属于 `v0.33.0+` separately scoped 产品能力，
 不改写冻结基线或自动继承真实交易权限。
+
+当前公开发布面是 `ntpro-rust-only-v0.33.0`, the v0.33.0 Backend Maintenance release。
+当前发布后治理轨道是 `backend-maintenance`。The next capability family is `v0.34.0+`；
+新能力仍必须单独立项，不从维护版本继承交易权限。
 
 这些能力是 S0-S4 的技术基础，不再作为当前产品北极星。历史任务、PR 和冻结证据继续
 保留在 `docs/rust-cutover/` 和 `docs/product/mvp_freeze_manifest.json`，不得因为产品

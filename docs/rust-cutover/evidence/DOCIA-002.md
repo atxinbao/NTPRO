@@ -46,6 +46,8 @@ Status: REVIEW_REQUIRED
   浏览器视口和 6 组性能工作负载保持有效；
 - `scripts/ai/check_backend_freeze_baseline.sh`：PASS，v0.32.0 tag/SHA、27 个关闭边界和
   4 个冻结源哈希保持有效；
+- `NTPRO_RELEASE_SURFACE_ALLOW_MISSING_TAG=1 scripts/ai/check_release_surface_current.sh`：
+  PASS，v0.33.0 当前发布面、backend-maintenance 与 v0.34.0+ 独立能力入口保持有效；
 - 桌面 `1440x1000`：PASS，页面宽度等于视口宽度，策略工作台、右侧抽屉和三模式状态
   可见；
 - 移动 `390x844`：PASS，页面宽度等于视口宽度，策略工作台宽 354px、左边距 18px，
