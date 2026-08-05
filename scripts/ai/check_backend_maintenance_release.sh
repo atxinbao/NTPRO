@@ -17,6 +17,46 @@ fail() {
   exit 1
 }
 
+release_compare_payload_valid() {
+  local payload="$1"
+  local tag_sha="$2"
+  local head_sha="$3"
+
+  jq -e \
+    --arg tag_sha "$tag_sha" \
+    --arg head_sha "$head_sha" '
+      (.status == "ahead" or .status == "identical")
+      and .base_commit.sha == $tag_sha
+      and .merge_base_commit.sha == $tag_sha
+      and .behind_by == 0
+      and .ahead_by >= 0
+      and (
+        (
+          .status == "ahead"
+          and (.commits | length) > 0
+          and .commits[-1].sha == $head_sha
+        )
+        or (
+          .status == "identical"
+          and $head_sha == $tag_sha
+          and (.commits | length) == 0
+        )
+      )
+    ' <<<"$payload" >/dev/null
+}
+
+release_remote_ancestry_valid() {
+  local tag_sha="$1"
+  local head_sha="$2"
+  local payload
+
+  command -v gh >/dev/null 2>&1 || return 1
+  gh auth status >/dev/null 2>&1 || return 1
+  payload="$(gh api "repos/$REPO/compare/${tag_sha}...${head_sha}")" \
+    || return 1
+  release_compare_payload_valid "$payload" "$tag_sha" "$head_sha"
+}
+
 release_head_binding_valid() {
   local tag_sha="$1"
   local checkout_sha="$2"
@@ -31,8 +71,10 @@ release_head_binding_valid() {
       || return 1
     git merge-base --is-ancestor "$post_release_head_sha" "$checkout_sha" \
       || return 1
-    git merge-base --is-ancestor "$tag_sha" "$post_release_head_sha"
-    return
+    git merge-base --is-ancestor "$tag_sha" "$post_release_head_sha" \
+      && return 0
+    release_remote_ancestry_valid "$tag_sha" "$post_release_head_sha"
+    return $?
   fi
 
   [[ "$tag_sha" == "$checkout_sha" ]] && return 0
@@ -93,6 +135,35 @@ run_missing_tag_policy_selftest() {
     fail "missing tag policy selftest accepted strict mode"
   fi
   echo "v33_missing_tag_policy_selftest=pass cases=3"
+}
+
+run_release_compare_payload_selftest() {
+  local tag_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  local head_sha="bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  local valid_payload
+  local diverged_payload
+  local wrong_head_payload
+
+  valid_payload="$(jq -n --arg tag "$tag_sha" --arg head "$head_sha" '{
+    status: "ahead",
+    ahead_by: 2,
+    behind_by: 0,
+    base_commit: {sha: $tag},
+    merge_base_commit: {sha: $tag},
+    commits: [{sha: $head}]
+  }')"
+  diverged_payload="$(jq '.status = "diverged" | .behind_by = 1' <<<"$valid_payload")"
+  wrong_head_payload="$(jq '.commits[-1].sha = "cccccccccccccccccccccccccccccccccccccccc"' <<<"$valid_payload")"
+
+  release_compare_payload_valid "$valid_payload" "$tag_sha" "$head_sha" \
+    || fail "release compare payload selftest rejected an ahead commit"
+  if release_compare_payload_valid "$diverged_payload" "$tag_sha" "$head_sha"; then
+    fail "release compare payload selftest accepted diverged history"
+  fi
+  if release_compare_payload_valid "$wrong_head_payload" "$tag_sha" "$head_sha"; then
+    fail "release compare payload selftest accepted the wrong head"
+  fi
+  echo "v33_release_compare_payload_selftest=pass cases=3"
 }
 
 validate_manifest() {
@@ -180,6 +251,7 @@ scripts/ai/check_backend_freeze_baseline.sh
 scripts/ai/check_release_surface_current.sh
 
 run_missing_tag_policy_selftest
+run_release_compare_payload_selftest
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
