@@ -3,10 +3,11 @@
 Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1245
+GitHub PR: #1246
 Risk: critical
 Owner role: Rust Product Surface Agent
 Review role: Verification & Release Gatekeeper
-Status: READY_FOR_PR
+Status: REVIEW_REQUIRED
 
 ## 目标
 

@@ -3,6 +3,7 @@
 Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1245
+GitHub PR: #1246
 Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
 
 ## 修改前基线
@@ -41,6 +42,8 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
 
 - `bash -n scripts/ci/classify-ci-changes.sh scripts/ci/security-audit-gate.sh scripts/ci/test-ci-change-classifier.sh`：PASS；
 - `scripts/ci/test-ci-change-classifier.sh`：PASS，`cases=7`；
+- `security-audit-gate.sh` 的真实 PR commit diff 与 schedule 事件模拟：PASS，PR 和定时
+  场景均按预期输出两类安全检查；
 - 五个 workflow YAML 解析：PASS；
 - `scripts/ai/verify_fast.sh`：PASS，Rust 与 Cargo 均固定为 `1.95.0`，fmt 通过；
 - `scripts/ai/check_docs_examples_governance.sh`：PASS，134 个 Markdown、315 个本地链接；
