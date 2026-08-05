@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <link rel="icon" href="data:,">
-  <title>NTPRO 项目与前端信息架构蓝图</title>
+  <title>NTPRO 项目说明</title>
   <style>
     :root {
       --canvas: #f4f6f3;
@@ -115,6 +115,40 @@
 
     .print-button:hover { background: #303b36; }
 
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .document-tabs {
+      display: flex;
+      align-items: center;
+      padding: 3px;
+      border: 1px solid #56645d;
+      border-radius: 5px;
+      background: #18211d;
+    }
+
+    .document-tab {
+      min-height: 30px;
+      padding: 5px 13px;
+      border: 0;
+      border-radius: 3px;
+      color: #b9c4be;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .document-tab:hover { color: #fff; }
+
+    .document-tab.active {
+      color: #12372a;
+      background: #9ce1c3;
+    }
+
     .layout {
       display: grid;
       grid-template-columns: var(--sidebar) minmax(0, 1fr);
@@ -139,6 +173,11 @@
       font-weight: 750;
       text-transform: uppercase;
     }
+
+    .nav-group { display: block; }
+
+    .nav-group[hidden],
+    main > .content > section[hidden] { display: none !important; }
 
     .nav-link {
       display: flex;
@@ -287,6 +326,115 @@
       color: var(--muted);
       font-size: 12px;
     }
+
+    .business-flow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 24px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .business-step {
+      position: relative;
+      min-height: 150px;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .business-step:nth-child(4n) { border-right: 0; }
+    .business-step:nth-child(-n+4) { border-bottom: 1px solid var(--line); }
+
+    .business-step small {
+      display: block;
+      margin-bottom: 9px;
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .business-step strong { display: block; font-size: 15px; }
+
+    .business-step span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .plain-portal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .plain-portal {
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .plain-portal.system { border-top: 4px solid var(--blue); }
+    .plain-portal.business { border-top: 4px solid var(--green); }
+    .plain-portal p { margin: 8px 0 0; color: var(--muted); }
+
+    .plain-list {
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .plain-list li {
+      padding: 9px 0;
+      border-top: 1px solid var(--line);
+      color: #34433b;
+    }
+
+    .plain-list li::before {
+      content: "✓";
+      margin-right: 8px;
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .handoff-strip {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 18px;
+      margin-top: 18px;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      background: var(--surface-2);
+    }
+
+    .handoff-strip strong { display: block; }
+    .handoff-strip span { color: var(--muted); font-size: 12px; }
+    .handoff-arrow { color: var(--green); font-size: 22px; font-weight: 800; }
+
+    .technical-details {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .technical-details > summary {
+      padding: 14px 16px;
+      color: #34433b;
+      cursor: pointer;
+      font-weight: 760;
+    }
+
+    .technical-details[open] > summary { border-bottom: 1px solid var(--line); }
+    .technical-details > .diagram,
+    .technical-details > .module-table-wrap,
+    .technical-details > .acceptance-grid,
+    .technical-details > .source-list { margin: 18px; }
 
     .section-head {
       display: flex;
@@ -1754,11 +1902,16 @@
       .product-panel:last-child { min-height: 110px; }
       .style-contract { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .style-contract div { border-bottom: 1px solid var(--line); }
+      .business-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .business-step:nth-child(2n) { border-right: 0; }
+      .business-step:nth-child(n+5) { border-bottom: 0; }
     }
 
     @media (max-width: 820px) {
       .topbar { padding: 0 14px; }
       .brand-meta { display: none; }
+      .topbar-actions { gap: 8px; }
+      .document-tab { padding-inline: 10px; }
       .layout { display: block; }
       .sidebar {
         position: sticky;
@@ -1775,6 +1928,11 @@
       }
       .sidebar-label,
       .sidebar-note { display: none; }
+      .nav-group:not([hidden]) {
+        display: flex;
+        flex: 0 0 auto;
+        gap: 4px;
+      }
       .nav-link {
         flex: 0 0 auto;
         min-height: 34px;
@@ -1879,21 +2037,26 @@
       .phase-body { grid-column: 2; }
       .exit-gate { grid-column: 2; }
       .verification { grid-template-columns: 1fr; gap: 4px; }
+      .plain-portal-grid { grid-template-columns: 1fr; }
+      .handoff-strip { grid-template-columns: 1fr; }
+      .handoff-arrow { transform: rotate(90deg); justify-self: center; }
     }
 
     @media (max-width: 560px) {
       .sidebar {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        overflow-x: visible;
+        display: flex;
+        overflow-x: auto;
       }
       .nav-link {
-        min-width: 0;
+        min-width: auto;
         padding-inline: 4px;
         text-align: center;
-        white-space: normal;
+        white-space: nowrap;
       }
       .print-button { display: none; }
+      .brand-name { font-size: 14px; }
+      .brand-mark { display: none; }
+      .document-tab { padding-inline: 8px; font-size: 12px; }
       h1 { font-size: 26px; }
       h2 { font-size: 21px; }
       section { padding: 34px 0; }
@@ -1917,6 +2080,15 @@
       .mvp-canvas { padding: 12px; }
       .arch-nodes,
       .stack-items { grid-template-columns: 1fr; }
+      .business-flow { grid-template-columns: 1fr; }
+      .business-step,
+      .business-step:nth-child(2n),
+      .business-step:nth-child(4n) {
+        min-height: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .business-step:last-child { border-bottom: 0; }
     }
 
     @media print {
@@ -1932,6 +2104,8 @@
       .diagram, .summary-callout { box-shadow: none; }
       .roadmap::before { display: none; }
       .phase { break-inside: avoid; }
+      main > .content > section[hidden] { display: block !important; }
+      .technical-details > * { display: block !important; }
       a { text-decoration: none; }
     }
   </style>
@@ -1941,75 +2115,156 @@
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">NT</div>
       <div>
-        <p class="brand-name">NTPRO / 机构系统化交易平台蓝图</p>
-        <p class="brand-meta">审计代码面：MVP-012 merge · 正式发布：v0.33.0 · 2026-08-05</p>
+        <p class="brand-name">NTPRO / 项目说明</p>
+        <p class="brand-meta">产品怎么用 · 系统怎么实现 · 2026-08-05</p>
       </div>
     </div>
-    <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
+    <div class="topbar-actions">
+      <nav class="document-tabs" aria-label="项目说明类型">
+        <button class="document-tab active" type="button" data-document-part="product" aria-selected="true">产品说明</button>
+        <button class="document-tab" type="button" data-document-part="technical" aria-selected="false">技术说明</button>
+      </nav>
+      <button class="print-button" type="button" onclick="window.print()">打印 / 导出 PDF</button>
+    </div>
   </header>
 
   <div class="layout">
     <aside class="sidebar" aria-label="文档导航">
-      <p class="sidebar-label">产品蓝图</p>
-      <a class="nav-link active" href="#overview">项目结论</a>
-      <a class="nav-link" href="#frontend-ia">前端信息架构</a>
-      <a class="nav-link" href="#backend">后端架构</a>
-      <a class="nav-link" href="#terminal-gap">终端缺口</a>
-      <a class="nav-link" href="#terminal-target">产品框架</a>
-      <a class="nav-link" href="#roadmap">MVP 北极星</a>
-      <a class="nav-link" href="#acceptance">验收体系</a>
-      <a class="nav-link" href="#evidence">证据与来源</a>
+      <p class="sidebar-label" id="sidebar-title">产品说明</p>
+      <nav class="nav-group" data-nav-part="product" aria-label="产品说明导航">
+        <a class="nav-link active" href="#overview">项目是什么</a>
+        <a class="nav-link" href="#product-operation">怎么商业运营</a>
+        <a class="nav-link" href="#product-portals">两个门户</a>
+        <a class="nav-link" href="#frontend-ia">产品信息架构</a>
+        <a class="nav-link" href="#roadmap">产品路线</a>
+      </nav>
+      <nav class="nav-group" data-nav-part="technical" aria-label="技术说明导航" hidden>
+        <a class="nav-link" href="#backend">系统拓扑</a>
+        <a class="nav-link" href="#terminal-gap">运行链路</a>
+        <a class="nav-link" href="#terminal-target">合同与接口</a>
+        <a class="nav-link" href="#acceptance">边界与验证</a>
+        <a class="nav-link" href="#evidence">代码入口</a>
+      </nav>
       <a class="nav-link" href="changelog.html">项目变更记录</a>
       <div class="sidebar-note">
-        本文档只描述当前代码事实与建议的下一阶段边界，不把 release 合同误写成已经上线的运行时能力。
+        产品说明面向所有人；技术说明面向研发、架构、运维和审计。两部分都不会把规划写成已经交付的能力。
       </div>
     </aside>
 
     <main>
       <div class="content">
-        <section id="overview">
-          <p class="eyebrow">从后端冻结基线到机构产品</p>
-          <h1>一个系统化交易平台，两个职责清晰的产品门户。</h1>
+        <section id="overview" data-document-part="product">
+          <p class="eyebrow">产品说明 · 所有人都能看懂</p>
+          <h1>帮助机构把策略从研究带到运行，并持续看清交易和系统状态。</h1>
           <p class="lead">
-            当前代码已具备事件驱动交易内核、策略与回测能力、统一读模型、运行监督器、本地仪表盘，以及已挂载的 v0.28 治理与运维只读接口。下一阶段不是把所有能力塞进一个策略页面，而是分别建设面向机构业务用户的工作台和面向平台控制团队的控制中心。
+            NTPRO 面向量化自营、系统化对冲基金、做市和多策略交易团队。交易员和研究员在机构工作台管理策略与业务状态，运维和风控在控制中心管理系统运行；两个门户看到的是同一套事实，但各自只做职责范围内的事情。
           </p>
           <div class="status-row" aria-label="项目状态">
             <span class="status ok">v0.33.0 后端维护版已发布</span>
             <span class="status ok">v0.32.0 后端冻结基线保持有效</span>
-            <span class="status ok">MVP-001 单节点运行基线已合并</span>
-            <span class="status ok">M0 身份与四轴状态实现已交付</span>
-            <span class="status ok">M2 共享只读 API 已交付</span>
-            <span class="status ok">MVP-006 机构工作台已合并</span>
-            <span class="status ok">MVP-007 控制中心已合并，M2 已完成</span>
-            <span class="status ok">MVP-010 生命周期动作已合并，M3 已完成</span>
-            <span class="status ok">TTR-001 / TTR-002 已合并</span>
-            <span class="status ok">MVP-012 故障矩阵已合并</span>
-            <span class="status info">MVP-013 最终验收与冻结</span>
+            <span class="status ok">单节点 MVP：M0-M4 已完成并冻结</span>
+            <span class="status info">当前是本地沙盒，不是真实交易系统</span>
           </div>
 
           <div class="summary-callout">
-            <strong>最重要的判断</strong>
-            NTPRO 面向量化自营、系统化对冲基金、做市和多策略交易团队。机构工作台承接组合、交易、策略研发、回测和业务风险；控制中心承接组织权限、模型审批、数据账户、部署运维和审计。共享控制平面只提供统一事实与交接合同，不是第三个产品，也不授权真实交易。
+            <strong>产品解决什么问题</strong>
+            把策略研发、回测验证、运行观察、交易监控、风险判断和系统运维连接起来，让业务人员知道“策略正在发生什么”，让技术人员知道“系统为什么是这个状态”。
           </div>
 
           <div class="summary-callout">
-            <strong>MVP 当前进度与北极星</strong>
-            PR #1198 已交付一个 Supervisor 管理一个 <code>ntpro-node</code> 的运行基线；MVP-003/004 已交付身份追溯与四轴状态合同，MVP-005 已交付共享只读状态 API，MVP-006/007 已完成双门户只读消费，MVP-008/009/010 已完成事件关联、角色边界和本地生命周期动作，MVP-011/012 已完成确定性闭环和真实故障矩阵；MVP-013 正在执行浏览器、性能、发布/回滚与最终冻结，多节点编排和真实交易继续后置。
+            <strong>当前真实能力</strong>
+            当前可以在本机启动一个 Supervisor 和一个沙盒节点，运行一个策略实例，并通过两个只读门户查看状态。真实交易、多节点生产调度、自动故障转移和产品级实盘终端尚未交付。
           </div>
 
           <div class="metric-grid" aria-label="项目指标">
-            <div class="metric"><span class="metric-value">42</span><span class="metric-label">Cargo 工作区包</span></div>
-            <div class="metric"><span class="metric-value">17</span><span class="metric-label">交易所 / 数据适配器包</span></div>
-            <div class="metric"><span class="metric-value">1,954</span><span class="metric-label">Rust 源文件</span></div>
-            <div class="metric"><span class="metric-value">1.19M</span><span class="metric-label">Rust 代码行（含测试）</span></div>
-            <div class="metric"><span class="metric-value">90.6K</span><span class="metric-label">命令行与本地仪表盘源码行</span></div>
+            <div class="metric"><span class="metric-value">1</span><span class="metric-label">统一机构交易平台</span></div>
+            <div class="metric"><span class="metric-value">2</span><span class="metric-label">职责分开的产品门户</span></div>
+            <div class="metric"><span class="metric-value">4</span><span class="metric-label">独立判断的状态维度</span></div>
+            <div class="metric"><span class="metric-value">1</span><span class="metric-label">当前沙盒节点基线</span></div>
+            <div class="metric"><span class="metric-value">0</span><span class="metric-label">当前允许的真实订单</span></div>
           </div>
         </section>
 
-        <section id="frontend-ia">
+        <section id="product-operation" data-document-part="product">
           <div class="section-head">
             <div>
-              <p class="eyebrow">机构产品信息架构 · 第八版</p>
+              <p class="eyebrow">产品说明 · 商业运营</p>
+              <h2>正常运营是一条持续闭环，不是启动节点就结束</h2>
+              <p class="section-intro">客户、策略、审批、运行、监控、对账和复盘必须连续起来，每一步都有明确责任人和可追溯记录。</p>
+            </div>
+          </div>
+
+          <div class="business-flow" aria-label="机构交易商业运营流程">
+            <div class="business-step"><small>01</small><strong>客户与账户准备</strong><span>建立机构、用户、账户、交易场所、数据范围和风险额度。</span></div>
+            <div class="business-step"><small>02</small><strong>策略研发与回测</strong><span>研究策略、固定版本，用历史数据验证结果和风险。</span></div>
+            <div class="business-step"><small>03</small><strong>独立审批</strong><span>风控和审批人员确认策略、账户、限额和运行范围。</span></div>
+            <div class="business-step"><small>04</small><strong>部署与启动</strong><span>运维把批准的策略实例部署到合适的运行节点。</span></div>
+            <div class="business-step"><small>05</small><strong>盘中交易与观察</strong><span>交易员看订单、成交、仓位和风险，运维看节点、连接和告警。</span></div>
+            <div class="business-step"><small>06</small><strong>故障与人工恢复</strong><span>先停止扩大影响，再核对外部账户和内部状态，确认后恢复。</span></div>
+            <div class="business-step"><small>07</small><strong>收盘对账与报告</strong><span>核对订单、成交、持仓、资金、费用和系统记录。</span></div>
+            <div class="business-step"><small>08</small><strong>复盘与迭代</strong><span>评估策略和系统表现，经过同样流程发布下一版本。</span></div>
+          </div>
+
+          <div class="summary-callout">
+            <strong>这是商业运营目标，不是当前能力声明</strong>
+            当前 MVP 只完成本地沙盒单节点、共享只读状态、双门户观察和人工 start/stop。客户生产账户、真实交易、收盘清算、多节点调度和故障转移仍需后续独立建设与授权。
+          </div>
+
+          <div class="decision-grid">
+            <div class="decision"><h3>策略不能自己批准自己</h3><p>研究、审批、部署和运行由不同职责完成，避免一个人同时创造规则又绕过规则。</p></div>
+            <div class="decision"><h3>系统健康不等于允许交易</h3><p>页面正常、进程存活和回测完成，都不能代替明确的风险与交易授权。</p></div>
+            <div class="decision"><h3>故障恢复前先对账</h3><p>节点故障后先确认真实订单和持仓，避免在其他节点恢复时产生重复交易。</p></div>
+          </div>
+        </section>
+
+        <section id="product-portals" data-document-part="product">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">产品说明 · 目标用户入口</p>
+              <h2>前台服务交易业务，后台保障系统运行</h2>
+              <p class="section-intro">以下是商业产品的职责定位，不是当前完成度清单。不是每个 node 配一个工作台；目标是一套机构工作台聚合策略和账户，一套控制中心管理所有运行节点。</p>
+            </div>
+          </div>
+
+          <div class="plain-portal-grid">
+            <article class="plain-portal business">
+              <h3>机构工作台</h3>
+              <p>给交易员、研究员、组合负责人和业务风控使用。</p>
+              <ul class="plain-list">
+                <li>管理策略版本、回测结果和发布申请</li>
+                <li>查看账户、持仓、订单、成交和盈亏</li>
+                <li>查看业务风险、拒绝原因和影响范围</li>
+                <li>从业务异常跳转到同一事件的技术状态</li>
+              </ul>
+            </article>
+            <article class="plain-portal system">
+              <h3>平台控制中心</h3>
+              <p>给平台管理员、技术运维、独立风控和审计使用。</p>
+              <ul class="plain-list">
+                <li>管理组织、权限、账户、数据源和配置</li>
+                <li>管理节点、策略部署、连接和运行状态</li>
+                <li>查看日志、指标、告警、变更和审计证据</li>
+                <li>按批准流程停止、恢复或回滚运行实例</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="handoff-strip" aria-label="双门户协作方式">
+            <div><strong>机构工作台发现业务影响</strong><span>哪个策略、账户、订单或持仓出现问题</span></div>
+            <div class="handoff-arrow" aria-hidden="true">↔</div>
+            <div><strong>控制中心定位技术原因</strong><span>哪个节点、连接、部署或组件导致问题</span></div>
+          </div>
+
+          <div class="summary-callout">
+            <strong>继续了解系统怎么运行</strong>
+            日常启动、巡检、停止和故障处理见 <a href="docs/product/ntpro_system_operations_manual.md">《NTPRO 系统运行与运营操作说明书》</a>。需要查看代码架构、API、状态合同和验收证据时，切换到顶部“技术说明”。
+          </div>
+        </section>
+
+        <section id="frontend-ia" data-document-part="product">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">产品说明 · 详细信息架构</p>
               <h2>一个平台，两个门户，一个共享控制平面</h2>
               <p class="section-intro">
                 产品按责任和决策类型分开，而不是为每个岗位建立独立系统。机构工作台服务投资与交易业务，控制中心服务独立治理与平台运行；策略状态、审批、部署和事件通过同一控制合同交接。
@@ -2447,15 +2702,29 @@
           </div>
         </section>
 
-        <section id="backend">
+        <section id="backend" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">当前后端架构</p>
-              <h2>当前后端架构图</h2>
-              <p class="section-intro">依赖方向来自 Cargo metadata、crate 入口和关键 runtime 文件。横向表示同层职责，纵向表示主要事件与控制流。</p>
+              <p class="eyebrow">技术说明 · 系统拓扑</p>
+              <h2>当前交付的是本地单节点沙盒</h2>
+              <p class="section-intro">代码入口为 <code>nautilus mvp serve</code>。一个进程内的 <code>MvpRuntime</code> 使用 <code>SupervisorRegistryStore</code> 注册并启动一个 <code>ntpro-node</code>，随后启动 Axum HTTP 服务提供两个门户。</p>
             </div>
           </div>
 
+          <div class="gap-flow" aria-label="当前 MVP 系统拓扑">
+            <div class="gap-step"><span class="step-number">1</span><h3>CLI 入口</h3><p><code>nautilus mvp serve</code> 读取沙盒节点配置和本地工作目录。</p></div>
+            <div class="gap-step"><span class="step-number">2</span><h3>Supervisor 存储</h3><p><code>SupervisorRegistryStore</code> 管理节点注册、进程状态、日志与指标文件。</p></div>
+            <div class="gap-step"><span class="step-number">3</span><h3>单个节点</h3><p>一个 <code>ntpro-node</code> 承载一个策略实例、一个沙盒账户和一个 Venue。</p></div>
+            <div class="gap-step"><span class="step-number">4</span><h3>Axum 门户</h3><p>同一 HTTP 服务提供机构工作台、控制中心和版本化 MVP API。</p></div>
+          </div>
+
+          <div class="summary-callout">
+            <strong>部署边界</strong>
+            当前没有远程 node agent、共享注册中心、多主机调度或自动故障转移。一个节点也不等于一套工作台；两个门户是同一运行实例上的集中视图。
+          </div>
+
+          <details class="technical-details">
+            <summary>展开完整 Rust 仓库模块图（不代表全部模块已进入 MVP）</summary>
           <div class="diagram" aria-label="NTPRO 当前后端架构图">
             <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>审计代码面：MVP-010 merge <code>97fdd88a82fa</code>；正式发布基线：v0.33.0 <code>0ef6fd9d8577</code></span></div>
             <div class="architecture-flow">
@@ -2531,33 +2800,60 @@
               </tbody>
             </table>
           </div>
+          </details>
         </section>
 
-        <section id="terminal-gap">
+        <section id="terminal-gap" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">后端到双门户产品的交接</p>
-              <h2>后端与产品前端之间还差什么</h2>
-              <p class="section-intro">TTR-001/002 已解决治理接口挂载和原始事件存储隔离，但业务接口、机构身份和实时增量仍需独立产品化。</p>
+              <p class="eyebrow">技术说明 · 运行链路</p>
+              <h2>一次启动如何变成两个可访问门户</h2>
+              <p class="section-intro">以下顺序直接对应 <code>crates/cli/src/mvp.rs</code>，描述当前代码行为，不是未来架构设想。</p>
             </div>
           </div>
           <div class="gap-flow">
-            <div class="gap-step"><span class="step-number">1</span><h3>机构对象合同</h3><p>固定机构、交易台、账簿、组合、策略、账户、部署和运行实例的标识与关系。</p></div>
-            <div class="gap-step"><span class="step-number">2</span><h3>业务查询接口</h3><p>把账户、仓位、订单、成交、风险、策略和回测投影成稳定、分页、可追溯的产品接口。</p></div>
-            <div class="gap-step"><span class="step-number">3</span><h3>身份与数据范围</h3><p>将角色、机构范围、环境和授权写入服务端合同，不能只靠前端隐藏菜单。</p></div>
-            <div class="gap-step"><span class="step-number">4</span><h3>实时与交接</h3><p>用快照和增量流承载业务状态，并用统一事件编号连接业务影响、技术根因和审计证据。</p></div>
+            <div class="gap-step"><span class="step-number">1</span><h3>注册并启动</h3><p><code>MvpRuntime::start</code> 注册节点，再通过 <code>start_node_process</code> 启动子进程。</p></div>
+            <div class="gap-step"><span class="step-number">2</span><h3>生成本地事实</h3><p>写入 registry、identity contract、status contract、节点状态、指标和日志。</p></div>
+            <div class="gap-step"><span class="step-number">3</span><h3>启动 HTTP 服务</h3><p><code>run_dashboard_command</code> 挂载门户静态资源、只读查询和受限 start/stop 动作。</p></div>
+            <div class="gap-step"><span class="step-number">4</span><h3>持续刷新与退出</h3><p>运行时定期刷新状态；Ctrl-C、服务错误或状态刷新失败都会进入节点停止流程。</p></div>
+          </div>
+          <div class="summary-callout">
+            <strong>默认启动参数</strong>
+            配置 <code>configs/nodes/btc-ema-shadow.toml</code>，工作目录 <code>target/ntpro-mvp</code>，节点 <code>mvp-node-001</code>，监听 <code>127.0.0.1:5173</code>。这些默认值定义在 <code>crates/cli/src/opt.rs</code>。
           </div>
         </section>
 
-        <section id="terminal-target">
+        <section id="terminal-target" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">目标产品框架</p>
-              <h2>双门户与共享控制平面的目标框架</h2>
-              <p class="section-intro">机构工作台和控制中心共享身份、状态、审批、事件和审计合同，但使用不同查询投影与权限边界；Rust 引擎继续作为唯一交易语义来源。</p>
+              <p class="eyebrow">技术说明 · 合同与接口</p>
+              <h2>两个门户共享状态事实，权限和操作范围不同</h2>
+              <p class="section-intro">路由由 <code>crates/cli/src/dashboard/server.rs</code> 挂载；状态语义由 <code>crates/cli/src/mvp_contract.rs</code> 定义。</p>
             </div>
           </div>
 
+          <div class="module-table-wrap">
+            <table>
+              <thead><tr><th>接口</th><th>消费者</th><th>当前用途</th></tr></thead>
+              <tbody>
+                <tr><td><code>GET /api/mvp/v1/status</code></td><td>两个门户</td><td>读取共享的策略、账户、运行和健康状态</td></tr>
+                <tr><td><code>GET /api/mvp/v1/event-correlation</code></td><td>两个门户</td><td>用同一事件编号连接业务影响与技术根因</td></tr>
+                <tr><td><code>GET /api/mvp/v1/control-center</code></td><td>控制中心</td><td>读取单节点运维投影</td></tr>
+                <tr><td><code>POST .../actions/start</code></td><td>控制中心</td><td>启动当前本地沙盒节点</td></tr>
+                <tr><td><code>POST .../actions/stop</code></td><td>控制中心</td><td>停止当前本地沙盒节点</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mvp-principles" aria-label="MVP 四轴状态合同">
+            <div class="mvp-principle"><small>research</small><strong>研究引用</strong><span>策略版本和回测引用是否绑定，不代表策略已获生产批准。</span></div>
+            <div class="mvp-principle"><small>runtime</small><strong>运行状态</strong><span>running、stopped、transitioning 或 unknown。</span></div>
+            <div class="mvp-principle"><small>technical_health</small><strong>技术健康</strong><span>healthy、degraded、unhealthy、not_running 或 unknown。</span></div>
+            <div class="mvp-principle"><small>trading_readiness</small><strong>交易准备度</strong><span>当前代码只能是 blocked，不能由 HTTP 成功或进程存活推导。</span></div>
+          </div>
+
+          <details class="technical-details">
+            <summary>展开未来商业产品目标框架（尚未交付）</summary>
           <div class="diagram" aria-label="NTPRO 目标终端架构图">
             <div class="diagram-caption"><span>红色左边框为新增边界；绿色为直接复用；蓝色为后置能力</span><span>网页优先 / 桌面封装后置</span></div>
             <div class="target-stack">
@@ -2606,14 +2902,15 @@
             <div class="decision"><h3>为什么控制平面不是第三个产品</h3><p>它只保存权威身份、状态、审批、事件和审计事实，并向两个门户投影；没有独立用户旅程，也不能成为第二套交易状态源。</p></div>
             <div class="decision"><h3>为什么命令门禁必须独立</h3><p>查询与操作承担不同风险；写命令必须经过独立授权、审批、风控、幂等和审计，不能由只读页面能力自动继承。</p></div>
           </div>
+          </details>
         </section>
 
-        <section id="roadmap">
+        <section id="roadmap" data-document-part="product">
           <div class="section-head">
             <div>
               <p class="eyebrow">当前产品北极星</p>
               <h2>在单节点运行基线上完成产品 MVP</h2>
-              <p class="section-intro">PR #1198 已交付一个 Supervisor + 一个节点的运行入口，MVP-003/004/005 已交付对象追溯、四轴状态和共享只读 API；当前只补齐双门户消费与最小界面。多节点平台、分布式调度、真实交易和完整门户能力不进入当前 MVP。</p>
+              <p class="section-intro">PR #1198 至 #1236 已完成单 Supervisor + 单节点运行、对象追溯、四轴状态、共享只读 API、双门户、故障矩阵、浏览器和性能验收。M0-M4 已完成并冻结；多节点平台、分布式调度和真实交易必须独立立项。</p>
             </div>
           </div>
 
@@ -2716,30 +3013,45 @@
 
             <article class="phase">
               <div class="phase-dot">M4</div>
-              <div class="phase-time">验收冻结 · 最终候选</div>
+              <div class="phase-time">验收冻结 · 已完成</div>
               <div class="phase-body">
                 <h3>可重复演示与审计</h3>
-                <p>MVP-011/012 已证明干净确定性闭环和 11-case 故障恢复；MVP-013 在同一 final head 完成双门户浏览器、性能和冻结治理。</p>
+                <p>MVP-011/012 已证明干净确定性闭环和 11-case 故障恢复；MVP-013 已在同一 final head 完成双门户浏览器、性能和冻结治理，并由 PR #1236 合并生效。</p>
                 <ul>
                   <li>验证确定性回测、单节点运行、异常退出和恢复。</li>
                   <li>验证空、错误、陈旧、降级、未授权和身份不匹配状态。</li>
                   <li>完成浏览器、性能基线、发布说明和回滚说明。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件 · MVP-013 合并生效</strong>final head 的五类 MVP artifact、六组性能 job、required checks 和独立审查全部通过后，完整 MVP 冻结；真实交易保持关闭；后续能力重新独立立项。</div>
+              <div class="exit-gate"><strong>退出条件 · 已满足</strong>final head 的五类 MVP artifact、六组性能 job、required checks 和独立审查全部通过，PR #1236 已合并，完整 MVP 已冻结；真实交易保持关闭；后续能力重新独立立项。</div>
             </article>
           </div>
         </section>
 
-        <section id="acceptance">
+        <section id="acceptance" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">验收合同</p>
-              <h2>后续工作的验收体系</h2>
-              <p class="section-intro">不能只用“页面打开了”作为完成标准。机构工作台、控制中心和共享控制合同必须分别通过用户任务、权限、状态语义和证据链验收。</p>
+              <p class="eyebrow">技术说明 · 边界与验证</p>
+              <h2>MVP 已冻结，但真实交易能力仍为关闭</h2>
+              <p class="section-intro">权威边界来自 <code>docs/product/mvp_freeze_manifest.json</code>。当前冻结拓扑为一个 Supervisor、一个节点、一个策略实例、一个账户、一个 Venue 和 sandbox 环境。</p>
             </div>
           </div>
 
+          <div class="status-row" aria-label="MVP 冻结边界">
+            <span class="status ok">M0-M4 complete / frozen</span>
+            <span class="status info">机构工作台只读</span>
+            <span class="status info">控制中心仅 start / stop</span>
+            <span class="status info">真实订单与外部 Venue 关闭</span>
+            <span class="status info">多节点编排与自动恢复关闭</span>
+          </div>
+
+          <div class="summary-callout">
+            <strong>验证入口</strong>
+            确定性闭环、11 项故障矩阵、两个浏览器视口和 6 组性能工作负载已经登记在冻结清单；后续改动必须单独立项，并同步风险、回滚证据和冻结清单。
+          </div>
+
+          <details class="technical-details">
+            <summary>展开完整验收维度</summary>
           <div class="acceptance-grid">
             <div class="acceptance"><p class="acceptance-kicker">接口</p><h3>接口验收</h3><ul class="acceptance-list"><li>数据模式与客户端开发包同源生成</li><li>破坏性变更有迁移说明</li><li>时效、错误和降级语义完整</li><li>页面不读取未声明字段</li></ul></div>
             <div class="acceptance"><p class="acceptance-kicker">行为</p><h3>行为验收</h3><ul class="acceptance-list"><li>快照与增量流合并确定</li><li>断线、乱序、重复事件可处理</li><li>命令幂等且状态可追踪</li><li>风险拒绝不能被页面绕过</li></ul></div>
@@ -2748,17 +3060,28 @@
             <div class="acceptance"><p class="acceptance-kicker">状态</p><h3>状态验收</h3><ul class="acceptance-list"><li>研究、治理、准备度和技术健康独立</li><li>接口成功不等于运行健康</li><li>审批通过不等于自动部署</li><li>回测完成不等于盈利或生产准入</li></ul></div>
             <div class="acceptance"><p class="acceptance-kicker">发布</p><h3>发布验收</h3><ul class="acceptance-list"><li>网页与桌面版本使用同一合同</li><li>后端、开发包和页面版本可追溯</li><li>升级与回滚路径经过验证</li><li>发布声明不超过实际能力</li></ul></div>
           </div>
+          </details>
         </section>
 
-        <section id="evidence">
+        <section id="evidence" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">证据与来源</p>
-              <h2>项目证据与验证结果</h2>
-              <p class="section-intro">当前发布与远端合并事实优先于历史计划；运行时合同和测试证明已有能力；本页只定义目标产品，不把设计稿当作实现证据。</p>
+              <p class="eyebrow">技术说明 · 代码入口</p>
+              <h2>从五个入口核对文档与实现</h2>
+              <p class="section-intro">产品描述必须能回到当前源码或冻结清单。历史计划和设计稿不能覆盖代码事实。</p>
             </div>
           </div>
 
+          <ul class="source-list">
+            <li><a href="crates/cli/src/mvp.rs"><code>mvp.rs</code>：MVP 启动、状态刷新与退出回收</a></li>
+            <li><a href="crates/cli/src/supervisor.rs"><code>supervisor.rs</code>：节点注册、进程生命周期与本地 registry</a></li>
+            <li><a href="crates/cli/src/mvp_contract.rs"><code>mvp_contract.rs</code>：身份、四轴状态、来源与关闭边界</a></li>
+            <li><a href="crates/cli/src/dashboard/server.rs"><code>dashboard/server.rs</code>：Axum 门户与 API 路由</a></li>
+            <li><a href="docs/product/mvp_freeze_manifest.json"><code>mvp_freeze_manifest.json</code>：冻结拓扑、验收工件与 19 项 false 边界</a></li>
+          </ul>
+
+          <details class="technical-details">
+            <summary>展开发布、合并与历史验证证据</summary>
           <div class="verification"><strong>当前正式发布</strong><span>ntpro-rust-only-v0.33.0 · 非草稿 / 非预发布</span><span class="check-pass">已发布</span></div>
           <div class="verification"><strong>MVP-001 运行基线</strong><span>PR #1198 已合并 · nautilus mvp serve · 单 Supervisor + 单节点沙盒入口</span><span class="check-pass">已交付基线</span></div>
           <div class="verification"><strong>M0 身份与状态合同</strong><span>MVP-003/004 实现已合并 · 技术退出条件满足 · 历史审查证据例外由 issue #1209 登记</span><span class="check-pass">实现已交付</span></div>
@@ -2772,7 +3095,7 @@
           <div class="verification"><strong>服务端角色边界</strong><span>issue #1221 / PR #1222 已合并 · 双角色独立会话 · 未授权、错角色和直接 API 绕过 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
           <div class="verification"><strong>控制中心生命周期动作</strong><span>issue #1225 / PR #1226 已合并 · 本地单节点 sandbox start/stop · scope、并发与目标状态 fail closed · 双门户 hosted Chrome 通过</span><span class="check-pass">已交付</span></div>
           <div class="verification"><strong>MVP-012 故障矩阵</strong><span>issue #1231 / PR #1232 已合并 · 11-case 真实进程/工件故障 · 人工恢复 · hosted artifact 通过</span><span class="check-pass">已交付</span></div>
-          <div class="verification"><strong>MVP-013 最终冻结</strong><span>issue #1233 / PR #1236 · 双门户双视口、确定性闭环、故障矩阵、六组性能和发布/回滚合同</span><span class="check-pass">合并后生效</span></div>
+          <div class="verification"><strong>MVP-013 最终验收与冻结</strong><span>issue #1233 / PR #1236 已关闭并合并 · 双门户双视口、确定性闭环、故障矩阵、六组性能和发布/回滚合同</span><span class="check-pass">已冻结</span></div>
 
           <div class="research-lane">
             <strong>文档权威顺序</strong>
@@ -2808,42 +3131,112 @@
             <li><a href="https://tradingview.github.io/lightweight-charts/">Lightweight Charts 官方文档</a></li>
             <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
           </ul>
+          </details>
 
-          <p class="footer-note">信息架构版本：第十二版 · 更新日期：2026-08-05 · 执行者：Codex · 审计代码面：MVP-012 merge <code>751b0c70d859</code> · 正式发布基线：v0.33.0 <code>0ef6fd9d8577</code>（MVP-013 合并后完成 M4 最终冻结）</p>
+          <p class="footer-note">项目说明版本：第十四版 · 更新日期：2026-08-05 · 执行者：Codex · 产品说明详细、技术说明简约且与当前代码合同对齐 · 单节点 MVP M0-M4 已完成并冻结 · 正式发布基线：v0.33.0</p>
         </section>
       </div>
     </main>
   </div>
 
   <script>
-    const sections = [...document.querySelectorAll('main section[id]')];
-    const navLinks = [...document.querySelectorAll('.nav-link')];
+    const sections = [...document.querySelectorAll('main > .content > section[id]')];
+    const navLinks = [...document.querySelectorAll('.nav-link[href^="#"]')];
+    const documentTabs = [...document.querySelectorAll('.document-tab')];
+    const navGroups = [...document.querySelectorAll('.nav-group')];
+    const sidebarTitle = document.querySelector('#sidebar-title');
+    const partStart = { product: '#overview', technical: '#backend' };
+    let activeDocumentPart = 'product';
+
     const setActiveNav = (targetHash) => {
       navLinks.forEach((link) => {
-        link.classList.toggle('active', link.getAttribute('href') === targetHash);
+        const group = link.closest('.nav-group');
+        link.classList.toggle(
+          'active',
+          !group?.hidden && link.getAttribute('href') === targetHash,
+        );
       });
     };
 
     let navUpdatePending = false;
     const updateActiveSection = () => {
-      const probeLine = window.innerWidth <= 820 ? 156 : 120;
-      let current = sections[0];
-      sections.forEach((section) => {
+      const probeLine = window.innerWidth <= 820 ? 240 : 120;
+      const visibleSections = sections.filter((section) => !section.hidden);
+      let current = visibleSections[0];
+      visibleSections.forEach((section) => {
         if (section.getBoundingClientRect().top <= probeLine) current = section;
       });
-      setActiveNav(`#${current.id}`);
+      if (current) setActiveNav(`#${current.id}`);
       navUpdatePending = false;
     };
+
     const scheduleNavUpdate = () => {
       if (navUpdatePending) return;
       navUpdatePending = true;
       requestAnimationFrame(updateActiveSection);
     };
 
+    const setDocumentPart = (part, navigate = false) => {
+      if (!partStart[part]) return;
+      activeDocumentPart = part;
+      document.body.dataset.documentPart = part;
+      sections.forEach((section) => {
+        section.hidden = section.dataset.documentPart !== part;
+      });
+      navGroups.forEach((group) => {
+        group.hidden = group.dataset.navPart !== part;
+      });
+      documentTabs.forEach((tab) => {
+        const selected = tab.dataset.documentPart === part;
+        tab.classList.toggle('active', selected);
+        tab.setAttribute('aria-selected', String(selected));
+      });
+      if (sidebarTitle) sidebarTitle.textContent = part === 'product' ? '产品说明' : '技术说明';
+
+      if (navigate) {
+        const targetHash = partStart[part];
+        if (window.location.hash === targetHash) {
+          document.querySelector(targetHash)?.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          window.location.hash = targetHash;
+        }
+      }
+      scheduleNavUpdate();
+    };
+
+    const syncDocumentPartFromHash = () => {
+      const target = window.location.hash
+        ? document.querySelector(window.location.hash)
+        : null;
+      const requestedPart = target?.dataset.documentPart || activeDocumentPart;
+      setDocumentPart(requestedPart, false);
+      if (target) {
+        const alignTarget = () => {
+          const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+          document.documentElement.style.scrollBehavior = 'auto';
+          target.scrollIntoView({ block: 'start' });
+          document.documentElement.style.scrollBehavior = previousScrollBehavior;
+          setActiveNav(window.location.hash);
+        };
+        requestAnimationFrame(alignTarget);
+        window.setTimeout(alignTarget, 250);
+      }
+    };
+
+    documentTabs.forEach((tab) => {
+      tab.addEventListener('click', () => setDocumentPart(tab.dataset.documentPart, true));
+    });
+
     window.addEventListener('scroll', scheduleNavUpdate, { passive: true });
     window.addEventListener('resize', scheduleNavUpdate);
-    window.addEventListener('hashchange', scheduleNavUpdate);
-    window.addEventListener('load', scheduleNavUpdate);
+    window.addEventListener('hashchange', () => {
+      syncDocumentPartFromHash();
+      scheduleNavUpdate();
+    });
+    window.addEventListener('load', () => {
+      syncDocumentPartFromHash();
+      scheduleNavUpdate();
+    });
 
     const dockViews = {
       trader: {
@@ -2939,6 +3332,7 @@
       });
     });
 
+    syncDocumentPartFromHash();
     scheduleNavUpdate();
   </script>
 </body>
