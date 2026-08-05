@@ -129,15 +129,16 @@ run `30913047250` 与结构化 artifact 已通过。MVP-012 / issue #1231 / PR #
 status、metrics、代际、identity、外部 SIGTERM 和 SIGKILL 的 11-case 真实故障矩阵；
 hosted run `30927875748` 与 artifact 已通过，恢复继续限定为人工显式操作。
 
-MVP-013 / issue #1233 / PR #1236 是唯一剩余的 M4 冻结任务：在同一 final head 强制复跑
-确定性闭环、故障矩阵、机构工作台和控制中心桌面/窄屏 Chrome 验收，并通过既有六工作
-负载性能合同；同时固定 `docs/product/mvp_freeze_manifest.json` 和中文发布/人工回滚说明。
-PR #1236 合并前 M4 保持开放，合并即冻结，不需要新后端 tag 或 GitHub Release。
+完成状态：MVP-013 / issue #1233 / PR #1236 已在同一 final head 完成确定性闭环、故障
+矩阵、机构工作台和控制中心桌面/窄屏 Chrome 验收，以及既有六工作负载性能合同；
+`docs/product/mvp_freeze_manifest.json` 和中文发布/人工回滚说明已经固定。PR #1236 已于
+2026-08-04 合并，Issue #1233 已关闭，M4 已完成并冻结；本次冻结不需要新后端 tag 或
+GitHub Release。
 
 退出条件：完整闭环可以重复演示和审计；所有真实交易能力继续关闭；冻结源、范围和
-后续变更入口由机器守卫固定。该条件仅在 MVP-013 final head 独立审查、五类 MVP hosted
-artifact、六组性能 job、required checks 全部通过并合并后满足。冻结后再独立决定是否
-立项多节点、多账户或生产交易能力，不从本 MVP 继承关闭能力。
+后续变更入口由机器守卫固定。MVP-013 final head 已通过独立审查、五类 MVP hosted
+artifact、六组性能 job 和 required checks，并已合并，因此退出条件已经满足。冻结后
+任何多节点、多账户或生产交易能力必须独立立项，不从本 MVP 继承关闭能力。
 
 ## Current Release Surface
 
