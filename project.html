@@ -416,6 +416,26 @@
     .handoff-strip span { color: var(--muted); font-size: 12px; }
     .handoff-arrow { color: var(--green); font-size: 22px; font-weight: 800; }
 
+    .technical-details {
+      margin-top: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .technical-details > summary {
+      padding: 14px 16px;
+      color: #34433b;
+      cursor: pointer;
+      font-weight: 760;
+    }
+
+    .technical-details[open] > summary { border-bottom: 1px solid var(--line); }
+    .technical-details > .diagram,
+    .technical-details > .module-table-wrap,
+    .technical-details > .acceptance-grid,
+    .technical-details > .source-list { margin: 18px; }
+
     .section-head {
       display: flex;
       align-items: end;
@@ -2085,6 +2105,7 @@
       .roadmap::before { display: none; }
       .phase { break-inside: avoid; }
       main > .content > section[hidden] { display: block !important; }
+      .technical-details > * { display: block !important; }
       a { text-decoration: none; }
     }
   </style>
@@ -2114,15 +2135,15 @@
         <a class="nav-link active" href="#overview">项目是什么</a>
         <a class="nav-link" href="#product-operation">怎么商业运营</a>
         <a class="nav-link" href="#product-portals">两个门户</a>
+        <a class="nav-link" href="#frontend-ia">产品信息架构</a>
+        <a class="nav-link" href="#roadmap">产品路线</a>
       </nav>
       <nav class="nav-group" data-nav-part="technical" aria-label="技术说明导航" hidden>
-        <a class="nav-link" href="#frontend-ia">信息架构</a>
-        <a class="nav-link" href="#backend">后端架构</a>
-        <a class="nav-link" href="#terminal-gap">技术缺口</a>
-        <a class="nav-link" href="#terminal-target">目标框架</a>
-        <a class="nav-link" href="#roadmap">MVP 路线</a>
-        <a class="nav-link" href="#acceptance">验收体系</a>
-        <a class="nav-link" href="#evidence">证据来源</a>
+        <a class="nav-link" href="#backend">系统拓扑</a>
+        <a class="nav-link" href="#terminal-gap">运行链路</a>
+        <a class="nav-link" href="#terminal-target">合同与接口</a>
+        <a class="nav-link" href="#acceptance">边界与验证</a>
+        <a class="nav-link" href="#evidence">代码入口</a>
       </nav>
       <a class="nav-link" href="changelog.html">项目变更记录</a>
       <div class="sidebar-note">
@@ -2240,10 +2261,10 @@
           </div>
         </section>
 
-        <section id="frontend-ia" data-document-part="technical" hidden>
+        <section id="frontend-ia" data-document-part="product">
           <div class="section-head">
             <div>
-              <p class="eyebrow">技术说明 · 前端信息架构</p>
+              <p class="eyebrow">产品说明 · 详细信息架构</p>
               <h2>一个平台，两个门户，一个共享控制平面</h2>
               <p class="section-intro">
                 产品按责任和决策类型分开，而不是为每个岗位建立独立系统。机构工作台服务投资与交易业务，控制中心服务独立治理与平台运行；策略状态、审批、部署和事件通过同一控制合同交接。
@@ -2684,12 +2705,26 @@
         <section id="backend" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">技术说明 · 当前后端架构</p>
-              <h2>当前后端架构图</h2>
-              <p class="section-intro">依赖方向来自 Cargo metadata、crate 入口和关键 runtime 文件。横向表示同层职责，纵向表示主要事件与控制流。</p>
+              <p class="eyebrow">技术说明 · 系统拓扑</p>
+              <h2>当前交付的是本地单节点沙盒</h2>
+              <p class="section-intro">代码入口为 <code>nautilus mvp serve</code>。一个进程内的 <code>MvpRuntime</code> 使用 <code>SupervisorRegistryStore</code> 注册并启动一个 <code>ntpro-node</code>，随后启动 Axum HTTP 服务提供两个门户。</p>
             </div>
           </div>
 
+          <div class="gap-flow" aria-label="当前 MVP 系统拓扑">
+            <div class="gap-step"><span class="step-number">1</span><h3>CLI 入口</h3><p><code>nautilus mvp serve</code> 读取沙盒节点配置和本地工作目录。</p></div>
+            <div class="gap-step"><span class="step-number">2</span><h3>Supervisor 存储</h3><p><code>SupervisorRegistryStore</code> 管理节点注册、进程状态、日志与指标文件。</p></div>
+            <div class="gap-step"><span class="step-number">3</span><h3>单个节点</h3><p>一个 <code>ntpro-node</code> 承载一个策略实例、一个沙盒账户和一个 Venue。</p></div>
+            <div class="gap-step"><span class="step-number">4</span><h3>Axum 门户</h3><p>同一 HTTP 服务提供机构工作台、控制中心和版本化 MVP API。</p></div>
+          </div>
+
+          <div class="summary-callout">
+            <strong>部署边界</strong>
+            当前没有远程 node agent、共享注册中心、多主机调度或自动故障转移。一个节点也不等于一套工作台；两个门户是同一运行实例上的集中视图。
+          </div>
+
+          <details class="technical-details">
+            <summary>展开完整 Rust 仓库模块图（不代表全部模块已进入 MVP）</summary>
           <div class="diagram" aria-label="NTPRO 当前后端架构图">
             <div class="diagram-caption"><span>数据进入 → 状态与决策 → 执行 / 回放 → 运营投影</span><span>审计代码面：MVP-010 merge <code>97fdd88a82fa</code>；正式发布基线：v0.33.0 <code>0ef6fd9d8577</code></span></div>
             <div class="architecture-flow">
@@ -2765,33 +2800,60 @@
               </tbody>
             </table>
           </div>
+          </details>
         </section>
 
         <section id="terminal-gap" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">后端到双门户产品的交接</p>
-              <h2>后端与产品前端之间还差什么</h2>
-              <p class="section-intro">TTR-001/002 已解决治理接口挂载和原始事件存储隔离，但业务接口、机构身份和实时增量仍需独立产品化。</p>
+              <p class="eyebrow">技术说明 · 运行链路</p>
+              <h2>一次启动如何变成两个可访问门户</h2>
+              <p class="section-intro">以下顺序直接对应 <code>crates/cli/src/mvp.rs</code>，描述当前代码行为，不是未来架构设想。</p>
             </div>
           </div>
           <div class="gap-flow">
-            <div class="gap-step"><span class="step-number">1</span><h3>机构对象合同</h3><p>固定机构、交易台、账簿、组合、策略、账户、部署和运行实例的标识与关系。</p></div>
-            <div class="gap-step"><span class="step-number">2</span><h3>业务查询接口</h3><p>把账户、仓位、订单、成交、风险、策略和回测投影成稳定、分页、可追溯的产品接口。</p></div>
-            <div class="gap-step"><span class="step-number">3</span><h3>身份与数据范围</h3><p>将角色、机构范围、环境和授权写入服务端合同，不能只靠前端隐藏菜单。</p></div>
-            <div class="gap-step"><span class="step-number">4</span><h3>实时与交接</h3><p>用快照和增量流承载业务状态，并用统一事件编号连接业务影响、技术根因和审计证据。</p></div>
+            <div class="gap-step"><span class="step-number">1</span><h3>注册并启动</h3><p><code>MvpRuntime::start</code> 注册节点，再通过 <code>start_node_process</code> 启动子进程。</p></div>
+            <div class="gap-step"><span class="step-number">2</span><h3>生成本地事实</h3><p>写入 registry、identity contract、status contract、节点状态、指标和日志。</p></div>
+            <div class="gap-step"><span class="step-number">3</span><h3>启动 HTTP 服务</h3><p><code>run_dashboard_command</code> 挂载门户静态资源、只读查询和受限 start/stop 动作。</p></div>
+            <div class="gap-step"><span class="step-number">4</span><h3>持续刷新与退出</h3><p>运行时定期刷新状态；Ctrl-C、服务错误或状态刷新失败都会进入节点停止流程。</p></div>
+          </div>
+          <div class="summary-callout">
+            <strong>默认启动参数</strong>
+            配置 <code>configs/nodes/btc-ema-shadow.toml</code>，工作目录 <code>target/ntpro-mvp</code>，节点 <code>mvp-node-001</code>，监听 <code>127.0.0.1:5173</code>。这些默认值定义在 <code>crates/cli/src/opt.rs</code>。
           </div>
         </section>
 
         <section id="terminal-target" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">目标产品框架</p>
-              <h2>双门户与共享控制平面的目标框架</h2>
-              <p class="section-intro">机构工作台和控制中心共享身份、状态、审批、事件和审计合同，但使用不同查询投影与权限边界；Rust 引擎继续作为唯一交易语义来源。</p>
+              <p class="eyebrow">技术说明 · 合同与接口</p>
+              <h2>两个门户共享状态事实，权限和操作范围不同</h2>
+              <p class="section-intro">路由由 <code>crates/cli/src/dashboard/server.rs</code> 挂载；状态语义由 <code>crates/cli/src/mvp_contract.rs</code> 定义。</p>
             </div>
           </div>
 
+          <div class="module-table-wrap">
+            <table>
+              <thead><tr><th>接口</th><th>消费者</th><th>当前用途</th></tr></thead>
+              <tbody>
+                <tr><td><code>GET /api/mvp/v1/status</code></td><td>两个门户</td><td>读取共享的策略、账户、运行和健康状态</td></tr>
+                <tr><td><code>GET /api/mvp/v1/event-correlation</code></td><td>两个门户</td><td>用同一事件编号连接业务影响与技术根因</td></tr>
+                <tr><td><code>GET /api/mvp/v1/control-center</code></td><td>控制中心</td><td>读取单节点运维投影</td></tr>
+                <tr><td><code>POST .../actions/start</code></td><td>控制中心</td><td>启动当前本地沙盒节点</td></tr>
+                <tr><td><code>POST .../actions/stop</code></td><td>控制中心</td><td>停止当前本地沙盒节点</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mvp-principles" aria-label="MVP 四轴状态合同">
+            <div class="mvp-principle"><small>research</small><strong>研究引用</strong><span>策略版本和回测引用是否绑定，不代表策略已获生产批准。</span></div>
+            <div class="mvp-principle"><small>runtime</small><strong>运行状态</strong><span>running、stopped、transitioning 或 unknown。</span></div>
+            <div class="mvp-principle"><small>technical_health</small><strong>技术健康</strong><span>healthy、degraded、unhealthy、not_running 或 unknown。</span></div>
+            <div class="mvp-principle"><small>trading_readiness</small><strong>交易准备度</strong><span>当前代码只能是 blocked，不能由 HTTP 成功或进程存活推导。</span></div>
+          </div>
+
+          <details class="technical-details">
+            <summary>展开未来商业产品目标框架（尚未交付）</summary>
           <div class="diagram" aria-label="NTPRO 目标终端架构图">
             <div class="diagram-caption"><span>红色左边框为新增边界；绿色为直接复用；蓝色为后置能力</span><span>网页优先 / 桌面封装后置</span></div>
             <div class="target-stack">
@@ -2840,9 +2902,10 @@
             <div class="decision"><h3>为什么控制平面不是第三个产品</h3><p>它只保存权威身份、状态、审批、事件和审计事实，并向两个门户投影；没有独立用户旅程，也不能成为第二套交易状态源。</p></div>
             <div class="decision"><h3>为什么命令门禁必须独立</h3><p>查询与操作承担不同风险；写命令必须经过独立授权、审批、风控、幂等和审计，不能由只读页面能力自动继承。</p></div>
           </div>
+          </details>
         </section>
 
-        <section id="roadmap" data-document-part="technical" hidden>
+        <section id="roadmap" data-document-part="product">
           <div class="section-head">
             <div>
               <p class="eyebrow">当前产品北极星</p>
@@ -2968,12 +3031,27 @@
         <section id="acceptance" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">验收合同</p>
-              <h2>后续工作的验收体系</h2>
-              <p class="section-intro">不能只用“页面打开了”作为完成标准。机构工作台、控制中心和共享控制合同必须分别通过用户任务、权限、状态语义和证据链验收。</p>
+              <p class="eyebrow">技术说明 · 边界与验证</p>
+              <h2>MVP 已冻结，但真实交易能力仍为关闭</h2>
+              <p class="section-intro">权威边界来自 <code>docs/product/mvp_freeze_manifest.json</code>。当前冻结拓扑为一个 Supervisor、一个节点、一个策略实例、一个账户、一个 Venue 和 sandbox 环境。</p>
             </div>
           </div>
 
+          <div class="status-row" aria-label="MVP 冻结边界">
+            <span class="status ok">M0-M4 complete / frozen</span>
+            <span class="status info">机构工作台只读</span>
+            <span class="status info">控制中心仅 start / stop</span>
+            <span class="status info">真实订单与外部 Venue 关闭</span>
+            <span class="status info">多节点编排与自动恢复关闭</span>
+          </div>
+
+          <div class="summary-callout">
+            <strong>验证入口</strong>
+            确定性闭环、11 项故障矩阵、两个浏览器视口和 6 组性能工作负载已经登记在冻结清单；后续改动必须单独立项，并同步风险、回滚证据和冻结清单。
+          </div>
+
+          <details class="technical-details">
+            <summary>展开完整验收维度</summary>
           <div class="acceptance-grid">
             <div class="acceptance"><p class="acceptance-kicker">接口</p><h3>接口验收</h3><ul class="acceptance-list"><li>数据模式与客户端开发包同源生成</li><li>破坏性变更有迁移说明</li><li>时效、错误和降级语义完整</li><li>页面不读取未声明字段</li></ul></div>
             <div class="acceptance"><p class="acceptance-kicker">行为</p><h3>行为验收</h3><ul class="acceptance-list"><li>快照与增量流合并确定</li><li>断线、乱序、重复事件可处理</li><li>命令幂等且状态可追踪</li><li>风险拒绝不能被页面绕过</li></ul></div>
@@ -2982,17 +3060,28 @@
             <div class="acceptance"><p class="acceptance-kicker">状态</p><h3>状态验收</h3><ul class="acceptance-list"><li>研究、治理、准备度和技术健康独立</li><li>接口成功不等于运行健康</li><li>审批通过不等于自动部署</li><li>回测完成不等于盈利或生产准入</li></ul></div>
             <div class="acceptance"><p class="acceptance-kicker">发布</p><h3>发布验收</h3><ul class="acceptance-list"><li>网页与桌面版本使用同一合同</li><li>后端、开发包和页面版本可追溯</li><li>升级与回滚路径经过验证</li><li>发布声明不超过实际能力</li></ul></div>
           </div>
+          </details>
         </section>
 
         <section id="evidence" data-document-part="technical" hidden>
           <div class="section-head">
             <div>
-              <p class="eyebrow">证据与来源</p>
-              <h2>项目证据与验证结果</h2>
-              <p class="section-intro">当前发布与远端合并事实优先于历史计划；运行时合同和测试证明已有能力；本页只定义目标产品，不把设计稿当作实现证据。</p>
+              <p class="eyebrow">技术说明 · 代码入口</p>
+              <h2>从五个入口核对文档与实现</h2>
+              <p class="section-intro">产品描述必须能回到当前源码或冻结清单。历史计划和设计稿不能覆盖代码事实。</p>
             </div>
           </div>
 
+          <ul class="source-list">
+            <li><a href="crates/cli/src/mvp.rs"><code>mvp.rs</code>：MVP 启动、状态刷新与退出回收</a></li>
+            <li><a href="crates/cli/src/supervisor.rs"><code>supervisor.rs</code>：节点注册、进程生命周期与本地 registry</a></li>
+            <li><a href="crates/cli/src/mvp_contract.rs"><code>mvp_contract.rs</code>：身份、四轴状态、来源与关闭边界</a></li>
+            <li><a href="crates/cli/src/dashboard/server.rs"><code>dashboard/server.rs</code>：Axum 门户与 API 路由</a></li>
+            <li><a href="docs/product/mvp_freeze_manifest.json"><code>mvp_freeze_manifest.json</code>：冻结拓扑、验收工件与 19 项 false 边界</a></li>
+          </ul>
+
+          <details class="technical-details">
+            <summary>展开发布、合并与历史验证证据</summary>
           <div class="verification"><strong>当前正式发布</strong><span>ntpro-rust-only-v0.33.0 · 非草稿 / 非预发布</span><span class="check-pass">已发布</span></div>
           <div class="verification"><strong>MVP-001 运行基线</strong><span>PR #1198 已合并 · nautilus mvp serve · 单 Supervisor + 单节点沙盒入口</span><span class="check-pass">已交付基线</span></div>
           <div class="verification"><strong>M0 身份与状态合同</strong><span>MVP-003/004 实现已合并 · 技术退出条件满足 · 历史审查证据例外由 issue #1209 登记</span><span class="check-pass">实现已交付</span></div>
@@ -3042,8 +3131,9 @@
             <li><a href="https://tradingview.github.io/lightweight-charts/">Lightweight Charts 官方文档</a></li>
             <li><a href="https://tauri.app/start/">Tauri 官方文档</a></li>
           </ul>
+          </details>
 
-          <p class="footer-note">项目说明版本：第十三版 · 更新日期：2026-08-05 · 执行者：Codex · 产品说明与技术说明已分层 · 单节点 MVP M0-M4 已完成并冻结 · 正式发布基线：v0.33.0</p>
+          <p class="footer-note">项目说明版本：第十四版 · 更新日期：2026-08-05 · 执行者：Codex · 产品说明详细、技术说明简约且与当前代码合同对齐 · 单节点 MVP M0-M4 已完成并冻结 · 正式发布基线：v0.33.0</p>
         </section>
       </div>
     </main>
@@ -3055,7 +3145,7 @@
     const documentTabs = [...document.querySelectorAll('.document-tab')];
     const navGroups = [...document.querySelectorAll('.nav-group')];
     const sidebarTitle = document.querySelector('#sidebar-title');
-    const partStart = { product: '#overview', technical: '#frontend-ia' };
+    const partStart = { product: '#overview', technical: '#backend' };
     let activeDocumentPart = 'product';
 
     const setActiveNav = (targetHash) => {
@@ -3070,7 +3160,7 @@
 
     let navUpdatePending = false;
     const updateActiveSection = () => {
-      const probeLine = window.innerWidth <= 820 ? 156 : 120;
+      const probeLine = window.innerWidth <= 820 ? 240 : 120;
       const visibleSections = sections.filter((section) => !section.hidden);
       let current = visibleSections[0];
       visibleSections.forEach((section) => {
@@ -3120,7 +3210,17 @@
         : null;
       const requestedPart = target?.dataset.documentPart || activeDocumentPart;
       setDocumentPart(requestedPart, false);
-      if (target) requestAnimationFrame(() => target.scrollIntoView());
+      if (target) {
+        const alignTarget = () => {
+          const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+          document.documentElement.style.scrollBehavior = 'auto';
+          target.scrollIntoView({ block: 'start' });
+          document.documentElement.style.scrollBehavior = previousScrollBehavior;
+          setActiveNav(window.location.hash);
+        };
+        requestAnimationFrame(alignTarget);
+        window.setTimeout(alignTarget, 250);
+      }
     };
 
     documentTabs.forEach((tab) => {
