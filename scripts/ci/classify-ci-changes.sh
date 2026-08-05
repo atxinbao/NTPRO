@@ -42,6 +42,11 @@ if matches '^apps/strategy-workbench/'; then
   strategy_workbench=true
 fi
 
+if matches '^docs/product/api/ntpro_product_v1[.]openapi[.]json$'; then
+  heavy_rust=true
+  strategy_workbench=true
+fi
+
 if matches '^(\.github/(workflows|actions)/|scripts/ai/|docs/rust-cutover/(governance|release|golden_trace)/|tests/golden/|crates/governance/|scripts/ci/(classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
   release_verify=true
 fi
@@ -50,7 +55,7 @@ if matches '^(crates/cli/src/dashboard/(institution_workbench\.rs|server\.rs|ser
   institution_workbench=true
 fi
 
-if matches '^(apps/strategy-workbench/|crates/cli/src/dashboard\.rs|crates/cli/src/dashboard/(server\.rs|server/tests\.rs)|scripts/ai/test_strategy_workbench_browser\.mjs)'; then
+if matches '^(apps/strategy-workbench/|crates/cli/src/dashboard\.rs|crates/cli/src/dashboard/(server\.rs|server/tests\.rs|product_api\.rs|product_api/.*)|scripts/ai/test_strategy_workbench_browser\.mjs)'; then
   strategy_workbench=true
 fi
 

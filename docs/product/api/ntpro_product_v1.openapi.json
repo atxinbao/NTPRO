@@ -1,0 +1,487 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NTPRO Product API",
+    "version": "1.0.0",
+    "description": "策略工作台 Strategy、StrategyVersion 和 Run 产品资源的权威只读合同。"
+  },
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+  "x-ntpro-authoritative-contract": true,
+  "servers": [
+    {
+      "url": "/api/product/v1"
+    }
+  ],
+  "paths": {
+    "/strategies": {
+      "get": {
+        "operationId": "listStrategies",
+        "summary": "读取策略列表",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["strategy_id", "name", "updated_at"],
+              "default": "strategy_id"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "asc"
+            }
+          },
+          {
+            "name": "lifecycle",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/StrategyLifecycle"
+            }
+          },
+          {
+            "name": "owner",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "策略列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "405": {
+            "$ref": "#/components/responses/ProductMethodNotAllowed"
+          },
+          "500": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductError"
+          }
+        }
+      }
+    },
+    "/strategies/{strategy_id}": {
+      "get": {
+        "operationId": "getStrategy",
+        "summary": "读取策略详情",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "策略详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "405": {
+            "$ref": "#/components/responses/ProductMethodNotAllowed"
+          },
+          "500": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductError"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "InstitutionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "ntpro_mvp_institution_access"
+      },
+      "OperatorCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "ntpro_mvp_operator_access"
+      }
+    },
+    "responses": {
+      "ProductError": {
+        "description": "产品 API 稳定错误",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProductErrorResponse"
+            }
+          }
+        }
+      },
+      "ProductMethodNotAllowed": {
+        "description": "产品 API 仅允许 GET",
+        "headers": {
+          "Allow": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "GET"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProductErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "StrategyId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9_.:-]+$"
+      },
+      "RequestId": {
+        "type": "string",
+        "pattern": "^product-[0-9a-f]{16}-[0-9a-f]{16}$"
+      },
+      "StrategyLifecycle": {
+        "type": "string",
+        "enum": ["draft", "active", "archived"]
+      },
+      "ProductSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_type", "freshness_status", "source_refs"],
+        "properties": {
+          "source_type": {
+            "const": "mvp_identity_config"
+          },
+          "freshness_status": {
+            "const": "fresh"
+          },
+          "source_refs": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "Strategy": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "strategy_id",
+          "name",
+          "description",
+          "owner",
+          "lifecycle",
+          "default_version_id",
+          "created_at_unix_ms",
+          "updated_at_unix_ms",
+          "source"
+        ],
+        "properties": {
+          "strategy_id": {
+            "$ref": "#/components/schemas/StrategyId"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "lifecycle": {
+            "$ref": "#/components/schemas/StrategyLifecycle"
+          },
+          "default_version_id": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 385
+          },
+          "created_at_unix_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "updated_at_unix_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProductSource"
+          }
+        }
+      },
+      "ReadOnlyBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "read_only",
+          "strategy_mutation_allowed",
+          "run_mutation_allowed",
+          "external_venue_connection",
+          "order_submission_allowed",
+          "order_mutation_allowed",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed",
+          "real_orders_submitted",
+          "trading_controls_enabled"
+        ],
+        "properties": {
+          "read_only": {
+            "const": true
+          },
+          "strategy_mutation_allowed": {
+            "const": false
+          },
+          "run_mutation_allowed": {
+            "const": false
+          },
+          "external_venue_connection": {
+            "const": false
+          },
+          "order_submission_allowed": {
+            "const": false
+          },
+          "order_mutation_allowed": {
+            "const": false
+          },
+          "automatic_retry_allowed": {
+            "const": false
+          },
+          "automatic_remediation_allowed": {
+            "const": false
+          },
+          "real_orders_submitted": {
+            "const": false
+          },
+          "trading_controls_enabled": {
+            "const": false
+          }
+        }
+      },
+      "Page": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["limit", "returned_count", "next_cursor", "has_more"],
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "returned_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "next_cursor": {
+            "type": ["string", "null"]
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        }
+      },
+      "StrategyListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "page",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ntpro.product_api.strategy_list.response.v1"
+          },
+          "contract_version": {
+            "const": "ntpro.product_api.v1"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestId"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Strategy"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          },
+          "boundaries": {
+            "$ref": "#/components/schemas/ReadOnlyBoundaries"
+          }
+        }
+      },
+      "StrategyDetailResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ntpro.product_api.strategy_detail.response.v1"
+          },
+          "contract_version": {
+            "const": "ntpro.product_api.v1"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestId"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Strategy"
+          },
+          "boundaries": {
+            "$ref": "#/components/schemas/ReadOnlyBoundaries"
+          }
+        }
+      },
+      "ProductError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "summary", "retryable", "field"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "product_query_invalid",
+              "product_access_denied",
+              "product_method_not_allowed",
+              "strategy_not_found",
+              "product_source_unavailable",
+              "product_source_invalid",
+              "product_source_stale",
+              "product_boundary_violation"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "field": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "ProductErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "error",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ntpro.product_api.error.v1"
+          },
+          "contract_version": {
+            "const": "ntpro.product_api.v1"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestId"
+          },
+          "error": {
+            "$ref": "#/components/schemas/ProductError"
+          },
+          "boundaries": {
+            "$ref": "#/components/schemas/ReadOnlyBoundaries"
+          }
+        }
+      }
+    }
+  }
+}

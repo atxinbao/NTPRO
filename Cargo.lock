@@ -5716,6 +5716,7 @@ dependencies = [
  "blake3",
  "clap",
  "dotenvy",
+ "jsonschema",
  "log",
  "nautilus-backtest",
  "nautilus-binance",
