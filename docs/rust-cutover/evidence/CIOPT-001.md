@@ -4,7 +4,7 @@ Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1245
 GitHub PR: #1246
-Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
+Status: POST_MERGE_VALIDATED
 
 ## 修改前基线
 
@@ -67,6 +67,14 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
 Verification & Release Gatekeeper 首轮发现四项：rename 漏检、docs push 可取消周度扫描、
 无效 head/diff 未全量回退、事件级测试不足；复审进一步发现连续 main push 仍可相互取消。
 当前实现已逐项修复，并把取消策略限定为同一 PR 的新提交。
+
+## 合并后快车道结果
+
+- PR #1248 的 docs-only smoke run `30999510522`：success / 56 秒；
+- 对比 PR #1244 的 7 分 23 秒基线，耗时减少约 87%；
+- security-audit run `30999510826`：只有 `changes` 实际运行并在 25 秒完成，zizmor、
+  cargo-audit、cargo-deny、cargo-vet 与 osv-scanner 全部 skipped；
+- required context 继续为 `smoke`，目标小于 120 秒已满足。
 
 ## 行为影响
 

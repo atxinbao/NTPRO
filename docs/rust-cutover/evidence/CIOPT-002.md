@@ -4,7 +4,7 @@ Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1247
 GitHub PR: #1248
-Status: FINAL_HOSTED_VALIDATION_PENDING
+Status: DONE_ON_MERGE
 
 ## 变更范围
 
@@ -38,7 +38,16 @@ Cargo、产品页面、MVP 冻结源或 release 文件。
 
 首轮 smoke 比 120 秒目标多 4 秒。步骤计时显示 `Release surface current guard` 占 67
 秒，原因是首次为新 workflow 缓存键编译 `ntpro-governance`；真实 MVP、故障矩阵和浏览器
-验收均未运行。当前 evidence-only 提交将触发第二轮 docs-only run，用于验证热缓存时长。
+验收均未运行。
+
+第二轮热缓存 Hosted 验证：
+
+- Rust Cutover Smoke run `30999510522`：success / 56 秒，达到小于 120 秒目标；
+- `Release surface current guard` 从首轮 67 秒降为 3 秒；
+- security-audit run `30999510826`：`changes` success / 25 秒，五个专项 jobs 全部
+  skipped；
+- 相比 PR #1244 的 7 分 23 秒基线，required smoke 减少 387 秒，约 87%；
+- branch protection required context 仍为 `smoke`。
 
 ## 行为影响
 
