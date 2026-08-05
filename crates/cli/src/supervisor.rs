@@ -334,6 +334,11 @@ fn kill_switch_dry_run_metrics_from_artifact_path(path: &Path) -> KillSwitchDryR
         ..KillSwitchDryRunMetrics::default()
     };
     if !path.exists() {
+        metrics.production_order_submission_allowed = SnapshotValue::available(false);
+        metrics.production_order_mutation_allowed = SnapshotValue::available(false);
+        metrics.dashboard_order_controls_enabled = SnapshotValue::available(false);
+        metrics.real_orders_submitted = SnapshotValue::available(false);
+        metrics.production_orders_submitted = SnapshotValue::available(0);
         return metrics;
     }
 
@@ -2850,6 +2855,38 @@ mod tests {
         assert_eq!(
             metrics.kill_switch_dry_run.artifact_status.availability,
             nautilus_live::status::SnapshotAvailability::NotConfigured
+        );
+        assert_eq!(
+            metrics
+                .kill_switch_dry_run
+                .production_order_submission_allowed
+                .value,
+            Some(false)
+        );
+        assert_eq!(
+            metrics
+                .kill_switch_dry_run
+                .production_order_mutation_allowed
+                .value,
+            Some(false)
+        );
+        assert_eq!(
+            metrics
+                .kill_switch_dry_run
+                .dashboard_order_controls_enabled
+                .value,
+            Some(false)
+        );
+        assert_eq!(
+            metrics.kill_switch_dry_run.real_orders_submitted.value,
+            Some(false)
+        );
+        assert_eq!(
+            metrics
+                .kill_switch_dry_run
+                .production_orders_submitted
+                .value,
+            Some(0)
         );
         assert!(!metrics.external_venue_connection);
         assert!(!metrics.real_orders_submitted);

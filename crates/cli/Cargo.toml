@@ -60,6 +60,7 @@ url = { workspace = true }
 ustr = { workspace = true }
 
 [dev-dependencies]
+jsonschema = { workspace = true }
 tower = { workspace = true }
 
 [[bin]]

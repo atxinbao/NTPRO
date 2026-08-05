@@ -690,6 +690,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         (Method::GET, "/dashboard"),
         (Method::GET, "/api/mvp/v1/status"),
         (Method::GET, "/api/mvp/v1/event-correlation"),
+        (Method::GET, "/api/product/v1/strategies"),
         (Method::GET, "/api/mvp/v1/control-center"),
         (Method::GET, "/api/server"),
         (Method::GET, "/api/snapshot"),
@@ -706,6 +707,29 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         assert_private_response_headers(&response, path);
     }
 
+    let product_denied =
+        router_response(&router, Method::GET, "/api/product/v1/strategies", None).await;
+    assert_eq!(product_denied.status(), StatusCode::FORBIDDEN);
+    let product_denied_body = to_bytes(product_denied.into_body(), 2 * 1024 * 1024)
+        .await
+        .expect("product access error body must be readable");
+    let product_denied_value: Value = serde_json::from_slice(&product_denied_body)
+        .expect("product access error must use the product JSON envelope");
+    assert_eq!(
+        product_denied_value["schema_version"],
+        "ntpro.product_api.error.v1"
+    );
+    assert_eq!(
+        product_denied_value["error"]["code"],
+        "product_access_denied"
+    );
+    assert_eq!(product_denied_value["error"]["retryable"], false);
+    assert!(
+        product_denied_value["request_id"]
+            .as_str()
+            .is_some_and(|value| !value.is_empty())
+    );
+
     for path in [
         "/strategy-workbench",
         "/strategy-workbench/overview",
@@ -716,7 +740,11 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         let response = router_response(&router, Method::GET, path, Some(&institution_cookie)).await;
         assert_eq!(response.status(), StatusCode::OK, "{path}");
     }
-    for path in ["/api/mvp/v1/status", "/api/mvp/v1/event-correlation"] {
+    for path in [
+        "/api/mvp/v1/status",
+        "/api/mvp/v1/event-correlation",
+        "/api/product/v1/strategies",
+    ] {
         let response = router_response(&router, Method::GET, path, Some(&institution_cookie)).await;
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{path}");
     }
@@ -745,6 +773,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
     for path in [
         "/api/mvp/v1/status",
         "/api/mvp/v1/event-correlation",
+        "/api/product/v1/strategies",
         "/api/mvp/v1/control-center",
         "/api/server",
         "/api/snapshot",
@@ -780,6 +809,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         ("/institution-workbench", institution_cookie.as_str()),
         ("/api/mvp/v1/status", institution_cookie.as_str()),
         ("/api/mvp/v1/event-correlation", institution_cookie.as_str()),
+        ("/api/product/v1/strategies", institution_cookie.as_str()),
         ("/control-center", operator_cookie.as_str()),
         ("/dashboard", operator_cookie.as_str()),
         ("/api/mvp/v1/control-center", operator_cookie.as_str()),

@@ -111,11 +111,127 @@ try {
       `unauthorized strategy page expected 403, got ${unauthorized.status}`,
     );
   }
+  const unauthorizedProductApi = await fetch(
+    `${baseUrl}/api/product/v1/strategies`,
+  );
+  const unauthorizedProductBody = await unauthorizedProductApi.json();
+  if (
+    unauthorizedProductApi.status !== 403 ||
+    unauthorizedProductBody.schema_version !==
+      "ntpro.product_api.error.v1" ||
+    unauthorizedProductBody.contract_version !== "ntpro.product_api.v1" ||
+    unauthorizedProductBody.error?.code !== "product_access_denied" ||
+    unauthorizedProductBody.error?.retryable !== false ||
+    !unauthorizedProductBody.request_id ||
+    unauthorizedProductBody.boundaries?.read_only !== true ||
+    unauthorizedProductBody.boundaries?.order_submission_allowed !== false
+  ) {
+    throw new Error(
+      `unauthorized product API contract drift: status=${unauthorizedProductApi.status} body=${JSON.stringify(unauthorizedProductBody)}`,
+    );
+  }
+
+  const productListResponse = await fetch(
+    `${baseUrl}/api/product/v1/strategies?limit=1&sort=updated_at&order=desc`,
+    { headers: { cookie: institutionCookie } },
+  );
+  if (productListResponse.status !== 200) {
+    throw new Error(
+      `product strategy list expected 200, got ${productListResponse.status}`,
+    );
+  }
+  const productList = await productListResponse.json();
+  const productStrategy = productList.data?.[0];
+  if (
+    productList.schema_version !==
+      "ntpro.product_api.strategy_list.response.v1" ||
+    productList.contract_version !== "ntpro.product_api.v1" ||
+    productStrategy?.strategy_id !== "ema_cross_btcusdt_v1" ||
+    productStrategy?.name !== "BTC/USDT EMA Cross" ||
+    productStrategy?.default_version_id !== "ema_cross_btcusdt_v1@v1" ||
+    productList.page?.returned_count !== 1
+  ) {
+    throw new Error(`product strategy list contract drift: ${JSON.stringify(productList)}`);
+  }
+  const expectedFalseBoundaries = [
+    "strategy_mutation_allowed",
+    "run_mutation_allowed",
+    "external_venue_connection",
+    "order_submission_allowed",
+    "order_mutation_allowed",
+    "automatic_retry_allowed",
+    "automatic_remediation_allowed",
+    "real_orders_submitted",
+    "trading_controls_enabled",
+  ];
+  if (
+    productList.boundaries?.read_only !== true ||
+    expectedFalseBoundaries.some(
+      (field) => productList.boundaries?.[field] !== false,
+    )
+  ) {
+    throw new Error(
+      `product strategy list boundary drift: ${JSON.stringify(productList.boundaries)}`,
+    );
+  }
+
+  const productDetailResponse = await fetch(
+    `${baseUrl}/api/product/v1/strategies/ema_cross_btcusdt_v1`,
+    { headers: { cookie: institutionCookie } },
+  );
+  if (productDetailResponse.status !== 200) {
+    throw new Error(
+      `product strategy detail expected 200, got ${productDetailResponse.status}`,
+    );
+  }
+  const productDetail = await productDetailResponse.json();
+  if (
+    productDetail.schema_version !==
+      "ntpro.product_api.strategy_detail.response.v1" ||
+    productDetail.data?.strategy_id !== productStrategy.strategy_id ||
+    productDetail.data?.default_version_id !== productStrategy.default_version_id
+  ) {
+    throw new Error(
+      `product strategy detail contract drift: ${JSON.stringify(productDetail)}`,
+    );
+  }
+
+  const invalidProductQuery = await fetch(
+    `${baseUrl}/api/product/v1/strategies?limit=1&limit=2`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const invalidProductBody = await invalidProductQuery.json();
+  if (
+    invalidProductQuery.status !== 400 ||
+    invalidProductBody.error?.code !== "product_query_invalid" ||
+    invalidProductBody.error?.retryable !== false ||
+    !invalidProductBody.request_id
+  ) {
+    throw new Error(
+      `invalid product query did not fail closed: ${JSON.stringify(invalidProductBody)}`,
+    );
+  }
+  const malformedProductPath = await fetch(
+    `${baseUrl}/api/product/v1/strategies/%FF`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const malformedProductPathBody = await malformedProductPath.json();
+  if (
+    malformedProductPath.status !== 400 ||
+    malformedProductPathBody.error?.code !== "product_query_invalid" ||
+    malformedProductPathBody.error?.field !== "strategy_id" ||
+    !malformedProductPathBody.request_id
+  ) {
+    throw new Error(
+      `malformed product path did not use the product error contract: ${JSON.stringify(malformedProductPathBody)}`,
+    );
+  }
   for (const [method, url, expected] of [
     ["GET", "/strategy-workbench/system-status", 200],
     ["POST", "/strategy-workbench/overview", 405],
     ["GET", "/strategy-workbench/assets/missing.js", 404],
     ["GET", "/api/product/v1/unknown", 404],
+    ["POST", "/api/product/v1/strategies", 405],
   ]) {
     const response = await fetch(`${baseUrl}${url}`, {
       method,
@@ -123,6 +239,18 @@ try {
     });
     if (response.status !== expected) {
       throw new Error(`${method} ${url} expected ${expected}, got ${response.status}`);
+    }
+    if (url === "/api/product/v1/strategies" && method === "POST") {
+      const body = await response.json();
+      if (
+        response.headers.get("allow") !== "GET" ||
+        body.schema_version !== "ntpro.product_api.error.v1" ||
+        body.error?.code !== "product_method_not_allowed" ||
+        body.error?.retryable !== false ||
+        !body.request_id
+      ) {
+        throw new Error(`product method error contract drift: ${JSON.stringify(body)}`);
+      }
     }
   }
 
@@ -324,6 +452,10 @@ writeEvidence({
   hashed_asset: 1,
   spa_deep_refresh: 1,
   api_fallback_isolation: 1,
+  product_strategy_list: 1,
+  product_strategy_detail: 1,
+  product_strategy_error: 1,
+  product_strategy_access_control: 1,
   asset_404: 1,
   method_405: 1,
   valid: 1,

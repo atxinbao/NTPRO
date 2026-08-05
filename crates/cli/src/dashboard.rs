@@ -55,6 +55,7 @@ use crate::{
 mod control_center;
 mod institution_workbench;
 mod mvp_status_api;
+mod product_api;
 mod rendering;
 mod server;
 mod trader_terminal_api;

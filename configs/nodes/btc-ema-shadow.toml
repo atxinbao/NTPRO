@@ -4,6 +4,12 @@ mode = "shadow"
 
 [strategy]
 strategy_id = "ema_cross_btcusdt_v1"
+display_name = "BTC/USDT EMA Cross"
+description = "BTC/USDT EMA 交叉策略的本地 Sandbox 产品基线"
+owner = "NTPRO"
+lifecycle = "active"
+created_at_unix_ms = 1767225600000
+updated_at_unix_ms = 1785542400000
 strategy_package = "builtin"
 strategy_runtime = "ema_cross_demo"
 

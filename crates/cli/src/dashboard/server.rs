@@ -45,6 +45,10 @@ use tower_http::services::{ServeDir, ServeFile};
 use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
 use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
+use super::product_api::{
+    product_access_denied_response, product_method_not_allowed, strategy_detail_api,
+    strategy_list_api,
+};
 use super::trader_terminal_api::{
     audit_entries_api, backend_closure_status_api, deployment_state_api, permission_snapshot_api,
     provenance_drilldown_api, telemetry_health_api,
@@ -289,6 +293,20 @@ fn dashboard_router_with_workflow_root(
             get(control_center_js).head(reject_non_get),
         )
         .merge(strategy_workbench_routes);
+    let product_routes = Router::new()
+        .route(
+            "/api/product/v1/strategies",
+            get(strategy_list_api)
+                .head(product_method_not_allowed)
+                .fallback(product_method_not_allowed),
+        )
+        .route(
+            "/api/product/v1/strategies/{strategy_id}",
+            get(strategy_detail_api)
+                .head(product_method_not_allowed)
+                .fallback(product_method_not_allowed),
+        )
+        .route_layer(middleware::from_fn(require_product_read_access));
     let shared_read_routes = Router::new()
         .route(
             "/api/mvp/v1/status",
@@ -369,6 +387,7 @@ fn dashboard_router_with_workflow_root(
         .route_layer(middleware::from_fn(require_operator_access));
     Router::new()
         .merge(public_routes)
+        .merge(product_routes)
         .merge(shared_read_routes)
         .merge(operator_routes)
         .with_state(state)
@@ -382,6 +401,22 @@ async fn require_shared_read_access(
     next: Next,
 ) -> Response {
     require_role_access(access, PortalRole::SharedRead, request, next).await
+}
+
+async fn require_product_read_access(
+    Extension(access): Extension<PortalAccess>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if access.authorizes(request.headers(), PortalRole::SharedRead) {
+        let mut response = next.run(request).await;
+        add_private_response_headers(response.headers_mut());
+        response
+    } else {
+        let mut response = product_access_denied_response();
+        add_private_response_headers(response.headers_mut());
+        response
+    }
 }
 
 async fn require_operator_access(

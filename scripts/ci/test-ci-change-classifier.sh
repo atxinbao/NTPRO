@@ -52,6 +52,18 @@ assert_output "$strategy_output" "frontend_app=true"
 assert_output "$strategy_output" "institution_workbench=true"
 assert_output "$strategy_output" "control_center=true"
 
+product_api_output="$(classify product-api crates/cli/src/dashboard/product_api.rs)"
+assert_output "$product_api_output" "heavy_rust=true"
+assert_output "$product_api_output" "strategy_workbench=true"
+assert_output "$product_api_output" "frontend_app=true"
+assert_output "$product_api_output" "mvp_acceptance=true"
+assert_output "$product_api_output" "mvp_fault_matrix=true"
+
+product_contract_output="$(classify product-contract docs/product/api/ntpro_product_v1.openapi.json)"
+assert_output "$product_contract_output" "heavy_rust=true"
+assert_output "$product_contract_output" "strategy_workbench=true"
+assert_output "$product_contract_output" "frontend_app=true"
+
 frontend_output="$(classify frontend-app apps/strategy-workbench/src/pages/OverviewPage.tsx apps/strategy-workbench/package-lock.json)"
 assert_output "$frontend_output" "frontend_app=true"
 assert_output "$frontend_output" "heavy_rust=false"
@@ -184,4 +196,4 @@ if ! grep -F "cancel-in-progress: \${{ github.event_name == 'pull_request' }}" \
   exit 1
 fi
 
-echo "ci_change_classifier_selftest=pass cases=19"
+echo "ci_change_classifier_selftest=pass cases=21"

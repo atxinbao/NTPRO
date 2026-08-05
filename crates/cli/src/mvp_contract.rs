@@ -212,7 +212,15 @@ impl MvpIdentityContract {
     pub(crate) fn load(config_path: &Path, supervisor_node_id: &str) -> anyhow::Result<Self> {
         let raw = fs::read_to_string(config_path)
             .with_context(|| format!("读取 MVP 身份配置 '{}' 失败", config_path.display()))?;
-        let config: IdentityConfigProjection = toml::from_str(&raw).with_context(|| {
+        Self::load_from_str(config_path, &raw, supervisor_node_id)
+    }
+
+    pub(crate) fn load_from_str(
+        config_path: &Path,
+        raw: &str,
+        supervisor_node_id: &str,
+    ) -> anyhow::Result<Self> {
+        let config: IdentityConfigProjection = toml::from_str(raw).with_context(|| {
             format!(
                 "解析 MVP 身份配置 '{}' 失败；mvp serve 要求显式 [mvp] 身份段",
                 config_path.display()
