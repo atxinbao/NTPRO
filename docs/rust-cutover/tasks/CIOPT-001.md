@@ -7,7 +7,7 @@ GitHub PR: #1246
 Risk: critical
 Owner role: Rust Product Surface Agent
 Review role: Verification & Release Gatekeeper
-Status: REVIEW_REQUIRED
+Status: DONE
 
 ## 目标
 
