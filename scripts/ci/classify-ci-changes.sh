@@ -24,6 +24,7 @@ matches() {
 heavy_rust=false
 release_verify=false
 institution_workbench=false
+strategy_workbench=false
 control_center=false
 mvp_acceptance=false
 mvp_fault_matrix=false
@@ -41,6 +42,10 @@ fi
 
 if matches '^(crates/cli/src/dashboard/(institution_workbench\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_institution_workbench_(contract|browser)\.mjs)'; then
   institution_workbench=true
+fi
+
+if matches '^(crates/cli/src/dashboard/(strategy_workbench\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_strategy_workbench_(contract|browser)\.mjs)'; then
+  strategy_workbench=true
 fi
 
 if matches '^(crates/cli/src/dashboard/(control_center\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_control_center_(contract|browser)\.mjs)'; then
@@ -69,6 +74,7 @@ if matches '^(docs/product/(mvp_freeze_manifest\.json|mvp_release_and_rollback\.
   || [[ "$freeze_source_match" == "true" ]]; then
   mvp_final_acceptance=true
   institution_workbench=true
+  strategy_workbench=true
   control_center=true
   mvp_acceptance=true
   mvp_fault_matrix=true
@@ -91,6 +97,7 @@ for name in \
   heavy_rust \
   release_verify \
   institution_workbench \
+  strategy_workbench \
   control_center \
   mvp_acceptance \
   mvp_fault_matrix \
@@ -111,6 +118,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
       heavy_rust \
       release_verify \
       institution_workbench \
+      strategy_workbench \
       control_center \
       mvp_acceptance \
       mvp_fault_matrix \

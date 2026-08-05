@@ -176,7 +176,7 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         .local_addr()
         .context("failed to read dashboard server local address")?;
     println!(
-        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard?access_token={} institution_workbench_url=http://{}/institution-workbench?access_token={} control_center_url=http://{}/control-center?access_token={} portal_access=local_bootstrap external_identity_provider=false",
+        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard?access_token={} strategy_workbench_url=http://{}/strategy-workbench?access_token={} institution_workbench_url=http://{}/institution-workbench?access_token={} control_center_url=http://{}/control-center?access_token={} portal_access=local_bootstrap external_identity_provider=false",
         local_addr,
         registry_path.display(),
         workflow_root
@@ -184,6 +184,8 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
             .map_or_else(|| "auto".to_string(), |path| path.display().to_string()),
         local_addr,
         access.operator_token,
+        local_addr,
+        access.institution_token,
         local_addr,
         access.institution_token,
         local_addr,
@@ -240,6 +242,18 @@ fn dashboard_router_with_workflow_root(
         .route("/dashboard", get(dashboard_shell).head(reject_non_get))
         .route("/assets/dashboard.css", get(dashboard_css))
         .route("/assets/dashboard.js", get(dashboard_js))
+        .route(
+            "/strategy-workbench",
+            get(strategy_workbench_shell).head(reject_non_get),
+        )
+        .route(
+            "/assets/strategy-workbench.css",
+            get(strategy_workbench_css).head(reject_non_get),
+        )
+        .route(
+            "/assets/strategy-workbench.js",
+            get(strategy_workbench_js).head(reject_non_get),
+        )
         .route(
             "/institution-workbench",
             get(institution_workbench_shell).head(reject_non_get),
@@ -463,6 +477,35 @@ async fn institution_workbench_shell(
         &uri,
         "/institution-workbench",
         INSTITUTION_WORKBENCH_HTML,
+    )
+}
+
+async fn strategy_workbench_shell(
+    Extension(access): Extension<PortalAccess>,
+    headers: HeaderMap,
+    uri: Uri,
+) -> Response {
+    portal_shell_response(
+        &access,
+        PortalRole::InstitutionUser,
+        &headers,
+        &uri,
+        "/strategy-workbench",
+        STRATEGY_WORKBENCH_HTML,
+    )
+}
+
+async fn strategy_workbench_css() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "text/css; charset=utf-8")],
+        STRATEGY_WORKBENCH_CSS,
+    )
+}
+
+async fn strategy_workbench_js() -> impl IntoResponse {
+    (
+        [(CONTENT_TYPE, "application/javascript; charset=utf-8")],
+        STRATEGY_WORKBENCH_JS,
     )
 }
 

@@ -95,6 +95,9 @@ jobs:
       - name: Institution workbench contract replay
         if: steps.changes.outputs.institution_workbench == 'true'
         run: node scripts/ai/test_institution_workbench_contract.mjs
+      - name: Strategy workbench contract replay
+        if: steps.changes.outputs.strategy_workbench == 'true'
+        run: node scripts/ai/test_strategy_workbench_contract.mjs
       - name: Control center contract replay
         if: steps.changes.outputs.control_center == 'true'
         run: node scripts/ai/test_control_center_contract.mjs
@@ -139,7 +142,7 @@ jobs:
           path: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
           if-no-files-found: error
       - name: Product portal browser smoke
-        if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.control_center == 'true'
+        if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.strategy_workbench == 'true' || steps.changes.outputs.control_center == 'true'
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -157,6 +160,10 @@ jobs:
           if [[ "${{ steps.changes.outputs.institution_workbench }}" == "true" ]]; then
             export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-browser-evidence"
             node scripts/ai/test_institution_workbench_browser.mjs || portal_status=$?
+          fi
+          if [[ "${{ steps.changes.outputs.strategy_workbench }}" == "true" ]]; then
+            export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-strategy-workbench-browser-evidence"
+            node scripts/ai/test_strategy_workbench_browser.mjs || portal_status=$?
           fi
           if [[ "${{ steps.changes.outputs.control_center }}" == "true" ]]; then
             export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-control-center-browser-evidence"
@@ -176,6 +183,13 @@ jobs:
         with:
           name: control-center-browser-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-control-center-browser-evidence
+          if-no-files-found: error
+      - name: Upload strategy workbench browser evidence
+        if: always() && steps.changes.outputs.strategy_workbench == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: strategy-workbench-browser-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/ntpro-strategy-workbench-browser-evidence
           if-no-files-found: error
 
       - name: Build MVP final acceptance summary

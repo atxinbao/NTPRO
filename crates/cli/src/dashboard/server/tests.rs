@@ -284,6 +284,54 @@ async fn institution_workbench_route_serves_read_only_shell_and_assets() {
 }
 
 #[tokio::test]
+async fn strategy_workbench_route_serves_read_only_shell_and_assets() {
+    let root = std::env::temp_dir().join(format!(
+        "ntpro-swb-001-strategy-workbench-{}",
+        std::process::id()
+    ));
+    let router = dashboard_router(
+        root.join("supervisor/registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+    );
+
+    for (path, marker) in [
+        ("/strategy-workbench", "<title>NTPRO 策略工作台</title>"),
+        (
+            "/assets/strategy-workbench.css",
+            ".app-shell { --bg: #0d1411;",
+        ),
+        (
+            "/assets/strategy-workbench.js",
+            "const SHARED_STATUS_URL = \"/api/mvp/v1/status\";",
+        ),
+    ] {
+        let (status, body) = router_request(&router, Method::GET, path).await;
+        assert_eq!(status, StatusCode::OK, "{path}");
+        assert!(
+            String::from_utf8_lossy(&body).contains(marker),
+            "{path} missing {marker}"
+        );
+        for method in [
+            Method::HEAD,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::CONNECT,
+            Method::TRACE,
+        ] {
+            let (status, _) = router_request(&router, method.clone(), path).await;
+            assert_eq!(
+                status,
+                StatusCode::METHOD_NOT_ALLOWED,
+                "{method} {path} must be rejected",
+            );
+        }
+    }
+}
+
+#[tokio::test]
 async fn control_center_route_serves_shell_and_assets() {
     let root = std::env::temp_dir().join(format!(
         "ntpro-mvp-007-control-center-{}",
@@ -467,6 +515,16 @@ async fn portal_access_bootstrap_redirects_to_clean_url_and_sets_private_cookie(
     let response = router_response(
         &router,
         Method::GET,
+        &format!("/strategy-workbench?access_token={INSTITUTION_TOKEN}"),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(response.headers()[header::LOCATION], "/strategy-workbench");
+
+    let response = router_response(
+        &router,
+        Method::GET,
         &format!("/control-center?access_token={OPERATOR_TOKEN}"),
         None,
     )
@@ -491,6 +549,7 @@ async fn portal_access_rejects_missing_wrong_empty_and_duplicate_bootstrap_crede
     let institution_cookie = format!("{INSTITUTION_ACCESS_COOKIE}={INSTITUTION_TOKEN}");
 
     for (path, cookie) in [
+        ("/strategy-workbench", None),
         ("/institution-workbench", None),
         ("/institution-workbench?access_token=", None),
         ("/institution-workbench?access_token=forged", None),
@@ -548,6 +607,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
     let operator_cookie = format!("{OPERATOR_ACCESS_COOKIE}={OPERATOR_TOKEN}");
 
     for (method, path) in [
+        (Method::GET, "/strategy-workbench"),
         (Method::GET, "/institution-workbench"),
         (Method::GET, "/control-center"),
         (Method::GET, "/dashboard"),
@@ -569,7 +629,12 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         assert_private_response_headers(&response, path);
     }
 
-    for path in ["/institution-workbench", "/assets/institution-workbench.js"] {
+    for path in [
+        "/strategy-workbench",
+        "/assets/strategy-workbench.js",
+        "/institution-workbench",
+        "/assets/institution-workbench.js",
+    ] {
         let response = router_response(&router, Method::GET, path, Some(&institution_cookie)).await;
         assert_eq!(response.status(), StatusCode::OK, "{path}");
     }
@@ -617,22 +682,23 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         router_response(&router, Method::POST, action_path, Some(&operator_cookie)).await;
     assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     assert_private_response_headers(&response, action_path);
-    let response = router_response(
-        &router,
-        Method::GET,
-        "/institution-workbench",
-        Some(&operator_cookie),
-    )
-    .await;
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    for path in ["/strategy-workbench", "/institution-workbench"] {
+        let response = router_response(&router, Method::GET, path, Some(&operator_cookie)).await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
+    }
 
     let both_cookies = format!("{institution_cookie}; {operator_cookie}");
-    for path in ["/institution-workbench", "/control-center"] {
+    for path in [
+        "/strategy-workbench",
+        "/institution-workbench",
+        "/control-center",
+    ] {
         let response = router_response(&router, Method::GET, path, Some(&both_cookies)).await;
         assert_eq!(response.status(), StatusCode::OK, "{path}");
     }
 
     for (path, cookie) in [
+        ("/strategy-workbench", institution_cookie.as_str()),
         ("/institution-workbench", institution_cookie.as_str()),
         ("/api/mvp/v1/status", institution_cookie.as_str()),
         ("/api/mvp/v1/event-correlation", institution_cookie.as_str()),
