@@ -122,6 +122,8 @@ env/
 !scripts/ci/publish-cli-r2-upload.sh
 !scripts/ci/publish-cli-r2-verify.sh
 !scripts/ci/security-audit-gate.sh
+!scripts/ci/classify-ci-changes.sh
+!scripts/ci/test-ci-change-classifier.sh
 !scripts/ci/set-cargo-build-jobs.sh
 !scripts/ci/verify-ci-inputs.sh
 !scripts/cli/install.sh
