@@ -39,6 +39,7 @@ fi
 
 if matches '^apps/strategy-workbench/'; then
   frontend_app=true
+  strategy_workbench=true
 fi
 
 if matches '^(\.github/(workflows|actions)/|scripts/ai/|docs/rust-cutover/(governance|release|golden_trace)/|tests/golden/|crates/governance/|scripts/ci/(classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
@@ -49,7 +50,7 @@ if matches '^(crates/cli/src/dashboard/(institution_workbench\.rs|server\.rs|ser
   institution_workbench=true
 fi
 
-if matches '^(crates/cli/src/dashboard/(strategy_workbench\.rs|server\.rs|server/tests\.rs)|scripts/ai/test_strategy_workbench_(contract|browser)\.mjs)'; then
+if matches '^(apps/strategy-workbench/|crates/cli/src/dashboard\.rs|crates/cli/src/dashboard/(server\.rs|server/tests\.rs)|scripts/ai/test_strategy_workbench_browser\.mjs)'; then
   strategy_workbench=true
 fi
 
@@ -83,6 +84,11 @@ if matches '^(docs/product/(mvp_freeze_manifest\.json|mvp_release_and_rollback\.
   control_center=true
   mvp_acceptance=true
   mvp_fault_matrix=true
+fi
+
+# 生产策略工作台浏览器验收读取真实 Vite bundle，因此必须先执行前端构建 gate。
+if [[ "$strategy_workbench" == "true" ]]; then
+  frontend_app=true
 fi
 
 if matches '^(\.github/|\.zizmor\.yml$|scripts/ci/(classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then

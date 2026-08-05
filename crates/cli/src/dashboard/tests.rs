@@ -43,13 +43,13 @@ fn dashboard_module_ownership_boundaries_are_explicit() {
     let control_center = include_str!("control_center.rs");
     let institution_workbench = include_str!("institution_workbench.rs");
     let rendering = include_str!("rendering.rs");
-    let strategy_workbench = include_str!("strategy_workbench.rs");
+    let server = include_str!("server.rs");
 
     assert!(root.contains("mod control_center;"));
     assert!(root.contains("mod institution_workbench;"));
     assert!(root.contains("mod rendering;"));
     assert!(root.contains("mod server;"));
-    assert!(root.contains("mod strategy_workbench;"));
+    assert!(!root.contains("mod strategy_workbench;"));
     assert!(root.contains("mod trader_terminal_api;"));
     assert!(root.contains("#[path = \"dashboard/tests.rs\"]"));
     assert!(!root.contains("mod tests {"));
@@ -69,41 +69,26 @@ fn dashboard_module_ownership_boundaries_are_explicit() {
     assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_HTML:"));
     assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_CSS:"));
     assert!(institution_workbench.contains("pub(super) const INSTITUTION_WORKBENCH_JS:"));
-    assert!(strategy_workbench.contains("//! 策略工作台主产品 shell 与共享只读状态渲染资源。"));
-    assert!(strategy_workbench.contains("pub(super) const STRATEGY_WORKBENCH_HTML:"));
-    assert!(strategy_workbench.contains("pub(super) const STRATEGY_WORKBENCH_CSS:"));
-    assert!(strategy_workbench.contains("pub(super) const STRATEGY_WORKBENCH_JS:"));
+    assert!(server.contains("tower_http::services::{ServeDir, ServeFile}"));
+    assert!(server.contains("fn strategy_workbench_routes("));
+    assert!(server.contains("pub(crate) fn validate_strategy_workbench_dist("));
 }
 
 #[test]
 fn strategy_workbench_is_read_only_main_product_shell() {
     let server = include_str!("server.rs");
+    let app_shell = include_str!("../../../../apps/strategy-workbench/src/app/AppShell.tsx");
+    let status_api = include_str!("../../../../apps/strategy-workbench/src/api/mvpStatus.ts");
     for route in [
         r#""/strategy-workbench""#,
-        "get(strategy_workbench_shell).head(reject_non_get)",
-        r#""/assets/strategy-workbench.css""#,
-        r#""/assets/strategy-workbench.js""#,
+        r#""/assets""#,
+        "ServeDir::new(dist_path.join(\"assets\"))",
+        "fallback_service(ServeFile::new(index_path))",
+        "require_strategy_workbench_access",
     ] {
         assert!(
             server.contains(route),
             "dashboard server missing route {route}"
-        );
-    }
-    for mount in [
-        "primary-nav",
-        "strategy-name",
-        "mode-tabs",
-        "run-table-body",
-        "axis-list",
-        "drawer-toggle",
-        "boundary-list",
-        "bottom-dock",
-        "dock-content",
-        "statusbar",
-    ] {
-        assert!(
-            STRATEGY_WORKBENCH_HTML.contains(mount),
-            "strategy workbench missing mount {mount}",
         );
     }
     for label in [
@@ -118,25 +103,21 @@ fn strategy_workbench_is_read_only_main_product_shell() {
         "系统状态",
         "未开放",
     ] {
-        assert!(STRATEGY_WORKBENCH_HTML.contains(label));
+        assert!(app_shell.contains(label));
     }
     for required in [
-        "const SHARED_STATUS_URL = \"/api/mvp/v1/status\"",
-        "validateSharedStatus",
-        "refreshStrategyWorkbench",
-        "resetSurface(\"刷新中，旧状态已清空\")",
-        "method: \"GET\"",
-        "cache: \"no-store\"",
+        "const STATUS_URL = \"/api/mvp/v1/status\"",
+        "parseMvpStatus",
+        "credentials: \"same-origin\"",
         "read_only_product_contract",
         "order_submission_allowed",
         "real_orders_submitted",
     ] {
         assert!(
-            STRATEGY_WORKBENCH_JS.contains(required),
+            status_api.contains(required),
             "strategy workbench missing contract marker {required}",
         );
     }
-    assert_eq!(STRATEGY_WORKBENCH_JS.matches("fetch(").count(), 1);
     for forbidden in [
         "method: \"POST\"",
         "data-dashboard-action",
@@ -148,11 +129,9 @@ fn strategy_workbench_is_read_only_main_product_shell() {
         "retry_order_action",
         "automatic_remediation_action",
     ] {
-        assert!(!STRATEGY_WORKBENCH_HTML.contains(forbidden));
-        assert!(!STRATEGY_WORKBENCH_JS.contains(forbidden));
+        assert!(!app_shell.contains(forbidden));
+        assert!(!status_api.contains(forbidden));
     }
-    assert!(STRATEGY_WORKBENCH_CSS.contains("@media (max-width: 760px)"));
-    assert!(!STRATEGY_WORKBENCH_CSS.contains("gradient"));
 }
 
 #[test]

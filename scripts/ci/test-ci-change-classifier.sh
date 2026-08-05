@@ -41,20 +41,21 @@ assert_output "$runtime_output" "mvp_acceptance=true"
 assert_output "$runtime_output" "mvp_fault_matrix=true"
 
 freeze_output="$(classify freeze docs/product/mvp_freeze_manifest.json)"
-for key in institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance; do
+for key in institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance frontend_app; do
   assert_output "$freeze_output" "$key=true"
 done
 
-strategy_output="$(classify strategy-workbench crates/cli/src/dashboard/strategy_workbench.rs)"
+strategy_output="$(classify strategy-workbench crates/cli/src/dashboard/server.rs)"
 assert_output "$strategy_output" "heavy_rust=true"
 assert_output "$strategy_output" "strategy_workbench=true"
-assert_output "$strategy_output" "institution_workbench=false"
-assert_output "$strategy_output" "control_center=false"
+assert_output "$strategy_output" "frontend_app=true"
+assert_output "$strategy_output" "institution_workbench=true"
+assert_output "$strategy_output" "control_center=true"
 
 frontend_output="$(classify frontend-app apps/strategy-workbench/src/pages/OverviewPage.tsx apps/strategy-workbench/package-lock.json)"
 assert_output "$frontend_output" "frontend_app=true"
 assert_output "$frontend_output" "heavy_rust=false"
-assert_output "$frontend_output" "strategy_workbench=false"
+assert_output "$frontend_output" "strategy_workbench=true"
 assert_output "$frontend_output" "mvp_acceptance=false"
 
 cargo_output="$(classify cargo Cargo.lock)"

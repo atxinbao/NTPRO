@@ -18,6 +18,10 @@ start/stop。权威机器合同是 `docs/product/mvp_freeze_manifest.json`。
 固定 Rust 1.95.0 后执行：
 
 ```bash
+cd apps/strategy-workbench
+npm ci
+npm run build
+cd ../..
 scripts/ai/check_mvp_freeze_baseline.sh
 cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
 NTPRO_MVP_ACCEPTANCE_EVIDENCE_DIR=/tmp/ntpro-mvp-acceptance \
@@ -38,8 +42,12 @@ cargo run -p nautilus-cli --bin nautilus -- \
   --config configs/nodes/btc-ema-shadow.toml \
   --workspace /tmp/ntpro-mvp-workspace \
   --bind 127.0.0.1:8080 \
+  --strategy-workbench-dist apps/strategy-workbench/dist \
   --ntpro-node-bin target/debug/ntpro-node
 ```
+
+`dist/` 是发布输入而不是 Git 源文件。发布包或部署流程必须先执行上述前端构建，并将
+完整目录与 Rust 二进制一起交付；任一入口引用资产缺失都会在服务绑定端口前 fail closed。
 
 只使用启动日志生成的一次性角色入口。不得把 bootstrap token 写入文档、截图、工件或
 共享命令。机构入口只能进入 `/institution-workbench`；operator 入口只能进入

@@ -2660,6 +2660,9 @@ pub struct MvpServeOpt {
     /// 本地 Dashboard 监听地址。
     #[arg(long, default_value = "127.0.0.1:5173")]
     pub bind: SocketAddr,
+    /// 已完成 `npm run build` 的策略工作台 Vite 产物目录。
+    #[arg(long, default_value = "apps/strategy-workbench/dist")]
+    pub strategy_workbench_dist: PathBuf,
     /// 可选的 ntpro-node 二进制路径，默认使用 nautilus 同目录二进制。
     #[arg(long)]
     pub ntpro_node_bin: Option<PathBuf>,
@@ -2705,6 +2708,9 @@ pub struct DashboardServeOpt {
     /// Local loopback address for the dashboard HTTP server.
     #[arg(long, default_value = "127.0.0.1:5173")]
     pub bind: SocketAddr,
+    /// Vite production bundle directory for the strategy workbench.
+    #[arg(long, default_value = "apps/strategy-workbench/dist")]
+    pub strategy_workbench_dist: PathBuf,
     /// Optional path to the local ntpro-node binary used by start controls.
     #[arg(long)]
     pub ntpro_node_bin: Option<PathBuf>,
@@ -3143,6 +3149,10 @@ mod tests {
         assert_eq!(serve.workspace, PathBuf::from("target/ntpro-mvp"));
         assert_eq!(serve.node_id, "mvp-node-001");
         assert_eq!(serve.bind, "127.0.0.1:5173".parse().unwrap());
+        assert_eq!(
+            serve.strategy_workbench_dist,
+            PathBuf::from("apps/strategy-workbench/dist")
+        );
         assert!(serve.ntpro_node_bin.is_none());
     }
 
@@ -6053,6 +6063,8 @@ mod tests {
             "runs/workflows",
             "--bind",
             "127.0.0.1:5174",
+            "--strategy-workbench-dist",
+            "target/strategy-workbench-dist",
         ])
         .expect("dashboard serve should parse");
 
@@ -6067,6 +6079,10 @@ mod tests {
         );
         assert_eq!(serve.workflow_root, Some(PathBuf::from("runs/workflows")));
         assert_eq!(serve.bind.to_string(), "127.0.0.1:5174");
+        assert_eq!(
+            serve.strategy_workbench_dist,
+            PathBuf::from("target/strategy-workbench-dist")
+        );
         assert!(serve.ntpro_node_bin.is_none());
     }
 
@@ -6087,6 +6103,10 @@ mod tests {
         let DashboardCommand::Serve(serve) = dashboard.command;
 
         assert_eq!(serve.bind.to_string(), "127.0.0.1:5173");
+        assert_eq!(
+            serve.strategy_workbench_dist,
+            PathBuf::from("apps/strategy-workbench/dist")
+        );
     }
 
     #[test]

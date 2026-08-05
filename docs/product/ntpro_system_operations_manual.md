@@ -153,11 +153,19 @@ rustc --version
 cargo --version
 ```
 
-最后两条命令必须显示 `1.95.0`。然后在仓库根目录构建两个二进制：
+最后两条命令必须显示 `1.95.0`。前端是显式构建产物，先构建策略工作台，再在仓库
+根目录构建两个 Rust 二进制：
 
 ```bash
+cd apps/strategy-workbench
+npm ci
+npm run build
+cd ../..
 cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
 ```
+
+生产不运行 Node.js；Node.js 只在此构建步骤生成 `apps/strategy-workbench/dist/`。该目录
+缺失、入口不完整或引用资产缺失时，Rust 服务会拒绝启动。
 
 ### 7.2 选择 workspace
 
@@ -185,6 +193,7 @@ target/debug/nautilus mvp serve \
   --config configs/nodes/btc-ema-shadow.toml \
   --workspace "$HOME/.local/share/ntpro/mvp-workspace" \
   --bind 127.0.0.1:5173 \
+  --strategy-workbench-dist apps/strategy-workbench/dist \
   --ntpro-node-bin target/debug/ntpro-node
 ```
 
@@ -385,11 +394,16 @@ flowchart TB
 ### 启动
 
 ```bash
+cd apps/strategy-workbench
+npm ci
+npm run build
+cd ../..
 cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
 target/debug/nautilus mvp serve \
   --config configs/nodes/btc-ema-shadow.toml \
   --workspace "$HOME/.local/share/ntpro/mvp-workspace" \
   --bind 127.0.0.1:5173 \
+  --strategy-workbench-dist apps/strategy-workbench/dist \
   --ntpro-node-bin target/debug/ntpro-node
 ```
 

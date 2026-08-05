@@ -127,7 +127,8 @@ jobs:
         run: node scripts/ai/test_institution_workbench_contract.mjs
       - name: Strategy workbench contract replay
         if: steps.changes.outputs.strategy_workbench == 'true'
-        run: node scripts/ai/test_strategy_workbench_contract.mjs
+        working-directory: apps/strategy-workbench
+        run: npm run test -- src/api/mvpStatus.test.ts
       - name: Control center contract replay
         if: steps.changes.outputs.control_center == 'true'
         run: node scripts/ai/test_control_center_contract.mjs
@@ -173,6 +174,9 @@ jobs:
           name: mvp-fault-matrix-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
           if-no-files-found: error
+      - name: Build product portal browser binaries
+        if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.strategy_workbench == 'true' || steps.changes.outputs.control_center == 'true'
+        run: cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
       - name: Product portal browser smoke
         id: portal_browser
         if: steps.changes.outputs.institution_workbench == 'true' || steps.changes.outputs.strategy_workbench == 'true' || steps.changes.outputs.control_center == 'true'
@@ -181,7 +185,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends fonts-noto-cjk
           fc-match "Noto Sans CJK SC"
-          cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
           npm install \
             --prefix "$RUNNER_TEMP/ntpro-playwright" \
             --package-lock=false \

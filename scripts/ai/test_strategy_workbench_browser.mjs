@@ -9,44 +9,76 @@ const playwrightPath = process.env.NTPRO_PLAYWRIGHT_CORE_PATH;
 if (!playwrightPath) throw new Error("NTPRO_PLAYWRIGHT_CORE_PATH is required");
 const require = createRequire(import.meta.url);
 const { chromium } = require(playwrightPath);
-const chrome = process.env.NTPRO_CHROME_BIN || (process.platform === "darwin"
-  ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-  : "google-chrome");
+const chrome =
+  process.env.NTPRO_CHROME_BIN ||
+  (process.platform === "darwin"
+    ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    : "google-chrome");
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-swb-001-browser-"));
-const evidenceDir = process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
+const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-fei-001-browser-"));
+const evidenceDir =
+  process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
 const workspace = path.join(root, "workspace");
 const config = path.resolve("configs/nodes/btc-ema-shadow.toml");
+const dist = path.resolve("apps/strategy-workbench/dist");
 fs.mkdirSync(evidenceDir, { recursive: true });
 
-const redact = (value) => value.replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]");
+const redact = (value) =>
+  value.replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]");
 const serverLog = [];
 const port = await new Promise((resolve, reject) => {
   const listener = net.createServer();
   listener.once("error", reject);
   listener.listen(0, "127.0.0.1", () => {
     const address = listener.address();
-    listener.close((error) => error ? reject(error) : resolve(address.port));
+    listener.close((error) =>
+      error ? reject(error) : resolve(address.port),
+    );
   });
 });
 const baseUrl = `http://127.0.0.1:${port}`;
-const server = spawn("target/debug/nautilus", [
-  "mvp", "serve", "--config", config, "--workspace", workspace,
-  "--bind", `127.0.0.1:${port}`, "--ntpro-node-bin", "target/debug/ntpro-node",
-  "--startup-timeout-ms", "10000", "--node-max-runtime-ms", "120000",
-], { stdio: ["ignore", "pipe", "pipe"] });
+const server = spawn(
+  "target/debug/nautilus",
+  [
+    "mvp",
+    "serve",
+    "--config",
+    config,
+    "--workspace",
+    workspace,
+    "--bind",
+    `127.0.0.1:${port}`,
+    "--strategy-workbench-dist",
+    dist,
+    "--ntpro-node-bin",
+    "target/debug/ntpro-node",
+    "--startup-timeout-ms",
+    "10000",
+    "--node-max-runtime-ms",
+    "120000",
+  ],
+  { stdio: ["ignore", "pipe", "pipe"] },
+);
 server.stdout.on("data", (chunk) => serverLog.push(chunk.toString()));
 server.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
 
 let browser;
 let failure;
 const writeEvidence = (result) => {
-  fs.writeFileSync(path.join(evidenceDir, "mvp-server.log"), redact(serverLog.join("")));
-  fs.writeFileSync(path.join(evidenceDir, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
+  fs.writeFileSync(
+    path.join(evidenceDir, "mvp-server.log"),
+    redact(serverLog.join("")),
+  );
+  fs.writeFileSync(
+    path.join(evidenceDir, "result.json"),
+    `${JSON.stringify(result, null, 2)}\n`,
+  );
 };
+
 try {
   let strategyAccessUrl;
   let payload;
+  let institutionCookie;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     const match = serverLog.join("").match(/strategy_workbench_url=(\S+)/);
@@ -54,7 +86,10 @@ try {
       strategyAccessUrl = new URL(match[1]);
       const token = strategyAccessUrl.searchParams.get("access_token");
       if (!token) throw new Error("strategy bootstrap URL omitted access_token");
-      const response = await fetch(`${baseUrl}/api/mvp/v1/status`, { headers: { cookie: `ntpro_mvp_institution_access=${token}` } });
+      institutionCookie = `ntpro_mvp_institution_access=${token}`;
+      const response = await fetch(`${baseUrl}/api/mvp/v1/status`, {
+        headers: { cookie: institutionCookie },
+      });
       if (response.ok) {
         payload = await response.json();
         break;
@@ -62,67 +97,204 @@ try {
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  if (!strategyAccessUrl || !payload) throw new Error(`strategy workbench did not become ready:\n${redact(serverLog.join(""))}`);
+  if (!strategyAccessUrl || !payload || !institutionCookie) {
+    throw new Error(
+      `strategy workbench did not become ready:\n${redact(serverLog.join(""))}`,
+    );
+  }
 
-  const unauthorized = await fetch(`${baseUrl}/strategy-workbench`, { redirect: "manual" });
-  if (unauthorized.status !== 403) throw new Error(`unauthorized strategy page expected 403, got ${unauthorized.status}`);
+  const unauthorized = await fetch(`${baseUrl}/strategy-workbench/overview`, {
+    redirect: "manual",
+  });
+  if (unauthorized.status !== 403) {
+    throw new Error(
+      `unauthorized strategy page expected 403, got ${unauthorized.status}`,
+    );
+  }
+  for (const [method, url, expected] of [
+    ["GET", "/strategy-workbench/system-status", 200],
+    ["POST", "/strategy-workbench/overview", 405],
+    ["GET", "/strategy-workbench/assets/missing.js", 404],
+    ["GET", "/api/product/v1/unknown", 404],
+  ]) {
+    const response = await fetch(`${baseUrl}${url}`, {
+      method,
+      headers: { cookie: institutionCookie },
+    });
+    if (response.status !== expected) {
+      throw new Error(`${method} ${url} expected ${expected}, got ${response.status}`);
+    }
+  }
 
   browser = await chromium.launch({ executablePath: chrome, headless: true });
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+  });
   const page = await context.newPage();
   const browserErrors = [];
+  const productionAssets = new Set();
   page.on("pageerror", (error) => browserErrors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") browserErrors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() === "error") browserErrors.push(message.text());
+  });
+  page.on("response", (response) => {
+    const url = new URL(response.url());
+    if (url.pathname.startsWith("/strategy-workbench/assets/")) {
+      productionAssets.add(url.pathname);
+    }
+  });
   let scenario = "valid";
   await page.route("**/api/mvp/v1/status", async (route) => {
     if (scenario === "valid") return route.continue();
-    if (scenario === "http_error") return route.fulfill({ status: 503, contentType: "application/json", body: "{}" });
+    if (scenario === "http_error") {
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: "{}",
+      });
+    }
     const response = structuredClone(payload);
     response.boundaries.real_orders_submitted = true;
-    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(response) });
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(response),
+    });
   });
 
   await page.goto(strategyAccessUrl.toString(), { waitUntil: "networkidle" });
-  if (new URL(page.url()).searchParams.has("access_token")) throw new Error("bootstrap token remained in browser URL");
-  await page.waitForFunction(() => document.getElementById("connection-title")?.textContent === "策略状态已验证");
-  if (!await page.locator("#strategy-name").textContent()) throw new Error("strategy identity did not render");
-  if (!await page.locator('.mode-tabs button:has-text("Live")').isDisabled()) throw new Error("Live mode must remain disabled");
-  if (await page.locator('button').allTextContents().then((values) => values.some((value) => /下单|撤单|改单|平仓/.test(value)))) throw new Error("trading control appeared in strategy shell");
-  if (await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) throw new Error("1440 viewport has horizontal overflow");
+  if (new URL(page.url()).searchParams.has("access_token")) {
+    throw new Error("bootstrap token remained in browser URL");
+  }
+  await page.getByText("策略状态已验证").waitFor();
+  const assertCanvasOrigin = async (phase) => {
+    const layout = await page.evaluate(() => {
+      const canvas = document.querySelector("main");
+      const heading = canvas?.querySelector("h1");
+      const rail = document.querySelector("aside");
+      const stage = document.querySelector("main")?.closest("section");
+      const canvasRect = canvas?.getBoundingClientRect();
+      const headingRect = heading?.getBoundingClientRect();
+      return {
+        scrollLeft: canvas?.scrollLeft,
+        scrollTop: canvas?.scrollTop,
+        railRight: rail?.getBoundingClientRect().right,
+        stageLeft: stage?.getBoundingClientRect().left,
+        canvasLeft: canvasRect?.left,
+        headingLeft: headingRect?.left,
+        headingText: heading?.textContent,
+      };
+    });
+    if (
+      layout.scrollLeft !== 0 ||
+      layout.scrollTop !== 0 ||
+      layout.railRight === undefined ||
+      layout.stageLeft === undefined ||
+      layout.canvasLeft === undefined ||
+      layout.headingLeft === undefined ||
+      layout.stageLeft < layout.railRight ||
+      layout.canvasLeft < layout.railRight ||
+      layout.headingLeft < layout.canvasLeft
+    ) {
+      throw new Error(`${phase} canvas origin drift: ${JSON.stringify(layout)}`);
+    }
+  };
+  await assertCanvasOrigin("initial");
+  if (!(await page.getByTestId("strategy-name").textContent())) {
+    throw new Error("strategy identity did not render");
+  }
+  for (const liveButton of await page
+    .getByRole("button", { name: /Live/ })
+    .all()) {
+    if (!(await liveButton.isDisabled())) {
+      throw new Error("Live mode must remain disabled");
+    }
+  }
+  if (
+    await page
+      .getByRole("button", { name: /下单|撤单|改单|平仓/ })
+      .count()
+  ) {
+    throw new Error("trading control appeared in strategy shell");
+  }
+  if (
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    )
+  ) {
+    throw new Error("1440 viewport has horizontal overflow");
+  }
+  if (
+    ![...productionAssets].some((asset) =>
+      /\/strategy-workbench\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.js$/.test(
+        asset,
+      ),
+    )
+  ) {
+    throw new Error("browser did not load a hashed production JavaScript asset");
+  }
 
-  await page.locator('[data-dock="logs"]').click();
-  if (!await page.locator("#dock-content").textContent().then((value) => value?.includes("原始日志不在主产品面暴露"))) throw new Error("logs dock did not switch content");
-  await page.locator("#drawer-toggle").click();
-  if (await page.locator("#strategy-workbench").evaluate((node) => node.classList.contains("drawer-open"))) throw new Error("details drawer did not close");
-  await page.locator("#drawer-toggle").click();
-  await page.screenshot({ path: path.join(evidenceDir, "strategy-workbench-1440.png"), fullPage: true });
+  await page.getByRole("tab", { name: "日志" }).click();
+  await page.getByText("原始日志不在主产品面暴露").waitFor();
+  await page.getByRole("button", { name: "收起详情栏" }).click();
+  if ((await page.getByTestId("app-shell").getAttribute("class"))?.includes("drawerOpen")) {
+    throw new Error("details drawer did not close");
+  }
+  await page.getByRole("button", { name: "展开详情栏" }).click();
+  await assertCanvasOrigin("drawer-reopened");
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-1440.png"),
+    fullPage: true,
+  });
+
+  await page.getByRole("link", { name: "系统状态" }).click();
+  await page.getByRole("heading", { name: "系统状态" }).waitFor();
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "系统状态" }).waitFor();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${baseUrl}/strategy-workbench`, { waitUntil: "networkidle" });
-  await page.waitForFunction(() => document.getElementById("connection-title")?.textContent === "策略状态已验证");
-  if (await page.locator("#strategy-workbench").evaluate((node) => node.classList.contains("drawer-open"))) throw new Error("mobile details drawer must default closed");
+  await page.goto(`${baseUrl}/strategy-workbench/overview`, {
+    waitUntil: "networkidle",
+  });
+  await page.getByText("策略状态已验证").waitFor();
+  if ((await page.getByTestId("app-shell").getAttribute("class"))?.includes("drawerOpen")) {
+    throw new Error("mobile details drawer must default closed");
+  }
   const mobileLayout = await page.evaluate(() => ({
     scrollX: window.scrollX,
     documentWidth: document.documentElement.scrollWidth,
     viewportWidth: document.documentElement.clientWidth,
-    stageLeft: document.querySelector(".stage")?.getBoundingClientRect().left,
-    canvasLeft: document.querySelector(".canvas")?.getBoundingClientRect().left,
-    headingLeft: document.querySelector(".canvas-heading")?.getBoundingClientRect().left,
-    firstScopeLeft: document.querySelector(".scope")?.getBoundingClientRect().left,
   }));
-  if (mobileLayout.documentWidth > mobileLayout.viewportWidth || mobileLayout.scrollX !== 0 || mobileLayout.stageLeft !== 0 || mobileLayout.canvasLeft !== 0 || mobileLayout.headingLeft < 0 || mobileLayout.firstScopeLeft < 0) throw new Error(`390 viewport layout drift: ${JSON.stringify(mobileLayout)}`);
-  await page.screenshot({ path: path.join(evidenceDir, "strategy-workbench-390.png"), fullPage: true });
+  if (
+    mobileLayout.documentWidth > mobileLayout.viewportWidth ||
+    mobileLayout.scrollX !== 0
+  ) {
+    throw new Error(`390 viewport layout drift: ${JSON.stringify(mobileLayout)}`);
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-390.png"),
+    fullPage: true,
+  });
 
   scenario = "boundary";
-  await page.locator("#refresh").click();
-  await page.waitForFunction(() => document.getElementById("connection-title")?.textContent === "策略工作台已阻断");
-  if ((await page.locator("#strategy-name").textContent()) !== "策略未加载") throw new Error("boundary failure retained stale strategy identity");
-  await page.screenshot({ path: path.join(evidenceDir, "strategy-workbench-blocked.png"), fullPage: true });
+  await page.getByRole("button", { name: "刷新共享状态" }).click();
+  await page.getByText("策略工作台已阻断").waitFor();
+  if ((await page.getByTestId("strategy-name").textContent()) !== "策略未加载") {
+    throw new Error("boundary failure retained stale strategy identity");
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-blocked.png"),
+    fullPage: true,
+  });
 
   scenario = "http_error";
-  await page.locator("#refresh").click();
-  await page.waitForFunction(() => document.getElementById("connection-title")?.textContent === "策略工作台已阻断");
-  if (browserErrors.length > 0) throw new Error(`browser errors: ${browserErrors.join("; ")}`);
+  await page.getByRole("button", { name: "刷新共享状态" }).click();
+  await page.getByText("策略工作台已阻断").waitFor();
+  if (browserErrors.length > 0) {
+    throw new Error(`browser errors: ${browserErrors.join("; ")}`);
+  }
 } catch (error) {
   failure = error instanceof Error ? error : new Error(String(error));
 } finally {
@@ -130,8 +302,14 @@ try {
   if (server.exitCode === null) server.kill("SIGINT");
   await new Promise((resolve) => {
     if (server.exitCode !== null) return resolve();
-    const timer = setTimeout(() => { if (server.exitCode === null) server.kill("SIGKILL"); resolve(); }, 10_000);
-    server.once("exit", () => { clearTimeout(timer); resolve(); });
+    const timer = setTimeout(() => {
+      if (server.exitCode === null) server.kill("SIGKILL");
+      resolve();
+    }, 10_000);
+    server.once("exit", () => {
+      clearTimeout(timer);
+      resolve();
+    });
   });
 }
 
@@ -139,5 +317,21 @@ if (failure) {
   writeEvidence({ status: "fail", error: redact(failure.message) });
   throw failure;
 }
-writeEvidence({ status: "pass", viewports: ["1440x1000", "390x844"], valid: 1, boundary: 1, http_error: 1, dock: 1, drawer: 1, live_disabled: 1, bootstrap_url_clean: 1 });
+writeEvidence({
+  status: "pass",
+  viewports: ["1440x1000", "390x844"],
+  production_bundle: 1,
+  hashed_asset: 1,
+  spa_deep_refresh: 1,
+  api_fallback_isolation: 1,
+  asset_404: 1,
+  method_405: 1,
+  valid: 1,
+  boundary: 1,
+  http_error: 1,
+  dock: 1,
+  drawer: 1,
+  live_disabled: 1,
+  bootstrap_url_clean: 1,
+});
 console.log(`strategy_workbench_browser=pass evidence=${evidenceDir}`);
