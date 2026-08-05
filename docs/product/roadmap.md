@@ -54,6 +54,26 @@ Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系�
 代码存在不等于产品完成。Backtest 引擎、Sandbox 节点和 `Environment::Live` 枚举都
 不能代替策略工作台、稳定产品合同、真实适配器或端到端 Live 验收。
 
+## 前端产品交付线
+
+SWB-001 已交付策略工作台页面框架，但当前实现仍是 Rust 源码内嵌的 HTML、CSS 与原生
+JavaScript，只消费 `GET /api/mvp/v1/status`。它证明页面框架和只读状态桥接成立，不代表
+各栏目已经产品化。
+
+前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
+
+```text
+FEA-001 前端架构文档
+  -> FEF-001 React / TypeScript / Vite 工程底座
+  -> S0-API-001 Strategy / StrategyVersion / Run 只读产品合同
+  -> SWB-002 策略总览与 Run 详情纵向切片
+  -> S1-S4 三模式产品闭环
+```
+
+`FEF-001` 与 `S0-API-001` 可以在合同确定后并行，`SWB-002` 必须同时依赖两者。不得先把
+全部栏目建设成使用假数据的空页面；fixture 只能用于组件和浏览器测试，生产页面必须绑定
+真实产品 API。Node.js 只用于前端开发与构建，生产运行时继续由 Rust/Axum 承担。
+
 ## 策略三模式 Roadmap
 
 ### S0：策略、版本与运行资源
