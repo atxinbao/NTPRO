@@ -1,19 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Decide whether the security-audit workflow's audit jobs need to run.
-#
-# Trust note: this script is `pull_request`-triggered, so a PR can edit it.
-# CODEOWNERS gates /scripts/ to @nautechsystems/core and the develop ruleset
-# requires code-owner review (require_code_owner_review = true), so any change
-# to this gate must be approved by the core team before merge. Do not weaken
-# either control without also moving the gate decision to a trusted base-ref
-# context (e.g. pull_request_target with explicit checkout of base-ref code).
-#
-# Output (to $GITHUB_OUTPUT):
-#   audit_needed - "true" if audit-relevant paths changed (or event forces a
-#                  run), "false" otherwise. Consumed by the `if:` condition on
-#                  the audit jobs in .github/workflows/security-audit.yml.
+# Resolve the event's changed files, then delegate path classification to the
+# shared CI classifier. Unknown or incomplete event state fails closed by
+# forcing both workflow and dependency audits.
 #
 # Required env vars:
 #   EVENT_NAME       - github.event_name
@@ -22,38 +12,32 @@ set -euo pipefail
 #   PUSH_BEFORE_SHA  - github.event.before (push only)
 #   PUSH_AFTER_SHA   - github.event.after  (push only)
 #
-# Audit-relevant paths. Keep in sync with the `security_audit_paths` anchor in
-# .github/workflows/security-audit.yml.
-#   - Lock files                Cargo.lock
-#   - Manifests                 Cargo.toml, crates/(...)?Cargo.toml
-#   - Audit policy              deny.toml, osv-scanner.toml, .cargo/audit.toml,
-#                               .supply-chain/*, .zizmor.yml
-#   - Toolchain config          .cargo/config.toml, rust-toolchain.toml,
-#                               tools.toml
-#   - Audit helpers             scripts/{cargo-tool-version,rust-toolchain}.sh,
-#                               .github/actions/*
-#   - CI config                 .pre-commit-config.yaml, .github/workflows/*
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$ROOT"
 
-emit() {
-  echo "audit_needed=$1" >> "$GITHUB_OUTPUT"
-  echo "audit_needed=$1 ($2)"
+changed_files="$(mktemp)"
+trap 'rm -f "$changed_files"' EXIT
+
+force_full() {
+  echo "security audit classification forced full: $1"
+  : >"$changed_files"
+  NTPRO_CI_FORCE_FULL_SECURITY=1 \
+    scripts/ci/classify-ci-changes.sh "$changed_files"
+  exit 0
 }
 
 case "$EVENT_NAME" in
   schedule | workflow_dispatch)
-    emit true "forced by ${EVENT_NAME}"
-    exit 0
+    force_full "event=${EVENT_NAME}"
     ;;
   push)
     base="$PUSH_BEFORE_SHA"
     head="$PUSH_AFTER_SHA"
     if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
-      emit true "new branch push, no base to diff"
-      exit 0
+      force_full "new branch push has no base"
     fi
     if ! git cat-file -e "${base}^{commit}" 2> /dev/null; then
-      emit true "push base SHA ${base} not present locally"
-      exit 0
+      force_full "push base SHA ${base} is unavailable"
     fi
     ;;
   pull_request)
@@ -63,38 +47,16 @@ case "$EVENT_NAME" in
     # the PR's own changes.
     head="$PR_HEAD_SHA"
     if ! base="$(git merge-base "origin/${PR_BASE_REF}" "$head" 2> /dev/null)"; then
-      emit true "failed to compute merge-base against origin/${PR_BASE_REF}"
-      exit 0
+      force_full "cannot compute merge-base against origin/${PR_BASE_REF}"
     fi
     if [[ -z "$base" ]]; then
-      emit true "empty merge-base against origin/${PR_BASE_REF}"
-      exit 0
+      force_full "merge-base against origin/${PR_BASE_REF} is empty"
     fi
     ;;
   *)
-    emit true "unknown event ${EVENT_NAME}"
-    exit 0
+    force_full "unknown event=${EVENT_NAME}"
     ;;
 esac
 
-pattern='^('
-pattern+='Cargo\.(lock|toml)'
-pattern+='|crates/(.*/)?Cargo\.toml'
-pattern+='|\.pre-commit-config\.yaml'
-pattern+='|deny\.toml|osv-scanner\.toml|\.supply-chain/.*|\.zizmor\.yml'
-pattern+='|tools\.toml|\.cargo/(config|audit)\.toml|rust-toolchain\.toml'
-pattern+='|scripts/(cargo-tool-version|rust-toolchain)\.sh'
-pattern+='|scripts/ci/security-audit-gate\.sh'
-pattern+='|\.github/actions/.*'
-pattern+='|\.github/workflows/.*'
-pattern+=')$'
-
-changed=$(git diff --name-only "$base" "$head")
-matches=$(printf '%s\n' "$changed" | grep -E "$pattern" || true)
-
-if [[ -n "$matches" ]]; then
-  emit true "matched paths"
-  printf '%s\n' "$matches" | sed 's/^/  matched: /'
-else
-  emit false "no matching paths"
-fi
+git diff --name-only "$base" "$head" | tee "$changed_files"
+scripts/ci/classify-ci-changes.sh "$changed_files"

@@ -18,19 +18,37 @@ concurrency:
 jobs:
   changes:
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      workflow_audit_needed: ${{ steps.classify.outputs.security_workflow }}
+      dependency_audit_needed: ${{ steps.classify.outputs.security_dependencies }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Confirm Rust-only audit inputs
         run: |
           test -f Cargo.lock
           test -f deny.toml
           test -d .supply-chain
+      - name: Classify security audit changes
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.event.after }}
+        run: scripts/ci/security-audit-gate.sh
+      - name: CI change classifier self-test
+        run: scripts/ci/test-ci-change-classifier.sh
 
   zizmor:
     needs: changes
+    if: needs.changes.outputs.workflow_audit_needed == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
     permissions:
       contents: read
       security-events: write
@@ -56,7 +74,9 @@ jobs:
 
   cargo-audit:
     needs: changes
+    if: needs.changes.outputs.dependency_audit_needed == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -68,7 +88,9 @@ jobs:
 
   cargo-deny:
     needs: changes
+    if: needs.changes.outputs.dependency_audit_needed == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -80,7 +102,9 @@ jobs:
 
   cargo-vet:
     needs: changes
+    if: needs.changes.outputs.dependency_audit_needed == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -92,7 +116,9 @@ jobs:
 
   osv-scanner:
     needs: changes
+    if: needs.changes.outputs.dependency_audit_needed == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
