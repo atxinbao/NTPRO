@@ -9,6 +9,7 @@ set -euo pipefail
 #   EVENT_NAME       - github.event_name
 #   PR_BASE_REF      - github.event.pull_request.base.ref (PR only)
 #   PR_HEAD_SHA      - github.event.pull_request.head.sha (PR only)
+#   PR_MERGE_SHA     - github.sha synthetic merge commit (PR only, optional)
 #   PUSH_BEFORE_SHA  - github.event.before (push only)
 #   PUSH_AFTER_SHA   - github.event.after  (push only)
 #
@@ -44,19 +45,31 @@ case "$EVENT_NAME" in
     fi
     ;;
   pull_request)
-    # The PR event payload freezes base.sha at PR creation time, so intervening
-    # pushes to the base branch make that SHA stale. Diff against the
-    # merge-base with the current base-branch tip so the gate reflects only
-    # the PR's own changes.
     head="$PR_HEAD_SHA"
     if [[ -z "$head" ]] || ! git cat-file -e "${head}^{commit}" 2> /dev/null; then
       force_full "pull request head SHA ${head:-<empty>} is unavailable"
     fi
-    if ! base="$(git merge-base "origin/${PR_BASE_REF}" "$head" 2> /dev/null)"; then
-      force_full "cannot compute merge-base against origin/${PR_BASE_REF}"
-    fi
-    if [[ -z "$base" ]]; then
-      force_full "merge-base against origin/${PR_BASE_REF} is empty"
+
+    if [[ -n "${PR_MERGE_SHA:-}" ]] \
+      && git cat-file -e "${PR_MERGE_SHA}^{commit}" 2> /dev/null; then
+      read -r merge_commit base merge_head extra \
+        < <(git rev-list --parents -n 1 "$PR_MERGE_SHA")
+      if [[ "$merge_commit" != "$PR_MERGE_SHA" \
+        || -z "${base:-}" \
+        || "$merge_head" != "$head" \
+        || -n "${extra:-}" ]]; then
+        force_full "pull request merge commit parent binding is invalid"
+      fi
+    else
+      # Local callers and older events may not provide the synthetic merge
+      # commit. Preserve the full-history merge-base fallback and force the
+      # complete audit when its graph is unavailable.
+      if ! base="$(git merge-base "origin/${PR_BASE_REF}" "$head" 2> /dev/null)"; then
+        force_full "cannot compute merge-base against origin/${PR_BASE_REF}"
+      fi
+      if [[ -z "$base" ]]; then
+        force_full "merge-base against origin/${PR_BASE_REF} is empty"
+      fi
     fi
     ;;
   *)
