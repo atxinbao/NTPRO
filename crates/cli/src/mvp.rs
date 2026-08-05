@@ -316,6 +316,7 @@ pub(crate) async fn run_mvp_command(opt: MvpOpt) -> anyhow::Result<()> {
 }
 
 async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
+    crate::dashboard::validate_strategy_workbench_dist(&opt.strategy_workbench_dist)?;
     let ntpro_node_bin = opt
         .ntpro_node_bin
         .clone()
@@ -341,6 +342,7 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
             registry: runtime.registry_path.clone(),
             workflow_root: None,
             bind: opt.bind,
+            strategy_workbench_dist: opt.strategy_workbench_dist.clone(),
             ntpro_node_bin: Some(ntpro_node_bin),
         }),
     });
@@ -466,6 +468,8 @@ environment = "sandbox"
             workspace: root.join("workspace"),
             node_id: "mvp-node-001".to_string(),
             bind: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 51_973),
+            strategy_workbench_dist: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/strategy-workbench"),
             ntpro_node_bin: Some(ntpro_node_bin),
             startup_timeout_ms: 2_000,
             node_max_runtime_ms: 60_000,

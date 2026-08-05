@@ -57,7 +57,6 @@ mod institution_workbench;
 mod mvp_status_api;
 mod rendering;
 mod server;
-mod strategy_workbench;
 mod trader_terminal_api;
 
 use control_center::{
@@ -72,8 +71,7 @@ use institution_workbench::{
 use rendering::{DASHBOARD_CSS, DASHBOARD_HTML, DASHBOARD_JS};
 #[cfg(test)]
 use server::dashboard_router;
-pub(crate) use server::run_dashboard_command;
-use strategy_workbench::{STRATEGY_WORKBENCH_CSS, STRATEGY_WORKBENCH_HTML, STRATEGY_WORKBENCH_JS};
+pub(crate) use server::{run_dashboard_command, validate_strategy_workbench_dist};
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";
 const DASHBOARD_DATA_RECONNECT_UNSUPPORTED_MESSAGE: &str =

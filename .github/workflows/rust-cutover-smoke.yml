@@ -127,7 +127,8 @@ jobs:
         run: node scripts/ai/test_institution_workbench_contract.mjs
       - name: Strategy workbench contract replay
         if: steps.changes.outputs.strategy_workbench == 'true'
-        run: node scripts/ai/test_strategy_workbench_contract.mjs
+        working-directory: apps/strategy-workbench
+        run: npm run test -- src/api/mvpStatus.test.ts
       - name: Control center contract replay
         if: steps.changes.outputs.control_center == 'true'
         run: node scripts/ai/test_control_center_contract.mjs

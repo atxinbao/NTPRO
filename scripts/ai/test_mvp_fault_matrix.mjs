@@ -240,6 +240,7 @@ const startSession = async (name) => {
       "--config", nodeConfig,
       "--workspace", workspace,
       "--bind", `127.0.0.1:${port}`,
+      "--strategy-workbench-dist", "crates/cli/tests/fixtures/strategy-workbench",
       "--ntpro-node-bin", nodeBin,
       "--startup-timeout-ms", "10000",
       "--node-max-runtime-ms", "180000",

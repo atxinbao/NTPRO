@@ -19,7 +19,11 @@
 //! adaptation. Snapshot projection and fail-closed control decisions remain in
 //! the parent `dashboard` module.
 
-use std::sync::Arc;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use aws_lc_rs::{
     constant_time,
@@ -29,13 +33,14 @@ use axum::{
     Extension, Router,
     extract::{Path as AxumPath, Request, State},
     http::{
-        HeaderMap, HeaderValue, StatusCode, Uri,
+        HeaderMap, HeaderValue, Method, StatusCode, Uri,
         header::{CACHE_CONTROL, CONTENT_TYPE, COOKIE, LOCATION, REFERRER_POLICY, SET_COOKIE},
     },
     middleware::{self, Next},
     response::{Html, IntoResponse, Response},
     routing::{get, post},
 };
+use tower_http::services::{ServeDir, ServeFile};
 
 use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
@@ -163,9 +168,11 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         "dashboard server is local-only; use a loopback bind address"
     );
 
+    validate_strategy_workbench_dist(&opt.strategy_workbench_dist)?;
     let access = PortalAccess::generate()?;
     let registry_path = opt.registry;
     let workflow_root = opt.workflow_root;
+    let strategy_workbench_dist = opt.strategy_workbench_dist;
     let ntpro_node_bin = opt
         .ntpro_node_bin
         .unwrap_or_else(default_ntpro_node_bin_path);
@@ -193,7 +200,13 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
     );
     axum::serve(
         listener,
-        dashboard_router_with_workflow_root(registry_path, ntpro_node_bin, workflow_root, access),
+        dashboard_router_with_workflow_root(
+            registry_path,
+            ntpro_node_bin,
+            workflow_root,
+            &strategy_workbench_dist,
+            access,
+        ),
     )
     .await
     .context("dashboard HTTP server exited with an error")?;
@@ -206,6 +219,7 @@ pub(super) fn dashboard_router(registry_path: PathBuf, ntpro_node_bin: PathBuf) 
         registry_path,
         ntpro_node_bin,
         None,
+        &strategy_workbench_test_dist(),
         PortalAccess::disabled_for_existing_tests(),
     )
 }
@@ -221,14 +235,21 @@ pub(super) fn dashboard_router_with_access(
         registry_path,
         ntpro_node_bin,
         None,
+        &strategy_workbench_test_dist(),
         PortalAccess::enforced_for_test(institution_token, operator_token),
     )
+}
+
+#[cfg(test)]
+fn strategy_workbench_test_dist() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/strategy-workbench")
 }
 
 fn dashboard_router_with_workflow_root(
     registry_path: PathBuf,
     ntpro_node_bin: PathBuf,
     workflow_root: Option<PathBuf>,
+    strategy_workbench_dist: &Path,
     access: PortalAccess,
 ) -> Router {
     let state = DashboardServerState {
@@ -237,23 +258,12 @@ fn dashboard_router_with_workflow_root(
         ntpro_node_bin,
         lifecycle_action_lock: Arc::new(std::sync::Mutex::new(())),
     };
+    let strategy_workbench_routes = strategy_workbench_routes(strategy_workbench_dist);
     let public_routes = Router::new()
         .route("/", get(dashboard_shell).head(reject_non_get))
         .route("/dashboard", get(dashboard_shell).head(reject_non_get))
         .route("/assets/dashboard.css", get(dashboard_css))
         .route("/assets/dashboard.js", get(dashboard_js))
-        .route(
-            "/strategy-workbench",
-            get(strategy_workbench_shell).head(reject_non_get),
-        )
-        .route(
-            "/assets/strategy-workbench.css",
-            get(strategy_workbench_css).head(reject_non_get),
-        )
-        .route(
-            "/assets/strategy-workbench.js",
-            get(strategy_workbench_js).head(reject_non_get),
-        )
         .route(
             "/institution-workbench",
             get(institution_workbench_shell).head(reject_non_get),
@@ -277,7 +287,8 @@ fn dashboard_router_with_workflow_root(
         .route(
             "/assets/control-center.js",
             get(control_center_js).head(reject_non_get),
-        );
+        )
+        .merge(strategy_workbench_routes);
     let shared_read_routes = Router::new()
         .route(
             "/api/mvp/v1/status",
@@ -439,6 +450,111 @@ fn default_ntpro_node_bin_path() -> PathBuf {
     )
 }
 
+pub(crate) fn validate_strategy_workbench_dist(dist_path: &Path) -> anyhow::Result<()> {
+    ensure!(
+        dist_path.is_dir(),
+        "strategy workbench bundle directory '{}' does not exist; run 'npm ci && npm run build' in apps/strategy-workbench or pass --strategy-workbench-dist",
+        dist_path.display(),
+    );
+    let index_path = dist_path.join("index.html");
+    let index = fs::read_to_string(&index_path).with_context(|| {
+        format!(
+            "failed to read strategy workbench entrypoint '{}'",
+            index_path.display()
+        )
+    })?;
+    ensure!(
+        index.contains("<div id=\"root\"></div>"),
+        "strategy workbench entrypoint '{}' does not contain the React root",
+        index_path.display(),
+    );
+
+    let assets_path = dist_path.join("assets");
+    ensure!(
+        assets_path.is_dir(),
+        "strategy workbench assets directory '{}' does not exist",
+        assets_path.display(),
+    );
+    for extension in ["js", "css"] {
+        let referenced_hashed_asset = fs::read_dir(&assets_path)
+            .with_context(|| {
+                format!(
+                    "failed to inspect strategy workbench assets '{}'",
+                    assets_path.display()
+                )
+            })?
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+            .filter_map(|entry| entry.file_name().into_string().ok())
+            .filter(|name| name.ends_with(&format!(".{extension}")))
+            .any(|name| {
+                let Some((_, hash_and_extension)) = name.split_once('-') else {
+                    return false;
+                };
+                let hash = hash_and_extension
+                    .strip_suffix(&format!(".{extension}"))
+                    .unwrap_or_default();
+                hash.len() >= 6
+                    && hash
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+                    && index.contains(&format!("/strategy-workbench/assets/{name}"))
+            });
+        ensure!(
+            referenced_hashed_asset,
+            "strategy workbench entrypoint '{}' must reference a hashed .{extension} asset under /strategy-workbench/assets/",
+            index_path.display(),
+        );
+    }
+    Ok(())
+}
+
+fn strategy_workbench_routes(dist_path: &Path) -> Router<DashboardServerState> {
+    let index_path = dist_path.join("index.html");
+    let static_routes = Router::new()
+        .route_service("/", ServeFile::new(index_path.clone()))
+        .nest_service("/assets", ServeDir::new(dist_path.join("assets")))
+        .fallback_service(ServeFile::new(index_path));
+
+    Router::new()
+        .nest("/strategy-workbench", static_routes)
+        .layer(middleware::from_fn(require_strategy_workbench_access))
+}
+
+async fn require_strategy_workbench_access(
+    Extension(access): Extension<PortalAccess>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if request.method() != Method::GET {
+        let mut response = StatusCode::METHOD_NOT_ALLOWED.into_response();
+        add_private_response_headers(response.headers_mut());
+        return response;
+    }
+
+    let uri = request.uri().clone();
+    let bootstrap_tokens = query_values(&uri, ACCESS_TOKEN_QUERY);
+    if bootstrap_tokens.len() > 1 || bootstrap_tokens.first().is_some_and(String::is_empty) {
+        return portal_access_denied(PortalRole::InstitutionUser);
+    }
+    if let Some(token) = bootstrap_tokens.first() {
+        let expected = access
+            .token(PortalRole::InstitutionUser)
+            .expect("institution access token must exist");
+        if !access_tokens_equal(expected, token) {
+            return portal_access_denied(PortalRole::InstitutionUser);
+        }
+        return portal_bootstrap_redirect(PortalRole::InstitutionUser, token, &uri, uri.path());
+    }
+    if !access.authorizes(request.headers(), PortalRole::InstitutionUser) {
+        return portal_access_denied(PortalRole::InstitutionUser);
+    }
+
+    let mut response = next.run(request).await;
+    add_private_response_headers(response.headers_mut());
+    response
+}
+
 async fn dashboard_shell(
     Extension(access): Extension<PortalAccess>,
     headers: HeaderMap,
@@ -477,35 +593,6 @@ async fn institution_workbench_shell(
         &uri,
         "/institution-workbench",
         INSTITUTION_WORKBENCH_HTML,
-    )
-}
-
-async fn strategy_workbench_shell(
-    Extension(access): Extension<PortalAccess>,
-    headers: HeaderMap,
-    uri: Uri,
-) -> Response {
-    portal_shell_response(
-        &access,
-        PortalRole::InstitutionUser,
-        &headers,
-        &uri,
-        "/strategy-workbench",
-        STRATEGY_WORKBENCH_HTML,
-    )
-}
-
-async fn strategy_workbench_css() -> impl IntoResponse {
-    (
-        [(CONTENT_TYPE, "text/css; charset=utf-8")],
-        STRATEGY_WORKBENCH_CSS,
-    )
-}
-
-async fn strategy_workbench_js() -> impl IntoResponse {
-    (
-        [(CONTENT_TYPE, "application/javascript; charset=utf-8")],
-        STRATEGY_WORKBENCH_JS,
     )
 }
 

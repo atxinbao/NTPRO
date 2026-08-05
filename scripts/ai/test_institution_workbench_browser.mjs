@@ -64,6 +64,7 @@ const server = spawn(
   [
     "mvp", "serve", "--config", config, "--workspace", workspace,
     "--bind", `127.0.0.1:${port}`, "--ntpro-node-bin", "target/debug/ntpro-node",
+    "--strategy-workbench-dist", "crates/cli/tests/fixtures/strategy-workbench",
     "--startup-timeout-ms", "10000", "--node-max-runtime-ms", "120000",
   ],
   { stdio: ["ignore", "pipe", "pipe"] },

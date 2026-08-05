@@ -137,19 +137,19 @@
     "process_alive_implies_technical_health": false
   },
   "frozen_source_sha256": {
-    "crates/cli/src/mvp.rs": "bb06d6240c1b723337f731fe8e129aeb8270f2ac7a666ede8443d4240855e8c9",
+    "crates/cli/src/mvp.rs": "eaec9757516eeaadbc7a08e24358dc2a48ab9590da32c6f106e939953bea528a",
     "crates/cli/src/mvp_contract.rs": "9c06adab86c55d1561e884f0d3f92954deebcd2ff92e2f9c5f57f02bb83b54f8",
     "crates/cli/src/supervisor.rs": "32fefa90ef9c3315660a646afb6f2b0f49c87de9574215597afabf6e06474a53",
-    "crates/cli/src/dashboard/server.rs": "73abc0d79163039341a20976e6ef6c67d6102cbc27d5a291f5e318d6b08c410b",
+    "crates/cli/src/dashboard/server.rs": "5e02c5ad4c2604f423be44522e7261a64b4886f91b03879e6f6f3d2309cb5d8a",
     "crates/cli/src/dashboard/mvp_status_api.rs": "4b641fe0d9b8410fef602b755c58ceab5e4d4ea53626b1a431548c726ee4f374",
     "crates/cli/src/dashboard/institution_workbench.rs": "eb78932657389976dc1c740a94afa21343e7f5ae3ae752f0e064741b76427cca",
     "crates/cli/src/dashboard/control_center.rs": "a207c5af6be9f3750d84e6026ddd0f5eeca6239950413279a9f3cb58e7dd39c4",
     "configs/nodes/btc-ema-shadow.toml": "df0347eadab612b7fa3a7f13befe0c993419cf504df104b01d21dff496c7c225",
     "examples/rust/backtest/minimal_engine_smoke.toml": "deeb4ecbca128e7ff10241c9b0c2414828899ee79fd6054b1809a912f37c1062",
-    "scripts/ai/test_mvp_acceptance.mjs": "121da69af6ef52a6cfad8dfcbf77ce92ef8fa8b569d9b6c5bb8710dbb81eb60f",
-    "scripts/ai/test_mvp_fault_matrix.mjs": "56568535f0b4d7473eba96cfce71d3dd3cba65d1ab2a1a3c7f8293666d69e295",
-    "scripts/ai/test_institution_workbench_browser.mjs": "5f77ad9d76a6406fe4649ef41f1a5c65a7150fa3fbf5fe4385cc3ff95c39eab8",
-    "scripts/ai/test_control_center_browser.mjs": "d5d8b0283972d9ec562d30251bfe20fb176522adffe7f72691550b02d13bd8c0"
+    "scripts/ai/test_mvp_acceptance.mjs": "dd14680765f8f1059ac270700b3e6f68bb4c996d08da58d479ac230d8a2f5c31",
+    "scripts/ai/test_mvp_fault_matrix.mjs": "bce24b89fb813f1a7b4445fb76a3a02e628c0bd8a5521422dc53548beade350c",
+    "scripts/ai/test_institution_workbench_browser.mjs": "475758f9ba4b298acacb34a5294490f3fcad132a7cb9da98d574e2eb3deb47c9",
+    "scripts/ai/test_control_center_browser.mjs": "474ffb5ecb449973bc3b80eca19d672e11aba722158bfe7d1a58aff316179f7e"
   },
   "post_freeze_change_policy": {
     "separate_issue_required": true,

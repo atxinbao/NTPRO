@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, path::PathBuf};
+use std::{fs, net::SocketAddr, path::PathBuf};
 
 use axum::{
     Router,
@@ -15,6 +15,7 @@ use tower::ServiceExt;
 use super::{
     INSTITUTION_ACCESS_COOKIE, OPERATOR_ACCESS_COOKIE, PORTAL_ACCESS_ERROR_SCHEMA_VERSION,
     dashboard_router, dashboard_router_with_access, reject_raw_event_store_paths,
+    validate_strategy_workbench_dist,
 };
 
 const INSTITUTION_TOKEN: &str = "test-institution-access-token";
@@ -297,12 +298,20 @@ async fn strategy_workbench_route_serves_read_only_shell_and_assets() {
     for (path, marker) in [
         ("/strategy-workbench", "<title>NTPRO 策略工作台</title>"),
         (
-            "/assets/strategy-workbench.css",
-            ".app-shell { --bg: #0d1411;",
+            "/strategy-workbench/overview",
+            "<title>NTPRO 策略工作台</title>",
         ),
         (
-            "/assets/strategy-workbench.js",
-            "const SHARED_STATUS_URL = \"/api/mvp/v1/status\";",
+            "/strategy-workbench/system-status?event_id=event%3A1",
+            "<title>NTPRO 策略工作台</title>",
+        ),
+        (
+            "/strategy-workbench/assets/index-fei001-v.css",
+            "color-scheme: dark",
+        ),
+        (
+            "/strategy-workbench/assets/index-fei001.js",
+            "FEI-001 fixture",
         ),
     ] {
         let (status, body) = router_request(&router, Method::GET, path).await;
@@ -329,6 +338,41 @@ async fn strategy_workbench_route_serves_read_only_shell_and_assets() {
             );
         }
     }
+
+    for path in [
+        "/assets/strategy-workbench.css",
+        "/assets/strategy-workbench.js",
+        "/strategy-workbench/assets/missing.js",
+        "/api/product/v1/unknown",
+    ] {
+        let (status, _) = router_request(&router, Method::GET, path).await;
+        assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+    }
+}
+
+#[test]
+fn strategy_workbench_dist_requires_react_entrypoint_and_hashed_assets() {
+    let valid = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/strategy-workbench");
+    validate_strategy_workbench_dist(&valid).expect("tracked fixture must be valid");
+
+    let root = std::env::temp_dir().join(format!(
+        "ntpro-fei-001-invalid-bundle-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(root.join("assets")).expect("invalid fixture directory must be created");
+    fs::write(
+        root.join("index.html"),
+        "<div id=\"root\"></div><script src=\"/strategy-workbench/assets/app.js\"></script>",
+    )
+    .expect("invalid fixture index must be written");
+    fs::write(root.join("assets/app.js"), "void 0;")
+        .expect("invalid fixture asset must be written");
+
+    let error = validate_strategy_workbench_dist(&root)
+        .expect_err("bundle without hashed JS and CSS must fail closed");
+    assert!(error.to_string().contains("hashed .js asset"));
+    let _ = fs::remove_dir_all(root);
 }
 
 #[tokio::test]
@@ -525,6 +569,21 @@ async fn portal_access_bootstrap_redirects_to_clean_url_and_sets_private_cookie(
     let response = router_response(
         &router,
         Method::GET,
+        &format!(
+            "/strategy-workbench/system-status?event_id=event%3A1&access_token={INSTITUTION_TOKEN}"
+        ),
+        None,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        response.headers()[header::LOCATION],
+        "/strategy-workbench/system-status?event_id=event%3A1"
+    );
+
+    let response = router_response(
+        &router,
+        Method::GET,
         &format!("/control-center?access_token={OPERATOR_TOKEN}"),
         None,
     )
@@ -631,7 +690,8 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
 
     for path in [
         "/strategy-workbench",
-        "/assets/strategy-workbench.js",
+        "/strategy-workbench/overview",
+        "/strategy-workbench/assets/index-fei001.js",
         "/institution-workbench",
         "/assets/institution-workbench.js",
     ] {

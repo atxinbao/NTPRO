@@ -313,7 +313,7 @@
   display: grid;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) 0;
-  overflow: hidden;
+  overflow: clip;
   transition: grid-template-columns 160ms ease;
 }
 

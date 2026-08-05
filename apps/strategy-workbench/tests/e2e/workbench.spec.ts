@@ -27,6 +27,16 @@ test("desktop shell renders verified read-only status", async ({
   await expect(
     page.getByRole("button", { name: /下单|撤单|改单|平仓/ }),
   ).toHaveCount(0);
+  await page.getByRole("button", { name: "收起详情栏" }).click();
+  await page.getByRole("button", { name: "展开详情栏" }).click();
+  const desktopOrigin = await page.evaluate(() => {
+    const rail = document.querySelector("aside")?.getBoundingClientRect();
+    const canvas = document.querySelector("main")?.getBoundingClientRect();
+    return { railRight: rail?.right, canvasLeft: canvas?.left };
+  });
+  expect(desktopOrigin.canvasLeft).toBeGreaterThanOrEqual(
+    desktopOrigin.railRight ?? Number.POSITIVE_INFINITY,
+  );
   expect(
     await page.evaluate(
       () =>

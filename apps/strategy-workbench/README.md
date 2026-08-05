@@ -26,10 +26,28 @@ npm run audit
 默认将 `/api` 代理到 `http://127.0.0.1:3000`。连接其他本地 Axum 地址时设置
 `NTPRO_API_ORIGIN`。Node.js 只用于开发和构建，不是生产运行时。
 
+## Rust/Axum 生产运行
+
+前端构建是显式步骤，Cargo 不会隐式执行 npm：
+
+```bash
+cd apps/strategy-workbench
+npm ci
+npm run build
+
+cd ../..
+cargo run -p nautilus-cli --bin nautilus -- dashboard serve \
+  --registry target/ntpro-mvp/supervisor/registry.json \
+  --strategy-workbench-dist apps/strategy-workbench/dist
+```
+
+生产运行只需要 `nautilus` Rust 进程和构建后的 `dist/` 目录，不需要 Node.js 进程。
+`/strategy-workbench/*` 由 Axum 提供 SPA fallback，`/api/*` 保持独立的 Rust 路由语义。
+
 ## 边界
 
 - `dist/`、`node_modules/`、coverage 和 Playwright 结果不提交；
 - fixture 只用于自动测试，不得冒充生产数据；
 - 合同、身份、来源或禁用边界异常时清空旧状态并 fail closed；
 - Live 和未交付栏目保持不可操作；
-- Axum 资产接入与旧页面迁移由后续 FEI-001 独立完成。
+- Rust 服务启动时验证 React 入口和 hash JS/CSS；缺失或错误的 bundle 直接拒绝启动。
