@@ -144,10 +144,15 @@ event_output="$(run_security_gate missing-head push '' "$dependency_head" "$miss
 assert_output "$event_output" "security_workflow=true"
 assert_output "$event_output" "security_dependencies=true"
 
-if ! grep -F 'group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}' \
+if ! grep -F "group: \${{ github.workflow }}-\${{ github.event_name }}-\${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.run_id }}" \
   .github/workflows/security-audit.yml >/dev/null; then
   echo "security audit concurrency does not isolate event types" >&2
   exit 1
 fi
+if ! grep -F "cancel-in-progress: \${{ github.event_name == 'pull_request' }}" \
+  .github/workflows/security-audit.yml >/dev/null; then
+  echo "security audit cancellation must be limited to pull requests" >&2
+  exit 1
+fi
 
-echo "ci_change_classifier_selftest=pass cases=14"
+echo "ci_change_classifier_selftest=pass cases=15"

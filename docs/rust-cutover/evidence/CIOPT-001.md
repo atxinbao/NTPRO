@@ -21,7 +21,7 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
 - 新增 `scripts/ci/classify-ci-changes.sh`，集中输出 Rust、release、MVP、门户、workflow
   安全和依赖安全九类布尔结果；
 - 新增 `scripts/ci/test-ci-change-classifier.sh`，覆盖静态路径、真实 PR/push diff、敏感文件
-  重命名、schedule、workflow_dispatch、零 SHA、缺失 SHA和并发隔离共 14 种场景；
+  重命名、schedule、workflow_dispatch、零 SHA、缺失 SHA和并发隔离共 15 种场景；
 - Rust Smoke 保留单一 `smoke` job，只把内联分类替换为共享分类器；
 - 从 MVP 最终验收触发面删除普通 `project.html`、`README.md` 和
   `docs/product/roadmap.md`，但保留所有日常治理检查；
@@ -29,7 +29,8 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
   扫描仅响应 Cargo/供应链风险；定时、手动和无法确定 diff 时强制两类全开；
 - changed-files 使用 `--no-renames` 同时暴露重命名前后的路径；push/PR head 不可用或
   `git diff` 失败时强制安全检查全开；
-- security concurrency 按 event 隔离，main push 不会取消进行中的周度或手动全量审计；
+- security concurrency 仅允许同一 PR 的新提交取消旧运行；push、schedule 与手动审计均以
+  唯一 run 分组，不会被后续纯文档 push 取消；
 - Rust Smoke 超时为 45 分钟，security 分类为 5 分钟、zizmor 为 10 分钟、依赖扫描为
   15 分钟；concurrency 与 cancel-in-progress 保持原样。
 
@@ -44,7 +45,7 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
 ## 本地验证
 
 - `bash -n scripts/ci/classify-ci-changes.sh scripts/ci/security-audit-gate.sh scripts/ci/test-ci-change-classifier.sh`：PASS；
-- `scripts/ci/test-ci-change-classifier.sh`：PASS，`cases=14`；
+- `scripts/ci/test-ci-change-classifier.sh`：PASS，`cases=15`；
 - `security-audit-gate.sh` 的真实 PR commit diff 与 schedule 事件模拟：PASS，PR 和定时
   场景均按预期输出两类安全检查；
 - 五个 workflow YAML 解析：PASS；
@@ -64,7 +65,8 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
 ## 独立审查修复
 
 Verification & Release Gatekeeper 首轮发现四项：rename 漏检、docs push 可取消周度扫描、
-无效 head/diff 未全量回退、事件级测试不足。当前实现已逐项修复并重新请求独立复审。
+无效 head/diff 未全量回退、事件级测试不足；复审进一步发现连续 main push 仍可相互取消。
+当前实现已逐项修复，并把取消策略限定为同一 PR 的新提交。
 
 ## 行为影响
 
