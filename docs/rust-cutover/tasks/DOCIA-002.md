@@ -7,7 +7,7 @@ GitHub PR: #1244
 Risk: low
 Owner role: Docs & Developer Experience Agent
 Review role: Verification & Release Gatekeeper
-Status: REVIEW_REQUIRED
+Status: DONE_ON_MERGE
 
 ## 目标
 

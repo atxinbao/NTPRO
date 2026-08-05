@@ -4,7 +4,7 @@ Date: 2026-08-05
 Executor: Codex
 GitHub issue: #1243
 GitHub PR: #1244
-Status: REVIEW_REQUIRED
+Status: DONE_ON_MERGE
 
 ## 代码事实
 
@@ -60,4 +60,6 @@ Status: REVIEW_REQUIRED
 - 打印模式：PASS，10 个产品/技术主章节全部可见；
 - 23 个 `project.html` 本地链接：PASS，HTTP 状态全部为 200；
 - 浏览器控制台：PASS，error 和 warning 均为 0；
-- hosted checks 和 PR merge：由 GitHub 提供。
+- PR #1244 hosted checks：PASS，7 项 security checks 和 Rust Cutover Smoke run
+  `30993920564` 成功；
+- PR merge：由 GitHub 提供，合并后 `DONE_ON_MERGE` 生效。
