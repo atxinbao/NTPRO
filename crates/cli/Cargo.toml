@@ -47,6 +47,7 @@ blake3 = { workspace = true }
 clap = { workspace = true }
 dotenvy = { workspace = true }
 log = { workspace = true }
+jsonschema = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"] }
 rust_decimal = { workspace = true }
 serde = { workspace = true }
@@ -60,7 +61,6 @@ url = { workspace = true }
 ustr = { workspace = true }
 
 [dev-dependencies]
-jsonschema = { workspace = true }
 tower = { workspace = true }
 
 [[bin]]

@@ -50,8 +50,11 @@ use crate::{
 
 use super::{ApiResult, DashboardServerState};
 
+mod strategy_version;
 #[cfg(test)]
 mod tests;
+
+pub(super) use strategy_version::{strategy_version_detail_api, strategy_version_list_api};
 
 const PRODUCT_API_CONTRACT_VERSION: &str = "ntpro.product_api.v1";
 const STRATEGY_LIST_SCHEMA_VERSION: &str = "ntpro.product_api.strategy_list.response.v1";
@@ -93,6 +96,14 @@ struct ProductSource {
     source_type: String,
     freshness_status: String,
     source_refs: Vec<String>,
+}
+
+#[derive(Debug)]
+struct ValidatedProductSource {
+    strategy: ProductStrategy,
+    raw_config: String,
+    identity: MvpIdentityContract,
+    config_name: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -193,6 +204,7 @@ enum ProductErrorKind {
     Forbidden,
     MethodNotAllowed,
     NotFound,
+    VersionNotFound,
     SourceUnavailable,
     SourceInvalid,
     SourceStale,
@@ -302,6 +314,13 @@ fn load_product_strategy(
     state: &DashboardServerState,
     now_unix_ms: u64,
 ) -> Result<ProductStrategy, ProductError> {
+    Ok(load_product_source(state, now_unix_ms)?.strategy)
+}
+
+fn load_product_source(
+    state: &DashboardServerState,
+    now_unix_ms: u64,
+) -> Result<ValidatedProductSource, ProductError> {
     let workspace = mvp_workspace_root(&state.registry_path)?;
     let identity_path = workspace.join(MVP_IDENTITY_CONTRACT_PATH);
     let identity: MvpIdentityContract = load_json(&identity_path, "identity_contract")?;
@@ -384,7 +403,7 @@ fn load_product_strategy(
         .file_name()
         .and_then(|value| value.to_str())
         .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "config_name"))?;
-    Ok(ProductStrategy {
+    let strategy = ProductStrategy {
         strategy_id: config.strategy.strategy_id,
         name: config.strategy.display_name,
         description: config.strategy.description,
@@ -405,6 +424,12 @@ fn load_product_strategy(
                 format!("node-config:{config_name}"),
             ],
         },
+    };
+    Ok(ValidatedProductSource {
+        strategy,
+        raw_config: raw,
+        identity,
+        config_name: config_name.to_string(),
     })
 }
 
@@ -1109,6 +1134,20 @@ fn validate_text(field: &str, value: &str, max_chars: usize) -> Result<(), Produ
     Ok(())
 }
 
+fn validate_sha256_hash(field: &str, value: &str) -> Result<(), ProductError> {
+    let Some(hex) = value.strip_prefix("sha256:") else {
+        return Err(product_error(ProductErrorKind::SourceInvalid, field));
+    };
+    if hex.len() != 64
+        || !hex
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(product_error(ProductErrorKind::SourceInvalid, field));
+    }
+    Ok(())
+}
+
 fn mvp_workspace_root(registry_path: &Path) -> Result<PathBuf, ProductError> {
     registry_path
         .parent()
@@ -1185,6 +1224,12 @@ fn product_error_response(error: &ProductError, request_id: &str) -> (StatusCode
             StatusCode::NOT_FOUND,
             "strategy_not_found",
             "未找到指定策略",
+            false,
+        ),
+        ProductErrorKind::VersionNotFound => (
+            StatusCode::NOT_FOUND,
+            "strategy_version_not_found",
+            "未找到指定策略版本",
             false,
         ),
         ProductErrorKind::SourceUnavailable => (

@@ -691,6 +691,11 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         (Method::GET, "/api/mvp/v1/status"),
         (Method::GET, "/api/mvp/v1/event-correlation"),
         (Method::GET, "/api/product/v1/strategies"),
+        (Method::GET, "/api/product/v1/strategies/ema-cross/versions"),
+        (
+            Method::GET,
+            "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1",
+        ),
         (Method::GET, "/api/mvp/v1/control-center"),
         (Method::GET, "/api/server"),
         (Method::GET, "/api/snapshot"),
@@ -744,6 +749,8 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         "/api/mvp/v1/status",
         "/api/mvp/v1/event-correlation",
         "/api/product/v1/strategies",
+        "/api/product/v1/strategies/ema-cross/versions",
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1",
     ] {
         let response = router_response(&router, Method::GET, path, Some(&institution_cookie)).await;
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{path}");
@@ -774,6 +781,8 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         "/api/mvp/v1/status",
         "/api/mvp/v1/event-correlation",
         "/api/product/v1/strategies",
+        "/api/product/v1/strategies/ema-cross/versions",
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1",
         "/api/mvp/v1/control-center",
         "/api/server",
         "/api/snapshot",
@@ -810,6 +819,14 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         ("/api/mvp/v1/status", institution_cookie.as_str()),
         ("/api/mvp/v1/event-correlation", institution_cookie.as_str()),
         ("/api/product/v1/strategies", institution_cookie.as_str()),
+        (
+            "/api/product/v1/strategies/ema-cross/versions",
+            institution_cookie.as_str(),
+        ),
+        (
+            "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1",
+            institution_cookie.as_str(),
+        ),
         ("/control-center", operator_cookie.as_str()),
         ("/dashboard", operator_cookie.as_str()),
         ("/api/mvp/v1/control-center", operator_cookie.as_str()),

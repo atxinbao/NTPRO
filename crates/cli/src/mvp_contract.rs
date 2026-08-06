@@ -49,6 +49,8 @@ pub(crate) struct MvpIdentityContract {
 pub(crate) struct MvpIdentitySet {
     pub strategy_id: String,
     pub strategy_version: String,
+    #[serde(default)]
+    pub strategy_version_content_hash: String,
     pub backtest_run_id: String,
     pub backtest_result_ref: String,
     pub node_id: String,
@@ -181,6 +183,8 @@ struct IdentityConfigProjection {
     market: IdentityVenueSection,
     execution: IdentityVenueSection,
     mvp: IdentityMvpSection,
+    #[serde(default)]
+    strategy_version: Option<IdentityStrategyVersionSection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -191,6 +195,11 @@ struct IdentityNodeSection {
 #[derive(Debug, Deserialize)]
 struct IdentityStrategySection {
     strategy_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct IdentityStrategyVersionSection {
+    content_hash: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -250,6 +259,14 @@ impl MvpIdentityContract {
         let identities = MvpIdentitySet {
             strategy_id: required("strategy.strategy_id", &config.strategy.strategy_id)?,
             strategy_version: required("mvp.strategy_version", &config.mvp.strategy_version)?,
+            strategy_version_content_hash: config
+                .strategy_version
+                .as_ref()
+                .map(|version| {
+                    required_sha256("strategy_version.content_hash", &version.content_hash)
+                })
+                .transpose()?
+                .unwrap_or_default(),
             backtest_run_id: required("mvp.backtest_run_id", &config.mvp.backtest_run_id)?,
             backtest_result_ref: required(
                 "mvp.backtest_result_ref",
@@ -860,6 +877,18 @@ fn required(field: &str, value: &str) -> anyhow::Result<String> {
     Ok(value.to_string())
 }
 
+fn required_sha256(field: &str, value: &str) -> anyhow::Result<String> {
+    let value = required(field, value)?;
+    let valid = value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    });
+    ensure!(valid, "{field} 必须是小写 SHA-256");
+    Ok(value)
+}
+
 fn unix_time_ms() -> u64 {
     let millis = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -890,6 +919,9 @@ node_id = "strategy-instance-alpha"
 [strategy]
 strategy_id = "strategy-alpha"
 
+[strategy_version]
+content_hash = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 [market]
 venue = "SANDBOX"
 
@@ -906,7 +938,7 @@ environment = "sandbox"
     }
 
     #[test]
-    fn mvp_contract_loads_eight_stable_identities_and_closed_boundaries() {
+    fn mvp_contract_loads_version_hash_anchor_and_closed_boundaries() {
         let path = temp_config("valid", valid_config());
         let contract = MvpIdentityContract::load(&path, "mvp-node-001")
             .expect("valid MVP identity contract should load");
@@ -917,6 +949,10 @@ environment = "sandbox"
         );
         assert_eq!(contract.identities.strategy_id, "strategy-alpha");
         assert_eq!(contract.identities.strategy_version, "v1");
+        assert_eq!(
+            contract.identities.strategy_version_content_hash,
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        );
         assert_eq!(contract.identities.backtest_run_id, "backtest-alpha-001");
         assert_eq!(contract.identities.node_id, "mvp-node-001");
         assert_eq!(
@@ -955,6 +991,30 @@ environment = "sandbox"
         let error = MvpIdentityContract::load(&path, "mvp-node-001")
             .expect_err("empty identity must fail closed");
         assert!(format!("{error:#}").contains("mvp.strategy_version 不能为空"));
+    }
+
+    #[test]
+    fn mvp_contract_rejects_empty_strategy_version_hash_anchor() {
+        let config = valid_config().replace(
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            " ",
+        );
+        let path = temp_config("empty-version-hash", &config);
+        let error = MvpIdentityContract::load(&path, "mvp-node-001")
+            .expect_err("empty version hash anchor must fail closed");
+        assert!(format!("{error:#}").contains("strategy_version.content_hash 不能为空"));
+    }
+
+    #[test]
+    fn mvp_contract_rejects_malformed_strategy_version_hash_anchor() {
+        let config = valid_config().replace(
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:ABC",
+        );
+        let path = temp_config("malformed-version-hash", &config);
+        let error = MvpIdentityContract::load(&path, "mvp-node-001")
+            .expect_err("malformed version hash anchor must fail closed");
+        assert!(format!("{error:#}").contains("必须是小写 SHA-256"));
     }
 
     #[test]

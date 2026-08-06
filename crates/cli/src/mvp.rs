@@ -16,14 +16,16 @@
 //! 单 Supervisor、单节点产品 MVP 的运行编排。
 
 use std::{
+    collections::BTreeMap,
     fs::OpenOptions,
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
     thread,
     time::{Duration, Instant},
 };
 
 use anyhow::{Context, ensure};
+use serde::{Deserialize, Serialize};
 
 use crate::{
     artifacts::{atomic_write_json, remove_file_if_exists},
@@ -41,7 +43,25 @@ use crate::{
 
 const REGISTRY_PATH: &str = "supervisor/registry.json";
 const NODE_ARTIFACT_ROOT: &str = "nodes";
+const STRATEGY_VERSION_REGISTRY_PATH: &str = "mvp/strategy_version_registry.json";
+const STRATEGY_VERSION_REGISTRY_SCHEMA_VERSION: &str = "ntpro.mvp_strategy_version_registry.v1";
 const MIN_STATUS_FRESHNESS_MAX_AGE_MS: u64 = 2_000;
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct MvpStrategyVersionRegistry {
+    schema_version: String,
+    versions: BTreeMap<String, BTreeMap<String, String>>,
+}
+
+impl Default for MvpStrategyVersionRegistry {
+    fn default() -> Self {
+        Self {
+            schema_version: STRATEGY_VERSION_REGISTRY_SCHEMA_VERSION.to_string(),
+            versions: BTreeMap::new(),
+        }
+    }
+}
 
 #[derive(Debug)]
 struct MvpRuntime {
@@ -76,7 +96,13 @@ impl MvpRuntime {
 
         let identity_contract = MvpIdentityContract::load(&opt.config, &opt.node_id)?;
         let identity_contract_path = opt.workspace.join(MVP_IDENTITY_CONTRACT_PATH);
+        let strategy_version_registry_path = opt.workspace.join(STRATEGY_VERSION_REGISTRY_PATH);
         let status_contract_path = opt.workspace.join(MVP_STATUS_CONTRACT_PATH);
+        let strategy_version_registry_update = prepare_strategy_version_registry_update(
+            &strategy_version_registry_path,
+            &identity_contract_path,
+            &identity_contract,
+        )?;
         let freshness_max_age_ms = opt
             .node_heartbeat_interval_ms
             .saturating_mul(3)
@@ -104,6 +130,14 @@ impl MvpRuntime {
                 opt.workspace.display(),
                 opt.node_id
             );
+        }
+        if let Some(registry) = strategy_version_registry_update {
+            atomic_write_json(&strategy_version_registry_path, &registry).with_context(|| {
+                format!(
+                    "写入策略版本注册表 '{}' 失败",
+                    strategy_version_registry_path.display()
+                )
+            })?;
         }
         remove_file_if_exists(&identity_contract_path).with_context(|| {
             format!(
@@ -302,6 +336,106 @@ impl MvpRuntime {
         (published != self.identity_contract)
             .then(|| "MVP identity contract does not match current runtime identity".to_string())
     }
+}
+
+fn prepare_strategy_version_registry_update(
+    registry_path: &Path,
+    previous_contract_path: &Path,
+    current_contract: &MvpIdentityContract,
+) -> anyhow::Result<Option<MvpStrategyVersionRegistry>> {
+    let previous_contract = if previous_contract_path.is_file() {
+        let raw = std::fs::read_to_string(previous_contract_path).with_context(|| {
+            format!(
+                "读取上一份 MVP 身份合同 '{}' 失败",
+                previous_contract_path.display()
+            )
+        })?;
+        Some(
+            serde_json::from_str::<MvpIdentityContract>(&raw).with_context(|| {
+                format!(
+                    "上一份 MVP 身份合同 '{}' 无效，拒绝覆盖",
+                    previous_contract_path.display()
+                )
+            })?,
+        )
+    } else {
+        None
+    };
+    let has_previous_anchor = previous_contract
+        .as_ref()
+        .is_some_and(|contract| !contract.identities.strategy_version_content_hash.is_empty());
+    let current = &current_contract.identities;
+    let has_current_anchor = !current.strategy_version_content_hash.is_empty();
+    if !registry_path.is_file() && !has_previous_anchor && !has_current_anchor {
+        return Ok(None);
+    }
+
+    let mut registry = if registry_path.is_file() {
+        let raw = std::fs::read_to_string(registry_path)
+            .with_context(|| format!("读取策略版本注册表 '{}' 失败", registry_path.display()))?;
+        let registry: MvpStrategyVersionRegistry = serde_json::from_str(&raw)
+            .with_context(|| format!("策略版本注册表 '{}' 无效", registry_path.display()))?;
+        ensure!(
+            registry.schema_version == STRATEGY_VERSION_REGISTRY_SCHEMA_VERSION,
+            "策略版本注册表 '{}' schema_version 必须为 '{}'",
+            registry_path.display(),
+            STRATEGY_VERSION_REGISTRY_SCHEMA_VERSION
+        );
+        registry
+    } else {
+        MvpStrategyVersionRegistry::default()
+    };
+
+    let mut changed = false;
+    if let Some(previous) = previous_contract.as_ref() {
+        changed |= register_strategy_version_anchor(&mut registry, previous)?;
+    }
+    if has_current_anchor {
+        changed |= register_strategy_version_anchor(&mut registry, current_contract)?;
+    } else if registry
+        .versions
+        .get(&current.strategy_id)
+        .and_then(|versions| versions.get(&current.strategy_version))
+        .is_some()
+    {
+        anyhow::bail!(
+            "策略版本 '{}@{}' 已登记内容哈希，当前配置不得移除该锚点",
+            current.strategy_id,
+            current.strategy_version
+        );
+    }
+
+    Ok(changed.then_some(registry))
+}
+
+fn register_strategy_version_anchor(
+    registry: &mut MvpStrategyVersionRegistry,
+    contract: &MvpIdentityContract,
+) -> anyhow::Result<bool> {
+    let identity = &contract.identities;
+    if identity.strategy_version_content_hash.is_empty() {
+        return Ok(false);
+    }
+    let versions = registry
+        .versions
+        .entry(identity.strategy_id.clone())
+        .or_default();
+    if let Some(registered_hash) = versions.get(&identity.strategy_version) {
+        ensure!(
+            registered_hash == &identity.strategy_version_content_hash,
+            "策略版本 '{}@{}' 已登记为不可变内容；内容哈希从 '{}' 变为 '{}'，请创建新版本号",
+            identity.strategy_id,
+            identity.strategy_version,
+            registered_hash,
+            identity.strategy_version_content_hash
+        );
+        return Ok(false);
+    }
+    versions.insert(
+        identity.strategy_version.clone(),
+        identity.strategy_version_content_hash.clone(),
+    );
+    Ok(true)
 }
 
 /// 执行本地单节点 MVP 命令。
@@ -1123,6 +1257,135 @@ environment = "sandbox"
         runtime
             .stop(Duration::from_secs(2))
             .expect("first MVP runtime should stop normally");
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mvp_restart_rejects_same_strategy_version_with_changed_content_hash() {
+        let _guard = process_test_guard();
+        let root = temp_root("strategy-version-restart-anchor");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_options(&root, fixture_node.clone());
+        let config = fs::read_to_string(&opt.config).expect("MVP config should be readable");
+        fs::write(
+            &opt.config,
+            format!(
+                "{config}\n[strategy_version]\ncontent_hash = \"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n"
+            ),
+        )
+        .expect("version hash anchor should be written");
+
+        let runtime = MvpRuntime::start(&opt, fixture_node.clone())
+            .expect("first MVP runtime should start with version hash anchor");
+        runtime
+            .stop(Duration::from_secs(2))
+            .expect("first MVP runtime should stop normally");
+        let identity_before = fs::read_to_string(&runtime.identity_contract_path)
+            .expect("stopped identity contract should remain readable");
+        let events_path = runtime.artifact_root.join("logs/events.log");
+        let supervisor_before = fs::read_to_string(&runtime.registry_path)
+            .expect("stopped supervisor registry should remain readable");
+        let events_before =
+            fs::read_to_string(&events_path).expect("stopped events should remain readable");
+        let version_registry_path = opt.workspace.join(STRATEGY_VERSION_REGISTRY_PATH);
+        let version_registry_before = fs::read_to_string(&version_registry_path)
+            .expect("strategy version registry should be readable");
+
+        let changed = fs::read_to_string(&opt.config)
+            .expect("anchored MVP config should remain readable")
+            .replace(
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            );
+        fs::write(&opt.config, changed).expect("changed version hash should be written");
+        let error = MvpRuntime::start(&opt, fixture_node.clone())
+            .expect_err("same strategy version with changed hash must fail before restart");
+        assert!(format!("{error:#}").contains("已登记为不可变内容"));
+        assert_eq!(
+            fs::read_to_string(&runtime.identity_contract_path)
+                .expect("failed restart must preserve previous identity contract"),
+            identity_before
+        );
+        assert_eq!(
+            fs::read_to_string(&runtime.registry_path)
+                .expect("failed restart must preserve stopped supervisor registry"),
+            supervisor_before
+        );
+        assert_eq!(
+            fs::read_to_string(&events_path)
+                .expect("failed restart must not append node start events"),
+            events_before
+        );
+        assert_eq!(
+            fs::read_to_string(&version_registry_path)
+                .expect("failed restart must preserve version registry"),
+            version_registry_before
+        );
+
+        let next_version = fs::read_to_string(&opt.config)
+            .expect("changed MVP config should remain readable")
+            .replace("strategy_version = \"v1\"", "strategy_version = \"v2\"");
+        fs::write(&opt.config, next_version).expect("new strategy version should be written");
+        let restarted = MvpRuntime::start(&opt, fixture_node)
+            .expect("new strategy version identity may register a new content hash");
+        assert_eq!(
+            restarted.identity_contract.identities.strategy_version,
+            "v2"
+        );
+        restarted
+            .stop(Duration::from_secs(2))
+            .expect("new strategy version runtime should stop normally");
+        let registry = read_json(&version_registry_path);
+        assert_eq!(
+            registry["versions"]["strategy-alpha"]["v1"],
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        );
+        assert_eq!(
+            registry["versions"]["strategy-alpha"]["v2"],
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        );
+
+        let identity_v2 = fs::read_to_string(&restarted.identity_contract_path)
+            .expect("v2 identity contract should remain readable");
+        let supervisor_v2 = fs::read_to_string(&restarted.registry_path)
+            .expect("v2 supervisor registry should remain readable");
+        let events_v2 = fs::read_to_string(&events_path).expect("v2 events should remain readable");
+        let version_registry_v2 = fs::read_to_string(&version_registry_path)
+            .expect("v1 and v2 registry should remain readable");
+        let reverted_version = fs::read_to_string(&opt.config)
+            .expect("v2 config should remain readable")
+            .replace("strategy_version = \"v2\"", "strategy_version = \"v1\"");
+        fs::write(&opt.config, reverted_version)
+            .expect("historical version with changed hash should be written");
+        let error = MvpRuntime::start(
+            &opt,
+            opt.ntpro_node_bin
+                .clone()
+                .expect("fixture node path should remain present"),
+        )
+        .expect_err("returning to v1 with a different hash must fail before restart");
+        assert!(format!("{error:#}").contains("已登记为不可变内容"));
+        assert_eq!(
+            fs::read_to_string(&restarted.identity_contract_path)
+                .expect("historical version failure must preserve v2 identity"),
+            identity_v2
+        );
+        assert_eq!(
+            fs::read_to_string(&restarted.registry_path)
+                .expect("historical version failure must preserve supervisor registry"),
+            supervisor_v2
+        );
+        assert_eq!(
+            fs::read_to_string(&events_path)
+                .expect("historical version failure must not append node events"),
+            events_v2
+        );
+        assert_eq!(
+            fs::read_to_string(&version_registry_path)
+                .expect("historical version failure must preserve version registry"),
+            version_registry_v2
+        );
         fs::remove_dir_all(root).expect("temporary MVP root should be removed");
     }
 
