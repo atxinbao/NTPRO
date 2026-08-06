@@ -1676,8 +1676,8 @@ impl SupervisorRegistryStore {
     /// # Errors
     ///
     /// Returns an error if the node is missing, not running, the stop request
-    /// cannot be written, or the stopped status artifact is not observed before
-    /// the timeout.
+    /// cannot be written, the graceful stop deadline is exceeded, or the
+    /// stopped status artifact is not observed before the timeout.
     pub fn stop_node_process(
         &self,
         request: &StopNodeRequest,
@@ -1720,8 +1720,21 @@ impl SupervisorRegistryStore {
         if let Some(stopped) =
             wait_for_stopped_process(self, &request.node_id, pid, request.stop_timeout)?
         {
+            append_supervisor_stop_completion_event(&stopped, false)?;
             return self.finalize_stopped_process(&request.node_id, stopped);
         }
+
+        let escalation_evidence_error = match self.refresh_status_from_artifact(&request.node_id) {
+            Ok(record) => append_supervisor_stop_completion_event(&record, true)
+                .err()
+                .map(|error| error.to_string()),
+            Err(error) => Some(format!("failed to refresh escalation evidence: {error:#}")),
+        };
+        let escalation_evidence_suffix = escalation_evidence_error
+            .as_deref()
+            .map_or_else(String::new, |error| {
+                format!("; stop escalation evidence failed: {error}")
+            });
 
         match send_termination(pid)? {
             SignalDelivery::Sent => {
@@ -1736,23 +1749,35 @@ impl SupervisorRegistryStore {
 
         if process_is_alive(pid) {
             let message = format!(
-                "node '{}' process {pid} did not exit after termination escalation",
-                request.node_id
+                "node '{}' process {pid} did not exit after termination escalation{}",
+                request.node_id, escalation_evidence_suffix
             );
             self.record_process_failure(&request.node_id, Some(pid), &message)?;
             anyhow::bail!("{message}");
         }
 
-        let stopped = self.refresh_status_from_artifact(&request.node_id)?;
+        let stopped = self
+            .refresh_status_from_artifact(&request.node_id)
+            .with_context(|| {
+                format!(
+                    "failed to refresh node '{}' after termination escalation{}",
+                    request.node_id, escalation_evidence_suffix
+                )
+            })?;
         if stopped.last_known_status.lifecycle_state != LifecycleStatus::Stopped {
             let message = format!(
-                "node '{}' process {pid} exited without a stopped status artifact",
-                request.node_id
+                "node '{}' process {pid} exited without a stopped status artifact{}",
+                request.node_id, escalation_evidence_suffix
             );
             self.record_process_failure(&request.node_id, None, &message)?;
             anyhow::bail!("{message}");
         }
-        self.finalize_stopped_process(&request.node_id, stopped)
+        self.finalize_stopped_process(&request.node_id, stopped)?;
+        anyhow::bail!(
+            "node '{}' exceeded the graceful stop deadline and required termination escalation{}",
+            request.node_id,
+            escalation_evidence_suffix
+        )
     }
 
     /// # Errors
@@ -2358,6 +2383,47 @@ fn append_supervisor_event_with_status(
     .with_context(|| {
         format!(
             "failed to append supervisor event '{}'",
+            record.events_log_path.display()
+        )
+    })?;
+    Ok(())
+}
+
+fn append_supervisor_stop_completion_event(
+    record: &SupervisorNodeRecord,
+    shutdown_escalated: bool,
+) -> anyhow::Result<()> {
+    if let Some(parent) = record.events_log_path.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "failed to create events log directory '{}'",
+                parent.display()
+            )
+        })?;
+    }
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&record.events_log_path)
+        .with_context(|| {
+            format!(
+                "failed to open events log '{}'",
+                record.events_log_path.display()
+            )
+        })?;
+    writeln!(
+        file,
+        "phase=stop_completion status={} node_id={} shutdown_escalated={shutdown_escalated} external_venue_connection=false real_orders_submitted=false",
+        if shutdown_escalated {
+            "escalated"
+        } else {
+            "graceful"
+        },
+        record.node_id,
+    )
+    .with_context(|| {
+        format!(
+            "failed to append supervisor stop completion event '{}'",
             record.events_log_path.display()
         )
     })?;
@@ -3125,7 +3191,7 @@ write_atomic "$output/metrics.json" <<EOF
 }
 EOF
 if [ -f "$output/ignore-stop" ]; then
-  trap 'echo term > "$output/term.signal"; exit 0' TERM
+  trap 'echo term > "$output/term.signal"; if [ -f "$output/term-writes-stopped" ]; then sed -e "s/\"lifecycle_state\": \"running\"/\"lifecycle_state\": \"stopped\"/" -e "s/\"previous_lifecycle_state\": \"starting\"/\"previous_lifecycle_state\": \"running\"/" "$output/status.json" > "$output/status.json.term.$$"; mv "$output/status.json.term.$$" "$output/status.json"; fi; exit 0' TERM
   while :; do
     sleep 0.05
   done
@@ -4448,6 +4514,11 @@ done
         assert_eq!(stopped_metrics.lifecycle_state, LifecycleStatus::Stopped);
         assert_eq!(stopped_metrics.starts_total, 1);
         assert_eq!(stopped_metrics.stops_total, 1);
+        let stopped_events = fs::read_to_string(&stopped.events_log_path).unwrap();
+        assert!(stopped_events.contains(
+            "phase=stop_completion status=graceful node_id=sandbox-a shutdown_escalated=false"
+        ));
+        assert!(!stopped_events.contains("shutdown_escalated=true"));
 
         let duplicate_stop = store
             .stop_node_process(&StopNodeRequest {
@@ -4628,11 +4699,104 @@ done
 
         assert!(error.contains("exited without a stopped status artifact"));
         assert!(registered.artifact_root.join("term.signal").exists());
+        let events = fs::read_to_string(&registered.events_log_path).unwrap();
+        assert!(events.contains(
+            "phase=stop_completion status=escalated node_id=sandbox-a shutdown_escalated=true"
+        ));
         assert!(!process_is_alive(pid));
         let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
         assert_eq!(record.process.state, SupervisorProcessState::Stale);
         assert!(record.process.pid.value.is_none());
         assert!(!record.pid_path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stop_escalation_continues_when_audit_event_write_fails() {
+        let _process_test_guard = supervisor_process_test_guard();
+        let root = temp_root("stop-escalation-audit-failure");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        let registered = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        fs::write(registered.artifact_root.join("ignore-stop"), "").unwrap();
+
+        let started = store
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(3)))
+            .unwrap();
+        let pid = started.process.pid.value.unwrap();
+        fs::remove_file(&registered.events_log_path).unwrap();
+        fs::create_dir_all(&registered.events_log_path).unwrap();
+
+        let error = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_millis(200),
+            })
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("exited without a stopped status artifact"));
+        assert!(error.contains("stop escalation evidence failed"));
+        assert!(registered.artifact_root.join("term.signal").exists());
+        assert!(!process_is_alive(pid));
+        let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
+        assert_eq!(record.process.state, SupervisorProcessState::Stale);
+        assert!(record.process.pid.value.is_none());
+        assert!(!record.pid_path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stop_escalation_with_stopped_artifact_still_returns_error() {
+        let _process_test_guard = supervisor_process_test_guard();
+        let root = temp_root("stop-escalation-stopped-artifact");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        let registered = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        fs::write(registered.artifact_root.join("ignore-stop"), "").unwrap();
+        fs::write(registered.artifact_root.join("term-writes-stopped"), "").unwrap();
+
+        let started = store
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(3)))
+            .unwrap();
+        let pid = started.process.pid.value.unwrap();
+
+        let error = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_millis(200),
+            })
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("required termination escalation"));
+        assert!(!process_is_alive(pid));
+        let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
+        assert_eq!(record.process.state, SupervisorProcessState::Stopped);
+        assert_eq!(
+            record.last_known_status.lifecycle_state,
+            LifecycleStatus::Stopped
+        );
+        assert!(!record.pid_path.exists());
+        let events = fs::read_to_string(&record.events_log_path).unwrap();
+        assert!(events.contains(
+            "phase=stop_completion status=escalated node_id=sandbox-a shutdown_escalated=true"
+        ));
+        assert!(!events.contains("shutdown_escalated=false"));
     }
 
     #[cfg(unix)]
