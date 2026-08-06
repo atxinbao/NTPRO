@@ -1724,8 +1724,17 @@ impl SupervisorRegistryStore {
             return self.finalize_stopped_process(&request.node_id, stopped);
         }
 
-        let escalation_record = self.refresh_status_from_artifact(&request.node_id)?;
-        append_supervisor_stop_completion_event(&escalation_record, true)?;
+        let escalation_evidence_error = match self.refresh_status_from_artifact(&request.node_id) {
+            Ok(record) => append_supervisor_stop_completion_event(&record, true)
+                .err()
+                .map(|error| error.to_string()),
+            Err(error) => Some(format!("failed to refresh escalation evidence: {error:#}")),
+        };
+        let escalation_evidence_suffix = escalation_evidence_error
+            .as_deref()
+            .map_or_else(String::new, |error| {
+                format!("; stop escalation evidence failed: {error}")
+            });
 
         match send_termination(pid)? {
             SignalDelivery::Sent => {
@@ -1740,26 +1749,34 @@ impl SupervisorRegistryStore {
 
         if process_is_alive(pid) {
             let message = format!(
-                "node '{}' process {pid} did not exit after termination escalation",
-                request.node_id
+                "node '{}' process {pid} did not exit after termination escalation{}",
+                request.node_id, escalation_evidence_suffix
             );
             self.record_process_failure(&request.node_id, Some(pid), &message)?;
             anyhow::bail!("{message}");
         }
 
-        let stopped = self.refresh_status_from_artifact(&request.node_id)?;
+        let stopped = self
+            .refresh_status_from_artifact(&request.node_id)
+            .with_context(|| {
+                format!(
+                    "failed to refresh node '{}' after termination escalation{}",
+                    request.node_id, escalation_evidence_suffix
+                )
+            })?;
         if stopped.last_known_status.lifecycle_state != LifecycleStatus::Stopped {
             let message = format!(
-                "node '{}' process {pid} exited without a stopped status artifact",
-                request.node_id
+                "node '{}' process {pid} exited without a stopped status artifact{}",
+                request.node_id, escalation_evidence_suffix
             );
             self.record_process_failure(&request.node_id, None, &message)?;
             anyhow::bail!("{message}");
         }
         self.finalize_stopped_process(&request.node_id, stopped)?;
         anyhow::bail!(
-            "node '{}' exceeded the graceful stop deadline and required termination escalation",
-            request.node_id
+            "node '{}' exceeded the graceful stop deadline and required termination escalation{}",
+            request.node_id,
+            escalation_evidence_suffix
         )
     }
 
@@ -4686,6 +4703,48 @@ done
         assert!(events.contains(
             "phase=stop_completion status=escalated node_id=sandbox-a shutdown_escalated=true"
         ));
+        assert!(!process_is_alive(pid));
+        let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
+        assert_eq!(record.process.state, SupervisorProcessState::Stale);
+        assert!(record.process.pid.value.is_none());
+        assert!(!record.pid_path.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stop_escalation_continues_when_audit_event_write_fails() {
+        let _process_test_guard = supervisor_process_test_guard();
+        let root = temp_root("stop-escalation-audit-failure");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "sandbox-a");
+        let fixture = write_fixture_node(&root);
+        let registered = store
+            .register_node(RegisterNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        fs::write(registered.artifact_root.join("ignore-stop"), "").unwrap();
+
+        let started = store
+            .start_node_process(&start_request("sandbox-a", fixture, Duration::from_secs(3)))
+            .unwrap();
+        let pid = started.process.pid.value.unwrap();
+        fs::remove_file(&registered.events_log_path).unwrap();
+        fs::create_dir_all(&registered.events_log_path).unwrap();
+
+        let error = store
+            .stop_node_process(&StopNodeRequest {
+                node_id: "sandbox-a".to_string(),
+                stop_timeout: Duration::from_millis(200),
+            })
+            .unwrap_err()
+            .to_string();
+
+        assert!(error.contains("exited without a stopped status artifact"));
+        assert!(error.contains("stop escalation evidence failed"));
+        assert!(registered.artifact_root.join("term.signal").exists());
         assert!(!process_is_alive(pid));
         let record = store.load().unwrap().nodes.remove("sandbox-a").unwrap();
         assert_eq!(record.process.state, SupervisorProcessState::Stale);

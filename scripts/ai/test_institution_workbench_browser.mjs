@@ -29,6 +29,72 @@ if (
   throw new Error("browser shutdown timeout contract self-test failed");
 }
 
+const processExited = (child) => child.exitCode !== null || child.signalCode !== null;
+const waitForProcessExit = (child, timeoutMs) => {
+  if (processExited(child)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    const timer = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(false);
+    }, timeoutMs);
+    child.once("exit", onExit);
+  });
+};
+const stopProcessWithoutEscalation = async (child, gracefulTimeoutMs, forceKillTimeoutMs) => {
+  if (processExited(child)) return;
+  if (!child.kill("SIGINT")) throw new Error("failed to send SIGINT to child process");
+  if (await waitForProcessExit(child, gracefulTimeoutMs)) return;
+  if (!child.kill("SIGKILL") && !processExited(child)) {
+    throw new Error("failed to send SIGKILL to child process");
+  }
+  if (!await waitForProcessExit(child, forceKillTimeoutMs)) {
+    throw new Error("child process did not exit after SIGKILL");
+  }
+  throw new Error(`MVP server did not stop within ${gracefulTimeoutMs} ms and required SIGKILL`);
+};
+const runShutdownEscalationSelftest = async () => {
+  const probe = spawn(
+    process.execPath,
+    ["-e", "process.on('SIGINT', () => {}); process.stdout.write('ready\\n'); setInterval(() => {}, 1000);"],
+    { stdio: ["ignore", "pipe", "ignore"] },
+  );
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("shutdown escalation probe did not become ready")), 5_000);
+      const onExit = () => {
+        clearTimeout(timer);
+        reject(new Error("shutdown escalation probe exited before ready"));
+      };
+      probe.once("exit", onExit);
+      probe.stdout.once("data", (chunk) => {
+        clearTimeout(timer);
+        probe.off("exit", onExit);
+        if (chunk.toString() !== "ready\n") {
+          reject(new Error("shutdown escalation probe emitted an invalid readiness marker"));
+          return;
+        }
+        resolve();
+      });
+    });
+    let rejected = false;
+    try {
+      await stopProcessWithoutEscalation(probe, 50, FORCE_KILL_EXIT_TIMEOUT_MS);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("required SIGKILL")) throw error;
+      rejected = true;
+    }
+    if (!rejected) throw new Error("shutdown escalation probe did not fail closed");
+  } finally {
+    if (!processExited(probe)) probe.kill("SIGKILL");
+  }
+};
+await runShutdownEscalationSelftest();
+
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-mvp-006-browser-"));
 const evidenceDir = process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
 fs.mkdirSync(evidenceDir, { recursive: true });
@@ -92,6 +158,7 @@ const server = spawn(
 );
 server.stdout.on("data", (chunk) => serverLog.push(chunk.toString()));
 server.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
+const serverExited = () => processExited(server);
 const collectRuntimeLogs = () => {
   const nodeLogDir = path.join(workspace, "nodes", "mvp-node-001", "logs");
   return {
@@ -111,71 +178,6 @@ const writeDiagnostics = (result, logs) => {
     `${JSON.stringify(sanitizeDiagnosticResult(result), null, 2)}\n`,
   );
 };
-const processExited = (child) => child.exitCode !== null || child.signalCode !== null;
-const serverExited = () => processExited(server);
-const waitForProcessExit = (child, timeoutMs) => {
-  if (processExited(child)) return Promise.resolve(true);
-  return new Promise((resolve) => {
-    const onExit = () => {
-      clearTimeout(timer);
-      resolve(true);
-    };
-    const timer = setTimeout(() => {
-      child.off("exit", onExit);
-      resolve(false);
-    }, timeoutMs);
-    child.once("exit", onExit);
-  });
-};
-const stopProcessWithoutEscalation = async (child, gracefulTimeoutMs, forceKillTimeoutMs) => {
-  if (processExited(child)) return;
-  if (!child.kill("SIGINT")) throw new Error("failed to send SIGINT to child process");
-  if (await waitForProcessExit(child, gracefulTimeoutMs)) return;
-  if (!child.kill("SIGKILL") && !processExited(child)) {
-    throw new Error("failed to send SIGKILL to child process");
-  }
-  if (!await waitForProcessExit(child, forceKillTimeoutMs)) {
-    throw new Error("child process did not exit after SIGKILL");
-  }
-  throw new Error(`MVP server did not stop within ${gracefulTimeoutMs} ms and required SIGKILL`);
-};
-const runShutdownEscalationSelftest = async () => {
-  const probe = spawn(
-    process.execPath,
-    ["-e", "process.on('SIGINT', () => {}); process.stdout.write('ready\\n'); setInterval(() => {}, 1000);"],
-    { stdio: ["ignore", "pipe", "ignore"] },
-  );
-  try {
-    await new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("shutdown escalation probe did not become ready")), 5_000);
-      probe.once("exit", () => {
-        clearTimeout(timer);
-        reject(new Error("shutdown escalation probe exited before ready"));
-      });
-      probe.stdout.once("data", (chunk) => {
-        clearTimeout(timer);
-        if (chunk.toString() !== "ready\n") {
-          reject(new Error("shutdown escalation probe emitted an invalid readiness marker"));
-          return;
-        }
-        resolve();
-      });
-    });
-    let rejected = false;
-    try {
-      await stopProcessWithoutEscalation(probe, 50, FORCE_KILL_EXIT_TIMEOUT_MS);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (!message.includes("required SIGKILL")) throw error;
-      rejected = true;
-    }
-    if (!rejected) throw new Error("shutdown escalation probe did not fail closed");
-  } finally {
-    if (!processExited(probe)) probe.kill("SIGKILL");
-  }
-};
-await runShutdownEscalationSelftest();
-
 let browser;
 let failure;
 const recordFailure = (error) => {

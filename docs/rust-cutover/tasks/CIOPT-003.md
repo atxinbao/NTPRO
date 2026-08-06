@@ -20,6 +20,7 @@ Status: REVIEW_REQUIRED
 - 让测试进程退出等待严格大于 node 内层停止超时；
 - Supervisor 对正常停止写入 `shutdown_escalated=false`，对 TERM/KILL escalation 写入
   `shutdown_escalated=true` 并返回错误；
+- escalation 审计写入失败不得阻止 TERM/KILL，审计错误必须合并到最终错误；
 - 增加超时关系和真实异常子进程的正向、负向自测；
 - 保留超时失败、SIGKILL 兜底和完整停止证据检查；
 - 更新两个 MVP 冻结源 hash 和风险盘点。
@@ -37,6 +38,7 @@ Status: REVIEW_REQUIRED
 - 正常退出继续要求 `mvp.serve status=stopped`、`final_state=Stopped` 和禁用交易证据；
 - Supervisor escalation 即使最终获得 Stopped artifact 也必须返回错误；
 - 异常子进程探针必须实际进入 SIGKILL 路径并证明测试 fail closed；
+- 异常探针必须在真实 MVP 启动前完成，探针自身始终清理；
 - 机构工作台浏览器验收连续通过；
 - MVP freeze、CI 分类、Rust-only 和 hosted Smoke 通过；
 - 独立复审通过后手动合并，不启用 auto-merge。
