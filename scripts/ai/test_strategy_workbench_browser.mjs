@@ -130,6 +130,18 @@ try {
       `unauthorized product API contract drift: status=${unauthorizedProductApi.status} body=${JSON.stringify(unauthorizedProductBody)}`,
     );
   }
+  const unauthorizedRunApi = await fetch(`${baseUrl}/api/product/v1/runs`);
+  const unauthorizedRunBody = await unauthorizedRunApi.json();
+  if (
+    unauthorizedRunApi.status !== 403 ||
+    unauthorizedRunBody.error?.code !== "product_access_denied" ||
+    unauthorizedRunBody.error?.retryable !== false ||
+    unauthorizedRunBody.boundaries?.run_mutation_allowed !== false
+  ) {
+    throw new Error(
+      `unauthorized run API contract drift: status=${unauthorizedRunApi.status} body=${JSON.stringify(unauthorizedRunBody)}`,
+    );
+  }
 
   const productListResponse = await fetch(
     `${baseUrl}/api/product/v1/strategies?limit=1&sort=updated_at&order=desc`,
@@ -276,6 +288,73 @@ try {
     );
   }
 
+  const productRunListResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs?strategy_id=ema_cross_btcusdt_v1&strategy_version_id=ema_cross_btcusdt_v1%40v1&environment=live&lifecycle=created`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const productRunList = await productRunListResponse.json();
+  const liveRun = productRunList.data?.[0];
+  const runCapabilityFields = [
+    "external_venue_connection",
+    "order_submission_allowed",
+    "order_mutation_allowed",
+    "automatic_retry_allowed",
+    "automatic_remediation_allowed",
+    "real_orders_submitted",
+    "trading_controls_enabled",
+  ];
+  if (
+    productRunListResponse.status !== 200 ||
+    productRunList.schema_version !== "ntpro.product_api.run_list.response.v1" ||
+    productRunList.contract_version !== "ntpro.product_api.v1" ||
+    productRunList.page?.returned_count !== 1 ||
+    liveRun?.run_id !== "ema-cross-btcusdt-live-v1" ||
+    liveRun?.strategy_id !== productStrategy.strategy_id ||
+    liveRun?.strategy_version_id !== productVersion.strategy_version_id ||
+    liveRun?.environment !== "live" ||
+    liveRun?.lifecycle !== "created" ||
+    liveRun?.result?.status !== "pending" ||
+    liveRun?.risk?.status !== "blocked" ||
+    liveRun?.adapter_ref !== "adapter://live/disabled" ||
+    liveRun?.account_ref !== "account://live/unconfigured" ||
+    runCapabilityFields.some((field) => liveRun?.capabilities?.[field] !== false) ||
+    expectedFalseBoundaries.some(
+      (field) => productRunList.boundaries?.[field] !== false,
+    )
+  ) {
+    throw new Error(`product run list contract drift: ${JSON.stringify(productRunList)}`);
+  }
+
+  const productRunDetailResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs/ema-cross-btcusdt-live-v1`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const productRunDetail = await productRunDetailResponse.json();
+  if (
+    productRunDetailResponse.status !== 200 ||
+    productRunDetail.schema_version !== "ntpro.product_api.run_detail.response.v1" ||
+    productRunDetail.data?.run_id !== liveRun.run_id ||
+    productRunDetail.data?.source?.source_type !== "run_manifest" ||
+    productRunDetail.data?.source?.freshness_status !== "fresh"
+  ) {
+    throw new Error(`product run detail contract drift: ${JSON.stringify(productRunDetail)}`);
+  }
+
+  const missingProductRun = await fetch(
+    `${baseUrl}/api/product/v1/runs/missing`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const missingProductRunBody = await missingProductRun.json();
+  if (
+    missingProductRun.status !== 404 ||
+    missingProductRunBody.error?.code !== "run_not_found" ||
+    missingProductRunBody.error?.retryable !== false
+  ) {
+    throw new Error(
+      `missing product run did not fail closed: ${JSON.stringify(missingProductRunBody)}`,
+    );
+  }
+
   const invalidProductQuery = await fetch(
     `${baseUrl}/api/product/v1/strategies?limit=1&limit=2`,
     { headers: { cookie: institutionCookie } },
@@ -312,6 +391,7 @@ try {
     ["GET", "/strategy-workbench/assets/missing.js", 404],
     ["GET", "/api/product/v1/unknown", 404],
     ["POST", "/api/product/v1/strategies", 405],
+    ["POST", "/api/product/v1/runs", 405],
     [
       "POST",
       "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions",
@@ -325,7 +405,7 @@ try {
     if (response.status !== expected) {
       throw new Error(`${method} ${url} expected ${expected}, got ${response.status}`);
     }
-    if (url.startsWith("/api/product/v1/strategies") && method === "POST") {
+    if (url.startsWith("/api/product/v1/") && method === "POST") {
       const body = await response.json();
       if (
         response.headers.get("allow") !== "GET" ||
@@ -541,6 +621,11 @@ writeEvidence({
   product_strategy_detail: 1,
   product_strategy_error: 1,
   product_strategy_access_control: 1,
+  product_run_list: 1,
+  product_run_detail: 1,
+  product_run_error: 1,
+  product_run_live_boundary: 1,
+  product_run_access_control: 1,
   asset_404: 1,
   method_405: 1,
   valid: 1,

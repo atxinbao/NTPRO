@@ -32,6 +32,20 @@ pub(super) struct ProductStrategyVersion {
     source: ProductSource,
 }
 
+impl ProductStrategyVersion {
+    pub(super) const fn created_at_unix_ms(&self) -> u64 {
+        self.created_at_unix_ms
+    }
+
+    pub(super) fn data_venues(&self) -> &[String] {
+        &self.data_requirements.venues
+    }
+
+    pub(super) fn data_symbols(&self) -> &[String] {
+        &self.data_requirements.symbols
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 struct StrategyVersionDataRequirements {
     venues: Vec<String>,
@@ -606,7 +620,7 @@ pub(super) fn validate_requested_version_id(field: &str, value: &str) -> Result<
         .map_err(|_| product_error(ProductErrorKind::BadRequest, field))
 }
 
-fn validate_version_resource_id(field: &str, value: &str) -> Result<(), ProductError> {
+pub(super) fn validate_version_resource_id(field: &str, value: &str) -> Result<(), ProductError> {
     let Some((strategy_id, version)) = value.split_once('@') else {
         return Err(product_error(ProductErrorKind::SourceInvalid, field));
     };

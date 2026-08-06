@@ -304,6 +304,111 @@
           }
         }
       }
+    },
+    "/runs": {
+      "get": {
+        "operationId": "listRuns",
+        "summary": "读取三环境运行记录列表",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": { "type": "string", "minLength": 1 }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["run_id", "created_at", "updated_at"],
+              "default": "run_id"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["asc", "desc"], "default": "asc" }
+          },
+          {
+            "name": "strategy_id",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/StrategyId" }
+          },
+          {
+            "name": "strategy_version_id",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/StrategyVersionId" }
+          },
+          {
+            "name": "environment",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/RunEnvironment" }
+          },
+          {
+            "name": "lifecycle",
+            "in": "query",
+            "schema": { "$ref": "#/components/schemas/RunLifecycle" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run 列表",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RunListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/runs/{run_id}": {
+      "get": {
+        "operationId": "getRun",
+        "summary": "读取运行记录详情",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run 详情",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RunDetailResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
     }
   },
   "components": {
@@ -601,6 +706,146 @@
           }
         }
       },
+      "RunId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9_.:-]+$"
+      },
+      "RunEnvironment": {
+        "type": "string",
+        "enum": ["backtest", "sandbox", "live"]
+      },
+      "RunLifecycle": {
+        "type": "string",
+        "enum": ["created", "queued", "running", "stopping", "completed", "failed", "cancelled", "stopped"]
+      },
+      "RunResultStatus": {
+        "type": "string",
+        "enum": ["pending", "available", "unavailable"]
+      },
+      "RunRiskStatus": {
+        "type": "string",
+        "enum": ["pending", "active", "passed", "blocked"]
+      },
+      "RunSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_type", "freshness_status", "source_refs"],
+        "properties": {
+          "source_type": { "const": "run_manifest" },
+          "freshness_status": { "const": "fresh" },
+          "source_refs": {
+            "type": "array",
+            "minItems": 3,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      "RunResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "result_ref"],
+        "properties": {
+          "status": { "$ref": "#/components/schemas/RunResultStatus" },
+          "result_ref": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      },
+      "RunRisk": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "risk_ref"],
+        "properties": {
+          "status": { "$ref": "#/components/schemas/RunRiskStatus" },
+          "risk_ref": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
+      },
+      "RunError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "summary"],
+        "properties": {
+          "code": { "$ref": "#/components/schemas/RunId" },
+          "summary": { "type": "string", "minLength": 1, "maxLength": 500 }
+        }
+      },
+      "RunCapabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "external_venue_connection",
+          "order_submission_allowed",
+          "order_mutation_allowed",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed",
+          "real_orders_submitted",
+          "trading_controls_enabled"
+        ],
+        "properties": {
+          "external_venue_connection": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "order_mutation_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
+        }
+      },
+      "Run": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "run_id",
+          "strategy_id",
+          "strategy_version_id",
+          "environment",
+          "data_ref",
+          "config_ref",
+          "adapter_ref",
+          "account_ref",
+          "venue_ref",
+          "lifecycle",
+          "result",
+          "risk",
+          "error",
+          "created_at_unix_ms",
+          "started_at_unix_ms",
+          "completed_at_unix_ms",
+          "updated_at_unix_ms",
+          "source",
+          "capabilities"
+        ],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "environment": { "$ref": "#/components/schemas/RunEnvironment" },
+          "data_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "config_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "adapter_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "account_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "venue_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "lifecycle": { "$ref": "#/components/schemas/RunLifecycle" },
+          "result": { "$ref": "#/components/schemas/RunResult" },
+          "risk": { "$ref": "#/components/schemas/RunRisk" },
+          "error": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/RunError" },
+              { "type": "null" }
+            ]
+          },
+          "created_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "started_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 },
+          "completed_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 },
+          "updated_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "source": { "$ref": "#/components/schemas/RunSource" },
+          "capabilities": { "$ref": "#/components/schemas/RunCapabilities" }
+        }
+      },
       "ReadOnlyBoundaries": {
         "type": "object",
         "additionalProperties": false,
@@ -798,6 +1043,47 @@
           }
         }
       },
+      "RunListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "page",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.run_list.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Run" }
+          },
+          "page": { "$ref": "#/components/schemas/Page" },
+          "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
+        }
+      },
+      "RunDetailResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.run_detail.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/Run" },
+          "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
+        }
+      },
       "ProductError": {
         "type": "object",
         "additionalProperties": false,
@@ -811,6 +1097,7 @@
               "product_method_not_allowed",
               "strategy_not_found",
               "strategy_version_not_found",
+              "run_not_found",
               "product_source_unavailable",
               "product_source_invalid",
               "product_source_stale",

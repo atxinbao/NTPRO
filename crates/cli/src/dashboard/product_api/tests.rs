@@ -24,6 +24,7 @@ use crate::{
     },
 };
 
+use super::run::*;
 use super::strategy_version::*;
 use super::*;
 use crate::dashboard::server::dashboard_router;
@@ -195,7 +196,261 @@ fn strategy_version_projection_exposes_immutable_product_contract() {
 }
 
 #[test]
-fn tracked_strategy_version_manifest_hash_matches_immutable_content() {
+fn run_projection_exposes_three_environments_with_closed_capabilities() {
+    let fixture = Fixture::new("run-projection");
+    let runs = load_product_runs(&fixture.state(), unix_time_ms())
+        .expect("valid run manifest should project");
+    let value = serde_json::to_value(runs).expect("runs should serialize");
+
+    assert_eq!(value.as_array().map(Vec::len), Some(3));
+    assert_eq!(value[0]["environment"], "backtest");
+    assert_eq!(value[0]["lifecycle"], "completed");
+    assert_eq!(value[0]["result"]["status"], "available");
+    assert_eq!(value[1]["environment"], "sandbox");
+    assert_eq!(value[1]["lifecycle"], "running");
+    assert_eq!(value[2]["environment"], "live");
+    assert_eq!(value[2]["lifecycle"], "created");
+    assert_eq!(value[2]["risk"]["status"], "blocked");
+    assert_eq!(value[2]["adapter_ref"], "adapter://live/disabled");
+    for run in value.as_array().expect("runs should be an array") {
+        assert_eq!(run["strategy_id"], "ema-cross");
+        assert_eq!(run["strategy_version_id"], "ema-cross@v1");
+        assert_eq!(run["source"]["freshness_status"], "fresh");
+        for field in [
+            "external_venue_connection",
+            "order_submission_allowed",
+            "order_mutation_allowed",
+            "automatic_retry_allowed",
+            "automatic_remediation_allowed",
+            "real_orders_submitted",
+            "trading_controls_enabled",
+        ] {
+            assert_eq!(run["capabilities"][field], false, "{field}");
+        }
+    }
+}
+
+#[test]
+fn run_list_supports_identity_environment_lifecycle_and_stable_cursor() {
+    let fixture = Fixture::new("run-list");
+    let runs = load_product_runs(&fixture.state(), unix_time_ms())
+        .expect("valid run manifest should project");
+    let query = parse_run_list_query(Some(
+        "limit=1&sort=created_at&order=asc&strategy_id=ema-cross&strategy_version_id=ema-cross%40v1&environment=backtest&lifecycle=completed",
+    ))
+    .expect("valid run query should parse");
+    let response = project_run_list(runs.clone(), &query, product_request_id())
+        .expect("filtered run list should project");
+    let value = serde_json::to_value(response).expect("run list should serialize");
+    assert_eq!(value["page"]["returned_count"], 1);
+    assert_eq!(value["data"][0]["run_id"], "backtest-001");
+
+    let first_page = parse_run_list_query(Some("limit=1"))
+        .and_then(|query| project_run_list(runs.clone(), &query, product_request_id()))
+        .expect("first run page should project");
+    let first_value = serde_json::to_value(first_page).expect("first page should serialize");
+    assert_eq!(first_value["page"]["has_more"], true);
+    let cursor = first_value["page"]["next_cursor"]
+        .as_str()
+        .expect("next cursor should exist")
+        .to_string();
+    assert_eq!(cursor, encode_run_cursor("backtest-001"));
+    let second_page = parse_run_list_query(Some(&format!("limit=1&cursor={cursor}")))
+        .and_then(|query| project_run_list(runs, &query, product_request_id()))
+        .expect("second run page should project");
+    let second_value = serde_json::to_value(second_page).expect("second page should serialize");
+    assert_eq!(second_value["data"][0]["run_id"], "ema-cross-live-001");
+}
+
+#[test]
+fn invalid_run_queries_and_manifest_drift_fail_closed() {
+    for query in [
+        "limit=0",
+        "limit=101",
+        "limit=1&limit=2",
+        "cursor=forged",
+        "sort=environment",
+        "order=random",
+        "strategy_id=..",
+        "strategy_version_id=ema-cross",
+        "environment=production",
+        "lifecycle=unknown",
+        "unknown=value",
+    ] {
+        assert!(
+            parse_run_list_query(Some(query)).is_err(),
+            "{query} must fail closed"
+        );
+    }
+
+    for (name, mutate, expected_kind, expected_field) in [
+        (
+            "duplicate-id",
+            (|raw: String| {
+                raw.replace(
+                    "run_id = \"mvp-strategy-001\"\nstrategy_id = \"ema-cross\"",
+                    "run_id = \"backtest-001\"\nstrategy_id = \"ema-cross\"",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_id",
+        ),
+        (
+            "ownership",
+            (|raw: String| {
+                raw.replace(
+                    "run_id = \"backtest-001\"\nstrategy_id = \"ema-cross\"\nstrategy_version_id = \"ema-cross@v1\"",
+                    "run_id = \"backtest-001\"\nstrategy_id = \"ema-cross\"\nstrategy_version_id = \"other@v1\"",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_ownership",
+        ),
+        (
+            "environment",
+            (|raw: String| {
+                raw.replacen(
+                    "environment = \"backtest\"",
+                    "environment = \"production\"",
+                    1,
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_manifest",
+        ),
+        (
+            "live-reference",
+            (|raw: String| raw.replace("adapter://live/disabled", "adapter://live/binance"))
+                as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "sandbox-account-reference",
+            (|raw: String| {
+                raw.replace(
+                    "account://sandbox/acct-sandbox-001",
+                    "account://sandbox/unknown-account",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "live-data-reference",
+            (|raw: String| {
+                raw.replace("market://live/disabled", "market://live/disabled/connected")
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "backtest-data-reference",
+            (|raw: String| {
+                raw.replace("dataset://fixtures/ema-cross", "dataset://fixtures/unknown")
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "backtest-adapter-reference",
+            (|raw: String| {
+                raw.replace("adapter://backtest/simulated", "adapter://backtest/unknown")
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "backtest-account-reference",
+            (|raw: String| {
+                raw.replace(
+                    "account://simulated/backtest-001",
+                    "account://simulated/unknown",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "backtest-venue-reference",
+            (|raw: String| raw.replace("venue://simulated/BINANCE", "venue://simulated/UNKNOWN"))
+                as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "sandbox-data-reference",
+            (|raw: String| {
+                raw.replace(
+                    "market://sandbox/BTCUSDT.BINANCE",
+                    "market://sandbox/UNKNOWN.BINANCE",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "sandbox-adapter-reference",
+            (|raw: String| {
+                raw.replace(
+                    "adapter://sandbox/fixture-stream",
+                    "adapter://sandbox/unknown",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_environment_references",
+        ),
+        (
+            "capability",
+            (|raw: String| {
+                raw.replacen(
+                    "order_submission_allowed = false",
+                    "order_submission_allowed = true",
+                    1,
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::BoundaryViolation,
+            "run_capabilities",
+        ),
+        (
+            "timestamp",
+            (|raw: String| {
+                raw.replacen(
+                    "completed_at_unix_ms = 1767225660000",
+                    "completed_at_unix_ms = 1767225599999",
+                    1,
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_timestamps",
+        ),
+        (
+            "run-before-strategy-version",
+            (|raw: String| {
+                raw.replacen(
+                    "created_at_unix_ms = 1767225600000\nstarted_at_unix_ms = 1767225600000",
+                    "created_at_unix_ms = 1767225599999\nstarted_at_unix_ms = 1767225600000",
+                    1,
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_timestamps",
+        ),
+    ] {
+        let fixture = Fixture::new(&format!("run-drift-{name}"));
+        fixture.write_config(&mutate(valid_config()));
+        let mut identity = fixture.identity.clone();
+        identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+        fixture.write_identity(&identity);
+        let error = load_product_runs(&fixture.state(), unix_time_ms())
+            .expect_err("invalid run manifest must fail closed");
+        assert_eq!(error.kind, expected_kind, "{name}");
+        assert_eq!(error.field, expected_field, "{name}");
+    }
+}
+
+#[test]
+fn tracked_strategy_version_and_run_manifest_match_authoritative_identity() {
     let path =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../configs/nodes/btc-ema-shadow.toml");
     let raw = fs::read_to_string(path).expect("tracked node config should be readable");
@@ -204,6 +459,22 @@ fn tracked_strategy_version_manifest_hash_matches_immutable_content() {
         .as_str()
         .expect("tracked version hash should be a string");
     assert_eq!(declared, computed_strategy_version_hash(&raw));
+
+    let backtest_run_id = config["mvp"]["backtest_run_id"]
+        .as_str()
+        .expect("tracked backtest identity should exist");
+    let backtest_run = config["product_runs"]
+        .as_array()
+        .expect("tracked Run manifest should be an array")
+        .iter()
+        .find(|run| run["environment"].as_str() == Some("backtest"))
+        .expect("tracked Backtest Run should exist");
+    assert_eq!(backtest_run["run_id"].as_str(), Some(backtest_run_id));
+    let expected_account_ref = format!("account://simulated/{backtest_run_id}");
+    assert_eq!(
+        backtest_run["account_ref"].as_str(),
+        Some(expected_account_ref.as_str())
+    );
 }
 
 #[test]
@@ -1088,6 +1359,84 @@ async fn strategy_version_routes_are_read_only_and_schema_compatible() {
 }
 
 #[tokio::test]
+async fn run_routes_are_read_only_and_schema_compatible() {
+    let fixture = Fixture::new("run-routes");
+    let router = fixture.router();
+    let list_path = "/api/product/v1/runs";
+    let detail_path = "/api/product/v1/runs/ema-cross-live-001";
+
+    let (status, list) = router_json(&router, Method::GET, list_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        list["schema_version"],
+        "ntpro.product_api.run_list.response.v1"
+    );
+    assert_eq!(list["data"].as_array().map(Vec::len), Some(3));
+    assert_read_only_boundaries(&list);
+    validate_openapi_instance("RunListResponse", &list);
+
+    let (status, detail) = router_json(&router, Method::GET, detail_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        detail["schema_version"],
+        "ntpro.product_api.run_detail.response.v1"
+    );
+    assert_eq!(detail["data"]["environment"], "live");
+    assert_eq!(detail["data"]["risk"]["status"], "blocked");
+    assert_eq!(
+        detail["data"]["capabilities"]["order_submission_allowed"],
+        false
+    );
+    assert_read_only_boundaries(&detail);
+    validate_openapi_instance("RunDetailResponse", &detail);
+
+    let (status, filtered) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/runs?environment=sandbox&lifecycle=running",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(filtered["data"][0]["run_id"], "mvp-strategy-001");
+    validate_openapi_instance("RunListResponse", &filtered);
+
+    let (status, missing) = router_json(&router, Method::GET, "/api/product/v1/runs/missing").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(missing["error"]["code"], "run_not_found");
+    validate_openapi_instance("ProductErrorResponse", &missing);
+
+    let (status, malformed) = router_json(&router, Method::GET, "/api/product/v1/runs/%FF").await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(malformed["error"]["code"], "product_query_invalid");
+    assert_eq!(malformed["error"]["field"], "run_id");
+
+    for path in [list_path, detail_path] {
+        for method in [
+            Method::HEAD,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::CONNECT,
+            Method::TRACE,
+        ] {
+            let (status, headers, body) =
+                router_json_with_headers(&router, method.clone(), path).await;
+            assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method} {path}");
+            assert_eq!(
+                headers.get(ALLOW).and_then(|value| value.to_str().ok()),
+                Some("GET")
+            );
+            if method != Method::HEAD {
+                assert_eq!(body["error"]["code"], "product_method_not_allowed");
+                validate_openapi_instance("ProductErrorResponse", &body);
+            }
+        }
+    }
+}
+
+#[tokio::test]
 async fn legacy_strategy_source_remains_readable_but_version_routes_fail_closed() {
     let fixture = Fixture::new("legacy-strategy-source");
     fixture.write_config(legacy_config_without_strategy_version());
@@ -1143,7 +1492,7 @@ async fn malformed_registry_is_nonretryable_source_invalid() {
 }
 
 #[test]
-fn openapi_is_authoritative_and_declares_exact_strategy_routes() {
+fn openapi_is_authoritative_and_declares_exact_product_routes() {
     let openapi: Value =
         serde_json::from_str(PRODUCT_OPENAPI_SOURCE).expect("OpenAPI source must be valid JSON");
     assert_eq!(openapi["openapi"], "3.1.0");
@@ -1167,6 +1516,8 @@ fn openapi_is_authoritative_and_declares_exact_strategy_routes() {
     assert_eq!(
         paths.keys().map(String::as_str).collect::<Vec<_>>(),
         [
+            "/runs",
+            "/runs/{run_id}",
             "/strategies",
             "/strategies/{strategy_id}",
             "/strategies/{strategy_id}/versions",
@@ -1204,6 +1555,16 @@ fn openapi_is_authoritative_and_declares_exact_strategy_routes() {
     assert!(validator.is_valid(&json!("ema-cross@v1")));
     assert!(!validator.is_valid(&json!(format!("ema-cross@{}", "v".repeat(129)))));
     assert!(!validator.is_valid(&json!(format!("{}@v1", "s".repeat(129)))));
+
+    let run_schema = json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$ref": "#/components/schemas/RunId",
+        "components": openapi["components"].clone(),
+    });
+    let run_validator =
+        jsonschema::draft202012::new(&run_schema).expect("RunId validator should build");
+    assert!(run_validator.is_valid(&json!("ema-cross-live-001")));
+    assert!(!run_validator.is_valid(&json!("..")));
 }
 
 fn valid_config() -> String {
@@ -1268,6 +1629,82 @@ backtest_run_id = "backtest-001"
 backtest_result_ref = "artifact://backtests/backtest-001.json"
 account_id = "acct-sandbox-001"
 environment = "sandbox"
+
+[[product_runs]]
+run_id = "backtest-001"
+strategy_id = "ema-cross"
+strategy_version_id = "ema-cross@v1"
+environment = "backtest"
+data_ref = "dataset://fixtures/ema-cross"
+config_ref = "node-config:node.toml#product_runs"
+adapter_ref = "adapter://backtest/simulated"
+account_ref = "account://simulated/backtest-001"
+venue_ref = "venue://simulated/BINANCE"
+lifecycle = "completed"
+result_status = "available"
+result_ref = "artifact://backtests/backtest-001.json"
+risk_status = "passed"
+risk_ref = "node-config:node.toml#risk"
+created_at_unix_ms = 1767225600000
+started_at_unix_ms = 1767225600000
+completed_at_unix_ms = 1767225660000
+updated_at_unix_ms = 1767225660000
+external_venue_connection = false
+order_submission_allowed = false
+order_mutation_allowed = false
+automatic_retry_allowed = false
+automatic_remediation_allowed = false
+real_orders_submitted = false
+trading_controls_enabled = false
+
+[[product_runs]]
+run_id = "mvp-strategy-001"
+strategy_id = "ema-cross"
+strategy_version_id = "ema-cross@v1"
+environment = "sandbox"
+data_ref = "market://sandbox/BTCUSDT.BINANCE"
+config_ref = "node-config:node.toml#product_runs"
+adapter_ref = "adapter://sandbox/fixture-stream"
+account_ref = "account://sandbox/acct-sandbox-001"
+venue_ref = "venue://sandbox/BINANCE"
+lifecycle = "running"
+result_status = "pending"
+risk_status = "active"
+risk_ref = "node-config:node.toml#risk"
+created_at_unix_ms = 1785542400000
+started_at_unix_ms = 1785542400000
+updated_at_unix_ms = 1785542400000
+external_venue_connection = false
+order_submission_allowed = false
+order_mutation_allowed = false
+automatic_retry_allowed = false
+automatic_remediation_allowed = false
+real_orders_submitted = false
+trading_controls_enabled = false
+
+[[product_runs]]
+run_id = "ema-cross-live-001"
+strategy_id = "ema-cross"
+strategy_version_id = "ema-cross@v1"
+environment = "live"
+data_ref = "market://live/disabled"
+config_ref = "node-config:node.toml#product_runs"
+adapter_ref = "adapter://live/disabled"
+account_ref = "account://live/unconfigured"
+venue_ref = "venue://live/unconfigured/disabled"
+lifecycle = "created"
+result_status = "pending"
+risk_status = "blocked"
+risk_ref = "node-config:node.toml#risk"
+created_at_unix_ms = 1785542400000
+updated_at_unix_ms = 1785542400000
+external_venue_connection = false
+order_submission_allowed = false
+order_mutation_allowed = false
+automatic_retry_allowed = false
+automatic_remediation_allowed = false
+real_orders_submitted = false
+trading_controls_enabled = false
 "#,
     )
 }
