@@ -1,71 +1,81 @@
-import { statusLabel } from "../api/mvpStatus";
-import { useMvpStatus } from "../features/status/useMvpStatus";
+import { Link } from "@tanstack/react-router";
+import { ArrowUpRight, LockKeyhole } from "lucide-react";
+
+import type { Run, RunEnvironment } from "../api/generated/productApi";
+import {
+  environmentLabels,
+  formatTimestamp,
+  lifecycleLabels,
+  resultLabels,
+  riskLabels,
+} from "../features/product/presentation";
+import { useOverviewProductContext } from "../features/product/useProductResources";
+import { ProductErrorState, ProductLoading } from "./ProductState";
 import styles from "./Pages.module.css";
 
+const environments: RunEnvironment[] = ["backtest", "sandbox", "live"];
+
 export function OverviewPage() {
-  const query = useMvpStatus();
-  const data = query.error ? undefined : query.data;
+  const product = useOverviewProductContext();
+
+  if (product.error) return <ProductErrorState error={product.error} />;
+  if (product.isVerifying || !product.isReady) {
+    return <ProductLoading label="正在验证策略产品资源" />;
+  }
+  if (!product.strategy || !product.strategies) {
+    return <EmptyOverview />;
+  }
+
+  const currentVersion = product.version;
+  const runItems = product.runs?.data ?? [];
 
   return (
     <>
       <header className={styles.pageHeading}>
         <div>
           <span className="eyebrow">策略总览</span>
-          <h1>
-            {data
-              ? `${data.strategyId} / ${data.strategyInstanceId}`
-              : "等待策略运行状态"}
-          </h1>
-          <p>同一不可变策略版本的 Backtest、Demo 与 Live 运行上下文。</p>
+          <h1>{product.strategy.name}</h1>
+          <p>{product.strategy.description}</p>
         </div>
-        <span className={styles.blockedBadge}>交易准备度阻断</span>
+        <span className={styles.readOnlyBadge}>
+          <LockKeyhole aria-hidden="true" /> 只读产品资源
+        </span>
       </header>
 
       <section
-        className={`${styles.connectionBanner} ${data ? styles.connectionReady : styles.connectionBlocked}`}
+        className={`${styles.connectionBanner} ${styles.connectionReady}`}
         aria-live="polite"
       >
         <div>
-          <strong>
-            {query.isPending
-              ? "正在读取共享状态"
-              : data
-                ? "策略状态已验证"
-                : "策略工作台已阻断"}
-          </strong>
+          <strong>产品资源已验证</strong>
           <span>
-            {data
-              ? `${data.identityContractId} · ${data.business.sourceRef}`
-              : query.error instanceof Error
-                ? query.error.message
-                : "等待只读合同验证"}
+            {product.strategies.contract_version} · 请求{" "}
+            {product.strategies.request_id}
           </span>
         </div>
-        <em>{query.isPending ? "读取中" : data ? "只读" : "阻断"}</em>
+        <em>来源新鲜</em>
       </section>
 
-      <section className={styles.metricGrid} aria-label="当前运行摘要">
+      <section className={styles.metricGrid} aria-label="策略摘要">
         <Metric
-          label="当前 Run"
-          value={data?.strategyInstanceId ?? "未加载"}
-          note={data ? statusLabel(data.axes.runtime.status) : "状态未知"}
+          label="策略 ID"
+          value={product.strategy.strategy_id}
+          note={product.strategy.owner}
         />
         <Metric
-          label="研究引用"
-          value={data ? statusLabel(data.axes.research.status) : "未验证"}
-          note={data?.backtestRunId ?? "Backtest 引用未知"}
+          label="当前版本"
+          value={currentVersion?.version ?? "未注册"}
+          note={currentVersion ? "不可变版本精确读取" : "状态未知"}
         />
         <Metric
-          label="技术健康"
-          value={data ? statusLabel(data.axes.technicalHealth.status) : "未知"}
-          note={
-            data ? statusLabel(data.axes.technicalHealth.freshness) : "时效未知"
-          }
+          label="当前页 Run"
+          value={`${product.runs?.page.returned_count ?? 0}${product.runs?.page.has_more ? "+" : ""}`}
+          note={product.runs?.page.has_more ? "还有下一页" : "当前版本全部 Run"}
         />
         <Metric
-          label="Live 准入"
-          value="未开放"
-          note="真实交易权限为 false"
+          label="交易能力"
+          value="全部关闭"
+          note="只读合同已验证"
           warning
         />
       </section>
@@ -74,91 +84,156 @@ export function OverviewPage() {
         <section className={styles.panel}>
           <header>
             <div>
-              <span className="eyebrow">三模式闭环</span>
-              <h2>当前版本运行状态</h2>
+              <span className="eyebrow">三模式运行</span>
+              <h2>当前版本 Run</h2>
             </div>
-            <span>只读桥接</span>
+            <span>{currentVersion?.strategy_version_id}</span>
           </header>
           <div className={styles.modeProgress}>
-            <ModeStep
-              number="01"
-              label="Backtest"
-              detail={data?.backtestRunId ?? "等待历史引用"}
-              state="历史"
-            />
-            <ModeStep
-              number="02"
-              label="Demo"
-              detail={
-                data
-                  ? statusLabel(data.axes.runtime.status)
-                  : "等待 Sandbox 状态"
-              }
-              state="当前"
-              active
-            />
-            <ModeStep
-              number="03"
-              label="Live"
-              detail="真实适配器、账户与权限未开放"
-              state="阻断"
-              blocked
-            />
+            {environments.map((environment, index) => {
+              const modeRuns = runItems.filter(
+                (run) => run.environment === environment,
+              );
+              const latest = modeRuns[0];
+              return (
+                <ModeStep
+                  key={environment}
+                  number={String(index + 1).padStart(2, "0")}
+                  label={environmentLabels[environment]}
+                  detail={
+                    latest ? lifecycleLabels[latest.lifecycle] : "暂无 Run"
+                  }
+                  state={String(modeRuns.length)}
+                  active={latest?.lifecycle === "running"}
+                  blocked={Boolean(
+                    latest &&
+                    (latest.risk.status === "blocked" ||
+                      ["failed", "cancelled", "stopped"].includes(
+                        latest.lifecycle,
+                      )),
+                  )}
+                />
+              );
+            })}
           </div>
-          <div className={styles.tableWrap}>
-            <table>
-              <thead>
-                <tr>
-                  <th>运行</th>
-                  <th>模式</th>
-                  <th>状态</th>
-                  <th>账户</th>
-                  <th>Venue</th>
-                  <th>来源</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data ? (
-                  <tr>
-                    <td>{data.strategyInstanceId}</td>
-                    <td>Demo</td>
-                    <td>{statusLabel(data.axes.runtime.status)}</td>
-                    <td>{data.accountId}</td>
-                    <td>{data.venueId}</td>
-                    <td>{data.business.sourceRef}</td>
-                  </tr>
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="empty">
-                      共享状态不可用
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <RunTable runs={runItems} />
         </section>
 
         <section className={styles.panel}>
           <header>
             <div>
-              <span className="eyebrow">当前判断</span>
-              <h2>状态与边界</h2>
+              <span className="eyebrow">不可变版本</span>
+              <h2>{currentVersion?.strategy_version_id ?? "版本未注册"}</h2>
             </div>
+            <span>
+              {product.versions?.page.returned_count ?? 0}
+              {product.versions?.page.has_more ? "+" : ""} 个当前页版本
+            </span>
           </header>
-          <div className={styles.axisList}>
-            <Axis label="研究状态" value={data?.axes.research.status} />
-            <Axis label="运行状态" value={data?.axes.runtime.status} />
-            <Axis label="技术健康" value={data?.axes.technicalHealth.status} />
-            <Axis
-              label="交易准备度"
-              value={data?.axes.tradingReadiness.status}
-              blocked
-            />
-          </div>
+          {currentVersion ? (
+            <div className={styles.versionSummary}>
+              <KeyValue
+                label="内容 Hash"
+                value={currentVersion.content_hash}
+                mono
+              />
+              <KeyValue label="代码引用" value={currentVersion.code_ref} mono />
+              <KeyValue
+                label="交易标的"
+                value={currentVersion.data_requirements.symbols.join("、")}
+              />
+              <KeyValue
+                label="数据类型"
+                value={currentVersion.data_requirements.data_types.join("、")}
+              />
+              <KeyValue
+                label="确定性回放"
+                value={
+                  currentVersion.data_requirements.deterministic_replay_required
+                    ? "必须"
+                    : "未要求"
+                }
+              />
+              <KeyValue
+                label="Kill Switch"
+                value={
+                  currentVersion.risk_config.kill_switch_required
+                    ? "必须"
+                    : "未要求"
+                }
+              />
+            </div>
+          ) : (
+            <div className="empty">默认版本精确查询未完成</div>
+          )}
         </section>
       </div>
     </>
+  );
+}
+
+function EmptyOverview() {
+  return (
+    <section className={styles.productState} aria-live="polite">
+      <div>
+        <strong>当前没有已注册策略</strong>
+        <span>Product API 返回了经过验证的空列表。</span>
+      </div>
+    </section>
+  );
+}
+
+function RunTable({ runs }: { runs: Run[] }) {
+  return (
+    <div className={styles.tableWrap} data-testid="run-table-scroll">
+      <table className={styles.runTable}>
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>模式</th>
+            <th>生命周期</th>
+            <th>风险</th>
+            <th>结果</th>
+            <th>更新时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          {runs.length > 0 ? (
+            runs.map((run) => (
+              <tr key={run.run_id}>
+                <td>
+                  <Link
+                    to="/runs/$runId"
+                    params={{ runId: run.run_id }}
+                    className={styles.runLink}
+                  >
+                    {run.run_id}
+                    <ArrowUpRight aria-hidden="true" />
+                  </Link>
+                </td>
+                <td>{environmentLabels[run.environment]}</td>
+                <td>{lifecycleLabels[run.lifecycle]}</td>
+                <td
+                  className={
+                    run.risk.status === "blocked" ? styles.warning : ""
+                  }
+                >
+                  {riskLabels[run.risk.status]}
+                </td>
+                <td>{resultLabels[run.result.status]}</td>
+                <td>{formatTimestamp(run.updated_at_unix_ms)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={6} className="empty">
+                当前版本还没有 Run
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -211,24 +286,19 @@ function ModeStep({
   );
 }
 
-function Axis({
+function KeyValue({
   label,
   value,
-  blocked,
+  mono,
 }: {
   label: string;
-  value?: string;
-  blocked?: boolean;
+  value: string;
+  mono?: boolean;
 }) {
   return (
-    <div className={styles.axisItem}>
-      <div>
-        <strong>{label}</strong>
-        <small>{value ? statusLabel(value) : "共享状态不可用"}</small>
-      </div>
-      <span className={blocked ? styles.warning : ""}>
-        {blocked ? "阻断" : value ? "已验证" : "未知"}
-      </span>
+    <div className={styles.detailRow}>
+      <span>{label}</span>
+      <strong className={mono ? styles.mono : ""}>{value}</strong>
     </div>
   );
 }

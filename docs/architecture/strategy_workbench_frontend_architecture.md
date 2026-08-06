@@ -9,9 +9,10 @@ Status: implementation contract
 本文档定义 NTPRO 策略工作台从页面框架进入正式产品开发时采用的前端架构、产品资源、
 页面路由、数据边界、构建方式、测试要求和交付顺序。
 
-当前 `/strategy-workbench` 已交付左侧导航、顶部上下文、主画布、右侧详情栏、底部活动区
-和状态栏，但它仍是 Rust 源码内嵌的 HTML、CSS 与原生 JavaScript，只消费
-`GET /api/mvp/v1/status`。当前实现属于可运行的产品框架，不是完整前端工程或完整业务页。
+当前 `/strategy-workbench` 已采用 React、TypeScript、Vite、TanStack Router、TanStack
+Query、CSS Modules、Vitest 与 Playwright，并由 Rust/Axum 同源提供生产静态资源。
+`GET /api/mvp/v1/status` 继续提供辅助技术状态；策略总览与 Run 详情通过生成的
+`productApi` 消费 Strategy、StrategyVersion 和 Run 只读产品资源。
 
 ## 2. 产品目标与用户
 
@@ -42,11 +43,12 @@ Supervisor、node、Axum、文件路径和进程控制是技术支撑，不主�
 - 单 Supervisor + 单 Sandbox node 的 Demo MVP；
 - 版本化只读共享状态 API；
 - 策略工作台页面框架与响应式浏览器验证。
+- 独立前端工程、组件体系和类型化路由；
+- 稳定、强校验的 `Strategy / StrategyVersion / Run` 只读产品 API；
+- 策略总览和 Run 详情首个只读产品纵向切片。
 
 当前尚未具备：
 
-- 独立前端工程、组件体系和前端路由；
-- 稳定的 `Strategy / StrategyVersion / Run` 产品 API；
 - 页面可操作的 Backtest 产品闭环；
 - 页面可操作的 Demo 产品闭环；
 - 真实账户、真实 Venue、真实订单和 Live 操作权限。

@@ -56,9 +56,13 @@ Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系�
 
 ## 前端产品交付线
 
-SWB-001 已交付策略工作台页面框架，但当前实现仍是 Rust 源码内嵌的 HTML、CSS 与原生
-JavaScript，只消费 `GET /api/mvp/v1/status`。它证明页面框架和只读状态桥接成立，不代表
-各栏目已经产品化。
+SWB-001 页面框架、FEF-001 React/TypeScript/Vite 工程、FEI-001 Axum 静态资源接入和
+S0-API-001 只读产品合同均已交付。生产前端由 Rust/Axum 提供，并同时消费技术状态 API
+与生成、强校验的 Product API；Node.js 只参与开发、测试和构建。
+
+SWB-002 正在交付首个业务纵向切片：策略总览读取 Strategy、默认不可变 StrategyVersion
+和三模式 Run，Run 详情使用 `/runs/{run_id}` 可恢复深链。该阶段仍是只读产品面，不新增
+Run 创建、启动、停止或交易操作。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -67,7 +71,7 @@ FEA-001 前端架构文档
   -> FEF-001 React / TypeScript / Vite 工程底座
   -> FEI-001 Axum 静态资源接入与旧页面迁移
   -> S0-API-001 Strategy / StrategyVersion / Run 只读产品合同
-  -> SWB-002 策略总览与 Run 详情纵向切片
+  -> SWB-002 策略总览与 Run 详情纵向切片（当前 REVIEW_REQUIRED）
   -> S1-S4 三模式产品闭环
 ```
 

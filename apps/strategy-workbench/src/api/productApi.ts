@@ -142,6 +142,97 @@ function assertPage(
   }
 }
 
+function assertIdentity(condition: boolean, field: string): void {
+  if (!condition) throw new ProductApiContractError(field);
+}
+
+function assertUniqueIds(values: string[], field: string): void {
+  assertIdentity(new Set(values).size === values.length, field);
+}
+
+function assertStrategyListScope(
+  payload: StrategyListResponse,
+  query?: ListStrategiesQuery,
+): void {
+  assertUniqueIds(
+    payload.data.map((strategy) => strategy.strategy_id),
+    "strategy_list.data.strategy_id.duplicate",
+  );
+  for (const strategy of payload.data) {
+    if (query?.lifecycle) {
+      assertIdentity(
+        strategy.lifecycle === query.lifecycle,
+        "strategy_list.query.lifecycle",
+      );
+    }
+    if (query?.owner) {
+      assertIdentity(
+        strategy.owner === query.owner,
+        "strategy_list.query.owner",
+      );
+    }
+  }
+}
+
+function assertVersionListScope(
+  payload: StrategyVersionListResponse,
+  strategyId: string,
+  query?: ListStrategyVersionsQuery,
+): void {
+  assertUniqueIds(
+    payload.data.map((version) => version.strategy_version_id),
+    "strategy_version_list.data.strategy_version_id.duplicate",
+  );
+  for (const version of payload.data) {
+    assertIdentity(
+      version.strategy_id === strategyId,
+      "strategy_version_list.path.strategy_id",
+    );
+    if (query?.status) {
+      assertIdentity(
+        version.status === query.status,
+        "strategy_version_list.query.status",
+      );
+    }
+  }
+}
+
+function assertRunListScope(
+  payload: RunListResponse,
+  query?: ListRunsQuery,
+): void {
+  assertUniqueIds(
+    payload.data.map((run) => run.run_id),
+    "run_list.data.run_id.duplicate",
+  );
+  for (const run of payload.data) {
+    if (query?.strategy_id) {
+      assertIdentity(
+        run.strategy_id === query.strategy_id,
+        "run_list.query.strategy_id",
+      );
+    }
+    if (query?.strategy_version_id) {
+      assertIdentity(
+        run.strategy_version_id === query.strategy_version_id,
+        "run_list.query.strategy_version_id",
+      );
+    }
+    if (query?.environment) {
+      assertIdentity(
+        run.environment === query.environment,
+        "run_list.query.environment",
+      );
+    }
+    if (query?.lifecycle) {
+      assertIdentity(
+        run.lifecycle === query.lifecycle,
+        "run_list.query.lifecycle",
+      );
+    }
+  }
+}
+
 async function resolveResponse<T>(
   request: Promise<RequestFields>,
   schema: z.ZodType<T>,
@@ -185,71 +276,99 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
   });
 
   return {
-    listStrategies(
+    async listStrategies(
       query?: ListStrategiesQuery,
       signal?: AbortSignal,
     ): Promise<StrategyListResponse> {
-      return resolveResponse(
+      const payload = await resolveResponse(
         listStrategies({ client, query, signal }),
         zStrategyListResponse,
         "strategy_list",
         true,
       );
+      assertStrategyListScope(payload, query);
+      return payload;
     },
 
-    getStrategy(
+    async getStrategy(
       path: StrategyPath,
       signal?: AbortSignal,
     ): Promise<StrategyDetailResponse> {
-      return resolveResponse(
+      const payload = await resolveResponse(
         getStrategy({ client, path, signal }),
         zStrategyDetailResponse,
         "strategy_detail",
       );
+      assertIdentity(
+        payload.data.strategy_id === path.strategy_id,
+        "strategy_detail.path.strategy_id",
+      );
+      return payload;
     },
 
-    listStrategyVersions(
+    async listStrategyVersions(
       path: ListStrategyVersionsData["path"],
       query?: ListStrategyVersionsQuery,
       signal?: AbortSignal,
     ): Promise<StrategyVersionListResponse> {
-      return resolveResponse(
+      const payload = await resolveResponse(
         listStrategyVersions({ client, path, query, signal }),
         zStrategyVersionListResponse,
         "strategy_version_list",
         true,
       );
+      assertVersionListScope(payload, path.strategy_id, query);
+      return payload;
     },
 
-    getStrategyVersion(
+    async getStrategyVersion(
       path: StrategyVersionPath,
       signal?: AbortSignal,
     ): Promise<StrategyVersionDetailResponse> {
-      return resolveResponse(
+      const payload = await resolveResponse(
         getStrategyVersion({ client, path, signal }),
         zStrategyVersionDetailResponse,
         "strategy_version_detail",
       );
+      assertIdentity(
+        payload.data.strategy_id === path.strategy_id,
+        "strategy_version_detail.path.strategy_id",
+      );
+      assertIdentity(
+        payload.data.strategy_version_id === path.version_id,
+        "strategy_version_detail.path.version_id",
+      );
+      return payload;
     },
 
-    listRuns(
+    async listRuns(
       query?: ListRunsQuery,
       signal?: AbortSignal,
     ): Promise<RunListResponse> {
-      return resolveResponse(
+      const payload = await resolveResponse(
         listRuns({ client, query, signal }),
         zRunListResponse,
         "run_list",
         true,
       );
+      assertRunListScope(payload, query);
+      return payload;
     },
 
-    getRun(path: RunPath, signal?: AbortSignal): Promise<RunDetailResponse> {
-      return resolveResponse(
+    async getRun(
+      path: RunPath,
+      signal?: AbortSignal,
+    ): Promise<RunDetailResponse> {
+      const payload = await resolveResponse(
         getRun({ client, path, signal }),
         zRunDetailResponse,
         "run_detail",
       );
+      assertIdentity(
+        payload.data.run_id === path.run_id,
+        "run_detail.path.run_id",
+      );
+      return payload;
     },
   };
 }

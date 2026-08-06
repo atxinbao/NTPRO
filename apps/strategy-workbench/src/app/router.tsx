@@ -8,6 +8,7 @@ import {
 
 import { AppShell } from "./AppShell";
 import { OverviewPage } from "../pages/OverviewPage";
+import { RunDetailPage } from "../pages/RunDetailPage";
 import { SystemStatusPage } from "../pages/SystemStatusPage";
 
 const rootRoute = createRootRoute({
@@ -39,16 +40,27 @@ const systemStatusRoute = createRoute({
   component: SystemStatusPage,
 });
 
+const runDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/runs/$runId",
+  component: RunDetailPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   overviewRoute,
+  runDetailRoute,
   systemStatusRoute,
 ]);
 
-export const router = createRouter({
-  routeTree,
-  basepath: "/strategy-workbench",
-});
+export function createAppRouter() {
+  return createRouter({
+    routeTree,
+    basepath: "/strategy-workbench",
+  });
+}
+
+export const router = createAppRouter();
 
 declare module "@tanstack/react-router" {
   interface Register {
