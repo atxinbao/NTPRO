@@ -3,7 +3,7 @@
 Date: 2026-08-06
 Executor: Codex
 GitHub issue: #1264
-GitHub PR: PENDING
+GitHub PR: #1265
 Risk: high
 Owner role: Rust Product Surface Agent
 Review role: Verification & Release Gatekeeper
