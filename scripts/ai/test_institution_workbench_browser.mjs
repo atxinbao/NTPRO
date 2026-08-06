@@ -12,6 +12,7 @@ const { chromium } = require(playwrightPath);
 const chrome = process.env.NTPRO_CHROME_BIN || "google-chrome";
 const NODE_SHUTDOWN_TIMEOUT_MS = 5_000;
 const PROCESS_SHUTDOWN_TIMEOUT_MS = 15_000;
+const FORCE_KILL_EXIT_TIMEOUT_MS = 5_000;
 
 const validShutdownTimeoutContract = (nodeTimeoutMs, processTimeoutMs) => (
   Number.isSafeInteger(nodeTimeoutMs)
@@ -64,6 +65,8 @@ const passResult = {
   stale_clear: 4,
   cjk_glyphs: 1,
   graceful_shutdown: 1,
+  shutdown_escalated: 0,
+  shutdown_escalation_selftest: 1,
 };
 
 const port = await new Promise((resolve, reject) => {
@@ -95,32 +98,83 @@ const collectRuntimeLogs = () => {
     server: redactAccessTokens(serverLog.join("")),
     nodeStdout: readIfPresent(path.join(nodeLogDir, "stdout.log")),
     nodeStderr: readIfPresent(path.join(nodeLogDir, "stderr.log")),
+    nodeEvents: readIfPresent(path.join(nodeLogDir, "events.log")),
   };
 };
 const writeDiagnostics = (result, logs) => {
   fs.writeFileSync(path.join(evidenceDir, "mvp-server.log"), logs.server);
   fs.writeFileSync(path.join(evidenceDir, "ntpro-node-stdout.log"), logs.nodeStdout);
   fs.writeFileSync(path.join(evidenceDir, "ntpro-node-stderr.log"), logs.nodeStderr);
+  fs.writeFileSync(path.join(evidenceDir, "ntpro-node-events.log"), logs.nodeEvents);
   fs.writeFileSync(
     path.join(evidenceDir, "result.json"),
     `${JSON.stringify(sanitizeDiagnosticResult(result), null, 2)}\n`,
   );
 };
-const serverExited = () => server.exitCode !== null || server.signalCode !== null;
-const waitForServerExit = (timeoutMs) => {
-  if (serverExited()) return Promise.resolve(true);
+const processExited = (child) => child.exitCode !== null || child.signalCode !== null;
+const serverExited = () => processExited(server);
+const waitForProcessExit = (child, timeoutMs) => {
+  if (processExited(child)) return Promise.resolve(true);
   return new Promise((resolve) => {
     const onExit = () => {
       clearTimeout(timer);
       resolve(true);
     };
     const timer = setTimeout(() => {
-      server.off("exit", onExit);
+      child.off("exit", onExit);
       resolve(false);
     }, timeoutMs);
-    server.once("exit", onExit);
+    child.once("exit", onExit);
   });
 };
+const stopProcessWithoutEscalation = async (child, gracefulTimeoutMs, forceKillTimeoutMs) => {
+  if (processExited(child)) return;
+  if (!child.kill("SIGINT")) throw new Error("failed to send SIGINT to child process");
+  if (await waitForProcessExit(child, gracefulTimeoutMs)) return;
+  if (!child.kill("SIGKILL") && !processExited(child)) {
+    throw new Error("failed to send SIGKILL to child process");
+  }
+  if (!await waitForProcessExit(child, forceKillTimeoutMs)) {
+    throw new Error("child process did not exit after SIGKILL");
+  }
+  throw new Error(`MVP server did not stop within ${gracefulTimeoutMs} ms and required SIGKILL`);
+};
+const runShutdownEscalationSelftest = async () => {
+  const probe = spawn(
+    process.execPath,
+    ["-e", "process.on('SIGINT', () => {}); process.stdout.write('ready\\n'); setInterval(() => {}, 1000);"],
+    { stdio: ["ignore", "pipe", "ignore"] },
+  );
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("shutdown escalation probe did not become ready")), 5_000);
+      probe.once("exit", () => {
+        clearTimeout(timer);
+        reject(new Error("shutdown escalation probe exited before ready"));
+      });
+      probe.stdout.once("data", (chunk) => {
+        clearTimeout(timer);
+        if (chunk.toString() !== "ready\n") {
+          reject(new Error("shutdown escalation probe emitted an invalid readiness marker"));
+          return;
+        }
+        resolve();
+      });
+    });
+    let rejected = false;
+    try {
+      await stopProcessWithoutEscalation(probe, 50, FORCE_KILL_EXIT_TIMEOUT_MS);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("required SIGKILL")) throw error;
+      rejected = true;
+    }
+    if (!rejected) throw new Error("shutdown escalation probe did not fail closed");
+  } finally {
+    if (!processExited(probe)) probe.kill("SIGKILL");
+  }
+};
+await runShutdownEscalationSelftest();
 
 let browser;
 let failure;
@@ -312,23 +366,14 @@ try {
       recordFailure(error);
     }
   }
-  if (!serverExited()) {
-    try {
-      server.kill("SIGINT");
-    } catch (error) {
-      recordFailure(error);
-    }
-    if (!await waitForServerExit(PROCESS_SHUTDOWN_TIMEOUT_MS)) {
-      recordFailure(new Error(`MVP server did not stop within ${PROCESS_SHUTDOWN_TIMEOUT_MS} ms and required SIGKILL`));
-      try {
-        server.kill("SIGKILL");
-      } catch (error) {
-        recordFailure(error);
-      }
-      if (!await waitForServerExit(5_000)) {
-        recordFailure(new Error("MVP server did not exit after SIGKILL"));
-      }
-    }
+  try {
+    await stopProcessWithoutEscalation(
+      server,
+      PROCESS_SHUTDOWN_TIMEOUT_MS,
+      FORCE_KILL_EXIT_TIMEOUT_MS,
+    );
+  } catch (error) {
+    recordFailure(error);
   }
   const logs = collectRuntimeLogs();
   if (!failure) {
@@ -342,6 +387,11 @@ try {
     if (!logs.nodeStdout.includes("external_venue_connection=false real_orders_submitted=false")) {
       recordFailure(new Error("ntpro-node shutdown evidence did not preserve trading boundaries"));
     }
+    if (!logs.nodeEvents.includes("phase=stop_completion status=graceful")
+      || !logs.nodeEvents.includes("shutdown_escalated=false")
+      || logs.nodeEvents.includes("shutdown_escalated=true")) {
+      recordFailure(new Error("Supervisor did not prove a non-escalated graceful node shutdown"));
+    }
   }
   writeDiagnostics(
     failure ? { status: "fail", error: failure.message } : passResult,
@@ -351,4 +401,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 diagnostic_redaction_selftest=1 shutdown_timeout_contract_selftest=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");
+console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 diagnostic_redaction_selftest=1 shutdown_timeout_contract_selftest=1 shutdown_escalation_selftest=1 shutdown_escalated=0 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");
