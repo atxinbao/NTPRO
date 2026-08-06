@@ -1,17 +1,20 @@
 # NTPRO 策略工作台前端
 
-Date: 2026-08-05
+Date: 2026-08-06
 Executor: Codex
 
-本目录是策略工作台的 React、TypeScript 与 Vite 工程。当前只实现产品框架、总览、系统状态
-和 `GET /api/mvp/v1/status` 只读桥接；Strategy、StrategyVersion、Run、Backtest、Demo
-与 Live 产品能力按仓库 Roadmap 分阶段交付。
+本目录是策略工作台的 React、TypeScript 与 Vite 工程。当前已实现产品框架、总览、系统状态、
+`GET /api/mvp/v1/status` 只读桥接，以及从后端 OpenAPI 生成的 Strategy、
+StrategyVersion、Run 类型和只读客户端。业务页面尚未消费这些产品资源；Backtest、Demo
+与 Live 产品能力继续按仓库 Roadmap 分阶段交付。
 
 ## 本地命令
 
 ```bash
 npm ci
 npm run dev
+npm run contract:generate
+npm run contract:check
 npm run format:check
 npm run lint
 npm run typecheck
@@ -25,6 +28,11 @@ npm run audit
 
 默认将 `/api` 代理到 `http://127.0.0.1:3000`。连接其他本地 Axum 地址时设置
 `NTPRO_API_ORIGIN`。Node.js 只用于开发和构建，不是生产运行时。
+
+产品 API 的唯一权威合同是
+`docs/product/api/ntpro_product_v1.openapi.json`。`contract:generate` 生成 TypeScript、Fetch
+SDK 和 Zod schema；`contract:check` 在临时目录重复生成并比较，任何手工修改或合同漂移
+都会使构建失败。
 
 ## Rust/Axum 生产运行
 

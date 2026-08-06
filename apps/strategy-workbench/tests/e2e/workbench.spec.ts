@@ -1,6 +1,29 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 import { validStatusPayload } from "../../src/test/fixtures";
+
+function readProductFixture(name: string): Record<string, unknown> {
+  return JSON.parse(
+    readFileSync(
+      new URL(
+        `../../src/test/product-api-fixtures/${name}.json`,
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ) as Record<string, unknown>;
+}
+
+const errorFixture = readProductFixture("error");
+const runDetailFixture = readProductFixture("run-detail");
+const runListFixture = readProductFixture("run-list");
+const strategyDetailFixture = readProductFixture("strategy-detail");
+const strategyListFixture = readProductFixture("strategy-list");
+const strategyVersionDetailFixture = readProductFixture(
+  "strategy-version-detail",
+);
+const strategyVersionListFixture = readProductFixture("strategy-version-list");
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/mvp/v1/status", async (route) => {
@@ -93,4 +116,130 @@ test("boundary violation clears the previously rendered identity", async ({
   await page.getByRole("button", { name: "刷新共享状态" }).click();
   await expect(page.getByText("策略工作台已阻断")).toBeVisible();
   await expect(page.getByTestId("strategy-name")).toHaveText("策略未加载");
+});
+
+test("real browser consumes every Rust product API fixture through the generated client", async ({
+  context,
+  page,
+}) => {
+  await context.addCookies([
+    {
+      name: "ntpro_mvp_institution_access",
+      value: "browser-fixture",
+      url: "http://127.0.0.1:4174",
+    },
+  ]);
+  const requests: Array<{ accept: string; cookie: string; method: string }> =
+    [];
+  await page.route("**/api/product/v1/**", async (route) => {
+    const request = route.request();
+    const path = decodeURIComponent(new URL(request.url()).pathname);
+    const fixture =
+      path === "/api/product/v1/strategies"
+        ? strategyListFixture
+        : path === "/api/product/v1/strategies/ema-cross"
+          ? strategyDetailFixture
+          : path === "/api/product/v1/strategies/ema-cross/versions"
+            ? strategyVersionListFixture
+            : path ===
+                "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1"
+              ? strategyVersionDetailFixture
+              : path === "/api/product/v1/runs"
+                ? runListFixture
+                : path === "/api/product/v1/runs/ema-cross-live-001"
+                  ? runDetailFixture
+                  : errorFixture;
+    requests.push({
+      accept: request.headers().accept ?? "",
+      cookie: request.headers().cookie ?? "",
+      method: request.method(),
+    });
+    await route.fulfill({
+      status: path === "/api/product/v1/runs/missing" ? 404 : 200,
+      contentType: "application/json",
+      body: JSON.stringify(fixture),
+    });
+  });
+
+  await page.goto("tests/e2e/product-api-harness.html");
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-contract-ready",
+    "true",
+  );
+  const result = await page.evaluate(async () => {
+    const api = (
+      window as typeof window & {
+        __ntproProductApi: {
+          getRun: (path: { run_id: string }) => Promise<{
+            data: { run_id: string };
+          }>;
+          getStrategy: (path: { strategy_id: string }) => Promise<{
+            data: { strategy_id: string };
+          }>;
+          getStrategyVersion: (path: {
+            strategy_id: string;
+            version_id: string;
+          }) => Promise<{ data: { strategy_version_id: string } }>;
+          listRuns: () => Promise<{ data: unknown[] }>;
+          listStrategies: () => Promise<{ data: unknown[] }>;
+          listStrategyVersions: (path: {
+            strategy_id: string;
+          }) => Promise<{ data: unknown[] }>;
+        };
+      }
+    ).__ntproProductApi;
+    const [strategies, strategy, versions, version, runs, run] =
+      await Promise.all([
+        api.listStrategies(),
+        api.getStrategy({ strategy_id: "ema-cross" }),
+        api.listStrategyVersions({ strategy_id: "ema-cross" }),
+        api.getStrategyVersion({
+          strategy_id: "ema-cross",
+          version_id: "ema-cross@v1",
+        }),
+        api.listRuns(),
+        api.getRun({ run_id: "ema-cross-live-001" }),
+      ]);
+    let error: Record<string, unknown> = {};
+    try {
+      await api.getRun({ run_id: "missing" });
+    } catch (caught) {
+      error = {
+        code: (caught as { code?: unknown }).code,
+        requestId: (caught as { requestId?: unknown }).requestId,
+        status: (caught as { status?: unknown }).status,
+      };
+    }
+    return {
+      run: run.data.run_id,
+      runs: runs.data.length,
+      strategies: strategies.data.length,
+      strategy: strategy.data.strategy_id,
+      version: version.data.strategy_version_id,
+      versions: versions.data.length,
+      error,
+    };
+  });
+
+  expect(result).toEqual({
+    run: "ema-cross-live-001",
+    runs: 3,
+    strategies: 1,
+    strategy: "ema-cross",
+    version: "ema-cross@v1",
+    versions: 1,
+    error: {
+      code: "run_not_found",
+      requestId: errorFixture.request_id,
+      status: 404,
+    },
+  });
+  expect(requests).toHaveLength(7);
+  for (const request of requests) {
+    expect(request.method).toBe("GET");
+    expect(request.accept).toBe("application/json");
+    expect(request.cookie).toContain(
+      "ntpro_mvp_institution_access=browser-fixture",
+    );
+  }
 });
