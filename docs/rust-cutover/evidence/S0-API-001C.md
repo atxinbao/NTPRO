@@ -28,7 +28,7 @@ Status: REVIEW_REQUIRED
 - Vitest：12/12 通过；Playwright 前端 E2E：3/3 通过；
 - 真实 `nautilus mvp serve + ntpro-node + Axum + Chrome` 浏览器验收：通过；
 - OpenAPI JSON 与 Rust schema compatibility：通过；
-- risk inventory：29548 signals / 1224 files，production 保持 2702，self-test 8/8 通过；
+- risk inventory：29551 signals / 1224 files，production 保持 2702，self-test 8/8 通过；
 - MVP freeze：19 tasks / 5 phases / 19 boundaries / 13 frozen sources 通过；
 - backend freeze、Rust-only、CI classifier 21/21、docs/examples governance：通过；
 - `git diff --check`：通过。
