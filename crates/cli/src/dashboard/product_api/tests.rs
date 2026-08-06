@@ -24,6 +24,7 @@ use crate::{
     },
 };
 
+use super::strategy_version::*;
 use super::*;
 use crate::dashboard::server::dashboard_router;
 
@@ -159,6 +160,177 @@ fn strategy_projection_uses_identity_and_explicit_product_metadata() {
             "node-config:node.toml"
         ]
     );
+}
+
+#[test]
+fn strategy_version_projection_exposes_immutable_product_contract() {
+    let fixture = Fixture::new("version-projection");
+    let source = load_product_source(&fixture.state(), unix_time_ms())
+        .expect("valid product source should load");
+    let version = load_product_strategy_version(&source, unix_time_ms())
+        .expect("valid strategy version should project");
+    let value = serde_json::to_value(version).expect("version should serialize");
+
+    assert_eq!(value["strategy_version_id"], "ema-cross@v1");
+    assert_eq!(value["strategy_id"], "ema-cross");
+    assert_eq!(value["version"], "v1");
+    assert_eq!(
+        value["code_ref"],
+        "git://NTPRO@e24de1825b66f9e7b9bfb2fc4662c928e56d6c18/crates/cli/src/strategy_session.rs#ema_cross_demo"
+    );
+    assert!(
+        value["content_hash"]
+            .as_str()
+            .is_some_and(|hash| hash.starts_with("sha256:") && hash.len() == 71)
+    );
+    assert_eq!(value["parameter_schema"]["additionalProperties"], false);
+    assert_eq!(
+        value["data_requirements"]["deterministic_replay_required"],
+        true
+    );
+    assert_eq!(value["risk_config"]["kill_switch_required"], true);
+    assert_eq!(value["risk_config"]["order_submission_default"], false);
+    assert_eq!(value["status"], "registered");
+    assert_eq!(value["source"]["source_type"], "strategy_version_manifest");
+}
+
+#[test]
+fn tracked_strategy_version_manifest_hash_matches_immutable_content() {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../configs/nodes/btc-ema-shadow.toml");
+    let raw = fs::read_to_string(path).expect("tracked node config should be readable");
+    let config: toml::Value = toml::from_str(&raw).expect("tracked node config should parse");
+    let declared = config["strategy_version"]["content_hash"]
+        .as_str()
+        .expect("tracked version hash should be a string");
+    assert_eq!(declared, computed_strategy_version_hash(&raw));
+}
+
+#[test]
+fn strategy_version_list_supports_filter_sort_and_stable_cursor() {
+    let fixture = Fixture::new("version-list");
+    let source = load_product_source(&fixture.state(), unix_time_ms())
+        .expect("valid product source should load");
+    let version = load_product_strategy_version(&source, unix_time_ms())
+        .expect("valid strategy version should project");
+    let query = parse_strategy_version_list_query(Some(
+        "limit=1&sort=created_at&order=desc&status=registered",
+    ))
+    .expect("valid version query should parse");
+    let response = project_strategy_version_list(version.clone(), &query, product_request_id())
+        .expect("version list should project");
+    let value = serde_json::to_value(response).expect("response should serialize");
+    assert_eq!(value["page"]["returned_count"], 1);
+    assert_eq!(value["data"][0]["strategy_version_id"], "ema-cross@v1");
+
+    let cursor = encode_version_cursor("ema-cross@v1");
+    let query = parse_strategy_version_list_query(Some(&format!("cursor={cursor}")))
+        .expect("known version cursor should parse");
+    let response = project_strategy_version_list(version, &query, product_request_id())
+        .expect("cursor should address the next page");
+    assert!(
+        serde_json::to_value(response).expect("response should serialize")["data"]
+            .as_array()
+            .is_some_and(Vec::is_empty)
+    );
+}
+
+#[test]
+fn invalid_strategy_version_queries_and_identifiers_fail_closed() {
+    for query in [
+        "limit=0",
+        "limit=101",
+        "limit=1&limit=2",
+        "cursor=forged",
+        "sort=updated_at",
+        "order=random",
+        "status=deprecated",
+        "unknown=value",
+    ] {
+        assert!(
+            parse_strategy_version_list_query(Some(query)).is_err(),
+            "{query} must fail closed"
+        );
+    }
+    for version_id in ["", ".", "..", "ema-cross", "@v1", "ema-cross@", "a@b@c"] {
+        assert!(
+            validate_requested_version_id("version_id", version_id).is_err(),
+            "{version_id} must fail closed"
+        );
+    }
+    assert!(
+        validate_requested_version_id("version_id", &format!("ema-cross@{}", "v".repeat(129)))
+            .is_err()
+    );
+    assert!(
+        validate_requested_version_id("version_id", &format!("{}@v1", "s".repeat(129))).is_err()
+    );
+}
+
+#[test]
+fn strategy_version_hash_code_schema_and_identity_drift_fail_closed() {
+    for (name, mutate, expected_field) in [
+        (
+            "code-ref",
+            (|raw: String| raw.replace("#ema_cross_demo", "#ema_cross_changed"))
+                as fn(String) -> String,
+            "strategy_version_code_ref",
+        ),
+        (
+            "parameter-schema",
+            (|raw: String| raw.replace("const = 3", "const = 4")) as fn(String) -> String,
+            "strategy_version_content_hash",
+        ),
+        (
+            "risk-boundary",
+            (|raw: String| {
+                raw.replace(
+                    "order_submission_default = false",
+                    "order_submission_default = true",
+                )
+            }) as fn(String) -> String,
+            "strategy_version_risk_config",
+        ),
+    ] {
+        let fixture = Fixture::new(&format!("version-drift-{name}"));
+        fixture.write_config(&mutate(valid_config()));
+        let mut identity = fixture.identity.clone();
+        identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+        fixture.write_identity(&identity);
+        let source = load_product_source(&fixture.state(), unix_time_ms())
+            .expect("declared identity hash should still anchor the source snapshot");
+        let error = load_product_strategy_version(&source, unix_time_ms())
+            .expect_err("immutable version content drift must fail");
+        assert_eq!(error.field, expected_field, "{name}");
+    }
+
+    let fixture = Fixture::new("version-self-rehash");
+    let changed = valid_config().replace("#ema_cross_demo", "#ema_cross_changed");
+    fixture.write_config(&config_with_computed_version_hash(&changed));
+    let mut identity = fixture.identity.clone();
+    identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+    fixture.write_identity(&identity);
+    let error = load_product_source(&fixture.state(), unix_time_ms())
+        .expect_err("re-hashing a registered version must not bypass its identity anchor");
+    assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+    assert_eq!(error.field, "config_projection");
+}
+
+#[test]
+fn strategy_version_parameter_schema_rejects_invalid_draft_keyword_value() {
+    let schema = json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fast_period"],
+        "properties": {
+            "fast_period": {"type": "interger"}
+        }
+    });
+    let error = validate_parameter_schema(&schema)
+        .expect_err("unknown JSON Schema type must fail Draft 2020-12 meta validation");
+    assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+    assert_eq!(error.field, "strategy_version_parameter_schema");
 }
 
 #[test]
@@ -679,7 +851,7 @@ fn missing_product_metadata_and_invalid_identity_ownership_fail_closed() {
     assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
     assert_eq!(error.field, "strategy_config");
 
-    fixture.write_config(valid_config());
+    fixture.write_config(&valid_config());
     let mut identity = fixture.identity.clone();
     identity.identities.strategy_instance_id = identity.identities.node_id.clone();
     identity.contract_id = format!(
@@ -831,6 +1003,117 @@ async fn strategy_routes_are_read_only_and_return_stable_envelopes() {
 }
 
 #[tokio::test]
+async fn strategy_version_routes_are_read_only_and_schema_compatible() {
+    let fixture = Fixture::new("version-routes");
+    let router = fixture.router();
+    let list_path = "/api/product/v1/strategies/ema-cross/versions";
+    let detail_path = "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1";
+
+    let (status, list) = router_json(&router, Method::GET, list_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        list["schema_version"],
+        "ntpro.product_api.strategy_version_list.response.v1"
+    );
+    assert_eq!(list["data"][0]["strategy_version_id"], "ema-cross@v1");
+    assert_read_only_boundaries(&list);
+    validate_openapi_instance("StrategyVersionListResponse", &list);
+
+    let (status, detail) = router_json(&router, Method::GET, detail_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        detail["schema_version"],
+        "ntpro.product_api.strategy_version_detail.response.v1"
+    );
+    assert_eq!(detail["data"]["strategy_id"], "ema-cross");
+    assert_read_only_boundaries(&detail);
+    validate_openapi_instance("StrategyVersionDetailResponse", &detail);
+
+    let (status, missing_strategy) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/missing/versions",
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(missing_strategy["error"]["code"], "strategy_not_found");
+
+    let (status, missing_version) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v2",
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        missing_version["error"]["code"],
+        "strategy_version_not_found"
+    );
+    validate_openapi_instance("ProductErrorResponse", &missing_version);
+
+    let (status, malformed_version) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions/%FF",
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(malformed_version["error"]["code"], "product_query_invalid");
+    assert_eq!(malformed_version["error"]["field"], "strategy_version_path");
+    validate_openapi_instance("ProductErrorResponse", &malformed_version);
+
+    for path in [list_path, detail_path] {
+        for method in [
+            Method::HEAD,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::CONNECT,
+            Method::TRACE,
+        ] {
+            let (status, headers, body) =
+                router_json_with_headers(&router, method.clone(), path).await;
+            assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method} {path}");
+            assert_eq!(
+                headers.get(ALLOW).and_then(|value| value.to_str().ok()),
+                Some("GET")
+            );
+            if method != Method::HEAD {
+                assert_eq!(body["error"]["code"], "product_method_not_allowed");
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn legacy_strategy_source_remains_readable_but_version_routes_fail_closed() {
+    let fixture = Fixture::new("legacy-strategy-source");
+    fixture.write_config(legacy_config_without_strategy_version());
+    let mut identity = fixture.identity.clone();
+    identity.identities.strategy_version_content_hash.clear();
+    identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+    fixture.write_identity(&identity);
+
+    let router = fixture.router();
+    let (status, strategy) =
+        router_json(&router, Method::GET, "/api/product/v1/strategies/ema-cross").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(strategy["data"]["strategy_id"], "ema-cross");
+
+    let (status, version) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions",
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(version["error"]["code"], "product_source_invalid");
+    assert_eq!(version["error"]["field"], "strategy_version_content_hash");
+}
+
+#[tokio::test]
 async fn missing_registry_is_retryable_source_unavailable() {
     let fixture = Fixture::new("missing-registry");
     let router = fixture.router();
@@ -866,6 +1149,10 @@ fn openapi_is_authoritative_and_declares_exact_strategy_routes() {
     assert_eq!(openapi["openapi"], "3.1.0");
     assert_eq!(openapi["x-ntpro-authoritative-contract"], true);
     assert_eq!(
+        openapi["components"]["schemas"]["Strategy"]["properties"]["default_version_id"]["$ref"],
+        "#/components/schemas/StrategyVersionId"
+    );
+    assert_eq!(
         openapi["components"]["securitySchemes"]
             .as_object()
             .expect("OpenAPI security schemes must be an object")
@@ -879,7 +1166,12 @@ fn openapi_is_authoritative_and_declares_exact_strategy_routes() {
         .expect("OpenAPI paths must be an object");
     assert_eq!(
         paths.keys().map(String::as_str).collect::<Vec<_>>(),
-        ["/strategies", "/strategies/{strategy_id}"]
+        [
+            "/strategies",
+            "/strategies/{strategy_id}",
+            "/strategies/{strategy_id}/versions",
+            "/strategies/{strategy_id}/versions/{version_id}"
+        ]
     );
     for path in paths.values() {
         let methods = path.as_object().expect("path item must be an object");
@@ -901,9 +1193,86 @@ fn openapi_is_authoritative_and_declares_exact_strategy_routes() {
             "#/components/responses/ProductMethodNotAllowed"
         );
     }
+
+    let schema = json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$ref": "#/components/schemas/StrategyVersionId",
+        "components": openapi["components"].clone(),
+    });
+    let validator = jsonschema::draft202012::new(&schema)
+        .expect("StrategyVersionId OpenAPI validator should build");
+    assert!(validator.is_valid(&json!("ema-cross@v1")));
+    assert!(!validator.is_valid(&json!(format!("ema-cross@{}", "v".repeat(129)))));
+    assert!(!validator.is_valid(&json!(format!("{}@v1", "s".repeat(129)))));
 }
 
-fn valid_config() -> &'static str {
+fn valid_config() -> String {
+    config_with_computed_version_hash(
+        r#"[node]
+node_id = "mvp-strategy-001"
+
+[strategy]
+strategy_id = "ema-cross"
+display_name = "BTC/USDT EMA Cross"
+description = "BTC/USDT EMA 交叉策略"
+owner = "Systematic Desk"
+lifecycle = "active"
+created_at_unix_ms = 1767225600000
+updated_at_unix_ms = 1785542400000
+
+[strategy_version]
+strategy_version_id = "ema-cross@v1"
+strategy_id = "ema-cross"
+version = "v1"
+content_hash = "__STRATEGY_VERSION_CONTENT_HASH__"
+code_ref = "git://NTPRO@e24de1825b66f9e7b9bfb2fc4662c928e56d6c18/crates/cli/src/strategy_session.rs#ema_cross_demo"
+status = "registered"
+created_at_unix_ms = 1767225600000
+
+[strategy_version.parameter_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+type = "object"
+"additionalProperties" = false
+required = ["fast_period", "slow_period"]
+
+[strategy_version.parameter_schema.properties.fast_period]
+type = "integer"
+const = 3
+
+[strategy_version.parameter_schema.properties.slow_period]
+type = "integer"
+const = 5
+
+[strategy_version.data_requirements]
+venues = ["BINANCE"]
+symbols = ["BTCUSDT.BINANCE"]
+data_types = ["bar"]
+timeframes = ["fixture_sequence"]
+deterministic_replay_required = true
+
+[strategy_version.risk_config]
+risk_profile_ref = "node-config:#risk"
+kill_switch_required = true
+external_venue_connection_default = false
+order_submission_default = false
+
+[market]
+venue = "BINANCE"
+
+[execution]
+venue = "BINANCE"
+
+[mvp]
+strategy_version = "v1"
+backtest_run_id = "backtest-001"
+backtest_result_ref = "artifact://backtests/backtest-001.json"
+account_id = "acct-sandbox-001"
+environment = "sandbox"
+"#,
+    )
+}
+
+fn legacy_config_without_strategy_version() -> &'static str {
     r#"[node]
 node_id = "mvp-strategy-001"
 
@@ -938,6 +1307,7 @@ fn valid_identity(config_path: &Path, generated_at_unix_ms: u64) -> MvpIdentityC
         identities: MvpIdentitySet {
             strategy_id: "ema-cross".to_string(),
             strategy_version: "v1".to_string(),
+            strategy_version_content_hash: strategy_version_content_hash(config_path),
             backtest_run_id: "backtest-001".to_string(),
             backtest_result_ref: "artifact://backtests/backtest-001.json".to_string(),
             node_id: "mvp-node-001".to_string(),
@@ -960,6 +1330,15 @@ fn valid_identity(config_path: &Path, generated_at_unix_ms: u64) -> MvpIdentityC
             real_orders_submitted: false,
         },
     }
+}
+
+fn strategy_version_content_hash(config_path: &Path) -> String {
+    let raw = fs::read_to_string(config_path).expect("fixture config should be readable");
+    let config: toml::Value = toml::from_str(&raw).expect("fixture config should parse");
+    config["strategy_version"]["content_hash"]
+        .as_str()
+        .expect("fixture version hash should be a string")
+        .to_string()
 }
 
 fn write_json(path: &Path, value: &impl serde::Serialize) {

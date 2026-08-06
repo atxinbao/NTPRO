@@ -153,6 +153,157 @@
           }
         }
       }
+    },
+    "/strategies/{strategy_id}/versions": {
+      "get": {
+        "operationId": "listStrategyVersions",
+        "summary": "读取策略版本列表",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyId"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["strategy_version_id", "version", "created_at"],
+              "default": "strategy_version_id"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "asc"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/StrategyVersionStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "不可变策略版本列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyVersionListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "405": {
+            "$ref": "#/components/responses/ProductMethodNotAllowed"
+          },
+          "500": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductError"
+          }
+        }
+      }
+    },
+    "/strategies/{strategy_id}/versions/{version_id}": {
+      "get": {
+        "operationId": "getStrategyVersion",
+        "summary": "读取策略版本详情",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyId"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyVersionId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "不可变策略版本详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyVersionDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "405": {
+            "$ref": "#/components/responses/ProductMethodNotAllowed"
+          },
+          "500": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductError"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -206,6 +357,16 @@
         "maxLength": 128,
         "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9_.:-]+$"
       },
+      "StrategyVersionId": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 257,
+        "pattern": "^(?!\\.{1,2}@)[A-Za-z0-9_.:-]{1,128}@(?!\\.{1,2}$)[A-Za-z0-9_.:-]{1,128}$"
+      },
+      "ContentHash": {
+        "type": "string",
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
       "RequestId": {
         "type": "string",
         "pattern": "^product-[0-9a-f]{16}-[0-9a-f]{16}$"
@@ -228,6 +389,27 @@
           "source_refs": {
             "type": "array",
             "minItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "StrategyVersionSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_type", "freshness_status", "source_refs"],
+        "properties": {
+          "source_type": {
+            "const": "strategy_version_manifest"
+          },
+          "freshness_status": {
+            "const": "fresh"
+          },
+          "source_refs": {
+            "type": "array",
+            "minItems": 3,
             "items": {
               "type": "string",
               "minLength": 1
@@ -272,9 +454,7 @@
             "$ref": "#/components/schemas/StrategyLifecycle"
           },
           "default_version_id": {
-            "type": "string",
-            "minLength": 3,
-            "maxLength": 385
+            "$ref": "#/components/schemas/StrategyVersionId"
           },
           "created_at_unix_ms": {
             "type": "integer",
@@ -286,6 +466,138 @@
           },
           "source": {
             "$ref": "#/components/schemas/ProductSource"
+          }
+        }
+      },
+      "StrategyVersionStatus": {
+        "type": "string",
+        "enum": ["registered"]
+      },
+      "StrategyVersionDataRequirements": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "venues",
+          "symbols",
+          "data_types",
+          "timeframes",
+          "deterministic_replay_required"
+        ],
+        "properties": {
+          "venues": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "symbols": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "data_types": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "timeframes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 64,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "deterministic_replay_required": {
+            "const": true
+          }
+        }
+      },
+      "StrategyVersionRiskConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "risk_profile_ref",
+          "kill_switch_required",
+          "external_venue_connection_default",
+          "order_submission_default"
+        ],
+        "properties": {
+          "risk_profile_ref": {
+            "const": "node-config:#risk"
+          },
+          "kill_switch_required": {
+            "const": true
+          },
+          "external_venue_connection_default": {
+            "const": false
+          },
+          "order_submission_default": {
+            "const": false
+          }
+        }
+      },
+      "StrategyVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "strategy_version_id",
+          "strategy_id",
+          "version",
+          "content_hash",
+          "code_ref",
+          "parameter_schema",
+          "data_requirements",
+          "risk_config",
+          "status",
+          "created_at_unix_ms",
+          "source"
+        ],
+        "properties": {
+          "strategy_version_id": {
+            "$ref": "#/components/schemas/StrategyVersionId"
+          },
+          "strategy_id": {
+            "$ref": "#/components/schemas/StrategyId"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9_.:-]+$"
+          },
+          "content_hash": {
+            "$ref": "#/components/schemas/ContentHash"
+          },
+          "code_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512,
+            "pattern": "^git://NTPRO@[0-9a-f]{40}/crates/cli/src/strategy_session\\.rs#ema_cross_demo$"
+          },
+          "parameter_schema": {
+            "type": "object",
+            "required": ["$schema", "type", "additionalProperties", "required", "properties"]
+          },
+          "data_requirements": {
+            "$ref": "#/components/schemas/StrategyVersionDataRequirements"
+          },
+          "risk_config": {
+            "$ref": "#/components/schemas/StrategyVersionRiskConfig"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StrategyVersionStatus"
+          },
+          "created_at_unix_ms": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source": {
+            "$ref": "#/components/schemas/StrategyVersionSource"
           }
         }
       },
@@ -423,6 +735,69 @@
           }
         }
       },
+      "StrategyVersionListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "page",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ntpro.product_api.strategy_version_list.response.v1"
+          },
+          "contract_version": {
+            "const": "ntpro.product_api.v1"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestId"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StrategyVersion"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/Page"
+          },
+          "boundaries": {
+            "$ref": "#/components/schemas/ReadOnlyBoundaries"
+          }
+        }
+      },
+      "StrategyVersionDetailResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ntpro.product_api.strategy_version_detail.response.v1"
+          },
+          "contract_version": {
+            "const": "ntpro.product_api.v1"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestId"
+          },
+          "data": {
+            "$ref": "#/components/schemas/StrategyVersion"
+          },
+          "boundaries": {
+            "$ref": "#/components/schemas/ReadOnlyBoundaries"
+          }
+        }
+      },
       "ProductError": {
         "type": "object",
         "additionalProperties": false,
@@ -435,6 +810,7 @@
               "product_access_denied",
               "product_method_not_allowed",
               "strategy_not_found",
+              "strategy_version_not_found",
               "product_source_unavailable",
               "product_source_invalid",
               "product_source_stale",

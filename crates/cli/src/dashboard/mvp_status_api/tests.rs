@@ -83,6 +83,7 @@ environment = "sandbox"
             identities: MvpIdentitySet {
                 strategy_id: "ema-cross".to_string(),
                 strategy_version: "sha256:strategy-v1".to_string(),
+                strategy_version_content_hash: String::new(),
                 backtest_run_id: "backtest-001".to_string(),
                 backtest_result_ref: "artifact://backtests/backtest-001.json".to_string(),
                 node_id: "mvp-node-001".to_string(),

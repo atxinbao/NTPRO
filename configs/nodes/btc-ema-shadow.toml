@@ -13,6 +13,42 @@ updated_at_unix_ms = 1785542400000
 strategy_package = "builtin"
 strategy_runtime = "ema_cross_demo"
 
+[strategy_version]
+strategy_version_id = "ema_cross_btcusdt_v1@v1"
+strategy_id = "ema_cross_btcusdt_v1"
+version = "v1"
+content_hash = "sha256:2f58f5cf2bd2680773a10fb136db0c3214af9ae23b1d757c7be2b26cadc1148d"
+code_ref = "git://NTPRO@e24de1825b66f9e7b9bfb2fc4662c928e56d6c18/crates/cli/src/strategy_session.rs#ema_cross_demo"
+status = "registered"
+created_at_unix_ms = 1767225600000
+
+[strategy_version.parameter_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+type = "object"
+"additionalProperties" = false
+required = ["fast_period", "slow_period"]
+
+[strategy_version.parameter_schema.properties.fast_period]
+type = "integer"
+const = 3
+
+[strategy_version.parameter_schema.properties.slow_period]
+type = "integer"
+const = 5
+
+[strategy_version.data_requirements]
+venues = ["BINANCE_TESTNET"]
+symbols = ["BTCUSDT.BINANCE"]
+data_types = ["bar"]
+timeframes = ["fixture_sequence"]
+deterministic_replay_required = true
+
+[strategy_version.risk_config]
+risk_profile_ref = "node-config:#risk"
+kill_switch_required = true
+external_venue_connection_default = false
+order_submission_default = false
+
 [mvp]
 strategy_version = "v1"
 backtest_run_id = "ema-cross-btcusdt-baseline-v1"

@@ -196,6 +196,86 @@ try {
     );
   }
 
+  const productVersionListResponse = await fetch(
+    `${baseUrl}/api/product/v1/strategies/ema_cross_btcusdt_v1/versions?limit=1&sort=created_at&order=desc&status=registered`,
+    { headers: { cookie: institutionCookie } },
+  );
+  if (productVersionListResponse.status !== 200) {
+    throw new Error(
+      `product strategy version list expected 200, got ${productVersionListResponse.status}`,
+    );
+  }
+  const productVersionList = await productVersionListResponse.json();
+  const productVersion = productVersionList.data?.[0];
+  if (
+    productVersionList.schema_version !==
+      "ntpro.product_api.strategy_version_list.response.v1" ||
+    productVersionList.contract_version !== "ntpro.product_api.v1" ||
+    productVersion?.strategy_version_id !== "ema_cross_btcusdt_v1@v1" ||
+    productVersion?.strategy_id !== productStrategy.strategy_id ||
+    productVersion?.version !== "v1" ||
+    !/^sha256:[0-9a-f]{64}$/.test(productVersion?.content_hash || "") ||
+    productVersion?.code_ref !==
+      "git://NTPRO@e24de1825b66f9e7b9bfb2fc4662c928e56d6c18/crates/cli/src/strategy_session.rs#ema_cross_demo" ||
+    productVersion?.parameter_schema?.additionalProperties !== false ||
+    productVersion?.data_requirements?.deterministic_replay_required !== true ||
+    productVersion?.risk_config?.kill_switch_required !== true ||
+    productVersion?.risk_config?.order_submission_default !== false ||
+    productVersion?.status !== "registered" ||
+    productVersionList.page?.returned_count !== 1
+  ) {
+    throw new Error(
+      `product strategy version list contract drift: ${JSON.stringify(productVersionList)}`,
+    );
+  }
+  if (
+    productVersionList.boundaries?.read_only !== true ||
+    expectedFalseBoundaries.some(
+      (field) => productVersionList.boundaries?.[field] !== false,
+    )
+  ) {
+    throw new Error(
+      `product strategy version boundary drift: ${JSON.stringify(productVersionList.boundaries)}`,
+    );
+  }
+
+  const productVersionDetailResponse = await fetch(
+    `${baseUrl}/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v1`,
+    { headers: { cookie: institutionCookie } },
+  );
+  if (productVersionDetailResponse.status !== 200) {
+    throw new Error(
+      `product strategy version detail expected 200, got ${productVersionDetailResponse.status}`,
+    );
+  }
+  const productVersionDetail = await productVersionDetailResponse.json();
+  if (
+    productVersionDetail.schema_version !==
+      "ntpro.product_api.strategy_version_detail.response.v1" ||
+    productVersionDetail.data?.strategy_version_id !==
+      productVersion.strategy_version_id ||
+    productVersionDetail.data?.content_hash !== productVersion.content_hash
+  ) {
+    throw new Error(
+      `product strategy version detail contract drift: ${JSON.stringify(productVersionDetail)}`,
+    );
+  }
+
+  const missingProductVersion = await fetch(
+    `${baseUrl}/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v2`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const missingProductVersionBody = await missingProductVersion.json();
+  if (
+    missingProductVersion.status !== 404 ||
+    missingProductVersionBody.error?.code !== "strategy_version_not_found" ||
+    missingProductVersionBody.error?.retryable !== false
+  ) {
+    throw new Error(
+      `missing product strategy version did not fail closed: ${JSON.stringify(missingProductVersionBody)}`,
+    );
+  }
+
   const invalidProductQuery = await fetch(
     `${baseUrl}/api/product/v1/strategies?limit=1&limit=2`,
     { headers: { cookie: institutionCookie } },
@@ -232,6 +312,11 @@ try {
     ["GET", "/strategy-workbench/assets/missing.js", 404],
     ["GET", "/api/product/v1/unknown", 404],
     ["POST", "/api/product/v1/strategies", 405],
+    [
+      "POST",
+      "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions",
+      405,
+    ],
   ]) {
     const response = await fetch(`${baseUrl}${url}`, {
       method,
@@ -240,7 +325,7 @@ try {
     if (response.status !== expected) {
       throw new Error(`${method} ${url} expected ${expected}, got ${response.status}`);
     }
-    if (url === "/api/product/v1/strategies" && method === "POST") {
+    if (url.startsWith("/api/product/v1/strategies") && method === "POST") {
       const body = await response.json();
       if (
         response.headers.get("allow") !== "GET" ||
