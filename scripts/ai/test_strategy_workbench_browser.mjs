@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 const playwrightPath = process.env.NTPRO_PLAYWRIGHT_CORE_PATH;
 if (!playwrightPath) throw new Error("NTPRO_PLAYWRIGHT_CORE_PATH is required");
 const require = createRequire(import.meta.url);
-const { chromium } = require(playwrightPath);
+const { chromium } = require(path.resolve(playwrightPath));
 const chrome =
   process.env.NTPRO_CHROME_BIN ||
   (process.platform === "darwin"
