@@ -10,6 +10,23 @@ if (!playwrightPath) throw new Error("NTPRO_PLAYWRIGHT_CORE_PATH is required");
 const require = createRequire(import.meta.url);
 const { chromium } = require(playwrightPath);
 const chrome = process.env.NTPRO_CHROME_BIN || "google-chrome";
+const NODE_SHUTDOWN_TIMEOUT_MS = 5_000;
+const PROCESS_SHUTDOWN_TIMEOUT_MS = 15_000;
+
+const validShutdownTimeoutContract = (nodeTimeoutMs, processTimeoutMs) => (
+  Number.isSafeInteger(nodeTimeoutMs)
+  && nodeTimeoutMs > 0
+  && Number.isSafeInteger(processTimeoutMs)
+  && processTimeoutMs > nodeTimeoutMs
+);
+if (
+  !validShutdownTimeoutContract(NODE_SHUTDOWN_TIMEOUT_MS, PROCESS_SHUTDOWN_TIMEOUT_MS)
+  || validShutdownTimeoutContract(NODE_SHUTDOWN_TIMEOUT_MS, NODE_SHUTDOWN_TIMEOUT_MS)
+  || validShutdownTimeoutContract(NODE_SHUTDOWN_TIMEOUT_MS, NODE_SHUTDOWN_TIMEOUT_MS - 1)
+  || validShutdownTimeoutContract(0, PROCESS_SHUTDOWN_TIMEOUT_MS)
+) {
+  throw new Error("browser shutdown timeout contract self-test failed");
+}
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-mvp-006-browser-"));
 const evidenceDir = process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
@@ -66,6 +83,7 @@ const server = spawn(
     "--bind", `127.0.0.1:${port}`, "--ntpro-node-bin", "target/debug/ntpro-node",
     "--strategy-workbench-dist", "crates/cli/tests/fixtures/strategy-workbench",
     "--startup-timeout-ms", "10000", "--node-max-runtime-ms", "120000",
+    "--node-shutdown-timeout-ms", String(NODE_SHUTDOWN_TIMEOUT_MS),
   ],
   { stdio: ["ignore", "pipe", "pipe"] },
 );
@@ -300,8 +318,8 @@ try {
     } catch (error) {
       recordFailure(error);
     }
-    if (!await waitForServerExit(5_000)) {
-      recordFailure(new Error("MVP server did not stop within 5000 ms and required SIGKILL"));
+    if (!await waitForServerExit(PROCESS_SHUTDOWN_TIMEOUT_MS)) {
+      recordFailure(new Error(`MVP server did not stop within ${PROCESS_SHUTDOWN_TIMEOUT_MS} ms and required SIGKILL`));
       try {
         server.kill("SIGKILL");
       } catch (error) {
@@ -333,4 +351,4 @@ try {
 }
 
 if (failure) throw failure;
-console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 diagnostic_redaction_selftest=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");
+console.log("institution_workbench_browser=pass viewports=1440x1000,390x844 valid=1 boundary=1 http_error=1 event_mismatch=1 duplicate_event=1 cross_portal_jump=1 unauthorized=1 wrong_role=1 bootstrap_url_clean=1 diagnostic_redaction_selftest=1 shutdown_timeout_contract_selftest=1 stale_clear=4 cjk_glyphs=1 graceful_shutdown=1");
