@@ -426,6 +426,7 @@ try {
   const page = await context.newPage();
   const browserErrors = [];
   const productionAssets = new Set();
+  let expectedHttpErrorResponses = 0;
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
@@ -440,6 +441,7 @@ try {
   await page.route("**/api/mvp/v1/status", async (route) => {
     if (scenario === "valid") return route.continue();
     if (scenario === "http_error") {
+      expectedHttpErrorResponses += 1;
       return route.fulfill({
         status: 503,
         contentType: "application/json",
@@ -613,10 +615,34 @@ try {
   });
 
   scenario = "http_error";
+  const errorsBeforeHttpScenario = browserErrors.length;
   await page.getByRole("button", { name: "刷新产品与系统状态" }).click();
   await page.getByText("连接阻断").waitFor({ state: "attached" });
-  if (browserErrors.length > 0) {
-    throw new Error(`browser errors: ${browserErrors.join("; ")}`);
+  if (expectedHttpErrorResponses < 1) {
+    throw new Error("HTTP error scenario did not intercept the status request");
+  }
+  const httpScenarioErrors = browserErrors.slice(errorsBeforeHttpScenario);
+  const expectedHttpConsoleErrors = httpScenarioErrors.filter(
+    (message) =>
+      message ===
+      "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  );
+  if (expectedHttpConsoleErrors.length > expectedHttpErrorResponses) {
+    throw new Error(
+      `HTTP error scenario emitted unbound 503 console errors: ${expectedHttpConsoleErrors.length}/${expectedHttpErrorResponses}`,
+    );
+  }
+  const unexpectedHttpScenarioErrors = httpScenarioErrors.filter(
+    (message) =>
+      message !==
+      "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  );
+  const unexpectedBrowserErrors = [
+    ...browserErrors.slice(0, errorsBeforeHttpScenario),
+    ...unexpectedHttpScenarioErrors,
+  ];
+  if (unexpectedBrowserErrors.length > 0) {
+    throw new Error(`browser errors: ${unexpectedBrowserErrors.join("; ")}`);
   }
 } catch (error) {
   failure = error instanceof Error ? error : new Error(String(error));
