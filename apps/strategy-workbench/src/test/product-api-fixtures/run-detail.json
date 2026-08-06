@@ -1,0 +1,60 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": {
+    "account_ref": "account://live/unconfigured",
+    "adapter_ref": "adapter://live/disabled",
+    "capabilities": {
+      "automatic_remediation_allowed": false,
+      "automatic_retry_allowed": false,
+      "external_venue_connection": false,
+      "order_mutation_allowed": false,
+      "order_submission_allowed": false,
+      "real_orders_submitted": false,
+      "trading_controls_enabled": false
+    },
+    "completed_at_unix_ms": null,
+    "config_ref": "node-config:node.toml#product_runs",
+    "created_at_unix_ms": 1785542400000,
+    "data_ref": "market://live/disabled",
+    "environment": "live",
+    "error": null,
+    "lifecycle": "created",
+    "result": {
+      "result_ref": null,
+      "status": "pending"
+    },
+    "risk": {
+      "risk_ref": "node-config:node.toml#risk",
+      "status": "blocked"
+    },
+    "run_id": "ema-cross-live-001",
+    "source": {
+      "freshness_status": "fresh",
+      "source_refs": [
+        "mvp/identity_contract.json",
+        "mvp/status_contract.json",
+        "node-config:node.toml#product_runs:ema-cross-live-001"
+      ],
+      "source_type": "run_manifest"
+    },
+    "started_at_unix_ms": null,
+    "strategy_id": "ema-cross",
+    "strategy_version_id": "ema-cross@v1",
+    "updated_at_unix_ms": 1785542400000,
+    "venue_ref": "venue://live/unconfigured/disabled"
+  },
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.run_detail.response.v1"
+}

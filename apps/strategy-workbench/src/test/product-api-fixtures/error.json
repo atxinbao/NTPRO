@@ -1,0 +1,23 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "error": {
+    "code": "run_not_found",
+    "field": "run_id",
+    "retryable": false,
+    "summary": "未找到指定运行记录"
+  },
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.error.v1"
+}

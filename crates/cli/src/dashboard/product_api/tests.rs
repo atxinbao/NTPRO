@@ -1437,6 +1437,64 @@ async fn run_routes_are_read_only_and_schema_compatible() {
 }
 
 #[tokio::test]
+async fn tracked_frontend_fixtures_match_real_rust_routes() {
+    let fixture = Fixture::new("frontend-fixtures");
+    let router = fixture.router();
+    let cases = [
+        (
+            "strategy-list.json",
+            StatusCode::OK,
+            "/api/product/v1/strategies",
+            "StrategyListResponse",
+        ),
+        (
+            "strategy-detail.json",
+            StatusCode::OK,
+            "/api/product/v1/strategies/ema-cross",
+            "StrategyDetailResponse",
+        ),
+        (
+            "strategy-version-list.json",
+            StatusCode::OK,
+            "/api/product/v1/strategies/ema-cross/versions",
+            "StrategyVersionListResponse",
+        ),
+        (
+            "strategy-version-detail.json",
+            StatusCode::OK,
+            "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1",
+            "StrategyVersionDetailResponse",
+        ),
+        (
+            "run-list.json",
+            StatusCode::OK,
+            "/api/product/v1/runs",
+            "RunListResponse",
+        ),
+        (
+            "run-detail.json",
+            StatusCode::OK,
+            "/api/product/v1/runs/ema-cross-live-001",
+            "RunDetailResponse",
+        ),
+        (
+            "error.json",
+            StatusCode::NOT_FOUND,
+            "/api/product/v1/runs/missing",
+            "ProductErrorResponse",
+        ),
+    ];
+
+    for (name, expected_status, path, schema) in cases {
+        let (status, mut value) = router_json(&router, Method::GET, path).await;
+        assert_eq!(status, expected_status, "{path}");
+        value["request_id"] = json!("product-0000000000000000-0000000000000000");
+        validate_openapi_instance(schema, &value);
+        assert_tracked_frontend_fixture(name, &value);
+    }
+}
+
+#[tokio::test]
 async fn legacy_strategy_source_remains_readable_but_version_routes_fail_closed() {
     let fixture = Fixture::new("legacy-strategy-source");
     fixture.write_config(legacy_config_without_strategy_version());
@@ -1784,6 +1842,32 @@ fn write_json(path: &Path, value: &impl serde::Serialize) {
         serde_json::to_vec_pretty(value).expect("fixture must serialize"),
     )
     .expect("fixture JSON should be written");
+}
+
+fn assert_tracked_frontend_fixture(name: &str, value: &Value) {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../apps/strategy-workbench/src/test/product-api-fixtures")
+        .join(name);
+    if std::env::var("NTPRO_UPDATE_PRODUCT_API_FIXTURES").as_deref() == Ok("1") {
+        fs::create_dir_all(path.parent().expect("fixture path should have a parent"))
+            .expect("frontend fixture directory should be created");
+        write_json(&path, value);
+    }
+    let tracked: Value = serde_json::from_slice(
+        &fs::read(&path).unwrap_or_else(|error| {
+            panic!(
+                "frontend fixture {} must exist; regenerate with NTPRO_UPDATE_PRODUCT_API_FIXTURES=1: {error}",
+                path.display()
+            )
+        }),
+    )
+    .expect("tracked frontend fixture should be valid JSON");
+    assert_eq!(
+        tracked,
+        *value,
+        "frontend fixture {} drifted",
+        path.display()
+    );
 }
 
 fn set_modified_time(path: &Path, modified: std::time::SystemTime) {

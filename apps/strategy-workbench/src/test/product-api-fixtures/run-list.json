@@ -1,0 +1,154 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": [
+    {
+      "account_ref": "account://simulated/backtest-001",
+      "adapter_ref": "adapter://backtest/simulated",
+      "capabilities": {
+        "automatic_remediation_allowed": false,
+        "automatic_retry_allowed": false,
+        "external_venue_connection": false,
+        "order_mutation_allowed": false,
+        "order_submission_allowed": false,
+        "real_orders_submitted": false,
+        "trading_controls_enabled": false
+      },
+      "completed_at_unix_ms": 1767225660000,
+      "config_ref": "node-config:node.toml#product_runs",
+      "created_at_unix_ms": 1767225600000,
+      "data_ref": "dataset://fixtures/ema-cross",
+      "environment": "backtest",
+      "error": null,
+      "lifecycle": "completed",
+      "result": {
+        "result_ref": "artifact://backtests/backtest-001.json",
+        "status": "available"
+      },
+      "risk": {
+        "risk_ref": "node-config:node.toml#risk",
+        "status": "passed"
+      },
+      "run_id": "backtest-001",
+      "source": {
+        "freshness_status": "fresh",
+        "source_refs": [
+          "mvp/identity_contract.json",
+          "mvp/status_contract.json",
+          "node-config:node.toml#product_runs:backtest-001"
+        ],
+        "source_type": "run_manifest"
+      },
+      "started_at_unix_ms": 1767225600000,
+      "strategy_id": "ema-cross",
+      "strategy_version_id": "ema-cross@v1",
+      "updated_at_unix_ms": 1767225660000,
+      "venue_ref": "venue://simulated/BINANCE"
+    },
+    {
+      "account_ref": "account://live/unconfigured",
+      "adapter_ref": "adapter://live/disabled",
+      "capabilities": {
+        "automatic_remediation_allowed": false,
+        "automatic_retry_allowed": false,
+        "external_venue_connection": false,
+        "order_mutation_allowed": false,
+        "order_submission_allowed": false,
+        "real_orders_submitted": false,
+        "trading_controls_enabled": false
+      },
+      "completed_at_unix_ms": null,
+      "config_ref": "node-config:node.toml#product_runs",
+      "created_at_unix_ms": 1785542400000,
+      "data_ref": "market://live/disabled",
+      "environment": "live",
+      "error": null,
+      "lifecycle": "created",
+      "result": {
+        "result_ref": null,
+        "status": "pending"
+      },
+      "risk": {
+        "risk_ref": "node-config:node.toml#risk",
+        "status": "blocked"
+      },
+      "run_id": "ema-cross-live-001",
+      "source": {
+        "freshness_status": "fresh",
+        "source_refs": [
+          "mvp/identity_contract.json",
+          "mvp/status_contract.json",
+          "node-config:node.toml#product_runs:ema-cross-live-001"
+        ],
+        "source_type": "run_manifest"
+      },
+      "started_at_unix_ms": null,
+      "strategy_id": "ema-cross",
+      "strategy_version_id": "ema-cross@v1",
+      "updated_at_unix_ms": 1785542400000,
+      "venue_ref": "venue://live/unconfigured/disabled"
+    },
+    {
+      "account_ref": "account://sandbox/acct-sandbox-001",
+      "adapter_ref": "adapter://sandbox/fixture-stream",
+      "capabilities": {
+        "automatic_remediation_allowed": false,
+        "automatic_retry_allowed": false,
+        "external_venue_connection": false,
+        "order_mutation_allowed": false,
+        "order_submission_allowed": false,
+        "real_orders_submitted": false,
+        "trading_controls_enabled": false
+      },
+      "completed_at_unix_ms": null,
+      "config_ref": "node-config:node.toml#product_runs",
+      "created_at_unix_ms": 1785542400000,
+      "data_ref": "market://sandbox/BTCUSDT.BINANCE",
+      "environment": "sandbox",
+      "error": null,
+      "lifecycle": "running",
+      "result": {
+        "result_ref": null,
+        "status": "pending"
+      },
+      "risk": {
+        "risk_ref": "node-config:node.toml#risk",
+        "status": "active"
+      },
+      "run_id": "mvp-strategy-001",
+      "source": {
+        "freshness_status": "fresh",
+        "source_refs": [
+          "mvp/identity_contract.json",
+          "mvp/status_contract.json",
+          "node-config:node.toml#product_runs:mvp-strategy-001"
+        ],
+        "source_type": "run_manifest"
+      },
+      "started_at_unix_ms": 1785542400000,
+      "strategy_id": "ema-cross",
+      "strategy_version_id": "ema-cross@v1",
+      "updated_at_unix_ms": 1785542400000,
+      "venue_ref": "venue://sandbox/BINANCE"
+    }
+  ],
+  "page": {
+    "has_more": false,
+    "limit": 20,
+    "next_cursor": null,
+    "returned_count": 3
+  },
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.run_list.response.v1"
+}

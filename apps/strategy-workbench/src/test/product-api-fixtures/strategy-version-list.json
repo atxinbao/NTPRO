@@ -1,0 +1,72 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": [
+    {
+      "code_ref": "git://NTPRO@e24de1825b66f9e7b9bfb2fc4662c928e56d6c18/crates/cli/src/strategy_session.rs#ema_cross_demo",
+      "content_hash": "sha256:950d09dddab99e9beb225eb1b54f867d5068bc2b6051635b07e612ccce3f101c",
+      "created_at_unix_ms": 1767225600000,
+      "data_requirements": {
+        "data_types": ["bar"],
+        "deterministic_replay_required": true,
+        "symbols": ["BTCUSDT.BINANCE"],
+        "timeframes": ["fixture_sequence"],
+        "venues": ["BINANCE"]
+      },
+      "parameter_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "fast_period": {
+            "const": 3,
+            "type": "integer"
+          },
+          "slow_period": {
+            "const": 5,
+            "type": "integer"
+          }
+        },
+        "required": ["fast_period", "slow_period"],
+        "type": "object"
+      },
+      "risk_config": {
+        "external_venue_connection_default": false,
+        "kill_switch_required": true,
+        "order_submission_default": false,
+        "risk_profile_ref": "node-config:#risk"
+      },
+      "source": {
+        "freshness_status": "fresh",
+        "source_refs": [
+          "mvp/identity_contract.json",
+          "mvp/status_contract.json",
+          "node-config:node.toml#strategy_version"
+        ],
+        "source_type": "strategy_version_manifest"
+      },
+      "status": "registered",
+      "strategy_id": "ema-cross",
+      "strategy_version_id": "ema-cross@v1",
+      "version": "v1"
+    }
+  ],
+  "page": {
+    "has_more": false,
+    "limit": 20,
+    "next_cursor": null,
+    "returned_count": 1
+  },
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.strategy_version_list.response.v1"
+}
