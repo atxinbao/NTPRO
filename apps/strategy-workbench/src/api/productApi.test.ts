@@ -25,6 +25,12 @@ function jsonFetch(payload: unknown, status = 200) {
 }
 
 describe("product API generated client", () => {
+  const sandboxRunListFixture = structuredClone(runListFixture);
+  sandboxRunListFixture.data = sandboxRunListFixture.data.filter(
+    (run) => run.environment === "sandbox",
+  );
+  sandboxRunListFixture.page.returned_count = sandboxRunListFixture.data.length;
+
   const routeCases = [
     {
       name: "strategy list",
@@ -63,7 +69,7 @@ describe("product API generated client", () => {
     },
     {
       name: "run list",
-      fixture: runListFixture,
+      fixture: sandboxRunListFixture,
       path: "/api/product/v1/runs?environment=sandbox",
       invoke: (fetch: typeof globalThis.fetch) =>
         createProductApiClient({ fetch }).listRuns({
@@ -201,4 +207,83 @@ describe("product API generated client", () => {
       createProductApiClient({ fetch }).listStrategies(),
     ).rejects.toBeInstanceOf(ProductApiTransportError);
   });
+
+  const identityMismatchCases: Array<{
+    name: string;
+    fixture: Record<string, any>;
+    mutate: (payload: Record<string, any>) => void;
+    invoke: (fetch: typeof globalThis.fetch) => Promise<unknown>;
+    field: string;
+  }> = [
+    {
+      name: "strategy detail path",
+      fixture: strategyDetailFixture,
+      mutate: (payload) => {
+        payload.data.strategy_id = "other-strategy";
+      },
+      invoke: (fetch) =>
+        createProductApiClient({ fetch }).getStrategy({
+          strategy_id: "ema-cross",
+        }),
+      field: "strategy_detail.path.strategy_id",
+    },
+    {
+      name: "version list strategy filter",
+      fixture: strategyVersionListFixture,
+      mutate: (payload) => {
+        payload.data[0].strategy_id = "other-strategy";
+      },
+      invoke: (fetch) =>
+        createProductApiClient({ fetch }).listStrategyVersions({
+          strategy_id: "ema-cross",
+        }),
+      field: "strategy_version_list.path.strategy_id",
+    },
+    {
+      name: "version detail path",
+      fixture: strategyVersionDetailFixture,
+      mutate: (payload) => {
+        payload.data.strategy_version_id = "ema-cross@v2";
+      },
+      invoke: (fetch) =>
+        createProductApiClient({ fetch }).getStrategyVersion({
+          strategy_id: "ema-cross",
+          version_id: "ema-cross@v1",
+        }),
+      field: "strategy_version_detail.path.version_id",
+    },
+    {
+      name: "run list strategy filter",
+      fixture: runListFixture,
+      mutate: (payload) => {
+        payload.data[0].strategy_id = "other-strategy";
+      },
+      invoke: (fetch) =>
+        createProductApiClient({ fetch }).listRuns({
+          strategy_id: "ema-cross",
+        }),
+      field: "run_list.query.strategy_id",
+    },
+    {
+      name: "run detail path",
+      fixture: runDetailFixture,
+      mutate: (payload) => {
+        payload.data.run_id = "other-run";
+      },
+      invoke: (fetch) =>
+        createProductApiClient({ fetch }).getRun({
+          run_id: "ema-cross-live-001",
+        }),
+      field: "run_detail.path.run_id",
+    },
+  ];
+
+  it.each(identityMismatchCases)(
+    "fails closed for $name mismatch",
+    async ({ fixture, mutate, invoke, field }) => {
+      const payload = structuredClone(fixture);
+      mutate(payload);
+      await expect(invoke(jsonFetch(payload))).rejects.toMatchObject({ field });
+    },
+  );
 });

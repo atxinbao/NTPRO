@@ -459,7 +459,7 @@ try {
   if (new URL(page.url()).searchParams.has("access_token")) {
     throw new Error("bootstrap token remained in browser URL");
   }
-  await page.getByText("策略状态已验证").waitFor();
+  await page.getByText("产品资源已验证").waitFor();
   const assertCanvasOrigin = async (phase) => {
     const layout = await page.evaluate(() => {
       const canvas = document.querySelector("main");
@@ -493,8 +493,8 @@ try {
     }
   };
   await assertCanvasOrigin("initial");
-  if (!(await page.getByTestId("strategy-name").textContent())) {
-    throw new Error("strategy identity did not render");
+  if ((await page.getByTestId("strategy-name").textContent()) !== productStrategy.strategy_id) {
+    throw new Error("Product API strategy identity did not render");
   }
   for (const liveButton of await page
     .getByRole("button", { name: /Live/ })
@@ -530,7 +530,7 @@ try {
   }
 
   await page.getByRole("tab", { name: "日志" }).click();
-  await page.getByText("原始日志不在主产品面暴露").waitFor();
+  await page.getByText("原始技术日志不在主产品面暴露").waitFor();
   await page.getByRole("button", { name: "收起详情栏" }).click();
   if ((await page.getByTestId("app-shell").getAttribute("class"))?.includes("drawerOpen")) {
     throw new Error("details drawer did not close");
@@ -539,6 +539,22 @@ try {
   await assertCanvasOrigin("drawer-reopened");
   await page.screenshot({
     path: path.join(evidenceDir, "strategy-workbench-1440.png"),
+    fullPage: true,
+  });
+
+  await page.getByRole("link", { name: new RegExp(liveRun.run_id) }).click();
+  await page.getByRole("heading", { name: liveRun.run_id }).waitFor();
+  if (!page.url().endsWith(`/strategy-workbench/runs/${liveRun.run_id}`)) {
+    throw new Error(`Run deep link drifted: ${page.url()}`);
+  }
+  if ((await page.getByTestId("strategy-name").textContent()) !== liveRun.strategy_id) {
+    throw new Error("Run detail did not bind the Product API strategy identity");
+  }
+  await page.getByText("当前 Run 禁止能力").waitFor();
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: liveRun.run_id }).waitFor();
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-run-detail-1440.png"),
     fullPage: true,
   });
 
@@ -551,7 +567,7 @@ try {
   await page.goto(`${baseUrl}/strategy-workbench/overview`, {
     waitUntil: "networkidle",
   });
-  await page.getByText("策略状态已验证").waitFor();
+  await page.getByText("产品资源已验证").waitFor();
   if ((await page.getByTestId("app-shell").getAttribute("class"))?.includes("drawerOpen")) {
     throw new Error("mobile details drawer must default closed");
   }
@@ -566,25 +582,39 @@ try {
   ) {
     throw new Error(`390 viewport layout drift: ${JSON.stringify(mobileLayout)}`);
   }
+  const mobileRunTable = await page
+    .getByTestId("run-table-scroll")
+    .evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    }));
+  if (mobileRunTable.scrollWidth <= mobileRunTable.clientWidth) {
+    throw new Error(
+      `mobile Run table did not preserve readable columns: ${JSON.stringify(mobileRunTable)}`,
+    );
+  }
   await page.screenshot({
     path: path.join(evidenceDir, "strategy-workbench-390.png"),
     fullPage: true,
   });
 
   scenario = "boundary";
-  await page.getByRole("button", { name: "刷新共享状态" }).click();
-  await page.getByText("策略工作台已阻断").waitFor();
-  if ((await page.getByTestId("strategy-name").textContent()) !== "策略未加载") {
-    throw new Error("boundary failure retained stale strategy identity");
-  }
+  await page.getByRole("button", { name: "刷新产品与系统状态" }).click();
+  await page.getByText("连接阻断").waitFor({ state: "attached" });
+  await page.waitForFunction(
+    (strategyId) =>
+      document.querySelector('[data-testid="strategy-name"]')?.textContent ===
+      strategyId,
+    productStrategy.strategy_id,
+  );
   await page.screenshot({
     path: path.join(evidenceDir, "strategy-workbench-blocked.png"),
     fullPage: true,
   });
 
   scenario = "http_error";
-  await page.getByRole("button", { name: "刷新共享状态" }).click();
-  await page.getByText("策略工作台已阻断").waitFor();
+  await page.getByRole("button", { name: "刷新产品与系统状态" }).click();
+  await page.getByText("连接阻断").waitFor({ state: "attached" });
   if (browserErrors.length > 0) {
     throw new Error(`browser errors: ${browserErrors.join("; ")}`);
   }
@@ -626,6 +656,7 @@ writeEvidence({
   product_run_error: 1,
   product_run_live_boundary: 1,
   product_run_access_control: 1,
+  product_run_deep_link: 1,
   asset_404: 1,
   method_405: 1,
   valid: 1,

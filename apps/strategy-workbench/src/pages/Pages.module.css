@@ -28,6 +28,24 @@
   font-weight: 800;
 }
 
+.readOnlyBadge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid #386b57;
+  border-radius: 3px;
+  color: var(--green);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.readOnlyBadge svg {
+  width: 12px;
+  height: 12px;
+}
+
 .connectionBanner {
   display: flex;
   min-height: 44px;
@@ -236,6 +254,163 @@
   overflow-x: auto;
 }
 
+.runTable {
+  min-width: 680px;
+}
+
+.runLink,
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.runLink:hover,
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.runLink svg,
+.backLink svg {
+  width: 12px;
+  height: 12px;
+}
+
+.backLink {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.versionSummary {
+  display: grid;
+}
+
+.detailRow {
+  display: grid;
+  min-height: 45px;
+  grid-template-columns: minmax(90px, 0.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.detailRow:last-child {
+  border-bottom: 0;
+}
+
+.detailRow span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.detailRow strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #fff;
+  font-size: 9px;
+  text-align: right;
+}
+
+.mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-weight: 500;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.sourcePanel {
+  grid-column: 1 / -1;
+}
+
+.boundaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.boundaryItem {
+  display: flex;
+  min-height: 45px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.boundaryItem:nth-child(even) {
+  border-right: 0;
+}
+
+.boundaryItem span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.boundaryItem strong {
+  color: var(--green);
+  font-size: 9px;
+}
+
+.productState {
+  display: flex;
+  min-height: 160px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.productState svg {
+  width: 18px;
+  height: 18px;
+  color: var(--green);
+}
+
+.productState div {
+  display: grid;
+  gap: 5px;
+}
+
+.productState strong {
+  font-size: 11px;
+}
+
+.productState span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.productStateError {
+  border-color: #75423e;
+}
+
+.productStateError svg,
+.productStateError strong {
+  color: var(--red);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .axisList {
   display: grid;
 }
@@ -312,6 +487,10 @@
     justify-self: start;
   }
 
+  .readOnlyBadge {
+    justify-self: start;
+  }
+
   .metricGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -325,8 +504,13 @@
   }
 
   .mainGrid,
-  .statusGrid {
+  .statusGrid,
+  .detailGrid {
     grid-template-columns: 1fr;
+  }
+
+  .sourcePanel {
+    grid-column: auto;
   }
 
   .modeProgress {
@@ -355,5 +539,13 @@
 
   .metricGrid article:last-child {
     border-bottom: 0;
+  }
+
+  .boundaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .boundaryItem {
+    border-right: 0;
   }
 }

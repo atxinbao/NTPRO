@@ -25,12 +25,38 @@ const strategyVersionDetailFixture = readProductFixture(
 );
 const strategyVersionListFixture = readProductFixture("strategy-version-list");
 
+function productFixtureForPath(path: string): Record<string, unknown> {
+  if (path === "/api/product/v1/strategies") return strategyListFixture;
+  if (path === "/api/product/v1/strategies/ema-cross") {
+    return strategyDetailFixture;
+  }
+  if (path === "/api/product/v1/strategies/ema-cross/versions") {
+    return strategyVersionListFixture;
+  }
+  if (path === "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1") {
+    return strategyVersionDetailFixture;
+  }
+  if (path === "/api/product/v1/runs") return runListFixture;
+  if (path === "/api/product/v1/runs/ema-cross-live-001") {
+    return runDetailFixture;
+  }
+  return errorFixture;
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/mvp/v1/status", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify(validStatusPayload),
+    });
+  });
+  await page.route("**/api/product/v1/**", async (route) => {
+    const path = decodeURIComponent(new URL(route.request().url()).pathname);
+    await route.fulfill({
+      status: path === "/api/product/v1/runs/missing" ? 404 : 200,
+      contentType: "application/json",
+      body: JSON.stringify(productFixtureForPath(path)),
     });
   });
 });
@@ -40,8 +66,11 @@ test("desktop shell renders verified read-only status", async ({
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("overview");
-  await expect(page.getByText("策略状态已验证")).toBeVisible();
-  await expect(page.getByTestId("strategy-name")).toHaveText("btc-ema");
+  await expect(page.getByText("产品资源已验证")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "BTC/USDT EMA Cross" }),
+  ).toBeVisible();
+  await expect(page.getByTestId("strategy-name")).toHaveText("ema-cross");
   for (const liveButton of await page
     .getByRole("button", { name: /Live/ })
     .all()) {
@@ -52,6 +81,11 @@ test("desktop shell renders verified read-only status", async ({
   ).toHaveCount(0);
   await page.getByRole("button", { name: "收起详情栏" }).click();
   await page.getByRole("button", { name: "展开详情栏" }).click();
+  await page.getByRole("link", { name: /ema-cross-live-001/ }).click();
+  await expect(
+    page.getByRole("heading", { name: "ema-cross-live-001" }),
+  ).toBeVisible();
+  await expect(page.getByText("当前 Run 禁止能力")).toBeVisible();
   const desktopOrigin = await page.evaluate(() => {
     const rail = document.querySelector("aside")?.getBoundingClientRect();
     const canvas = document.querySelector("main")?.getBoundingClientRect();
@@ -81,7 +115,7 @@ test("mobile shell keeps the drawer closed and has no page overflow", async ({
 }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("overview");
-  await expect(page.getByText("策略状态已验证")).toBeVisible();
+  await expect(page.getByText("产品资源已验证")).toBeVisible();
   await expect(page.getByTestId("app-shell")).not.toHaveClass(/drawerOpen/);
   const layout = await page.evaluate(() => ({
     documentWidth: document.documentElement.scrollWidth,
@@ -90,13 +124,36 @@ test("mobile shell keeps the drawer closed and has no page overflow", async ({
   }));
   expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.scrollX).toBe(0);
+  const runTable = page.getByTestId("run-table-scroll");
+  const tableLayout = await runTable.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(tableLayout.scrollWidth).toBeGreaterThan(tableLayout.clientWidth);
+  await runTable.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth;
+  });
+  await expect(
+    page.getByRole("columnheader", { name: "更新时间" }),
+  ).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("strategy-workbench-390.png"),
     fullPage: true,
   });
+  await page.goto("runs/ema-cross-live-001");
+  await expect(
+    page.getByRole("heading", { name: "ema-cross-live-001" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 });
 
-test("boundary violation clears the previously rendered identity", async ({
+test("technical boundary violation stays separate from Product API resources", async ({
   page,
 }) => {
   let blocked = false;
@@ -111,11 +168,12 @@ test("boundary violation clears the previously rendered identity", async ({
     });
   });
   await page.goto("overview");
-  await expect(page.getByTestId("strategy-name")).toHaveText("btc-ema");
+  await expect(page.getByTestId("strategy-name")).toHaveText("ema-cross");
   blocked = true;
-  await page.getByRole("button", { name: "刷新共享状态" }).click();
-  await expect(page.getByText("策略工作台已阻断")).toBeVisible();
-  await expect(page.getByTestId("strategy-name")).toHaveText("策略未加载");
+  await page.getByRole("button", { name: "刷新产品与系统状态" }).click();
+  await expect(page.getByText("连接阻断")).toBeVisible();
+  await expect(page.getByTestId("strategy-name")).toHaveText("ema-cross");
+  await expect(page.getByText("产品资源已验证")).toBeVisible();
 });
 
 test("real browser consumes every Rust product API fixture through the generated client", async ({
@@ -134,21 +192,7 @@ test("real browser consumes every Rust product API fixture through the generated
   await page.route("**/api/product/v1/**", async (route) => {
     const request = route.request();
     const path = decodeURIComponent(new URL(request.url()).pathname);
-    const fixture =
-      path === "/api/product/v1/strategies"
-        ? strategyListFixture
-        : path === "/api/product/v1/strategies/ema-cross"
-          ? strategyDetailFixture
-          : path === "/api/product/v1/strategies/ema-cross/versions"
-            ? strategyVersionListFixture
-            : path ===
-                "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1"
-              ? strategyVersionDetailFixture
-              : path === "/api/product/v1/runs"
-                ? runListFixture
-                : path === "/api/product/v1/runs/ema-cross-live-001"
-                  ? runDetailFixture
-                  : errorFixture;
+    const fixture = productFixtureForPath(path);
     requests.push({
       accept: request.headers().accept ?? "",
       cookie: request.headers().cookie ?? "",

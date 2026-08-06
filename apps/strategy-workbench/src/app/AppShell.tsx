@@ -13,10 +13,20 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link, useParams } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
-import { statusLabel } from "../api/mvpStatus";
+import type { Run, RunEnvironment } from "../api/generated/productApi";
+import {
+  environmentLabels,
+  lifecycleLabels,
+  riskLabels,
+} from "../features/product/presentation";
+import {
+  useOverviewProductContext,
+  useRunProductContext,
+} from "../features/product/useProductResources";
 import { useMvpStatus } from "../features/status/useMvpStatus";
 import styles from "./AppShell.module.css";
 
@@ -36,12 +46,12 @@ const navigation: NavigationItem[] = [
   {
     label: "策略",
     icon: BookOpenCheck,
-    disabledReason: "等待 S0 产品资源合同",
+    disabledReason: "当前在总览中选择策略",
   },
   { label: "Backtest", icon: FlaskConical, disabledReason: "等待 S1 产品化" },
   { label: "Demo", icon: Radio, disabledReason: "等待 S2 产品化" },
   { label: "Live", icon: Activity, disabledReason: "等待 S3 独立准入" },
-  { label: "运行", icon: ListTree, disabledReason: "等待 Run 产品合同" },
+  { label: "运行", icon: ListTree, disabledReason: "从策略总览进入 Run 详情" },
   { label: "数据", icon: Database, disabledReason: "等待数据产品合同" },
   { label: "风险", icon: ShieldCheck, disabledReason: "等待风险产品合同" },
   { label: "系统状态", icon: CircleGauge, to: "/system-status" },
@@ -64,12 +74,46 @@ function initialDrawerState(): boolean {
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const queryClient = useQueryClient();
   const query = useMvpStatus();
   const data = query.error ? undefined : query.data;
+  const params = useParams({ strict: false });
+  const routeRunId =
+    "runId" in params && typeof params.runId === "string"
+      ? params.runId
+      : undefined;
+  const overviewProduct = useOverviewProductContext();
+  const runProduct = useRunProductContext(routeRunId);
+  const product = routeRunId ? runProduct : overviewProduct;
+  const selectedStrategy = product.isReady ? product.strategy : undefined;
+  const selectedVersion = product.isReady ? product.version : undefined;
+  const runItems = routeRunId
+    ? runProduct.isReady && runProduct.run
+      ? [runProduct.run]
+      : []
+    : overviewProduct.isReady
+      ? (overviewProduct.runs?.data ?? [])
+      : [];
+  const overviewRun =
+    runItems.find((run) => run.lifecycle === "running") ?? runItems[0];
+  const currentRun = routeRunId
+    ? runProduct.isReady
+      ? runProduct.run
+      : undefined
+    : overviewRun;
   const [drawerOpen, setDrawerOpen] = useState(initialDrawerState);
   const [dockTab, setDockTab] = useState<DockTab>("positions");
   const health = data?.axes.technicalHealth.status;
-  const ready = health === "healthy";
+  const technicalReady = health === "healthy";
+  const productReady = product.isReady;
+  const combinedReady = technicalReady && productReady;
+
+  const refreshAll = () => {
+    void Promise.all([
+      queryClient.resetQueries({ queryKey: ["product"] }),
+      query.refetch(),
+    ]);
+  };
 
   return (
     <div
@@ -115,7 +159,7 @@ export function AppShell({ children }: AppShellProps) {
         </nav>
         <div className={styles.railStatus}>
           <span
-            className={`${styles.statusDot} ${ready ? styles.ready : styles.blocked}`}
+            className={`${styles.statusDot} ${technicalReady ? styles.ready : styles.blocked}`}
           />
           <div>
             <strong>
@@ -130,30 +174,58 @@ export function AppShell({ children }: AppShellProps) {
         <header className={styles.topbar}>
           <Scope
             label="策略"
-            value={data?.strategyId ?? "策略未加载"}
+            value={
+              currentRun?.strategy_id ??
+              selectedStrategy?.strategy_id ??
+              "策略未加载"
+            }
             testId="strategy-name"
           />
-          <Scope label="版本" value={data?.strategyVersion ?? "未知"} />
-          <Scope label="模式" value="Demo / Sandbox" />
-          <Scope label="账户" value={data?.accountId ?? "未知"} optional />
-          <Scope label="Venue" value={data?.venueId ?? "未知"} optional />
+          <Scope
+            label="版本"
+            value={
+              currentRun?.strategy_version_id ??
+              selectedVersion?.strategy_version_id ??
+              "未知"
+            }
+          />
+          <Scope
+            label="模式"
+            value={
+              currentRun ? environmentLabels[currentRun.environment] : "未知"
+            }
+          />
+          <Scope
+            label="账户"
+            value={currentRun?.account_ref ?? "未知"}
+            optional
+          />
+          <Scope
+            label="Venue"
+            value={currentRun?.venue_ref ?? "未知"}
+            optional
+          />
           <div className={styles.topActions}>
             <span
-              className={`${styles.healthChip} ${ready ? styles.healthReady : styles.healthBlocked}`}
+              className={`${styles.healthChip} ${combinedReady ? styles.healthReady : styles.healthBlocked}`}
             >
-              {query.isPending
-                ? "正在连接"
-                : data
-                  ? statusLabel(health ?? "")
-                  : "合同阻断"}
+              {product.isVerifying
+                ? "产品验证中"
+                : product.error
+                  ? "产品阻断"
+                  : query.isPending || query.isFetching
+                    ? "技术连接中"
+                    : data && productReady
+                      ? "只读就绪"
+                      : "技术阻断"}
             </span>
             <button
               type="button"
               className={styles.iconButton}
-              title="刷新共享状态"
-              aria-label="刷新共享状态"
-              disabled={query.isFetching}
-              onClick={() => void query.refetch()}
+              title="刷新产品与系统状态"
+              aria-label="刷新产品与系统状态"
+              disabled={query.isFetching || product.isVerifying}
+              onClick={refreshAll}
             >
               <RefreshCw aria-hidden="true" />
             </button>
@@ -161,14 +233,22 @@ export function AppShell({ children }: AppShellProps) {
         </header>
 
         <div className={styles.modeTabs} aria-label="策略运行模式">
-          <Mode label="Backtest" detail="历史引用" state="complete" />
+          <Mode
+            label="Backtest"
+            detail={modeDetail(runItems, "backtest")}
+            state={modeState(runItems, "backtest")}
+          />
           <Mode
             label="Demo"
-            detail={data ? statusLabel(data.axes.runtime.status) : "读取中"}
-            state="active"
+            detail={modeDetail(runItems, "sandbox")}
+            state={modeState(runItems, "sandbox")}
           />
-          <Mode label="Live" detail="未开放" state="blocked" />
-          <Mode label="运行对比" detail="等待产品合同" state="neutral" />
+          <Mode
+            label="Live"
+            detail={modeDetail(runItems, "live")}
+            state={modeState(runItems, "live")}
+          />
+          <Mode label="运行对比" detail="等待 S4 产品化" state="neutral" />
         </div>
 
         <div className={styles.workarea}>
@@ -187,19 +267,32 @@ export function AppShell({ children }: AppShellProps) {
             <div className={styles.inspectorBody}>
               <header>
                 <span className="eyebrow">当前选择</span>
-                <strong>{data?.strategyInstanceId ?? "Run 未加载"}</strong>
+                <strong>{currentRun?.run_id ?? "Run 未加载"}</strong>
               </header>
               <div className={styles.kvList}>
-                <KeyValue label="环境" value="Demo / Sandbox" />
-                <KeyValue label="账户" value={data?.accountId ?? "未知"} />
-                <KeyValue label="Venue" value={data?.venueId ?? "未知"} />
+                <KeyValue
+                  label="环境"
+                  value={
+                    currentRun
+                      ? environmentLabels[currentRun.environment]
+                      : "未知"
+                  }
+                />
+                <KeyValue
+                  label="账户"
+                  value={currentRun?.account_ref ?? "未知"}
+                />
+                <KeyValue
+                  label="Venue"
+                  value={currentRun?.venue_ref ?? "未知"}
+                />
                 <KeyValue label="节点" value={data?.nodeId ?? "未知"} />
               </div>
               <section>
                 <span className="eyebrow">准入边界</span>
                 <div className={styles.boundaryList}>
-                  <strong>只读状态桥接</strong>
-                  <span>真实 Venue：关闭</span>
+                  <strong>只读 Product API</strong>
+                  <span>外部 Venue：关闭</span>
                   <span>订单提交与修改：关闭</span>
                   <span>自动重试与补救：关闭</span>
                 </div>
@@ -207,10 +300,10 @@ export function AppShell({ children }: AppShellProps) {
               <section>
                 <span className="eyebrow">数据来源</span>
                 <div className={styles.sourceList}>
-                  {(data?.sourceRefs ?? []).map((source) => (
+                  {(currentRun?.source.source_refs ?? []).map((source) => (
                     <span key={source}>{source}</span>
                   ))}
-                  {!data ? <span>等待验证</span> : null}
+                  {!currentRun ? <span>等待产品资源验证</span> : null}
                 </div>
               </section>
             </div>
@@ -232,24 +325,30 @@ export function AppShell({ children }: AppShellProps) {
               </button>
             ))}
           </div>
-          <DockContent tab={dockTab} data={data} />
+          <DockContent tab={dockTab} run={currentRun} />
         </section>
 
         <footer className={styles.statusbar}>
           <StatusItem
             label="数据"
-            value={data?.business.freshness ?? "未知"}
-            warning={!data}
+            value={currentRun?.source.freshness_status ?? "未知"}
+            warning={!currentRun}
           />
-          <StatusItem label="账户" value={data?.accountId ?? "未知"} />
-          <StatusItem label="Venue" value={data?.venueId ?? "未知"} />
-          <StatusItem label="风险" value="阻断" warning />
+          <StatusItem label="账户" value={currentRun?.account_ref ?? "未知"} />
+          <StatusItem label="Venue" value={currentRun?.venue_ref ?? "未知"} />
+          <StatusItem
+            label="风险"
+            value={currentRun ? riskLabels[currentRun.risk.status] : "未知"}
+            warning={!currentRun || currentRun.risk.status === "blocked"}
+          />
           <StatusItem label="节点" value={data?.nodeId ?? "未知"} />
           <StatusItem
             label="更新"
             value={
-              data
-                ? new Date(data.generatedAtUnixMs).toLocaleTimeString("zh-CN")
+              currentRun
+                ? new Date(currentRun.updated_at_unix_ms).toLocaleTimeString(
+                    "zh-CN",
+                  )
                 : "未知"
             }
           />
@@ -325,38 +424,30 @@ function StatusItem({
   );
 }
 
-function DockContent({
-  tab,
-  data,
-}: {
-  tab: DockTab;
-  data: ReturnType<typeof useMvpStatus>["data"];
-}) {
+function DockContent({ tab, run }: { tab: DockTab; run?: Run }) {
   const content: Record<
     DockTab,
     { title: string; value: string; note: string }
   > = {
     positions: {
       title: "当前持仓",
-      value: data?.business.positions ?? "共享状态不可用",
-      note: "产品明细合同待建设",
+      value: "未接入",
+      note: run ? "Run 持仓产品合同待建设" : "Run 未选择",
     },
     activity: {
       title: "运行活动",
-      value: data?.business.lifecycle ?? "共享状态不可用",
-      note: data?.axes.runtime.status
-        ? statusLabel(data.axes.runtime.status)
-        : "状态未知",
+      value: run ? lifecycleLabels[run.lifecycle] : "Run 未选择",
+      note: run?.error?.summary ?? "当前生命周期快照",
     },
     fills: {
       title: "当前成交",
-      value: data?.business.fills ?? "共享状态不可用",
-      note: "真实成交能力关闭",
+      value: "未接入",
+      note: run ? "Run 成交产品合同待建设" : "Run 未选择",
     },
     logs: {
       title: "日志摘要",
-      value: data?.business.diagnostic ?? "共享状态不可用",
-      note: "原始日志不在主产品面暴露",
+      value: run?.error?.summary ?? "无产品错误",
+      note: "原始技术日志不在主产品面暴露",
     },
   };
   const selected = content[tab];
@@ -369,14 +460,36 @@ function DockContent({
       </article>
       <article>
         <span>Run</span>
-        <strong>{data?.strategyInstanceId ?? "未加载"}</strong>
-        <small>当前只读实例</small>
+        <strong>{run?.run_id ?? "未加载"}</strong>
+        <small>当前只读产品资源</small>
       </article>
       <article>
         <span>风险状态</span>
-        <strong>阻断</strong>
-        <small>Live 权限未开放</small>
+        <strong>{run ? riskLabels[run.risk.status] : "未知"}</strong>
+        <small>{run?.risk.risk_ref ?? "等待 Run"}</small>
       </article>
     </div>
   );
+}
+
+function modeDetail(runs: Run[], environment: RunEnvironment): string {
+  const run = runs.find((item) => item.environment === environment);
+  return run ? lifecycleLabels[run.lifecycle] : "暂无 Run";
+}
+
+function modeState(
+  runs: Run[],
+  environment: RunEnvironment,
+): "complete" | "active" | "blocked" | "neutral" {
+  const run = runs.find((item) => item.environment === environment);
+  if (!run) return "neutral";
+  if (
+    run.risk.status === "blocked" ||
+    ["failed", "cancelled", "stopped"].includes(run.lifecycle)
+  ) {
+    return "blocked";
+  }
+  if (run.lifecycle === "running") return "active";
+  if (run.lifecycle === "completed") return "complete";
+  return "neutral";
 }
