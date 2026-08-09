@@ -9,6 +9,7 @@ import {
 import { AppShell } from "./AppShell";
 import { OverviewPage } from "../pages/OverviewPage";
 import { BacktestPage } from "../pages/BacktestPage";
+import { BacktestComparePage } from "../pages/BacktestComparePage";
 import { RunDetailPage } from "../pages/RunDetailPage";
 import { SystemStatusPage } from "../pages/SystemStatusPage";
 
@@ -41,6 +42,12 @@ const backtestRoute = createRoute({
   component: BacktestPage,
 });
 
+const backtestCompareRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/backtests/compare",
+  component: BacktestComparePage,
+});
+
 const systemStatusRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/system-status",
@@ -57,6 +64,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   overviewRoute,
   backtestRoute,
+  backtestCompareRoute,
   runDetailRoute,
   systemStatusRoute,
 ]);

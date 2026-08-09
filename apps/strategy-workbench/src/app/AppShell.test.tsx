@@ -66,6 +66,92 @@ describe("strategy workbench product slice", () => {
     });
   });
 
+  it("compares Backtest Runs and creates a user-confirmed reproduction", async () => {
+    const list = {
+      ...structuredClone(runListFixture),
+      data: [
+        structuredClone(
+          runListFixture.data.find((run) => run.run_id === "backtest-001")!,
+        ),
+        structuredClone(createdBacktestResponse.data),
+      ],
+      page: {
+        ...structuredClone(runListFixture.page),
+        returned_count: 2,
+      },
+    };
+    server.use(http.get("/api/product/v1/runs", () => HttpResponse.json(list)));
+
+    renderWorkbench("/backtests/compare");
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "多 Run 对比与确定性复现",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("region", { name: "比较兼容性" }),
+    ).toHaveTextContent("结果可直接比较");
+    expect(
+      screen.getByRole("region", { name: "Backtest 比较结果" }),
+    ).toHaveTextContent("backtest-created-001");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /backtest-created-001/ }),
+    );
+    const confirmation = await screen.findByRole("checkbox", {
+      name: /我确认这是一次用户主动的确定性复现/,
+    });
+    await userEvent.click(confirmation);
+    await userEvent.click(screen.getByRole("button", { name: "创建复现 Run" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "backtest-reproduced-001" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("region", { name: "Backtest 确定性复现证明" }),
+    ).toHaveTextContent("输入与输出均等价");
+  });
+
+  it("never retries a failed deterministic reproduction automatically", async () => {
+    let reproductionPosts = 0;
+    const list = {
+      ...structuredClone(runListFixture),
+      data: [
+        structuredClone(
+          runListFixture.data.find((run) => run.run_id === "backtest-001")!,
+        ),
+        structuredClone(createdBacktestResponse.data),
+      ],
+      page: {
+        ...structuredClone(runListFixture.page),
+        returned_count: 2,
+      },
+    };
+    server.use(
+      http.get("/api/product/v1/runs", () => HttpResponse.json(list)),
+      http.post("/api/product/v1/runs/:runId/reproduction", () => {
+        reproductionPosts += 1;
+        return HttpResponse.json(errorFixture, { status: 503 });
+      }),
+    );
+
+    renderWorkbench("/backtests/compare");
+    await userEvent.click(
+      await screen.findByRole("button", { name: /backtest-created-001/ }),
+    );
+    await userEvent.click(
+      await screen.findByRole("checkbox", {
+        name: /我确认这是一次用户主动的确定性复现/,
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "创建复现 Run" }));
+
+    await waitFor(() => expect(reproductionPosts).toBe(1));
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
+    expect(reproductionPosts).toBe(1);
+  });
+
   it("renders Product API resources and opens a Run deep link", async () => {
     renderWorkbench("/overview");
 

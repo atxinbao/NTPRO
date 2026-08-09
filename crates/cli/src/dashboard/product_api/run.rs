@@ -38,6 +38,11 @@ const BACKTEST_RESULT_SCHEMA_VERSION: &str = "ntpro.backtest_result.v1";
 const BACKTEST_DETAILS_SCHEMA_VERSION: &str = "ntpro.backtest_details.v1";
 const BACKTEST_ANALYSIS_SCHEMA_VERSION: &str = "ntpro.backtest_analysis.v1";
 const RUN_ANALYSIS_SCHEMA_VERSION: &str = "ntpro.product_api.run_analysis.response.v1";
+const RUN_COMPARISON_SCHEMA_VERSION: &str = "ntpro.product_api.run_comparison.response.v1";
+const RUN_REPRODUCTION_SCHEMA_VERSION: &str = "ntpro.product_api.run_reproduction.response.v1";
+const RUN_REPRODUCTION_PROOF_SCHEMA_VERSION: &str =
+    "ntpro.product_api.run_reproduction_proof.response.v1";
+const BACKTEST_REPRODUCTION_PROOF_SCHEMA_VERSION: &str = "ntpro.backtest_reproduction_proof.v1";
 const RUN_CURSOR_PREFIX: &str = "run-v1-";
 static RUN_MANIFEST_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
@@ -108,6 +113,7 @@ struct ProductRunResult {
     result_ref: Option<String>,
     report_ref: Option<String>,
     analysis_ref: Option<String>,
+    reproduction_ref: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -158,6 +164,11 @@ struct ProductRunConfig {
     backtest_result_sha256: Option<String>,
     backtest_details_sha256: Option<String>,
     backtest_analysis_sha256: Option<String>,
+    strategy_version_snapshot_sha256: Option<String>,
+    reproduction_source_run_id: Option<String>,
+    reproduction_input_sha256: Option<String>,
+    reproduction_output_sha256: Option<String>,
+    reproduction_proof_sha256: Option<String>,
     backtest_trade_size: Option<String>,
     backtest_quotes: Option<usize>,
     backtest_fast_period: Option<usize>,
@@ -192,6 +203,13 @@ pub(in crate::dashboard) struct CreateBacktestRunRequest {
     trade_size: String,
     fast_period: usize,
     slow_period: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::dashboard) struct ReproduceBacktestRunRequest {
+    source_run_id: String,
+    deterministic_replay: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -494,6 +512,199 @@ pub(in crate::dashboard) struct RunAnalysisResponse {
     boundaries: ProductReadOnlyBoundaries,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct BacktestComparisonItem {
+    run_id: String,
+    strategy_version_id: String,
+    data_ref: String,
+    data_sha256: String,
+    config_sha256: String,
+    instrument_id: String,
+    parameters: BacktestParameters,
+    metrics: BacktestMetrics,
+    risk: BacktestRiskSummary,
+    provenance: BacktestAnalysisProvenance,
+    reproduction_ref: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct BacktestComparisonCompatibility {
+    same_strategy: bool,
+    same_strategy_version: bool,
+    same_data: bool,
+    same_instrument: bool,
+    same_currency: bool,
+    directly_comparable: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct BacktestComparison {
+    baseline_run_id: String,
+    run_ids: Vec<String>,
+    items: Vec<BacktestComparisonItem>,
+    compatibility: BacktestComparisonCompatibility,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct RunComparisonResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: BacktestComparison,
+    boundaries: ProductReadOnlyBoundaries,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestReproductionProof {
+    schema_version: String,
+    source_run_id: String,
+    reproduced_run_id: String,
+    proof_ref: String,
+    source_input_sha256: String,
+    reproduced_input_sha256: String,
+    source_output_sha256: String,
+    reproduced_output_sha256: String,
+    input_equivalent: bool,
+    output_equivalent: bool,
+    user_initiated: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct BacktestReproduction {
+    source_run_id: String,
+    reproduced_run: ProductRun,
+    proof: BacktestReproductionProof,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct RunReproductionResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: BacktestReproduction,
+    boundaries: BacktestRunCreationBoundaries,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct RunReproductionProofResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: BacktestReproductionProof,
+    boundaries: ProductReadOnlyBoundaries,
+}
+
+#[derive(Clone, Debug)]
+struct ReproductionExpectation {
+    source_run_id: String,
+    source_input_sha256: String,
+    source_output_sha256: String,
+    strategy_version: strategy_version::ProductStrategyVersion,
+}
+
+struct VerifiedBacktestBundle {
+    run: ProductRun,
+    config: ProductRunConfig,
+    strategy_version: strategy_version::ProductStrategyVersion,
+    summary: BacktestResultArtifact,
+    details: BacktestDetailsArtifact,
+    analysis: BacktestAnalysisArtifact,
+}
+
+#[derive(Serialize)]
+struct BacktestReproductionInput<'a> {
+    strategy_id: &'a str,
+    strategy_version_id: &'a str,
+    strategy_version_content_hash: &'a str,
+    data_ref: &'a str,
+    data_sha256: &'a str,
+    venue_ref: &'a str,
+    starting_balance: &'a str,
+    quotes: usize,
+    trade_size: &'a str,
+    fast_period: usize,
+    slow_period: usize,
+    instrument_id: &'a str,
+}
+
+#[derive(Serialize)]
+struct BacktestReproductionOutput<'a> {
+    strategy_version_content_hash: &'a str,
+    data_ref: &'a str,
+    data_sha256: &'a str,
+    instrument_id: &'a str,
+    strategy: &'a str,
+    parameters: &'a BacktestParameters,
+    backtest_start: &'a str,
+    backtest_end: &'a str,
+    metrics: &'a BacktestMetrics,
+    equity_basis: &'a str,
+    trades: &'a [BacktestTrade],
+    positions: &'a [BacktestPosition],
+    equity_curve: &'a [BacktestEquityPoint],
+    risk: &'a BacktestRiskSummary,
+    drawdown_curve: &'a [BacktestDrawdownPoint],
+    timeline: Vec<BacktestTimelineEvent>,
+    generator: &'a str,
+    engine_mode: &'a str,
+    boundaries: &'a BacktestResultBoundaries,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredBacktestConfig {
+    run: StoredBacktestRunConfig,
+    data: StoredBacktestDataConfig,
+    strategy: StoredBacktestStrategyConfig,
+    venue: StoredBacktestVenueConfig,
+    product: StoredBacktestProductConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredBacktestRunConfig {
+    id: String,
+    mode: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredBacktestDataConfig {
+    source: String,
+    instrument_id: String,
+    quotes: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredBacktestStrategyConfig {
+    name: String,
+    trade_size: String,
+    fast_period: usize,
+    slow_period: usize,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredBacktestVenueConfig {
+    name: String,
+    starting_balance: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredBacktestProductConfig {
+    strategy_id: String,
+    strategy_version_id: String,
+    strategy_version_content_hash: String,
+    data_ref: String,
+    config_ref: String,
+    result_ref: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct RunListQuery {
     limit: usize,
@@ -531,14 +742,14 @@ pub(in crate::dashboard) async fn run_create_api(
     let worker_request_id = request_id.clone();
     let result = tokio::task::spawn_blocking(move || {
         let _permit = permit;
-        create_backtest_run(&worker_state, request, &worker_request_id)
+        create_backtest_run(&worker_state, request, &worker_request_id, None)
     })
     .await
     .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "backtest_worker"))
     .and_then(|result| result);
 
     result
-        .map(|data| {
+        .map(|(data, _)| {
             (
                 StatusCode::CREATED,
                 Json(RunCreateResponse {
@@ -557,10 +768,17 @@ fn create_backtest_run(
     state: &DashboardServerState,
     request: CreateBacktestRunRequest,
     request_id: &str,
-) -> Result<ProductRun, ProductError> {
+    reproduction: Option<ReproductionExpectation>,
+) -> Result<(ProductRun, Option<BacktestReproductionProof>), ProductError> {
     let created_at = unix_time_ms();
     let source = load_product_source(state, created_at)?;
-    let strategy_version = strategy_version::load_product_strategy_version(&source, created_at)?;
+    let current_strategy_version =
+        strategy_version::load_product_strategy_version(&source, created_at)?;
+    let strategy_version = reproduction
+        .as_ref()
+        .map_or(current_strategy_version, |expectation| {
+            expectation.strategy_version.clone()
+        });
     validate_backtest_creation_request(&request, &source, &strategy_version)?;
     if load_run_configs(state, &source)?.len() >= MAX_PAGE_LIMIT {
         return Err(product_error(ProductErrorKind::Conflict, "run_capacity"));
@@ -589,8 +807,16 @@ fn create_backtest_run(
         &result_ref,
     )?;
     let request_sha256 = sha256_ref(&config_raw);
+    let strategy_version_raw =
+        strategy_version::serialize_strategy_version_snapshot(&strategy_version)?;
+    let strategy_version_snapshot_sha256 = sha256_ref(&strategy_version_raw);
     let run_directory = create_dynamic_run_directory(state, &run_id)?;
     write_new_run_file(&run_directory, "request.toml", &config_raw)?;
+    write_new_run_file(
+        &run_directory,
+        "strategy-version.json",
+        &strategy_version_raw,
+    )?;
 
     let started_at = unix_time_ms();
     let execution = crate::backtest::execute_product_backtest(&config_raw);
@@ -628,6 +854,56 @@ fn create_backtest_run(
                 ));
             }
             let analysis_sha256 = sha256_ref(&artifacts.analysis);
+            let reproduction_proof = reproduction
+                .as_ref()
+                .map(|expectation| {
+                    let reproduced_input_sha256 = backtest_reproduction_input_sha256(
+                        &request,
+                        strategy_version.content_hash(),
+                        &artifact.data_sha256,
+                        &artifact.instrument_id,
+                    )?;
+                    let reproduced_output_sha256 = backtest_reproduction_output_sha256(
+                        &run_id, &artifact, &details, &analysis,
+                    )?;
+                    if reproduced_input_sha256 != expectation.source_input_sha256
+                        || reproduced_output_sha256 != expectation.source_output_sha256
+                    {
+                        return Err(product_error(
+                            ProductErrorKind::ExecutionFailed,
+                            "backtest_reproduction_mismatch",
+                        ));
+                    }
+                    Ok(BacktestReproductionProof {
+                        schema_version: BACKTEST_REPRODUCTION_PROOF_SCHEMA_VERSION.to_string(),
+                        source_run_id: expectation.source_run_id.clone(),
+                        reproduced_run_id: run_id.clone(),
+                        proof_ref: format!("artifact://backtests/{run_id}/reproduction.json"),
+                        source_input_sha256: expectation.source_input_sha256.clone(),
+                        reproduced_input_sha256,
+                        source_output_sha256: expectation.source_output_sha256.clone(),
+                        reproduced_output_sha256,
+                        input_equivalent: true,
+                        output_equivalent: true,
+                        user_initiated: true,
+                        automatic_retry_allowed: false,
+                        automatic_remediation_allowed: false,
+                    })
+                })
+                .transpose()?;
+            let reproduction_raw = reproduction_proof
+                .as_ref()
+                .map(|proof| {
+                    serde_json::to_string_pretty(proof)
+                        .map(|value| format!("{value}\n").into_bytes())
+                        .map_err(|_| {
+                            product_error(
+                                ProductErrorKind::ExecutionFailed,
+                                "backtest_reproduction_proof",
+                            )
+                        })
+                })
+                .transpose()?;
             let config = ProductRunConfig {
                 run_id: run_id.clone(),
                 strategy_id: request.strategy_id,
@@ -646,6 +922,17 @@ fn create_backtest_run(
                 backtest_result_sha256: Some(result_sha256),
                 backtest_details_sha256: Some(details_sha256),
                 backtest_analysis_sha256: Some(analysis_sha256),
+                strategy_version_snapshot_sha256: Some(strategy_version_snapshot_sha256),
+                reproduction_source_run_id: reproduction_proof
+                    .as_ref()
+                    .map(|proof| proof.source_run_id.clone()),
+                reproduction_input_sha256: reproduction_proof
+                    .as_ref()
+                    .map(|proof| proof.reproduced_input_sha256.clone()),
+                reproduction_output_sha256: reproduction_proof
+                    .as_ref()
+                    .map(|proof| proof.reproduced_output_sha256.clone()),
+                reproduction_proof_sha256: reproduction_raw.as_ref().map(|raw| sha256_ref(raw)),
                 backtest_trade_size: Some(artifact.parameters.trade_size.clone()),
                 backtest_quotes: Some(artifact.metrics.quotes),
                 backtest_fast_period: Some(artifact.parameters.fast_period),
@@ -666,15 +953,12 @@ fn create_backtest_run(
                 real_orders_submitted: false,
                 trading_controls_enabled: false,
             };
-            let expected_version_id = strategy_version_resource_id(
-                &source.strategy.strategy_id,
-                &source.identity.identities.strategy_version,
-            );
+            let expected_version_id = strategy_version.strategy_version_id();
             validate_created_backtest_artifacts(
                 &config,
                 &source,
                 &strategy_version,
-                &expected_version_id,
+                expected_version_id,
                 completed_at,
                 &CreatedBacktestArtifacts {
                     summary: &artifact,
@@ -685,6 +969,9 @@ fn create_backtest_run(
             write_new_run_file(&run_directory, "summary.json", &artifacts.summary)?;
             write_new_run_file(&run_directory, "details.json", &artifacts.details)?;
             write_new_run_file(&run_directory, "analysis.json", &artifacts.analysis)?;
+            if let Some(raw) = reproduction_raw.as_deref() {
+                write_new_run_file(&run_directory, "reproduction.json", raw)?;
+            }
             config
         }
         Err(error) => {
@@ -707,6 +994,11 @@ fn create_backtest_run(
                 backtest_result_sha256: None,
                 backtest_details_sha256: None,
                 backtest_analysis_sha256: None,
+                strategy_version_snapshot_sha256: Some(strategy_version_snapshot_sha256),
+                reproduction_source_run_id: None,
+                reproduction_input_sha256: None,
+                reproduction_output_sha256: None,
+                reproduction_proof_sha256: None,
                 backtest_trade_size: None,
                 backtest_quotes: None,
                 backtest_fast_period: None,
@@ -735,18 +1027,25 @@ fn create_backtest_run(
         }
     };
     write_dynamic_manifest(&run_directory, &request_sha256, &config)?;
-    let expected_version_id = strategy_version_resource_id(
-        &source.strategy.strategy_id,
-        &source.identity.identities.strategy_version,
-    );
-    validate_and_project_run(
+    let expected_version_id = strategy_version.strategy_version_id();
+    let run = validate_and_project_run(
         config,
         &source,
         &strategy_version,
-        &expected_version_id,
+        expected_version_id,
         completed_at,
         Some(format!("artifact://backtests/{run_id}/run-manifest.json")),
-    )
+    )?;
+    let proof = if let Some(expected) = reproduction {
+        Some(load_backtest_reproduction_proof(
+            state,
+            &run,
+            &expected.source_run_id,
+        )?)
+    } else {
+        None
+    };
+    Ok((run, proof))
 }
 
 struct CreatedBacktestArtifacts<'a> {
@@ -839,11 +1138,9 @@ fn validate_backtest_creation_request(
     if request.environment != RunEnvironment::Backtest {
         return Err(product_error(ProductErrorKind::BadRequest, "environment"));
     }
-    let expected_version_id = strategy_version_resource_id(
-        &source.strategy.strategy_id,
-        &source.identity.identities.strategy_version,
-    );
+    let expected_version_id = strategy_version.strategy_version_id();
     if request.strategy_id != source.strategy.strategy_id
+        || request.strategy_id != strategy_version.strategy_id()
         || request.strategy_version_id != expected_version_id
     {
         return Err(product_error(
@@ -1067,8 +1364,6 @@ pub(in crate::dashboard) async fn run_metrics_api(
     let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
         validate_requested_run_id("run_id", &run_id)?;
         let source = load_product_source(&state, unix_time_ms())?;
-        let strategy_version =
-            strategy_version::load_product_strategy_version(&source, unix_time_ms())?;
         let run = load_product_runs(&state, unix_time_ms())?
             .into_iter()
             .find(|run| run.run_id == run_id)
@@ -1079,6 +1374,7 @@ pub(in crate::dashboard) async fn run_metrics_api(
         {
             return Err(product_error(ProductErrorKind::RunNotFound, "run_metrics"));
         }
+        let (_, strategy_version) = load_run_config_and_version(&state, &source, &run_id)?;
         let expected = load_backtest_result_expectation(&state, &source, &run.run_id)?;
         let artifact = load_backtest_result_artifact(&state, &run, &strategy_version, &expected)?;
         Ok(RunMetricsResponse {
@@ -1109,17 +1405,11 @@ pub(in crate::dashboard) async fn run_report_api(
     let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
         validate_requested_run_id("run_id", &run_id)?;
         let source = load_product_source(&state, unix_time_ms())?;
-        let strategy_version =
-            strategy_version::load_product_strategy_version(&source, unix_time_ms())?;
         let run = load_product_runs(&state, unix_time_ms())?
             .into_iter()
             .find(|run| run.run_id == run_id)
             .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
-        let config = load_run_configs(&state, &source)?
-            .into_iter()
-            .map(|(config, _)| config)
-            .find(|config| config.run_id == run_id)
-            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+        let (config, strategy_version) = load_run_config_and_version(&state, &source, &run_id)?;
         let details_sha256 = config
             .backtest_details_sha256
             .as_deref()
@@ -1162,17 +1452,11 @@ pub(in crate::dashboard) async fn run_analysis_api(
     let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
         validate_requested_run_id("run_id", &run_id)?;
         let source = load_product_source(&state, unix_time_ms())?;
-        let strategy_version =
-            strategy_version::load_product_strategy_version(&source, unix_time_ms())?;
         let run = load_product_runs(&state, unix_time_ms())?
             .into_iter()
             .find(|run| run.run_id == run_id)
             .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
-        let config = load_run_configs(&state, &source)?
-            .into_iter()
-            .map(|(config, _)| config)
-            .find(|config| config.run_id == run_id)
-            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+        let (config, strategy_version) = load_run_config_and_version(&state, &source, &run_id)?;
         let details_sha256 = config
             .backtest_details_sha256
             .as_deref()
@@ -1212,6 +1496,561 @@ pub(in crate::dashboard) async fn run_analysis_api(
     result
         .map(Json)
         .map_err(|error| product_error_response(&error, &request_id))
+}
+
+pub(in crate::dashboard) async fn run_comparison_api(
+    State(state): State<DashboardServerState>,
+    RawQuery(raw_query): RawQuery,
+) -> ApiResult<RunComparisonResponse> {
+    let request_id = product_request_id();
+    let result = parse_run_comparison_query(raw_query.as_deref()).and_then(|run_ids| {
+        let source = load_product_source(&state, unix_time_ms())?;
+        let mut items = Vec::with_capacity(run_ids.len());
+        for run_id in &run_ids {
+            let bundle = load_verified_backtest_bundle(&state, &source, run_id)?;
+            items.push(BacktestComparisonItem {
+                run_id: bundle.run.run_id,
+                strategy_version_id: bundle.run.strategy_version_id,
+                data_ref: bundle.summary.data_ref.clone(),
+                data_sha256: bundle.summary.data_sha256.clone(),
+                config_sha256: bundle.summary.config_sha256.clone(),
+                instrument_id: bundle.summary.instrument_id.clone(),
+                parameters: bundle.summary.parameters.clone(),
+                metrics: bundle.summary.metrics.clone(),
+                risk: bundle.analysis.risk.clone(),
+                provenance: bundle.analysis.provenance.clone(),
+                reproduction_ref: bundle.run.result.reproduction_ref,
+            });
+        }
+        let first = items
+            .first()
+            .ok_or_else(|| product_error(ProductErrorKind::BadRequest, "run_ids"))?;
+        let same_strategy_version = items
+            .iter()
+            .all(|item| item.strategy_version_id == first.strategy_version_id);
+        let same_data = items
+            .iter()
+            .all(|item| item.data_sha256 == first.data_sha256);
+        let same_instrument = items
+            .iter()
+            .all(|item| item.instrument_id == first.instrument_id);
+        let same_currency = items
+            .iter()
+            .all(|item| item.risk.currency == first.risk.currency);
+        Ok(RunComparisonResponse {
+            schema_version: RUN_COMPARISON_SCHEMA_VERSION.to_string(),
+            contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+            request_id: request_id.clone(),
+            data: BacktestComparison {
+                baseline_run_id: run_ids[0].clone(),
+                run_ids,
+                items,
+                compatibility: BacktestComparisonCompatibility {
+                    same_strategy: true,
+                    same_strategy_version,
+                    same_data,
+                    same_instrument,
+                    same_currency,
+                    directly_comparable: same_data && same_instrument && same_currency,
+                },
+            },
+            boundaries: ProductReadOnlyBoundaries::enforced(),
+        })
+    });
+    result
+        .map(Json)
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+pub(in crate::dashboard) async fn run_reproduce_api(
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<ReproduceBacktestRunRequest>, JsonRejection>,
+) -> ApiStatusResult<RunReproductionResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(run_id)| run_id).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let Json(request) = payload.map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "request_body"),
+            &request_id,
+        )
+    })?;
+    validate_requested_run_id("run_id", &run_id)
+        .and_then(|()| validate_requested_run_id("source_run_id", &request.source_run_id))
+        .and_then(|()| {
+            if request.source_run_id != run_id || !request.deterministic_replay {
+                Err(product_error(
+                    ProductErrorKind::BadRequest,
+                    "deterministic_replay",
+                ))
+            } else {
+                Ok(())
+            }
+        })
+        .map_err(|error| product_error_response(&error, &request_id))?;
+    let permit = state
+        .backtest_creation_gate
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| {
+            product_error_response(
+                &product_error(ProductErrorKind::Conflict, "backtest_creation_in_progress"),
+                &request_id,
+            )
+        })?;
+    let worker_state = state.clone();
+    let worker_request_id = request_id.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        reproduce_backtest_run(&worker_state, &run_id, &worker_request_id)
+    })
+    .await
+    .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "backtest_worker"))
+    .and_then(|result| result);
+
+    result
+        .map(|data| {
+            (
+                StatusCode::CREATED,
+                Json(RunReproductionResponse {
+                    schema_version: RUN_REPRODUCTION_SCHEMA_VERSION.to_string(),
+                    contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+                    request_id: request_id.clone(),
+                    data,
+                    boundaries: BacktestRunCreationBoundaries::enforced(),
+                }),
+            )
+        })
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+pub(in crate::dashboard) async fn run_reproduction_proof_api(
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    RawQuery(raw_query): RawQuery,
+) -> ApiResult<RunReproductionProofResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(run_id)| run_id).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
+        validate_requested_run_id("run_id", &run_id)?;
+        let source = load_product_source(&state, unix_time_ms())?;
+        let config = load_run_configs(&state, &source)?
+            .into_iter()
+            .map(|(config, _)| config)
+            .find(|config| config.run_id == run_id)
+            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+        let source_run_id = config
+            .reproduction_source_run_id
+            .as_deref()
+            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_reproduction"))?;
+        let run = load_product_runs(&state, unix_time_ms())?
+            .into_iter()
+            .find(|run| run.run_id == run_id)
+            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+        let proof = load_backtest_reproduction_proof(&state, &run, source_run_id)?;
+        Ok(RunReproductionProofResponse {
+            schema_version: RUN_REPRODUCTION_PROOF_SCHEMA_VERSION.to_string(),
+            contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+            request_id: request_id.clone(),
+            data: proof,
+            boundaries: ProductReadOnlyBoundaries::enforced(),
+        })
+    });
+    result
+        .map(Json)
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+fn parse_run_comparison_query(raw_query: Option<&str>) -> Result<Vec<String>, ProductError> {
+    let values = parse_query_values(raw_query)?;
+    if values.len() != 1 || !values.contains_key("run_ids") {
+        return Err(product_error(ProductErrorKind::BadRequest, "run_ids"));
+    }
+    let run_ids = values["run_ids"]
+        .split(',')
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    if !(2..=4).contains(&run_ids.len())
+        || run_ids.iter().collect::<BTreeSet<_>>().len() != run_ids.len()
+    {
+        return Err(product_error(ProductErrorKind::BadRequest, "run_ids"));
+    }
+    for run_id in &run_ids {
+        validate_requested_run_id("run_ids", run_id)?;
+    }
+    Ok(run_ids)
+}
+
+fn reproduce_backtest_run(
+    state: &DashboardServerState,
+    source_run_id: &str,
+    request_id: &str,
+) -> Result<BacktestReproduction, ProductError> {
+    let source = load_product_source(state, unix_time_ms())?;
+    let source_bundle = load_verified_backtest_bundle(state, &source, source_run_id)?;
+    let request = load_stored_backtest_request(state, &source_bundle)?;
+    validate_backtest_creation_request(&request, &source, &source_bundle.strategy_version)?;
+    let source_input_sha256 = backtest_reproduction_input_sha256(
+        &request,
+        source_bundle.strategy_version.content_hash(),
+        &source_bundle.summary.data_sha256,
+        &source_bundle.summary.instrument_id,
+    )?;
+    let source_output_sha256 = backtest_reproduction_output_sha256(
+        source_run_id,
+        &source_bundle.summary,
+        &source_bundle.details,
+        &source_bundle.analysis,
+    )?;
+    let (reproduced_run, proof) = create_backtest_run(
+        state,
+        request,
+        request_id,
+        Some(ReproductionExpectation {
+            source_run_id: source_run_id.to_string(),
+            source_input_sha256,
+            source_output_sha256,
+            strategy_version: source_bundle.strategy_version,
+        }),
+    )?;
+    let proof = proof.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::ExecutionFailed,
+            "backtest_reproduction_proof",
+        )
+    })?;
+    Ok(BacktestReproduction {
+        source_run_id: source_run_id.to_string(),
+        reproduced_run,
+        proof,
+    })
+}
+
+fn load_verified_backtest_bundle(
+    state: &DashboardServerState,
+    source: &ValidatedProductSource,
+    run_id: &str,
+) -> Result<VerifiedBacktestBundle, ProductError> {
+    let run = load_product_runs(state, unix_time_ms())?
+        .into_iter()
+        .find(|run| run.run_id == run_id)
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+    if run.environment != RunEnvironment::Backtest
+        || run.lifecycle != RunLifecycle::Completed
+        || run.result.status != RunResultStatus::Available
+    {
+        return Err(product_error(
+            ProductErrorKind::RunNotFound,
+            "run_comparison",
+        ));
+    }
+    let (config, strategy_version) = load_run_config_and_version(state, source, run_id)?;
+    let details_sha256 = config
+        .backtest_details_sha256
+        .as_deref()
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_report"))?;
+    let analysis_sha256 = config
+        .backtest_analysis_sha256
+        .as_deref()
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_analysis"))?;
+    let expected = load_backtest_result_expectation(state, source, run_id)?;
+    let summary = load_backtest_result_artifact(state, &run, &strategy_version, &expected)?;
+    let details = load_backtest_details_artifact(
+        state,
+        &run,
+        &strategy_version,
+        &expected,
+        &summary,
+        details_sha256,
+    )?;
+    let analysis = load_backtest_analysis_artifact(
+        state,
+        &run,
+        &strategy_version,
+        &expected,
+        &summary,
+        &details,
+        details_sha256,
+        analysis_sha256,
+    )?;
+    Ok(VerifiedBacktestBundle {
+        run,
+        config,
+        strategy_version,
+        summary,
+        details,
+        analysis,
+    })
+}
+
+fn load_run_config_and_version(
+    state: &DashboardServerState,
+    source: &ValidatedProductSource,
+    run_id: &str,
+) -> Result<(ProductRunConfig, strategy_version::ProductStrategyVersion), ProductError> {
+    let (config, source_ref) = load_run_configs(state, source)?
+        .into_iter()
+        .find(|(config, _)| config.run_id == run_id)
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+    let current = strategy_version::load_product_strategy_version(source, unix_time_ms())?;
+    let version = load_run_strategy_version(
+        state,
+        source,
+        &current,
+        &config,
+        source_ref.as_deref(),
+        unix_time_ms(),
+    )?;
+    Ok((config, version))
+}
+
+fn load_stored_backtest_request(
+    state: &DashboardServerState,
+    bundle: &VerifiedBacktestBundle,
+) -> Result<CreateBacktestRunRequest, ProductError> {
+    let expected_ref = format!("artifact://backtests/{}/request.toml", bundle.run.run_id);
+    if bundle.config.config_ref != expected_ref {
+        return Err(product_error(
+            ProductErrorKind::RunNotFound,
+            "run_reproduction",
+        ));
+    }
+    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let run_root = canonical_path(
+        &artifact_root.join(&bundle.run.run_id),
+        "reproduction_source_root",
+    )?;
+    if run_root != artifact_root.join(&bundle.run.run_id) || !run_root.starts_with(&artifact_root) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "reproduction_source_containment",
+        ));
+    }
+    let raw = read_backtest_result_bytes(&run_root.join("request.toml"))?;
+    if bundle.config.backtest_config_sha256.as_deref() != Some(sha256_ref(&raw).as_str()) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "reproduction_source_config_sha256",
+        ));
+    }
+    let stored: StoredBacktestConfig = std::str::from_utf8(&raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "reproduction_source"))
+        .and_then(|raw| {
+            toml::from_str(raw)
+                .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "reproduction_source"))
+        })?;
+    let expected_venue = bundle
+        .summary
+        .instrument_id
+        .rsplit_once('.')
+        .map(|(_, venue)| venue)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "reproduction_source"))?;
+    if stored.run.id != bundle.run.run_id
+        || stored.run.mode != "engine-smoke"
+        || stored.data.source != "synthetic-quotes"
+        || stored.data.instrument_id != bundle.summary.instrument_id
+        || stored.data.quotes != bundle.summary.metrics.quotes
+        || stored.strategy.name != bundle.summary.strategy
+        || stored.strategy.trade_size != bundle.summary.parameters.trade_size
+        || stored.strategy.fast_period != bundle.summary.parameters.fast_period
+        || stored.strategy.slow_period != bundle.summary.parameters.slow_period
+        || stored.venue.name != expected_venue
+        || stored.product.strategy_id != bundle.run.strategy_id
+        || stored.product.strategy_version_id != bundle.run.strategy_version_id
+        || stored.product.strategy_version_content_hash
+            != bundle.summary.strategy_version_content_hash
+        || stored.product.data_ref != bundle.run.data_ref
+        || stored.product.config_ref != bundle.run.config_ref
+        || stored.product.result_ref != bundle.run.result.result_ref.as_deref().unwrap_or_default()
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "reproduction_source",
+        ));
+    }
+    Ok(CreateBacktestRunRequest {
+        strategy_id: stored.product.strategy_id,
+        strategy_version_id: stored.product.strategy_version_id,
+        environment: RunEnvironment::Backtest,
+        data_ref: stored.product.data_ref,
+        venue_ref: bundle.run.venue_ref.clone(),
+        starting_balance: stored.venue.starting_balance,
+        quotes: stored.data.quotes,
+        trade_size: stored.strategy.trade_size,
+        fast_period: stored.strategy.fast_period,
+        slow_period: stored.strategy.slow_period,
+    })
+}
+
+fn backtest_reproduction_input_sha256(
+    request: &CreateBacktestRunRequest,
+    strategy_version_content_hash: &str,
+    data_sha256: &str,
+    instrument_id: &str,
+) -> Result<String, ProductError> {
+    let material = BacktestReproductionInput {
+        strategy_id: &request.strategy_id,
+        strategy_version_id: &request.strategy_version_id,
+        strategy_version_content_hash,
+        data_ref: &request.data_ref,
+        data_sha256,
+        venue_ref: &request.venue_ref,
+        starting_balance: &request.starting_balance,
+        quotes: request.quotes,
+        trade_size: &request.trade_size,
+        fast_period: request.fast_period,
+        slow_period: request.slow_period,
+        instrument_id,
+    };
+    serde_json::to_vec(&material)
+        .map(|raw| sha256_ref(&raw))
+        .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "reproduction_input"))
+}
+
+fn backtest_reproduction_output_sha256(
+    run_id: &str,
+    summary: &BacktestResultArtifact,
+    details: &BacktestDetailsArtifact,
+    analysis: &BacktestAnalysisArtifact,
+) -> Result<String, ProductError> {
+    let timeline = analysis
+        .timeline
+        .iter()
+        .cloned()
+        .map(|mut event| {
+            if event.entity_ref == format!("run://{run_id}") {
+                event.entity_ref = "run://<run_id>".to_string();
+            }
+            event
+        })
+        .collect();
+    let material = BacktestReproductionOutput {
+        strategy_version_content_hash: &summary.strategy_version_content_hash,
+        data_ref: &summary.data_ref,
+        data_sha256: &summary.data_sha256,
+        instrument_id: &summary.instrument_id,
+        strategy: &summary.strategy,
+        parameters: &summary.parameters,
+        backtest_start: &summary.backtest_start,
+        backtest_end: &summary.backtest_end,
+        metrics: &summary.metrics,
+        equity_basis: &details.equity_basis,
+        trades: &details.trades,
+        positions: &details.positions,
+        equity_curve: &details.equity_curve,
+        risk: &analysis.risk,
+        drawdown_curve: &analysis.drawdown_curve,
+        timeline,
+        generator: &analysis.provenance.generator,
+        engine_mode: &analysis.provenance.engine_mode,
+        boundaries: &analysis.boundaries,
+    };
+    serde_json::to_vec(&material)
+        .map(|raw| sha256_ref(&raw))
+        .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "reproduction_output"))
+}
+
+fn load_backtest_reproduction_proof(
+    state: &DashboardServerState,
+    run: &ProductRun,
+    source_run_id: &str,
+) -> Result<BacktestReproductionProof, ProductError> {
+    if run.run_id == source_run_id {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "reproduction_source_run_id",
+        ));
+    }
+    let source = load_product_source(state, unix_time_ms())?;
+    let target_bundle = load_verified_backtest_bundle(state, &source, &run.run_id)?;
+    let source_bundle = load_verified_backtest_bundle(state, &source, source_run_id)?;
+    let proof_sha256 = target_bundle
+        .config
+        .reproduction_proof_sha256
+        .as_deref()
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_reproduction"))?;
+    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let run_root = canonical_path(&artifact_root.join(&run.run_id), "reproduction_result_root")?;
+    if run_root != artifact_root.join(&run.run_id) || !run_root.starts_with(&artifact_root) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "reproduction_result_containment",
+        ));
+    }
+    let raw = read_backtest_result_bytes(&run_root.join("reproduction.json"))?;
+    if sha256_ref(&raw) != proof_sha256 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "reproduction_proof_sha256",
+        ));
+    }
+    let proof: BacktestReproductionProof = serde_json::from_slice(&raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "reproduction_proof"))?;
+    let source_request = load_stored_backtest_request(state, &source_bundle)?;
+    let target_request = load_stored_backtest_request(state, &target_bundle)?;
+    let source_input_sha256 = backtest_reproduction_input_sha256(
+        &source_request,
+        source_bundle.strategy_version.content_hash(),
+        &source_bundle.summary.data_sha256,
+        &source_bundle.summary.instrument_id,
+    )?;
+    let reproduced_input_sha256 = backtest_reproduction_input_sha256(
+        &target_request,
+        target_bundle.strategy_version.content_hash(),
+        &target_bundle.summary.data_sha256,
+        &target_bundle.summary.instrument_id,
+    )?;
+    let source_output_sha256 = backtest_reproduction_output_sha256(
+        source_run_id,
+        &source_bundle.summary,
+        &source_bundle.details,
+        &source_bundle.analysis,
+    )?;
+    let reproduced_output_sha256 = backtest_reproduction_output_sha256(
+        &run.run_id,
+        &target_bundle.summary,
+        &target_bundle.details,
+        &target_bundle.analysis,
+    )?;
+    let expected_ref = format!("artifact://backtests/{}/reproduction.json", run.run_id);
+    if proof.schema_version != BACKTEST_REPRODUCTION_PROOF_SCHEMA_VERSION
+        || proof.source_run_id != source_run_id
+        || proof.reproduced_run_id != run.run_id
+        || proof.proof_ref != expected_ref
+        || proof.source_input_sha256 != source_input_sha256
+        || proof.reproduced_input_sha256 != reproduced_input_sha256
+        || proof.source_output_sha256 != source_output_sha256
+        || proof.reproduced_output_sha256 != reproduced_output_sha256
+        || source_input_sha256 != reproduced_input_sha256
+        || source_output_sha256 != reproduced_output_sha256
+        || !proof.input_equivalent
+        || !proof.output_equivalent
+        || !proof.user_initiated
+        || proof.automatic_retry_allowed
+        || proof.automatic_remediation_allowed
+        || target_bundle.config.reproduction_source_run_id.as_deref() != Some(source_run_id)
+        || target_bundle.config.reproduction_input_sha256.as_deref()
+            != Some(reproduced_input_sha256.as_str())
+        || target_bundle.config.reproduction_output_sha256.as_deref()
+            != Some(reproduced_output_sha256.as_str())
+        || run.result.reproduction_ref.as_deref() != Some(expected_ref.as_str())
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "reproduction_proof",
+        ));
+    }
+    Ok(proof)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2068,10 +2907,6 @@ pub(super) fn load_product_runs(
             "run_manifest",
         ));
     }
-    let expected_version_id = strategy_version_resource_id(
-        &source.strategy.strategy_id,
-        &source.identity.identities.strategy_version,
-    );
     let mut run_ids = BTreeSet::new();
     configs
         .into_iter()
@@ -2079,16 +2914,99 @@ pub(super) fn load_product_runs(
             if !run_ids.insert(config.run_id.clone()) {
                 return Err(product_error(ProductErrorKind::SourceInvalid, "run_id"));
             }
+            let run_strategy_version = load_run_strategy_version(
+                state,
+                &source,
+                &strategy_version,
+                &config,
+                source_ref.as_deref(),
+                now_unix_ms,
+            )?;
             validate_and_project_run(
                 config,
                 &source,
-                &strategy_version,
-                &expected_version_id,
+                &run_strategy_version,
+                run_strategy_version.strategy_version_id(),
                 now_unix_ms,
                 source_ref,
             )
         })
         .collect()
+}
+
+fn load_run_strategy_version(
+    state: &DashboardServerState,
+    source: &ValidatedProductSource,
+    current: &strategy_version::ProductStrategyVersion,
+    config: &ProductRunConfig,
+    dynamic_source_ref: Option<&str>,
+    now_unix_ms: u64,
+) -> Result<strategy_version::ProductStrategyVersion, ProductError> {
+    if dynamic_source_ref.is_none() {
+        if config.strategy_version_id != current.strategy_version_id() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "run_ownership",
+            ));
+        }
+        if config.strategy_version_snapshot_sha256.is_some() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "run_strategy_version_snapshot",
+            ));
+        }
+        return Ok(current.clone());
+    }
+    let Some(expected_sha256) = config.strategy_version_snapshot_sha256.as_deref() else {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_strategy_version_snapshot",
+        ));
+    };
+    if !is_sha256_ref(expected_sha256) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_strategy_version_snapshot_sha256",
+        ));
+    }
+    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let run_root = canonical_path(
+        &artifact_root.join(&config.run_id),
+        "run_strategy_version_snapshot_root",
+    )?;
+    if run_root != artifact_root.join(&config.run_id) || !run_root.starts_with(&artifact_root) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_strategy_version_snapshot_containment",
+        ));
+    }
+    let raw = read_backtest_result_bytes(&run_root.join("strategy-version.json"))?;
+    if sha256_ref(&raw) != expected_sha256 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_strategy_version_snapshot_sha256",
+        ));
+    }
+    let version = strategy_version::deserialize_strategy_version_snapshot(
+        &raw,
+        format!(
+            "artifact://backtests/{}/strategy-version.json",
+            config.run_id
+        ),
+        now_unix_ms,
+    )?;
+    if version.strategy_id() != source.strategy.strategy_id
+        || version.strategy_id() != config.strategy_id
+        || version.strategy_version_id() != config.strategy_version_id
+        || (version.strategy_version_id() == current.strategy_version_id()
+            && version.content_hash() != current.content_hash())
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_strategy_version_snapshot",
+        ));
+    }
+    Ok(version)
 }
 
 fn load_run_configs(
@@ -2246,6 +3164,10 @@ fn validate_and_project_run(
                 .backtest_analysis_sha256
                 .as_ref()
                 .map(|_| format!("artifact://backtests/{}/analysis.json", config.run_id)),
+            reproduction_ref: config
+                .reproduction_proof_sha256
+                .as_ref()
+                .map(|_| format!("artifact://backtests/{}/reproduction.json", config.run_id)),
         },
         risk: ProductRunRisk {
             status: config.risk_status,
@@ -2288,6 +3210,57 @@ fn validate_run_references(
     source: &ValidatedProductSource,
     strategy_version: &strategy_version::ProductStrategyVersion,
 ) -> Result<(), ProductError> {
+    let reproduction_values = [
+        config.reproduction_source_run_id.as_deref(),
+        config.reproduction_input_sha256.as_deref(),
+        config.reproduction_output_sha256.as_deref(),
+        config.reproduction_proof_sha256.as_deref(),
+    ];
+    let reproduction_count = reproduction_values
+        .iter()
+        .filter(|value| value.is_some())
+        .count();
+    if reproduction_count != 0 && reproduction_count != reproduction_values.len() {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_reproduction_expectation",
+        ));
+    }
+    if reproduction_count == reproduction_values.len() {
+        let source_run_id = config
+            .reproduction_source_run_id
+            .as_deref()
+            .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_reproduction"))?;
+        validate_identifier("reproduction_source_run_id", source_run_id)?;
+        if source_run_id == config.run_id
+            || config.environment != RunEnvironment::Backtest
+            || config.lifecycle != RunLifecycle::Completed
+            || config.result_status != RunResultStatus::Available
+            || !is_sha256_ref(
+                config
+                    .reproduction_input_sha256
+                    .as_deref()
+                    .unwrap_or_default(),
+            )
+            || !is_sha256_ref(
+                config
+                    .reproduction_output_sha256
+                    .as_deref()
+                    .unwrap_or_default(),
+            )
+            || !is_sha256_ref(
+                config
+                    .reproduction_proof_sha256
+                    .as_deref()
+                    .unwrap_or_default(),
+            )
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "run_reproduction_expectation",
+            ));
+        }
+    }
     let backtest_expectation = backtest_result_expectation(config)?;
     let expectation_required = config.environment == RunEnvironment::Backtest
         && config.lifecycle == RunLifecycle::Completed;

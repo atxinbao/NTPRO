@@ -140,7 +140,7 @@
     "crates/cli/src/mvp.rs": "ead660e9513f4937e64942e90a8b2d205f231cf618d59909f5177eff9a3c306a",
     "crates/cli/src/mvp_contract.rs": "9b36f82c83f49c0b416e6c1b758b7c327fe10144c0c98f24dcacfefa26629f99",
     "crates/cli/src/supervisor.rs": "15192c07c45bd4c8a1ac5a0219fa45f90d8a5e4d2f4cb499c171ad6e7a94f147",
-    "crates/cli/src/dashboard/server.rs": "64c5fe2f0da3fdd85e32395967650d818285d79fff6107ea115ec55bafd2e14c",
+    "crates/cli/src/dashboard/server.rs": "acd2ad664ba1dc1cd0b4b700c2aa93e25539066042c2dd032bd3855a3e1c9921",
     "crates/cli/src/dashboard/mvp_status_api.rs": "4b641fe0d9b8410fef602b755c58ceab5e4d4ea53626b1a431548c726ee4f374",
     "crates/cli/src/dashboard/institution_workbench.rs": "eb78932657389976dc1c740a94afa21343e7f5ae3ae752f0e064741b76427cca",
     "crates/cli/src/dashboard/control_center.rs": "a207c5af6be9f3750d84e6026ddd0f5eeca6239950413279a9f3cb58e7dd39c4",

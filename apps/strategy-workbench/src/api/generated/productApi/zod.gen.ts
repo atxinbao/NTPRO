@@ -128,6 +128,7 @@ export const zRunResult = z.object({
   result_ref: z.string().min(1).max(512).nullable(),
   report_ref: z.string().min(1).max(512).nullable(),
   analysis_ref: z.string().min(1).max(512).nullable(),
+  reproduction_ref: z.string().min(1).max(512).nullable(),
 });
 
 export const zRunRisk = z.object({
@@ -190,6 +191,11 @@ export const zCreateBacktestRunRequest = z.object({
     .regex(/^[0-9]+\.[0-9]{6}$/),
   fast_period: z.int().gte(1).lte(499),
   slow_period: z.int().gte(2).lte(500),
+});
+
+export const zReproduceBacktestRunRequest = z.object({
+  source_run_id: zRunId,
+  deterministic_replay: z.literal(true),
 });
 
 export const zBacktestRunCreationBoundaries = z.object({
@@ -392,6 +398,58 @@ export const zBacktestAnalysis = z.object({
   boundaries: zBacktestResultBoundaries,
 });
 
+export const zBacktestComparisonItem = z.object({
+  run_id: zRunId,
+  strategy_version_id: zStrategyVersionId,
+  data_ref: z.string().min(1).max(512),
+  data_sha256: zContentHash,
+  config_sha256: zContentHash,
+  instrument_id: z.string().min(1).max(128),
+  parameters: zBacktestParameters,
+  metrics: zBacktestMetrics,
+  risk: zBacktestRiskSummary,
+  provenance: zBacktestAnalysisProvenance,
+  reproduction_ref: z.string().min(1).max(512).nullable(),
+});
+
+export const zBacktestComparisonCompatibility = z.object({
+  same_strategy: z.literal(true),
+  same_strategy_version: z.boolean(),
+  same_data: z.boolean(),
+  same_instrument: z.boolean(),
+  same_currency: z.boolean(),
+  directly_comparable: z.boolean(),
+});
+
+export const zBacktestComparison = z.object({
+  baseline_run_id: zRunId,
+  run_ids: z.array(zRunId).min(2).max(4),
+  items: z.array(zBacktestComparisonItem).min(2).max(4),
+  compatibility: zBacktestComparisonCompatibility,
+});
+
+export const zBacktestReproductionProof = z.object({
+  schema_version: z.literal("ntpro.backtest_reproduction_proof.v1"),
+  source_run_id: zRunId,
+  reproduced_run_id: zRunId,
+  proof_ref: z.string().min(1).max(512),
+  source_input_sha256: zContentHash,
+  reproduced_input_sha256: zContentHash,
+  source_output_sha256: zContentHash,
+  reproduced_output_sha256: zContentHash,
+  input_equivalent: z.literal(true),
+  output_equivalent: z.literal(true),
+  user_initiated: z.literal(true),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+});
+
+export const zBacktestReproduction = z.object({
+  source_run_id: zRunId,
+  reproduced_run: zRun,
+  proof: zBacktestReproductionProof,
+});
+
 export const zReadOnlyBoundaries = z.object({
   read_only: z.literal(true),
   strategy_mutation_allowed: z.literal(false),
@@ -488,6 +546,32 @@ export const zRunAnalysisResponse = z.object({
   contract_version: z.literal("ntpro.product_api.v1"),
   request_id: zRequestId,
   data: zBacktestAnalysis,
+  boundaries: zReadOnlyBoundaries,
+});
+
+export const zRunComparisonResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.run_comparison.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zBacktestComparison,
+  boundaries: zReadOnlyBoundaries,
+});
+
+export const zRunReproductionResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.run_reproduction.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zBacktestReproduction,
+  boundaries: zBacktestRunCreationBoundaries,
+});
+
+export const zRunReproductionProofResponse = z.object({
+  schema_version: z.literal(
+    "ntpro.product_api.run_reproduction_proof.response.v1",
+  ),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zBacktestReproductionProof,
   boundaries: zReadOnlyBoundaries,
 });
 
@@ -601,6 +685,15 @@ export const zCreateBacktestRunBody = zCreateBacktestRunRequest;
  */
 export const zCreateBacktestRunResponse = zRunCreateResponse;
 
+export const zCompareBacktestRunsQuery = z.object({
+  run_ids: z.string().min(3).max(515),
+});
+
+/**
+ * 可信 Backtest 比较结果
+ */
+export const zCompareBacktestRunsResponse = zRunComparisonResponse;
+
 export const zGetRunPath = z.object({
   run_id: zRunId,
 });
@@ -636,3 +729,23 @@ export const zGetRunAnalysisPath = z.object({
  * Backtest 风险、回撤、运行记录与来源明细
  */
 export const zGetRunAnalysisResponse = zRunAnalysisResponse;
+
+export const zGetRunReproductionProofPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * 经过独立重算的确定性复现证明
+ */
+export const zGetRunReproductionProofResponse = zRunReproductionProofResponse;
+
+export const zReproduceBacktestRunBody = zReproduceBacktestRunRequest;
+
+export const zReproduceBacktestRunPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * 复现 Run 与确定性证明已创建
+ */
+export const zReproduceBacktestRunResponse = zRunReproductionResponse;

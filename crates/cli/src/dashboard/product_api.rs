@@ -56,7 +56,8 @@ mod strategy_version;
 mod tests;
 
 pub(super) use run::{
-    run_analysis_api, run_create_api, run_detail_api, run_list_api, run_metrics_api, run_report_api,
+    run_analysis_api, run_comparison_api, run_create_api, run_detail_api, run_list_api,
+    run_metrics_api, run_report_api, run_reproduce_api, run_reproduction_proof_api,
 };
 pub(super) use strategy_version::{strategy_version_detail_api, strategy_version_list_api};
 
@@ -95,7 +96,7 @@ enum StrategyLifecycle {
     Archived,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 struct ProductSource {
     source_type: String,
     freshness_status: String,

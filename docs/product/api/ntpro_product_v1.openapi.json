@@ -405,6 +405,45 @@
         }
       }
     },
+    "/run-comparisons": {
+      "get": {
+        "operationId": "compareBacktestRuns",
+        "summary": "比较 2 至 4 个已完成 Backtest Run",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "run_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 515,
+              "description": "2 至 4 个逗号分隔且唯一的 Run ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "可信 Backtest 比较结果",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RunComparisonResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
     "/runs/{run_id}": {
       "get": {
         "operationId": "getRun",
@@ -536,6 +575,78 @@
           "403": { "$ref": "#/components/responses/ProductError" },
           "404": { "$ref": "#/components/responses/ProductError" },
           "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/runs/{run_id}/reproduction": {
+      "get": {
+        "operationId": "getRunReproductionProof",
+        "summary": "读取确定性复现证明",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "经过独立重算的确定性复现证明",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RunReproductionProofResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductRunMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      },
+      "post": {
+        "operationId": "reproduceBacktestRun",
+        "summary": "由用户显式复现已完成 Backtest Run",
+        "security": [{ "InstitutionCookie": [] }],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReproduceBacktestRunRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "复现 Run 与确定性证明已创建",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RunReproductionResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductRunMethodNotAllowed" },
+          "409": { "$ref": "#/components/responses/ProductError" },
           "500": { "$ref": "#/components/responses/ProductError" },
           "503": { "$ref": "#/components/responses/ProductError" }
         }
@@ -895,7 +1006,7 @@
       "RunResult": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "result_ref", "report_ref", "analysis_ref"],
+        "required": ["status", "result_ref", "report_ref", "analysis_ref", "reproduction_ref"],
         "properties": {
           "status": { "$ref": "#/components/schemas/RunResultStatus" },
           "result_ref": {
@@ -909,6 +1020,11 @@
             "maxLength": 512
           },
           "analysis_ref": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "reproduction_ref": {
             "type": ["string", "null"],
             "minLength": 1,
             "maxLength": 512
@@ -1041,6 +1157,15 @@
           },
           "fast_period": { "type": "integer", "minimum": 1, "maximum": 499 },
           "slow_period": { "type": "integer", "minimum": 2, "maximum": 500 }
+        }
+      },
+      "ReproduceBacktestRunRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_run_id", "deterministic_replay"],
+        "properties": {
+          "source_run_id": { "$ref": "#/components/schemas/RunId" },
+          "deterministic_replay": { "const": true }
         }
       },
       "BacktestRunCreationBoundaries": {
@@ -1452,6 +1577,126 @@
           "boundaries": { "$ref": "#/components/schemas/BacktestResultBoundaries" }
         }
       },
+      "BacktestComparisonItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "run_id",
+          "strategy_version_id",
+          "data_ref",
+          "data_sha256",
+          "config_sha256",
+          "instrument_id",
+          "parameters",
+          "metrics",
+          "risk",
+          "provenance",
+          "reproduction_ref"
+        ],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "data_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "config_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "instrument_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "parameters": { "$ref": "#/components/schemas/BacktestParameters" },
+          "metrics": { "$ref": "#/components/schemas/BacktestMetrics" },
+          "risk": { "$ref": "#/components/schemas/BacktestRiskSummary" },
+          "provenance": { "$ref": "#/components/schemas/BacktestAnalysisProvenance" },
+          "reproduction_ref": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      },
+      "BacktestComparisonCompatibility": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "same_strategy",
+          "same_strategy_version",
+          "same_data",
+          "same_instrument",
+          "same_currency",
+          "directly_comparable"
+        ],
+        "properties": {
+          "same_strategy": { "const": true },
+          "same_strategy_version": { "type": "boolean" },
+          "same_data": { "type": "boolean" },
+          "same_instrument": { "type": "boolean" },
+          "same_currency": { "type": "boolean" },
+          "directly_comparable": { "type": "boolean" }
+        }
+      },
+      "BacktestComparison": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["baseline_run_id", "run_ids", "items", "compatibility"],
+        "properties": {
+          "baseline_run_id": { "$ref": "#/components/schemas/RunId" },
+          "run_ids": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "$ref": "#/components/schemas/RunId" }
+          },
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": { "$ref": "#/components/schemas/BacktestComparisonItem" }
+          },
+          "compatibility": { "$ref": "#/components/schemas/BacktestComparisonCompatibility" }
+        }
+      },
+      "BacktestReproductionProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "source_run_id",
+          "reproduced_run_id",
+          "proof_ref",
+          "source_input_sha256",
+          "reproduced_input_sha256",
+          "source_output_sha256",
+          "reproduced_output_sha256",
+          "input_equivalent",
+          "output_equivalent",
+          "user_initiated",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed"
+        ],
+        "properties": {
+          "schema_version": { "const": "ntpro.backtest_reproduction_proof.v1" },
+          "source_run_id": { "$ref": "#/components/schemas/RunId" },
+          "reproduced_run_id": { "$ref": "#/components/schemas/RunId" },
+          "proof_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "source_input_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "reproduced_input_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "source_output_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "reproduced_output_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "input_equivalent": { "const": true },
+          "output_equivalent": { "const": true },
+          "user_initiated": { "const": true },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false }
+        }
+      },
+      "BacktestReproduction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_run_id", "reproduced_run", "proof"],
+        "properties": {
+          "source_run_id": { "$ref": "#/components/schemas/RunId" },
+          "reproduced_run": { "$ref": "#/components/schemas/Run" },
+          "proof": { "$ref": "#/components/schemas/BacktestReproductionProof" }
+        }
+      },
       "ReadOnlyBoundaries": {
         "type": "object",
         "additionalProperties": false,
@@ -1729,6 +1974,42 @@
           "contract_version": { "const": "ntpro.product_api.v1" },
           "request_id": { "$ref": "#/components/schemas/RequestId" },
           "data": { "$ref": "#/components/schemas/BacktestAnalysis" },
+          "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
+        }
+      },
+      "RunComparisonResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.run_comparison.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/BacktestComparison" },
+          "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
+        }
+      },
+      "RunReproductionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.run_reproduction.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/BacktestReproduction" },
+          "boundaries": { "$ref": "#/components/schemas/BacktestRunCreationBoundaries" }
+        }
+      },
+      "RunReproductionProofResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.run_reproduction_proof.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/BacktestReproductionProof" },
           "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
         }
       },

@@ -282,6 +282,12 @@ FEA-001 前端架构文档
   -> S4 三模式比较、验收与冻结
 ```
 
+S1 Backtest 比较页面使用 `/backtests/compare`，只从已验证 Run 列表选择 2 至 4 个完整
+Backtest。浏览器调用 `GET /run-comparisons` 获取服务端独立验证后的比较矩阵，不在前端自行
+拼接 metrics/report/analysis。复现必须由用户勾选确认后调用
+`POST /runs/{run_id}/reproduction`；成功后跳转新 Run，并仅在 `reproduction_ref` 非空时读取
+证明。React Query 不为该 mutation 配置自动 retry。
+
 `FEI-001` 依赖 `FEF-001`。`FEF-001` 与 `S0-API-001` 可以并行，但 `SWB-002` 必须同时
 依赖 `FEI-001` 与 `S0-API-001`。旧 Rust 内嵌页面在新应用达到同等只读、响应式、错误和
 边界验收前继续保留；由 `FEI-001` 定义生产静态资源打包、Axum SPA 回退和旧页面迁移，

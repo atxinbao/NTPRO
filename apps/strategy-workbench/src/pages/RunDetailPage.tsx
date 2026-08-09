@@ -5,6 +5,7 @@ import type {
   BacktestAnalysis,
   BacktestEquityPoint,
   BacktestPosition,
+  BacktestReproductionProof,
   BacktestTrade,
 } from "../api/generated/productApi";
 
@@ -219,6 +220,19 @@ export function RunDetailPage() {
         </section>
       ) : null}
 
+      {product.reproduction ? (
+        <ReproductionProof proof={product.reproduction} />
+      ) : detail.result.reproduction_ref && product.isReproductionVerifying ? (
+        <ProductLoading label="正在验证确定性复现证明" />
+      ) : detail.result.reproduction_ref && product.reproductionError ? (
+        <ProductErrorState
+          error={product.reproductionError}
+          onRetry={product.retryReproduction}
+          retrying={product.isReproductionVerifying}
+          retryLabel="重试复现证明"
+        />
+      ) : null}
+
       <div className={styles.detailGrid}>
         <section className={styles.panel}>
           <header>
@@ -305,6 +319,33 @@ export function RunDetailPage() {
         </section>
       </div>
     </>
+  );
+}
+
+function ReproductionProof({ proof }: { proof: BacktestReproductionProof }) {
+  return (
+    <section className={styles.panel} aria-label="Backtest 确定性复现证明">
+      <header>
+        <div>
+          <span className="eyebrow">确定性复现</span>
+          <h2>输入与输出均等价</h2>
+        </div>
+        <span>{proof.user_initiated ? "用户主动创建" : "来源无效"}</span>
+      </header>
+      <div className={styles.versionSummary}>
+        <KeyValue label="源 Run" value={proof.source_run_id} mono />
+        <KeyValue label="复现 Run" value={proof.reproduced_run_id} mono />
+        <KeyValue label="输入指纹" value={proof.source_input_sha256} mono />
+        <KeyValue label="复现输入" value={proof.reproduced_input_sha256} mono />
+        <KeyValue label="输出指纹" value={proof.source_output_sha256} mono />
+        <KeyValue
+          label="复现输出"
+          value={proof.reproduced_output_sha256}
+          mono
+        />
+        <KeyValue label="证明文件" value={proof.proof_ref} mono />
+      </div>
+    </section>
   );
 }
 

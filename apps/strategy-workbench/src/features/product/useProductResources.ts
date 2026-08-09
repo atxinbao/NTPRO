@@ -25,6 +25,10 @@ export const productQueryKeys = {
   runReport: (runId: string) => ["product", "runs", runId, "report"] as const,
   runAnalysis: (runId: string) =>
     ["product", "runs", runId, "analysis"] as const,
+  runComparison: (runIds: string[]) =>
+    ["product", "run-comparison", ...runIds] as const,
+  runReproduction: (runId: string) =>
+    ["product", "runs", runId, "reproduction"] as const,
 };
 
 export function useCreateBacktestRun() {
@@ -36,6 +40,26 @@ export function useCreateBacktestRun() {
       await queryClient.invalidateQueries({
         queryKey: productQueryKeys.allRuns,
       });
+    },
+  });
+}
+
+export function useReproduceBacktestRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sourceRunId: string) =>
+      productApi.reproduceBacktestRun(sourceRunId),
+    retry: false,
+    onSuccess: async (response) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: productQueryKeys.allRuns }),
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.run(response.data.source_run_id),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.run(response.data.reproduced_run.run_id),
+        }),
+      ]);
     },
   });
 }
@@ -147,6 +171,28 @@ export function useRunAnalysis(runId?: string, enabled = false) {
   });
 }
 
+export function useRunComparison(runIds: string[]) {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.runComparison(runIds),
+    queryFn: ({ signal }) => productApi.compareBacktestRuns(runIds, signal),
+    enabled:
+      runIds.length >= 2 &&
+      runIds.length <= 4 &&
+      new Set(runIds).size === runIds.length,
+  });
+}
+
+export function useRunReproductionProof(runId?: string, enabled = false) {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.runReproduction(runId ?? ""),
+    queryFn: ({ signal }) =>
+      productApi.getRunReproductionProof({ run_id: runId! }, signal),
+    enabled: Boolean(runId && enabled),
+  });
+}
+
 export function useOverviewProductContext() {
   const strategies = useStrategies();
   const strategyId = strategies.data?.data[0]?.strategy_id;
@@ -219,6 +265,10 @@ export function useRunProductContext(runId?: string) {
     expectsMetrics && run.data?.data.result.analysis_ref,
   );
   const analysis = useRunAnalysis(runId, expectsAnalysis);
+  const expectsReproductionProof = Boolean(
+    expectsMetrics && run.data?.data.result.reproduction_ref,
+  );
+  const reproduction = useRunReproductionProof(runId, expectsReproductionProof);
   const error = run.error ?? strategy.error ?? version.error ?? metrics.error;
   const isVerifying = Boolean(
     runId &&
@@ -261,6 +311,16 @@ export function useRunProductContext(runId?: string) {
       isReady && expectsAnalysis && (analysis.isPending || analysis.isFetching),
     ),
     retryAnalysis: analysis.refetch,
+    reproduction:
+      isReady && expectsReproductionProof ? reproduction.data?.data : undefined,
+    reproductionError:
+      isReady && expectsReproductionProof ? reproduction.error : null,
+    isReproductionVerifying: Boolean(
+      isReady &&
+      expectsReproductionProof &&
+      (reproduction.isPending || reproduction.isFetching),
+    ),
+    retryReproduction: reproduction.refetch,
     requestId: isReady ? run.data?.request_id : undefined,
   };
 }

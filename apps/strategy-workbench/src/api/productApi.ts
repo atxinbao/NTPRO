@@ -1,6 +1,8 @@
 import { createClient } from "./generated/productApi/client";
 import {
+  compareBacktestRuns,
   createBacktestRun,
+  getRunReproductionProof,
   getRunAnalysis,
   getRun,
   getRunMetrics,
@@ -10,23 +12,30 @@ import {
   listRuns,
   listStrategies,
   listStrategyVersions,
+  reproduceBacktestRun,
+  type CompareBacktestRunsData,
   type CreateBacktestRunRequest,
   type GetRunData,
   type GetRunAnalysisData,
   type GetRunMetricsData,
   type GetRunReportData,
+  type GetRunReproductionProofData,
   type GetStrategyData,
   type GetStrategyVersionData,
   type ListRunsData,
   type ListStrategiesData,
   type ListStrategyVersionsData,
   type ProductErrorResponse,
+  type ReproduceBacktestRunRequest,
+  type RunComparisonResponse,
   type RunCreateResponse,
   type RunAnalysisResponse,
   type RunDetailResponse,
   type RunListResponse,
   type RunMetricsResponse,
   type RunReportResponse,
+  type RunReproductionProofResponse,
+  type RunReproductionResponse,
   type StrategyDetailResponse,
   type StrategyListResponse,
   type StrategyVersionDetailResponse,
@@ -40,6 +49,9 @@ import {
   zRunListResponse,
   zRunMetricsResponse,
   zRunReportResponse,
+  zRunComparisonResponse,
+  zRunReproductionProofResponse,
+  zRunReproductionResponse,
   zStrategyDetailResponse,
   zStrategyListResponse,
   zStrategyVersionDetailResponse,
@@ -58,6 +70,7 @@ type RunPath = GetRunData["path"];
 type RunAnalysisPath = GetRunAnalysisData["path"];
 type RunMetricsPath = GetRunMetricsData["path"];
 type RunReportPath = GetRunReportData["path"];
+type RunReproductionPath = GetRunReproductionProofData["path"];
 
 interface ProductApiClientOptions {
   baseUrl?: string;
@@ -252,6 +265,25 @@ function assertRunListScope(
   }
 }
 
+function assertReadOnlyBoundaries(
+  boundaries: RunComparisonResponse["boundaries"],
+  field: string,
+): void {
+  assertIdentity(
+    boundaries.read_only &&
+      !boundaries.strategy_mutation_allowed &&
+      !boundaries.run_mutation_allowed &&
+      !boundaries.external_venue_connection &&
+      !boundaries.order_submission_allowed &&
+      !boundaries.order_mutation_allowed &&
+      !boundaries.automatic_retry_allowed &&
+      !boundaries.automatic_remediation_allowed &&
+      !boundaries.real_orders_submitted &&
+      !boundaries.trading_controls_enabled,
+    field,
+  );
+}
+
 async function resolveResponse<T>(
   request: Promise<RequestFields>,
   schema: z.ZodType<T>,
@@ -295,6 +327,48 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
   });
 
   return {
+    async compareBacktestRuns(
+      runIds: string[],
+      signal?: AbortSignal,
+    ): Promise<RunComparisonResponse> {
+      assertIdentity(
+        runIds.length >= 2 &&
+          runIds.length <= 4 &&
+          new Set(runIds).size === runIds.length,
+        "run_comparison.request.run_ids",
+      );
+      const query: CompareBacktestRunsData["query"] = {
+        run_ids: runIds.join(","),
+      };
+      const payload = await resolveResponse(
+        compareBacktestRuns({ client, query, signal }),
+        zRunComparisonResponse,
+        "run_comparison",
+      );
+      assertIdentity(
+        payload.data.baseline_run_id === runIds[0] &&
+          payload.data.run_ids.length === runIds.length &&
+          payload.data.run_ids.every(
+            (runId, index) => runId === runIds[index],
+          ) &&
+          payload.data.items.length === runIds.length &&
+          payload.data.items.every(
+            (item, index) => item.run_id === runIds[index],
+          ) &&
+          payload.data.compatibility.same_strategy,
+        "run_comparison.data.identity",
+      );
+      assertIdentity(
+        payload.data.compatibility.directly_comparable ===
+          (payload.data.compatibility.same_data &&
+            payload.data.compatibility.same_instrument &&
+            payload.data.compatibility.same_currency),
+        "run_comparison.data.compatibility",
+      );
+      assertReadOnlyBoundaries(payload.boundaries, "run_comparison.boundaries");
+      return payload;
+    },
+
     async createBacktestRun(
       body: CreateBacktestRunRequest,
       signal?: AbortSignal,
@@ -347,6 +421,57 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           !payload.boundaries.real_orders_submitted &&
           !payload.boundaries.trading_controls_enabled,
         "run_create.boundaries",
+      );
+      return payload;
+    },
+
+    async reproduceBacktestRun(
+      sourceRunId: string,
+      signal?: AbortSignal,
+    ): Promise<RunReproductionResponse> {
+      const body: ReproduceBacktestRunRequest = {
+        source_run_id: sourceRunId,
+        deterministic_replay: true,
+      };
+      const payload = await resolveResponse(
+        reproduceBacktestRun({
+          client,
+          path: { run_id: sourceRunId },
+          body,
+          signal,
+        }),
+        zRunReproductionResponse,
+        "run_reproduction",
+      );
+      const { proof, reproduced_run: reproducedRun } = payload.data;
+      assertIdentity(
+        payload.data.source_run_id === sourceRunId &&
+          proof.source_run_id === sourceRunId &&
+          proof.reproduced_run_id === reproducedRun.run_id &&
+          reproducedRun.run_id !== sourceRunId &&
+          reproducedRun.environment === "backtest" &&
+          reproducedRun.lifecycle === "completed" &&
+          reproducedRun.result.status === "available" &&
+          reproducedRun.result.reproduction_ref === proof.proof_ref &&
+          proof.input_equivalent &&
+          proof.output_equivalent &&
+          proof.user_initiated &&
+          !proof.automatic_retry_allowed &&
+          !proof.automatic_remediation_allowed,
+        "run_reproduction.data.identity",
+      );
+      assertIdentity(
+        payload.boundaries.backtest_run_creation_allowed &&
+          !payload.boundaries.sandbox_run_creation_allowed &&
+          !payload.boundaries.live_run_creation_allowed &&
+          !payload.boundaries.external_venue_connection &&
+          !payload.boundaries.order_submission_allowed &&
+          !payload.boundaries.order_mutation_allowed &&
+          !payload.boundaries.automatic_retry_allowed &&
+          !payload.boundaries.automatic_remediation_allowed &&
+          !payload.boundaries.real_orders_submitted &&
+          !payload.boundaries.trading_controls_enabled,
+        "run_reproduction.boundaries",
       );
       return payload;
     },
@@ -499,6 +624,34 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           payload.data.provenance.details_ref ===
             `artifact://backtests/${path.run_id}/details.json`,
         "run_analysis.data.provenance",
+      );
+      return payload;
+    },
+
+    async getRunReproductionProof(
+      path: RunReproductionPath,
+      signal?: AbortSignal,
+    ): Promise<RunReproductionProofResponse> {
+      const payload = await resolveResponse(
+        getRunReproductionProof({ client, path, signal }),
+        zRunReproductionProofResponse,
+        "run_reproduction_proof",
+      );
+      assertIdentity(
+        payload.data.reproduced_run_id === path.run_id &&
+          payload.data.source_run_id !== path.run_id &&
+          payload.data.proof_ref ===
+            `artifact://backtests/${path.run_id}/reproduction.json` &&
+          payload.data.input_equivalent &&
+          payload.data.output_equivalent &&
+          payload.data.user_initiated &&
+          !payload.data.automatic_retry_allowed &&
+          !payload.data.automatic_remediation_allowed,
+        "run_reproduction_proof.data.identity",
+      );
+      assertReadOnlyBoundaries(
+        payload.boundaries,
+        "run_reproduction_proof.boundaries",
       );
       return payload;
     },

@@ -34,6 +34,7 @@
     "result": {
       "analysis_ref": null,
       "report_ref": null,
+      "reproduction_ref": null,
       "result_ref": null,
       "status": "pending"
     },

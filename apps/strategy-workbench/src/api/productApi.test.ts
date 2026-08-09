@@ -11,6 +11,11 @@ import strategyListFixture from "../test/product-api-fixtures/strategy-list.json
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
 import strategyVersionListFixture from "../test/product-api-fixtures/strategy-version-list.json";
 import {
+  backtestComparisonResponse,
+  backtestReproductionProofResponse,
+  backtestReproductionResponse,
+} from "../test/server";
+import {
   createProductApiClient,
   ProductApiContractError,
   ProductApiTransportError,
@@ -47,6 +52,7 @@ function createBacktestResponse() {
         result_ref: "artifact://backtests/backtest-created-001/summary.json",
         report_ref: "artifact://backtests/backtest-created-001/details.json",
         analysis_ref: "artifact://backtests/backtest-created-001/analysis.json",
+        reproduction_ref: null,
       },
     },
     boundaries: {
@@ -224,6 +230,91 @@ describe("product API generated client", () => {
     await expect((request as Request).json()).resolves.toEqual(
       createBacktestBody,
     );
+  });
+
+  it("compares two verified Backtest Runs in request order", async () => {
+    const runIds = ["backtest-001", "backtest-created-001"];
+    const payload = backtestComparisonResponse(runIds);
+    const fetch = jsonFetch(payload);
+
+    await expect(
+      createProductApiClient({ fetch }).compareBacktestRuns(runIds),
+    ).resolves.toEqual(payload);
+
+    const request = fetch.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe(
+      `${globalThis.location.origin}/api/product/v1/run-comparisons?run_ids=backtest-001%2Cbacktest-created-001`,
+    );
+    expect(request.method).toBe("GET");
+  });
+
+  it("creates and verifies an explicit deterministic reproduction", async () => {
+    const sourceRunId = "backtest-created-001";
+    const createFetch = jsonFetch(backtestReproductionResponse, 201);
+    await expect(
+      createProductApiClient({ fetch: createFetch }).reproduceBacktestRun(
+        sourceRunId,
+      ),
+    ).resolves.toEqual(backtestReproductionResponse);
+    const createRequest = createFetch.mock.calls[0]?.[0] as Request;
+    expect(createRequest.method).toBe("POST");
+    await expect(createRequest.json()).resolves.toEqual({
+      source_run_id: sourceRunId,
+      deterministic_replay: true,
+    });
+
+    const proofFetch = jsonFetch(backtestReproductionProofResponse);
+    await expect(
+      createProductApiClient({ fetch: proofFetch }).getRunReproductionProof({
+        run_id: "backtest-reproduced-001",
+      }),
+    ).resolves.toEqual(backtestReproductionProofResponse);
+  });
+
+  it.each([
+    {
+      name: "server reorders comparison items",
+      payload: () => {
+        const value = backtestComparisonResponse();
+        value.data.items.reverse();
+        return value;
+      },
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).compareBacktestRuns([
+          "backtest-001",
+          "backtest-created-001",
+        ]),
+      field: "run_comparison.data.identity",
+    },
+    {
+      name: "direct comparability contradicts component checks",
+      payload: () => {
+        const value = backtestComparisonResponse();
+        value.data.compatibility.same_data = false;
+        return value;
+      },
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).compareBacktestRuns([
+          "backtest-001",
+          "backtest-created-001",
+        ]),
+      field: "run_comparison.data.compatibility",
+    },
+    {
+      name: "reproduction proof targets another Run",
+      payload: () => {
+        const value = structuredClone(backtestReproductionProofResponse);
+        value.data.reproduced_run_id = "backtest-other";
+        return value;
+      },
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).getRunReproductionProof({
+          run_id: "backtest-reproduced-001",
+        }),
+      field: "run_reproduction_proof.data.identity",
+    },
+  ])("fails closed when $name", async ({ payload, invoke, field }) => {
+    await expect(invoke(jsonFetch(payload()))).rejects.toMatchObject({ field });
   });
 
   it.each([

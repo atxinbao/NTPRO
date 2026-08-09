@@ -174,6 +174,57 @@ impl Fixture {
         fs::write(&self.config_path, value).expect("product config fixture should be written");
     }
 
+    fn activate_strategy_version(&self, version: &str) {
+        let current = fs::read_to_string(&self.config_path)
+            .expect("product config fixture should be readable");
+        let current_version = self.read_identity().identities.strategy_version;
+        let current_id = format!("ema-cross@{current_version}");
+        let next_id = format!("ema-cross@{version}");
+        let candidate = current
+            .replace(&current_id, &next_id)
+            .replace(
+                &format!("version = \"{current_version}\""),
+                &format!("version = \"{version}\""),
+            )
+            .replace(
+                &format!("strategy_version = \"{current_version}\""),
+                &format!("strategy_version = \"{version}\""),
+            );
+        let config = config_with_computed_version_hash(&candidate);
+        self.write_config(&config);
+        let mut identity = self.read_identity();
+        identity.identities.strategy_version = version.to_string();
+        identity.identities.strategy_version_content_hash =
+            strategy_version_content_hash(&self.config_path);
+        identity.provenance.generated_at_unix_ms = unix_time_ms();
+        self.write_identity(&identity);
+        let store = SupervisorRegistryStore::new(&self.registry_path);
+        let registry = store.load().expect("fixture registry should load");
+        let record = registry
+            .nodes
+            .get("mvp-node-001")
+            .expect("fixture node should exist");
+        let status = MvpStatusContract::from_runtime(
+            &identity,
+            &self.identity_path,
+            &self.registry_path,
+            record,
+            None,
+            None,
+            None,
+            None,
+            TEST_FRESHNESS_MAX_AGE_MS,
+        );
+        self.write_status_contract(&status);
+    }
+
+    fn read_identity(&self) -> MvpIdentityContract {
+        serde_json::from_slice(
+            &fs::read(&self.identity_path).expect("identity fixture should be readable"),
+        )
+        .expect("identity fixture should parse")
+    }
+
     fn trust_current_backtest_result(&self) {
         let result_path = self
             .root
@@ -1653,6 +1704,471 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
 }
 
 #[tokio::test]
+async fn institution_can_compare_and_explicitly_reproduce_verified_backtests() {
+    let fixture = Fixture::new("compare-reproduce-backtests");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+
+    let (status, created) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let source_run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Run ID should be present");
+    assert_eq!(created["data"]["result"]["reproduction_ref"], Value::Null);
+
+    let comparison_path =
+        format!("/api/product/v1/run-comparisons?run_ids=backtest-001,{source_run_id}");
+    let (status, comparison) = router_json(&router, Method::GET, &comparison_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        comparison["schema_version"],
+        "ntpro.product_api.run_comparison.response.v1"
+    );
+    assert_eq!(comparison["data"]["baseline_run_id"], "backtest-001");
+    assert_eq!(
+        comparison["data"]["run_ids"].as_array().map(Vec::len),
+        Some(2)
+    );
+    assert_eq!(
+        comparison["data"]["items"].as_array().map(Vec::len),
+        Some(2)
+    );
+    assert_eq!(comparison["data"]["compatibility"]["same_strategy"], true);
+    assert_eq!(comparison["data"]["compatibility"]["same_data"], false);
+    assert_eq!(comparison["data"]["compatibility"]["same_instrument"], true);
+    assert_eq!(
+        comparison["data"]["compatibility"]["directly_comparable"],
+        false
+    );
+    assert_read_only_boundaries(&comparison);
+    validate_openapi_instance("RunComparisonResponse", &comparison);
+
+    let source_root = fixture.root.join("artifacts/backtests").join(source_run_id);
+    let source_manifest_before =
+        fs::read(source_root.join("run-manifest.json")).expect("source manifest should exist");
+    let source_request_before =
+        fs::read(source_root.join("request.toml")).expect("source request should exist");
+    let reproduce_path = format!("/api/product/v1/runs/{source_run_id}/reproduction");
+    let (status, reproduced) = router_json_body(
+        &router,
+        Method::POST,
+        &reproduce_path,
+        &json!({
+            "source_run_id": source_run_id,
+            "deterministic_replay": true
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{reproduced:#}");
+    assert_eq!(
+        reproduced["schema_version"],
+        "ntpro.product_api.run_reproduction.response.v1"
+    );
+    assert_eq!(reproduced["data"]["source_run_id"], source_run_id);
+    assert_eq!(reproduced["data"]["proof"]["input_equivalent"], true);
+    assert_eq!(reproduced["data"]["proof"]["output_equivalent"], true);
+    assert_eq!(reproduced["data"]["proof"]["user_initiated"], true);
+    assert_eq!(
+        reproduced["data"]["proof"]["automatic_retry_allowed"],
+        false
+    );
+    assert_eq!(
+        reproduced["data"]["proof"]["automatic_remediation_allowed"],
+        false
+    );
+    assert_eq!(
+        reproduced["boundaries"]["backtest_run_creation_allowed"],
+        true
+    );
+    for field in [
+        "sandbox_run_creation_allowed",
+        "live_run_creation_allowed",
+        "external_venue_connection",
+        "order_submission_allowed",
+        "order_mutation_allowed",
+        "automatic_retry_allowed",
+        "automatic_remediation_allowed",
+        "real_orders_submitted",
+        "trading_controls_enabled",
+    ] {
+        assert_eq!(reproduced["boundaries"][field], false, "{field}");
+    }
+    validate_openapi_instance("RunReproductionResponse", &reproduced);
+
+    let reproduced_run_id = reproduced["data"]["reproduced_run"]["run_id"]
+        .as_str()
+        .expect("reproduced Run ID should be present");
+    assert_ne!(reproduced_run_id, source_run_id);
+    assert_eq!(
+        fs::read(source_root.join("run-manifest.json")).unwrap(),
+        source_manifest_before,
+        "reproduction must not overwrite the source manifest"
+    );
+    assert_eq!(
+        fs::read(source_root.join("request.toml")).unwrap(),
+        source_request_before,
+        "reproduction must not overwrite the source request"
+    );
+    let proof_ref = format!("artifact://backtests/{reproduced_run_id}/reproduction.json");
+    assert_eq!(
+        reproduced["data"]["reproduced_run"]["result"]["reproduction_ref"],
+        proof_ref
+    );
+    assert!(
+        fixture
+            .root
+            .join("artifacts/backtests")
+            .join(reproduced_run_id)
+            .join("reproduction.json")
+            .is_file()
+    );
+
+    let proof_path = format!("/api/product/v1/runs/{reproduced_run_id}/reproduction");
+    let (status, proof) = router_json(&router, Method::GET, &proof_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(proof["data"], reproduced["data"]["proof"]);
+    assert_read_only_boundaries(&proof);
+    validate_openapi_instance("RunReproductionProofResponse", &proof);
+
+    let compare_reproduction_path =
+        format!("/api/product/v1/run-comparisons?run_ids={source_run_id},{reproduced_run_id}");
+    let (status, comparison) = router_json(&router, Method::GET, &compare_reproduction_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        comparison["data"]["compatibility"]["directly_comparable"],
+        true
+    );
+    assert_eq!(
+        comparison["data"]["items"][1]["reproduction_ref"],
+        proof_ref
+    );
+}
+
+#[tokio::test]
+async fn comparison_and_reproduction_use_each_runs_immutable_strategy_version_snapshot() {
+    let fixture = Fixture::new("compare-reproduce-cross-version");
+    let router = fixture.router();
+    let request_for = |version: &str| {
+        json!({
+            "strategy_id": "ema-cross",
+            "strategy_version_id": format!("ema-cross@{version}"),
+            "environment": "backtest",
+            "data_ref": "dataset://fixtures/ema-cross",
+            "venue_ref": "venue://simulated/BINANCE",
+            "starting_balance": "1000000 USDT",
+            "quotes": 120,
+            "trade_size": "0.001000",
+            "fast_period": 3,
+            "slow_period": 5
+        })
+    };
+
+    let (status, v1) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/runs",
+        &request_for("v1"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{v1:#}");
+    let v1_run_id = v1["data"]["run_id"].as_str().unwrap().to_string();
+
+    fixture.activate_strategy_version("v2");
+    let (status, v2) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/runs",
+        &request_for("v2"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{v2:#}");
+    let v2_run_id = v2["data"]["run_id"].as_str().unwrap().to_string();
+    assert!(
+        fixture
+            .root
+            .join("artifacts/backtests")
+            .join(&v2_run_id)
+            .join("strategy-version.json")
+            .is_file()
+    );
+
+    fixture.activate_strategy_version("v1");
+
+    let comparison_path =
+        format!("/api/product/v1/run-comparisons?run_ids={v2_run_id},{v1_run_id}");
+    let (status, comparison) = router_json(&router, Method::GET, &comparison_path).await;
+    assert_eq!(status, StatusCode::OK, "{comparison:#}");
+    assert_eq!(comparison["data"]["baseline_run_id"], v2_run_id);
+    assert_eq!(comparison["data"]["run_ids"][0], v2_run_id);
+    assert_eq!(comparison["data"]["run_ids"][1], v1_run_id);
+    assert_eq!(
+        comparison["data"]["items"][0]["strategy_version_id"],
+        "ema-cross@v2"
+    );
+    assert_eq!(
+        comparison["data"]["items"][1]["strategy_version_id"],
+        "ema-cross@v1"
+    );
+    assert_eq!(comparison["data"]["compatibility"]["same_strategy"], true);
+    assert_eq!(
+        comparison["data"]["compatibility"]["same_strategy_version"],
+        false
+    );
+
+    let reproduce_path = format!("/api/product/v1/runs/{v2_run_id}/reproduction");
+    let (status, reproduced) = router_json_body(
+        &router,
+        Method::POST,
+        &reproduce_path,
+        &json!({
+            "source_run_id": v2_run_id,
+            "deterministic_replay": true
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{reproduced:#}");
+    assert_eq!(
+        reproduced["data"]["reproduced_run"]["strategy_version_id"],
+        "ema-cross@v2"
+    );
+    assert_eq!(reproduced["data"]["proof"]["input_equivalent"], true);
+    assert_eq!(reproduced["data"]["proof"]["output_equivalent"], true);
+}
+
+#[tokio::test]
+async fn strategy_version_snapshot_hash_and_semantic_tampering_fail_closed() {
+    let fixture = Fixture::new("strategy-version-snapshot-tamper");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+    let (status, created) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::CREATED, "{created:#}");
+    let run_id = created["data"]["run_id"].as_str().unwrap();
+    let run_root = fixture.root.join("artifacts/backtests").join(run_id);
+    let snapshot_path = run_root.join("strategy-version.json");
+    let snapshot_raw = fs::read(&snapshot_path).expect("snapshot should be readable");
+
+    let mut hash_tampered = snapshot_raw.clone();
+    hash_tampered.push(b' ');
+    fs::write(&snapshot_path, hash_tampered).expect("snapshot should be writable");
+    let (status, hash_error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(
+        hash_error["error"]["field"],
+        "run_strategy_version_snapshot_sha256"
+    );
+
+    let mut snapshot: Value = serde_json::from_slice(&snapshot_raw).expect("snapshot should parse");
+    snapshot["strategy_version"]["code_ref"] = json!(
+        "git://NTPRO@0000000000000000000000000000000000000000/crates/cli/src/strategy_session.rs#ema_cross_demo"
+    );
+    let semantic_raw = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&snapshot).expect("snapshot should serialize")
+    )
+    .into_bytes();
+    fs::write(&snapshot_path, &semantic_raw).expect("snapshot should be writable");
+    let manifest_path = run_root.join("run-manifest.json");
+    let mut manifest: Value =
+        serde_json::from_slice(&fs::read(&manifest_path).expect("manifest should be readable"))
+            .expect("manifest should parse");
+    manifest["config"]["strategy_version_snapshot_sha256"] = json!(sha256_bytes_ref(&semantic_raw));
+    write_json(&manifest_path, &manifest);
+    let (status, semantic_error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(
+        semantic_error["error"]["field"],
+        "strategy_version_content_hash"
+    );
+}
+
+#[tokio::test]
+async fn dynamic_run_strategy_version_snapshot_binding_cannot_be_downgraded() {
+    let fixture = Fixture::new("strategy-version-snapshot-downgrade");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+    let (status, created) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::CREATED, "{created:#}");
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let run_root = fixture.root.join("artifacts/backtests").join(&run_id);
+    fs::remove_file(run_root.join("strategy-version.json"))
+        .expect("strategy version snapshot should be removable for the negative test");
+    let manifest_path = run_root.join("run-manifest.json");
+    let mut manifest: Value =
+        serde_json::from_slice(&fs::read(&manifest_path).expect("manifest should be readable"))
+            .expect("manifest should parse");
+    manifest["config"]
+        .as_object_mut()
+        .expect("manifest config should be an object")
+        .remove("strategy_version_snapshot_sha256");
+    write_json(&manifest_path, &manifest);
+
+    let paths = [
+        "/api/product/v1/runs".to_string(),
+        format!("/api/product/v1/run-comparisons?run_ids=backtest-001,{run_id}"),
+    ];
+    for path in paths {
+        let (status, body) = router_json(&router, Method::GET, &path).await;
+        assert_eq!(
+            status,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "{path}: {body:#}"
+        );
+        assert_eq!(
+            body["error"]["field"], "run_strategy_version_snapshot",
+            "{path}: {body:#}"
+        );
+    }
+
+    let reproduction_path = format!("/api/product/v1/runs/{run_id}/reproduction");
+    let (status, body) = router_json_body(
+        &router,
+        Method::POST,
+        &reproduction_path,
+        &json!({"source_run_id": run_id, "deterministic_replay": true}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body:#}");
+    assert_eq!(body["error"]["field"], "run_strategy_version_snapshot");
+}
+
+#[tokio::test]
+async fn backtest_comparison_and_reproduction_fail_closed() {
+    let fixture = Fixture::new("compare-reproduce-negative");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+    let (status, created) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let source_run_id = created["data"]["run_id"].as_str().unwrap();
+
+    for path in [
+        "/api/product/v1/run-comparisons",
+        "/api/product/v1/run-comparisons?run_ids=backtest-001",
+        "/api/product/v1/run-comparisons?run_ids=backtest-001,backtest-001",
+        "/api/product/v1/run-comparisons?run_ids=backtest-001,a,b,c,d",
+        "/api/product/v1/run-comparisons?run_ids=backtest-001,missing",
+        "/api/product/v1/run-comparisons?run_ids=backtest-001,ema-cross-sandbox-001",
+        "/api/product/v1/run-comparisons?run_ids=backtest-001,backtest-001&extra=true",
+    ] {
+        let (status, body) = router_json(&router, Method::GET, path).await;
+        assert!(
+            matches!(status, StatusCode::BAD_REQUEST | StatusCode::NOT_FOUND),
+            "{path}: {status} {body:#}"
+        );
+        validate_openapi_instance("ProductErrorResponse", &body);
+    }
+
+    let reproduce_path = format!("/api/product/v1/runs/{source_run_id}/reproduction");
+    for invalid in [
+        json!({"source_run_id": source_run_id, "deterministic_replay": false}),
+        json!({"source_run_id": "backtest-001", "deterministic_replay": true}),
+        json!({"source_run_id": source_run_id, "deterministic_replay": true, "extra": true}),
+    ] {
+        let (status, body) =
+            router_json_body(&router, Method::POST, &reproduce_path, &invalid).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body:#}");
+        validate_openapi_instance("ProductErrorResponse", &body);
+    }
+    let (status, body) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/runs/backtest-001/reproduction",
+        &json!({"source_run_id": "backtest-001", "deterministic_replay": true}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "{body:#}");
+
+    let (status, reproduced) = router_json_body(
+        &router,
+        Method::POST,
+        &reproduce_path,
+        &json!({"source_run_id": source_run_id, "deterministic_replay": true}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{reproduced:#}");
+    let reproduced_run_id = reproduced["data"]["reproduced_run"]["run_id"]
+        .as_str()
+        .unwrap();
+    let proof_path = fixture
+        .root
+        .join("artifacts/backtests")
+        .join(reproduced_run_id)
+        .join("reproduction.json");
+    let mut proof: Value = serde_json::from_slice(&fs::read(&proof_path).unwrap()).unwrap();
+    proof["output_equivalent"] = json!(false);
+    fs::write(&proof_path, serde_json::to_vec_pretty(&proof).unwrap()).unwrap();
+    let (status, body) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{reproduced_run_id}/reproduction"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body:#}");
+    assert_eq!(body["error"]["retryable"], false);
+
+    for method in [
+        Method::PUT,
+        Method::PATCH,
+        Method::DELETE,
+        Method::OPTIONS,
+        Method::CONNECT,
+        Method::TRACE,
+    ] {
+        let (status, _, body) =
+            router_json_with_headers(&router, method.clone(), &reproduce_path).await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method}");
+        assert_eq!(body["error"]["code"], "product_method_not_allowed");
+    }
+}
+
+#[tokio::test]
 async fn concurrent_backtest_creation_accepts_one_request_and_rejects_one() {
     let fixture = Fixture::new("create-backtest-concurrent");
     let router = fixture.router();
@@ -2641,11 +3157,13 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
     assert_eq!(
         paths.keys().map(String::as_str).collect::<Vec<_>>(),
         [
+            "/run-comparisons",
             "/runs",
             "/runs/{run_id}",
             "/runs/{run_id}/analysis",
             "/runs/{run_id}/metrics",
             "/runs/{run_id}/report",
+            "/runs/{run_id}/reproduction",
             "/strategies",
             "/strategies/{strategy_id}",
             "/strategies/{strategy_id}/versions",
@@ -2654,7 +3172,8 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
     );
     for (path_name, path) in paths {
         let methods = path.as_object().expect("path item must be an object");
-        let expected_methods = if path_name == "/runs" {
+        let expected_methods = if path_name == "/runs" || path_name == "/runs/{run_id}/reproduction"
+        {
             vec!["get", "post"]
         } else {
             vec!["get"]
@@ -2672,7 +3191,8 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             operation["responses"]["403"]["$ref"],
             "#/components/responses/ProductError"
         );
-        let method_response = if path_name == "/runs" {
+        let method_response = if path_name == "/runs" || path_name == "/runs/{run_id}/reproduction"
+        {
             "#/components/responses/ProductRunMethodNotAllowed"
         } else {
             "#/components/responses/ProductMethodNotAllowed"
@@ -2681,6 +3201,9 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
         if path_name == "/runs" {
             assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
             assert_eq!(path["post"]["operationId"], "createBacktestRun");
+        } else if path_name == "/runs/{run_id}/reproduction" {
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "reproduceBacktestRun");
         }
     }
 
