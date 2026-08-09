@@ -32,14 +32,17 @@ use nautilus_backtest::{
 use nautilus_model::{
     data::{Data, QuoteTick},
     enums::{AccountType, BookType, OmsType},
+    events::OrderEventAny,
     identifiers::{InstrumentId, Venue},
     instruments::{
         Instrument, InstrumentAny,
         stubs::{audusd_sim, currency_pair_btcusdt},
     },
+    orders::Order,
     types::{Money, Price, Quantity},
 };
 use nautilus_trading::examples::strategies::EmaCross;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -57,6 +60,7 @@ const EMA_CROSS_STRATEGY: &str = "ema-cross";
 const AUDUSD_SIM_INSTRUMENT_ID: &str = "AUD/USD.SIM";
 const BTCUSDT_BINANCE_INSTRUMENT_ID: &str = "BTCUSDT.BINANCE";
 const BACKTEST_RESULT_SCHEMA_VERSION: &str = "ntpro.backtest_result.v1";
+const BACKTEST_DETAILS_SCHEMA_VERSION: &str = "ntpro.backtest_details.v1";
 static IMMUTABLE_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Deserialize)]
@@ -172,6 +176,81 @@ struct BacktestResultBoundaries {
     automatic_remediation_allowed: bool,
     real_orders_submitted: bool,
     trading_controls_enabled: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct BacktestDetailsArtifact {
+    schema_version: String,
+    run_id: String,
+    strategy_id: String,
+    strategy_version_id: String,
+    strategy_version_content_hash: String,
+    data_ref: String,
+    data_sha256: String,
+    config_ref: String,
+    config_sha256: String,
+    details_ref: String,
+    instrument_id: String,
+    equity_basis: String,
+    trades: Vec<BacktestTrade>,
+    positions: Vec<BacktestPosition>,
+    equity_curve: Vec<BacktestEquityPoint>,
+    boundaries: BacktestResultBoundaries,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestTrade {
+    trade_id: String,
+    client_order_id: String,
+    venue_order_id: String,
+    position_id: Option<String>,
+    side: String,
+    order_type: String,
+    quantity: String,
+    price: String,
+    currency: String,
+    liquidity_side: String,
+    commission: Option<String>,
+    ts_event: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestPosition {
+    position_id: String,
+    account_id: String,
+    side: String,
+    entry_side: String,
+    peak_quantity: String,
+    buy_quantity: String,
+    sell_quantity: String,
+    avg_price_open: String,
+    avg_price_close: Option<String>,
+    realized_return: String,
+    realized_pnl: Option<String>,
+    trade_count: usize,
+    ts_opened: String,
+    ts_closed: Option<String>,
+    duration_ns: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestEquityPoint {
+    account_id: String,
+    currency: String,
+    total: String,
+    free: String,
+    locked: String,
+    ts_event: String,
+}
+
+#[derive(Debug)]
+pub(crate) struct ProductBacktestArtifacts {
+    pub(crate) summary: Vec<u8>,
+    pub(crate) details: Vec<u8>,
 }
 
 pub(crate) fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
@@ -294,7 +373,15 @@ fn run_backtest_engine_smoke(
             &engine_run,
             &sha256_ref(&config_bytes),
         )?;
+        let details = build_backtest_details_artifact(
+            run_id,
+            config,
+            product,
+            &engine_run,
+            &sha256_ref(&config_bytes),
+        );
         write_immutable_result(&output_dir.join("summary.json"), &artifact)?;
+        write_immutable_details(&output_dir.join("details.json"), &details)?;
     }
 
     let summary_path = output_dir.join("summary.txt");
@@ -331,7 +418,9 @@ fn run_backtest_engine_smoke(
 ///
 /// The caller owns immutable persistence. Keeping execution in memory avoids exposing host
 /// filesystem paths through the Product API while reusing the same engine path as the CLI.
-pub(crate) fn execute_product_backtest(config_raw: &[u8]) -> anyhow::Result<Vec<u8>> {
+pub(crate) fn execute_product_backtest(
+    config_raw: &[u8],
+) -> anyhow::Result<ProductBacktestArtifacts> {
     let raw = std::str::from_utf8(config_raw).context("backtest config must be UTF-8")?;
     let config = parse_minimal_backtest_config(raw, "product request")?;
     validate_exact("run.mode", &config.run.mode, ENGINE_SMOKE_MODE)?;
@@ -350,7 +439,17 @@ pub(crate) fn execute_product_backtest(config_raw: &[u8]) -> anyhow::Result<Vec<
         &engine_run,
         &sha256_ref(config_raw),
     )?;
-    Ok(format!("{}\n", serde_json::to_string_pretty(&artifact)?).into_bytes())
+    let details = build_backtest_details_artifact(
+        &config.run.id,
+        &config,
+        product,
+        &engine_run,
+        &sha256_ref(config_raw),
+    );
+    Ok(ProductBacktestArtifacts {
+        summary: format!("{}\n", serde_json::to_string_pretty(&artifact)?).into_bytes(),
+        details: format!("{}\n", serde_json::to_string_pretty(&details)?).into_bytes(),
+    })
 }
 
 #[derive(Debug)]
@@ -364,6 +463,13 @@ struct EmaCrossEngineRun {
     quotes_loaded: usize,
     data_sha256: String,
     result: BacktestResult,
+    details: BacktestEngineDetails,
+}
+
+struct BacktestEngineDetails {
+    trades: Vec<BacktestTrade>,
+    positions: Vec<BacktestPosition>,
+    equity_curve: Vec<BacktestEquityPoint>,
 }
 
 fn resolve_ema_cross_strategy(
@@ -456,12 +562,108 @@ fn run_ema_cross_engine(
     engine.add_data(quotes, None, true, true)?;
     engine.run(None, None, None, false)?;
 
+    let details = collect_engine_details(&engine, venue)?;
     let result = engine.get_result();
 
     Ok(EmaCrossEngineRun {
         quotes_loaded,
         data_sha256,
         result,
+        details,
+    })
+}
+
+fn collect_engine_details(
+    engine: &BacktestEngine,
+    venue: Venue,
+) -> anyhow::Result<BacktestEngineDetails> {
+    let cache = engine.kernel().cache.borrow();
+    let mut trades = Vec::new();
+    for order in cache.orders(None, None, None, None, None) {
+        for event in order.events() {
+            if let OrderEventAny::Filled(fill) = event {
+                trades.push(BacktestTrade {
+                    trade_id: fill.trade_id.to_string(),
+                    client_order_id: fill.client_order_id.to_string(),
+                    venue_order_id: fill.venue_order_id.to_string(),
+                    position_id: fill.position_id.map(|value| value.to_string()),
+                    side: fill.order_side.to_string(),
+                    order_type: fill.order_type.to_string(),
+                    quantity: fill.last_qty.to_string(),
+                    price: fill.last_px.to_string(),
+                    currency: fill.currency.to_string(),
+                    liquidity_side: fill.liquidity_side.to_string(),
+                    commission: fill.commission.map(|value| value.to_string()),
+                    ts_event: fill.ts_event.as_u64().to_string(),
+                });
+            }
+        }
+    }
+    trades.sort_by(|left, right| {
+        left.ts_event
+            .cmp(&right.ts_event)
+            .then_with(|| left.trade_id.cmp(&right.trade_id))
+    });
+
+    let mut positions = cache
+        .positions(None, None, None, None, None)
+        .into_iter()
+        .map(|position| BacktestPosition {
+            position_id: position.id.to_string(),
+            account_id: position.account_id.to_string(),
+            side: position.side.to_string(),
+            entry_side: position.entry.to_string(),
+            peak_quantity: position.peak_qty.to_string(),
+            buy_quantity: position.buy_qty.to_string(),
+            sell_quantity: position.sell_qty.to_string(),
+            avg_price_open: canonical_float(position.avg_px_open),
+            avg_price_close: position.avg_px_close.map(canonical_float),
+            realized_return: canonical_float(position.realized_return),
+            realized_pnl: position.realized_pnl.map(|value| value.to_string()),
+            trade_count: position.trade_ids.len(),
+            ts_opened: position.ts_opened.as_u64().to_string(),
+            ts_closed: position.ts_closed.map(|value| value.as_u64().to_string()),
+            duration_ns: position.duration_ns.to_string(),
+        })
+        .collect::<Vec<_>>();
+    positions.sort_by(|left, right| {
+        left.ts_opened
+            .cmp(&right.ts_opened)
+            .then_with(|| left.position_id.cmp(&right.position_id))
+    });
+
+    let account = cache
+        .account_for_venue(&venue)
+        .context("backtest result is missing simulated venue account")?;
+    let mut equity_curve = account
+        .events()
+        .into_iter()
+        .flat_map(|event| {
+            event
+                .balances
+                .into_iter()
+                .map(move |balance| BacktestEquityPoint {
+                    account_id: event.account_id.to_string(),
+                    currency: balance.currency.to_string(),
+                    total: balance.total.to_string(),
+                    free: balance.free.to_string(),
+                    locked: balance.locked.to_string(),
+                    ts_event: event.ts_event.as_u64().to_string(),
+                })
+        })
+        .collect::<Vec<_>>();
+    equity_curve.sort_by(|left, right| {
+        left.ts_event
+            .cmp(&right.ts_event)
+            .then_with(|| left.currency.cmp(&right.currency))
+            .then_with(|| left.total.cmp(&right.total))
+    });
+    equity_curve.dedup();
+
+    Ok(BacktestEngineDetails {
+        trades,
+        positions,
+        equity_curve,
     })
 }
 
@@ -582,6 +784,42 @@ fn build_backtest_result_artifact(
     })
 }
 
+fn build_backtest_details_artifact(
+    run_id: &str,
+    config: &MinimalBacktestConfig,
+    product: &MinimalProductConfig,
+    engine_run: &EmaCrossEngineRun,
+    config_sha256: &str,
+) -> BacktestDetailsArtifact {
+    BacktestDetailsArtifact {
+        schema_version: BACKTEST_DETAILS_SCHEMA_VERSION.to_string(),
+        run_id: run_id.to_string(),
+        strategy_id: product.strategy_id.clone(),
+        strategy_version_id: product.strategy_version_id.clone(),
+        strategy_version_content_hash: product.strategy_version_content_hash.clone(),
+        data_ref: product.data_ref.clone(),
+        data_sha256: engine_run.data_sha256.clone(),
+        config_ref: product.config_ref.clone(),
+        config_sha256: config_sha256.to_string(),
+        details_ref: format!("artifact://backtests/{run_id}/details.json"),
+        instrument_id: config.data.instrument_id.clone(),
+        equity_basis: "account_balance_total".to_string(),
+        trades: engine_run.details.trades.clone(),
+        positions: engine_run.details.positions.clone(),
+        equity_curve: engine_run.details.equity_curve.clone(),
+        boundaries: BacktestResultBoundaries {
+            read_only: true,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+        },
+    }
+}
+
 fn canonical_stats<'a>(
     values: impl Iterator<Item = (&'a String, &'a f64)>,
 ) -> BTreeMap<String, String> {
@@ -609,6 +847,17 @@ fn sha256_ref(bytes: &[u8]) -> String {
 }
 
 fn write_immutable_result(path: &Path, artifact: &BacktestResultArtifact) -> anyhow::Result<()> {
+    write_immutable_artifact(path, artifact)
+}
+
+fn write_immutable_details(path: &Path, artifact: &BacktestDetailsArtifact) -> anyhow::Result<()> {
+    write_immutable_artifact(path, artifact)
+}
+
+fn write_immutable_artifact<T>(path: &Path, artifact: &T) -> anyhow::Result<()>
+where
+    T: DeserializeOwned + PartialEq + Serialize,
+{
     let parent = path
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -655,7 +904,7 @@ fn write_immutable_result(path: &Path, artifact: &BacktestResultArtifact) -> any
                 Ok(())
             }
             Err(error) if error.kind() == ErrorKind::AlreadyExists => {
-                let existing = read_verified_result(path)?;
+                let existing: T = read_verified_artifact(path)?;
                 if existing == *artifact {
                     Ok(())
                 } else {
@@ -678,7 +927,15 @@ fn write_immutable_result(path: &Path, artifact: &BacktestResultArtifact) -> any
     write_result
 }
 
+#[cfg(test)]
 fn read_verified_result(path: &Path) -> anyhow::Result<BacktestResultArtifact> {
+    read_verified_artifact(path)
+}
+
+fn read_verified_artifact<T>(path: &Path) -> anyhow::Result<T>
+where
+    T: DeserializeOwned,
+{
     let raw = read_result_bytes_nofollow(path)?;
     serde_json::from_slice(&raw)
         .with_context(|| format!("existing result '{}' is invalid", path.display()))
@@ -1050,7 +1307,9 @@ dir = "{}"
 
         run_backtest_run(&opt).expect("first product backtest should complete");
         let result_path = output_dir.join("summary.json");
+        let details_path = output_dir.join("details.json");
         let first = fs::read(&result_path).expect("product result should exist");
+        let first_details = fs::read(&details_path).expect("product details should exist");
         let artifact: BacktestResultArtifact =
             serde_json::from_slice(&first).expect("product result should parse");
         assert_eq!(artifact.schema_version, BACKTEST_RESULT_SCHEMA_VERSION);
@@ -1073,11 +1332,26 @@ dir = "{}"
         assert!(artifact.metrics.total_orders > 0);
         assert!(artifact.boundaries.read_only);
         assert!(!artifact.boundaries.order_submission_allowed);
+        let details: BacktestDetailsArtifact =
+            serde_json::from_slice(&first_details).expect("product details should parse");
+        assert_eq!(details.schema_version, BACKTEST_DETAILS_SCHEMA_VERSION);
+        assert_eq!(details.run_id, artifact.run_id);
+        assert_eq!(details.data_sha256, artifact.data_sha256);
+        assert_eq!(details.positions.len(), artifact.metrics.total_positions);
+        assert!(!details.trades.is_empty());
+        assert!(!details.equity_curve.is_empty());
+        assert_eq!(details.equity_basis, "account_balance_total");
+        assert!(details.boundaries.read_only);
+        assert!(!details.boundaries.trading_controls_enabled);
 
         run_backtest_run(&opt).expect("identical replay should be idempotent");
         assert_eq!(
             fs::read(&result_path).expect("replayed result should exist"),
             first
+        );
+        assert_eq!(
+            fs::read(&details_path).expect("replayed details should exist"),
+            first_details
         );
 
         let mut changed = artifact;
@@ -1104,9 +1378,13 @@ dir = "{}"
         let result = execute_product_backtest(raw.as_bytes())
             .expect("in-memory product Backtest should complete");
         let artifact: BacktestResultArtifact =
-            serde_json::from_slice(&result).expect("result should parse");
+            serde_json::from_slice(&result.summary).expect("result should parse");
+        let details: BacktestDetailsArtifact =
+            serde_json::from_slice(&result.details).expect("details should parse");
         assert_eq!(artifact.metrics.quotes, 120);
         assert_eq!(artifact.config_sha256, sha256_ref(raw.as_bytes()));
+        assert_eq!(details.config_sha256, artifact.config_sha256);
+        assert_eq!(details.positions.len(), artifact.metrics.total_positions);
 
         let invalid = raw.replace("250000 USDT", "250000 USD");
         let error = execute_product_backtest(invalid.as_bytes())

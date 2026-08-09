@@ -19,6 +19,7 @@ const errorFixture = readProductFixture("error");
 const runDetailFixture = readProductFixture("run-detail");
 const runListFixture = readProductFixture("run-list");
 const runMetricsFixture = readProductFixture("run-metrics");
+const runReportFixture = readProductFixture("run-report");
 const strategyDetailFixture = readProductFixture("strategy-detail");
 const strategyListFixture = readProductFixture("strategy-list");
 const strategyVersionDetailFixture = readProductFixture(
@@ -36,6 +37,7 @@ const createdBacktest = {
   result: {
     status: "available",
     result_ref: "artifact://backtests/backtest-browser-001/summary.json",
+    report_ref: "artifact://backtests/backtest-browser-001/details.json",
   },
   risk: {
     status: "passed",
@@ -86,6 +88,9 @@ function productFixtureForPath(path: string): Record<string, unknown> {
   if (path === "/api/product/v1/runs/backtest-001/metrics") {
     return runMetricsFixture;
   }
+  if (path === "/api/product/v1/runs/backtest-001/report") {
+    return runReportFixture;
+  }
   if (path === "/api/product/v1/runs/backtest-001") {
     const run = (runListFixture.data as Array<Record<string, unknown>>).find(
       (item) => item.run_id === "backtest-001",
@@ -104,6 +109,18 @@ function productFixtureForPath(path: string): Record<string, unknown> {
         config_ref: createdBacktest.config_ref,
         result_ref: (createdBacktest.result as Record<string, unknown>)
           .result_ref,
+      },
+    };
+  }
+  if (path === "/api/product/v1/runs/backtest-browser-001/report") {
+    return {
+      ...runReportFixture,
+      data: {
+        ...(runReportFixture.data as Record<string, unknown>),
+        run_id: "backtest-browser-001",
+        config_ref: createdBacktest.config_ref,
+        details_ref: (createdBacktest.result as Record<string, unknown>)
+          .report_ref,
       },
     };
   }
@@ -221,7 +238,7 @@ test("desktop shell renders verified read-only status", async ({
 
 test("Backtest Run deep link renders immutable engine metrics", async ({
   page,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("runs/backtest-001");
   await expect(
@@ -233,6 +250,19 @@ test("Backtest Run deep link renders immutable engine metrics", async ({
   ).toContainText("120");
   await expect(page.getByText("研究结果，不代表 Live 准入")).toBeVisible();
   await expect(page.getByLabel("Backtest 收益统计")).toContainText("总损益");
+  await expect(
+    page.getByRole("img", { name: "账户权益随回测时间变化" }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "交易明细" })).toContainText(
+    "T-1",
+  );
+  await expect(page.getByRole("region", { name: "持仓明细" })).toContainText(
+    "P-1",
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("strategy-workbench-backtest-report-1440.png"),
+    fullPage: true,
+  });
 });
 
 test("mobile shell keeps the drawer closed and has no page overflow", async ({
@@ -280,6 +310,9 @@ test("mobile shell keeps the drawer closed and has no page overflow", async ({
   await page.goto("runs/backtest-001");
   await expect(page.getByText("真实引擎回测结果")).toBeVisible();
   await expect(page.getByLabel("Backtest 收益统计")).toContainText("夏普比率");
+  await expect(
+    page.getByRole("img", { name: "账户权益随回测时间变化" }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () =>

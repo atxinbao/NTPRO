@@ -55,7 +55,9 @@ mod strategy_version;
 #[cfg(test)]
 mod tests;
 
-pub(super) use run::{run_create_api, run_detail_api, run_list_api, run_metrics_api};
+pub(super) use run::{
+    run_create_api, run_detail_api, run_list_api, run_metrics_api, run_report_api,
+};
 pub(super) use strategy_version::{strategy_version_detail_api, strategy_version_list_api};
 
 const PRODUCT_API_CONTRACT_VERSION: &str = "ntpro.product_api.v1";

@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
+import runListFixture from "../test/product-api-fixtures/run-list.json";
+import runReportFixture from "../test/product-api-fixtures/run-report.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
 import { createdBacktestResponse, server } from "../test/server";
@@ -108,6 +110,89 @@ describe("strategy workbench product slice", () => {
     expect(screen.getByText("-0.004000000000")).toBeInTheDocument();
     expect(screen.getAllByText("不可计算").length).toBeGreaterThan(0);
     expect(screen.getByText("BTCUSDT.BINANCE")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "账户权益随回测时间变化" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "交易明细" })).toHaveTextContent(
+      "T-1",
+    );
+    expect(screen.getByRole("region", { name: "持仓明细" })).toHaveTextContent(
+      "P-1",
+    );
+  });
+
+  it.each([404, 500, 503])(
+    "keeps Run metrics visible when the report route returns %s",
+    async (status) => {
+      server.use(
+        http.get("/api/product/v1/runs/:runId/report", () =>
+          HttpResponse.json(errorFixture, { status }),
+        ),
+      );
+
+      renderWorkbench("/runs/backtest-001");
+      expect(
+        await screen.findByRole("heading", { name: "backtest-001" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("真实引擎回测结果")).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: "重试明细" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("历史 Run 仅保留聚合指标"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("retries a failed report without reloading the Run metrics", async () => {
+    let shouldFail = true;
+    let attempts = 0;
+    server.use(
+      http.get("/api/product/v1/runs/:runId/report", () => {
+        attempts += 1;
+        return shouldFail
+          ? HttpResponse.json(errorFixture, { status: 503 })
+          : HttpResponse.json(runReportFixture);
+      }),
+    );
+
+    renderWorkbench("/runs/backtest-001");
+    expect(
+      await screen.findByRole("heading", { name: "backtest-001" }),
+    ).toBeInTheDocument();
+    const retry = await screen.findByRole("button", { name: "重试明细" });
+    shouldFail = false;
+    await userEvent.click(retry);
+    expect(
+      await screen.findByRole("img", { name: "账户权益随回测时间变化" }),
+    ).toBeInTheDocument();
+    expect(attempts).toBeGreaterThanOrEqual(2);
+  });
+
+  it("keeps historical Backtest metrics when report_ref is null", async () => {
+    const historical = structuredClone(runDetailFixture) as Record<string, any>;
+    const backtest = structuredClone(
+      runListFixture.data.find((run) => run.run_id === "backtest-001")!,
+    );
+    backtest.result.report_ref = null;
+    historical.data = backtest;
+    let reportRequests = 0;
+    server.use(
+      http.get("/api/product/v1/runs/backtest-001", () =>
+        HttpResponse.json(historical),
+      ),
+      http.get("/api/product/v1/runs/backtest-001/report", () => {
+        reportRequests += 1;
+        return HttpResponse.json(runReportFixture);
+      }),
+    );
+
+    renderWorkbench("/runs/backtest-001");
+    expect(
+      await screen.findByText("历史 Run 仅保留聚合指标"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("真实引擎回测结果")).toBeInTheDocument();
+    expect(reportRequests).toBe(0);
   });
 
   it("renders a verified empty strategy state", async () => {

@@ -1,0 +1,156 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": {
+    "boundaries": {
+      "automatic_remediation_allowed": false,
+      "automatic_retry_allowed": false,
+      "external_venue_connection": false,
+      "order_mutation_allowed": false,
+      "order_submission_allowed": false,
+      "read_only": true,
+      "real_orders_submitted": false,
+      "trading_controls_enabled": false
+    },
+    "config_ref": "node-config:node.toml#product_runs",
+    "config_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "data_ref": "dataset://fixtures/ema-cross",
+    "data_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "details_ref": "artifact://backtests/backtest-001/details.json",
+    "equity_basis": "account_balance_total",
+    "equity_curve": [
+      {
+        "account_id": "SIM-001",
+        "currency": "USDT",
+        "free": "1000000.00000000 USDT",
+        "locked": "0.00000000 USDT",
+        "total": "1000000.00000000 USDT",
+        "ts_event": "1735689600000000000"
+      },
+      {
+        "account_id": "SIM-001",
+        "currency": "USDT",
+        "free": "999999.99700000 USDT",
+        "locked": "0.00000000 USDT",
+        "total": "999999.99700000 USDT",
+        "ts_event": "1735689719000000000"
+      }
+    ],
+    "instrument_id": "BTCUSDT.BINANCE",
+    "positions": [
+      {
+        "account_id": "SIM-001",
+        "avg_price_close": "101.000000000000",
+        "avg_price_open": "101.000000000000",
+        "buy_quantity": "0.001000",
+        "duration_ns": "500000000",
+        "entry_side": "BUY",
+        "peak_quantity": "0.001000",
+        "position_id": "P-1",
+        "realized_pnl": "-0.00100000 USDT",
+        "realized_return": "-0.000100000000",
+        "sell_quantity": "0.001000",
+        "side": "FLAT",
+        "trade_count": 1,
+        "ts_closed": "1735689610500000000",
+        "ts_opened": "1735689610000000000"
+      },
+      {
+        "account_id": "SIM-001",
+        "avg_price_close": "102.000000000000",
+        "avg_price_open": "102.000000000000",
+        "buy_quantity": "0.001000",
+        "duration_ns": "500000000",
+        "entry_side": "SELL",
+        "peak_quantity": "0.001000",
+        "position_id": "P-2",
+        "realized_pnl": "-0.00100000 USDT",
+        "realized_return": "-0.000100000000",
+        "sell_quantity": "0.001000",
+        "side": "FLAT",
+        "trade_count": 1,
+        "ts_closed": "1735689620500000000",
+        "ts_opened": "1735689620000000000"
+      },
+      {
+        "account_id": "SIM-001",
+        "avg_price_close": "103.000000000000",
+        "avg_price_open": "103.000000000000",
+        "buy_quantity": "0.001000",
+        "duration_ns": "500000000",
+        "entry_side": "BUY",
+        "peak_quantity": "0.001000",
+        "position_id": "P-3",
+        "realized_pnl": "-0.00100000 USDT",
+        "realized_return": "-0.000100000000",
+        "sell_quantity": "0.001000",
+        "side": "FLAT",
+        "trade_count": 1,
+        "ts_closed": "1735689630500000000",
+        "ts_opened": "1735689630000000000"
+      }
+    ],
+    "run_id": "backtest-001",
+    "schema_version": "ntpro.backtest_details.v1",
+    "strategy_id": "ema-cross",
+    "strategy_version_content_hash": "sha256:950d09dddab99e9beb225eb1b54f867d5068bc2b6051635b07e612ccce3f101c",
+    "strategy_version_id": "ema-cross@v1",
+    "trades": [
+      {
+        "client_order_id": "O-1",
+        "commission": "0.00010000 USDT",
+        "currency": "USDT",
+        "liquidity_side": "TAKER",
+        "order_type": "MARKET",
+        "position_id": "P-1",
+        "price": "101.00",
+        "quantity": "0.001000",
+        "side": "BUY",
+        "trade_id": "T-1",
+        "ts_event": "1735689610000000000",
+        "venue_order_id": "V-1"
+      },
+      {
+        "client_order_id": "O-2",
+        "commission": "0.00010000 USDT",
+        "currency": "USDT",
+        "liquidity_side": "TAKER",
+        "order_type": "MARKET",
+        "position_id": "P-2",
+        "price": "102.00",
+        "quantity": "0.001000",
+        "side": "SELL",
+        "trade_id": "T-2",
+        "ts_event": "1735689620000000000",
+        "venue_order_id": "V-2"
+      },
+      {
+        "client_order_id": "O-3",
+        "commission": "0.00010000 USDT",
+        "currency": "USDT",
+        "liquidity_side": "TAKER",
+        "order_type": "MARKET",
+        "position_id": "P-3",
+        "price": "103.00",
+        "quantity": "0.001000",
+        "side": "BUY",
+        "trade_id": "T-3",
+        "ts_event": "1735689630000000000",
+        "venue_order_id": "V-3"
+      }
+    ]
+  },
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.run_report.response.v1"
+}

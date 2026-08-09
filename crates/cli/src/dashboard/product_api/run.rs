@@ -30,9 +30,11 @@ use super::*;
 const RUN_LIST_SCHEMA_VERSION: &str = "ntpro.product_api.run_list.response.v1";
 const RUN_DETAIL_SCHEMA_VERSION: &str = "ntpro.product_api.run_detail.response.v1";
 const RUN_METRICS_SCHEMA_VERSION: &str = "ntpro.product_api.run_metrics.response.v1";
+const RUN_REPORT_SCHEMA_VERSION: &str = "ntpro.product_api.run_report.response.v1";
 const RUN_CREATE_SCHEMA_VERSION: &str = "ntpro.product_api.run_create.response.v1";
 const BACKTEST_RUN_MANIFEST_SCHEMA_VERSION: &str = "ntpro.product_api.backtest_run_manifest.v1";
 const BACKTEST_RESULT_SCHEMA_VERSION: &str = "ntpro.backtest_result.v1";
+const BACKTEST_DETAILS_SCHEMA_VERSION: &str = "ntpro.backtest_details.v1";
 const RUN_CURSOR_PREFIX: &str = "run-v1-";
 static RUN_MANIFEST_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
@@ -101,6 +103,7 @@ enum RunRiskStatus {
 struct ProductRunResult {
     status: RunResultStatus,
     result_ref: Option<String>,
+    report_ref: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -149,6 +152,7 @@ struct ProductRunConfig {
     backtest_config_sha256: Option<String>,
     backtest_data_sha256: Option<String>,
     backtest_result_sha256: Option<String>,
+    backtest_details_sha256: Option<String>,
     backtest_trade_size: Option<String>,
     backtest_quotes: Option<usize>,
     backtest_fast_period: Option<usize>,
@@ -319,12 +323,90 @@ struct BacktestResultExpectation {
     slow_period: usize,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestDetailsArtifact {
+    schema_version: String,
+    run_id: String,
+    strategy_id: String,
+    strategy_version_id: String,
+    strategy_version_content_hash: String,
+    data_ref: String,
+    data_sha256: String,
+    config_ref: String,
+    config_sha256: String,
+    details_ref: String,
+    instrument_id: String,
+    equity_basis: String,
+    trades: Vec<BacktestTrade>,
+    positions: Vec<BacktestPosition>,
+    equity_curve: Vec<BacktestEquityPoint>,
+    boundaries: BacktestResultBoundaries,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestTrade {
+    trade_id: String,
+    client_order_id: String,
+    venue_order_id: String,
+    position_id: Option<String>,
+    side: String,
+    order_type: String,
+    quantity: String,
+    price: String,
+    currency: String,
+    liquidity_side: String,
+    commission: Option<String>,
+    ts_event: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestPosition {
+    position_id: String,
+    account_id: String,
+    side: String,
+    entry_side: String,
+    peak_quantity: String,
+    buy_quantity: String,
+    sell_quantity: String,
+    avg_price_open: String,
+    avg_price_close: Option<String>,
+    realized_return: String,
+    realized_pnl: Option<String>,
+    trade_count: usize,
+    ts_opened: String,
+    ts_closed: Option<String>,
+    duration_ns: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestEquityPoint {
+    account_id: String,
+    currency: String,
+    total: String,
+    free: String,
+    locked: String,
+    ts_event: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(in crate::dashboard) struct RunMetricsResponse {
     schema_version: String,
     contract_version: String,
     request_id: String,
     data: BacktestResultArtifact,
+    boundaries: ProductReadOnlyBoundaries,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct RunReportResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: BacktestDetailsArtifact,
     boundaries: ProductReadOnlyBoundaries,
 }
 
@@ -430,12 +512,28 @@ fn create_backtest_run(
     let execution = crate::backtest::execute_product_backtest(&config_raw);
     let completed_at = unix_time_ms().max(started_at);
     let config = match execution {
-        Ok(result_raw) => {
-            let artifact: BacktestResultArtifact = serde_json::from_slice(&result_raw)
+        Ok(artifacts) => {
+            let artifact: BacktestResultArtifact = serde_json::from_slice(&artifacts.summary)
                 .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "backtest_result"))?;
-            let result_sha256 = sha256_ref(&result_raw);
-            write_new_run_file(&run_directory, "summary.json", &result_raw)?;
-            ProductRunConfig {
+            let details: BacktestDetailsArtifact = serde_json::from_slice(&artifacts.details)
+                .map_err(|_| {
+                    product_error(ProductErrorKind::ExecutionFailed, "backtest_details")
+                })?;
+            if details.run_id != run_id
+                || details.strategy_id != request.strategy_id
+                || details.strategy_version_id != request.strategy_version_id
+                || details.data_sha256 != artifact.data_sha256
+                || details.config_sha256 != request_sha256
+                || details.details_ref != format!("artifact://backtests/{run_id}/details.json")
+            {
+                return Err(product_error(
+                    ProductErrorKind::ExecutionFailed,
+                    "backtest_details",
+                ));
+            }
+            let result_sha256 = sha256_ref(&artifacts.summary);
+            let details_sha256 = sha256_ref(&artifacts.details);
+            let config = ProductRunConfig {
                 run_id: run_id.clone(),
                 strategy_id: request.strategy_id,
                 strategy_version_id: request.strategy_version_id,
@@ -449,9 +547,10 @@ fn create_backtest_run(
                 result_status: RunResultStatus::Available,
                 result_ref: Some(result_ref),
                 backtest_config_sha256: Some(request_sha256.clone()),
-                backtest_data_sha256: Some(artifact.data_sha256),
+                backtest_data_sha256: Some(artifact.data_sha256.clone()),
                 backtest_result_sha256: Some(result_sha256),
-                backtest_trade_size: Some(artifact.parameters.trade_size),
+                backtest_details_sha256: Some(details_sha256),
+                backtest_trade_size: Some(artifact.parameters.trade_size.clone()),
                 backtest_quotes: Some(artifact.metrics.quotes),
                 backtest_fast_period: Some(artifact.parameters.fast_period),
                 backtest_slow_period: Some(artifact.parameters.slow_period),
@@ -470,7 +569,23 @@ fn create_backtest_run(
                 automatic_remediation_allowed: false,
                 real_orders_submitted: false,
                 trading_controls_enabled: false,
-            }
+            };
+            let expected_version_id = strategy_version_resource_id(
+                &source.strategy.strategy_id,
+                &source.identity.identities.strategy_version,
+            );
+            validate_created_backtest_artifacts(
+                &config,
+                &source,
+                &strategy_version,
+                &expected_version_id,
+                completed_at,
+                &artifact,
+                &details,
+            )?;
+            write_new_run_file(&run_directory, "summary.json", &artifacts.summary)?;
+            write_new_run_file(&run_directory, "details.json", &artifacts.details)?;
+            config
         }
         Err(error) => {
             let summary = sanitize_execution_error(&error.to_string());
@@ -490,6 +605,7 @@ fn create_backtest_run(
                 backtest_config_sha256: None,
                 backtest_data_sha256: None,
                 backtest_result_sha256: None,
+                backtest_details_sha256: None,
                 backtest_trade_size: None,
                 backtest_quotes: None,
                 backtest_fast_period: None,
@@ -530,6 +646,32 @@ fn create_backtest_run(
         completed_at,
         Some(format!("artifact://backtests/{run_id}/run-manifest.json")),
     )
+}
+
+fn validate_created_backtest_artifacts(
+    config: &ProductRunConfig,
+    source: &ValidatedProductSource,
+    strategy_version: &strategy_version::ProductStrategyVersion,
+    expected_version_id: &str,
+    completed_at: u64,
+    summary: &BacktestResultArtifact,
+    details: &BacktestDetailsArtifact,
+) -> Result<(), ProductError> {
+    let run = validate_and_project_run(
+        config.clone(),
+        source,
+        strategy_version,
+        expected_version_id,
+        completed_at,
+        Some(format!(
+            "artifact://backtests/{}/run-manifest.json",
+            config.run_id
+        )),
+    )?;
+    let expected = backtest_result_expectation(config)?
+        .ok_or_else(|| product_error(ProductErrorKind::ExecutionFailed, "backtest_result"))?;
+    validate_backtest_result_artifact(summary, &run, strategy_version, &expected)?;
+    validate_backtest_details_artifact(details, &run, strategy_version, &expected, summary)
 }
 
 fn build_backtest_config(
@@ -826,6 +968,313 @@ pub(in crate::dashboard) async fn run_metrics_api(
     result
         .map(Json)
         .map_err(|error| product_error_response(&error, &request_id))
+}
+
+pub(in crate::dashboard) async fn run_report_api(
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    RawQuery(raw_query): RawQuery,
+) -> ApiResult<RunReportResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(run_id)| run_id).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
+        validate_requested_run_id("run_id", &run_id)?;
+        let source = load_product_source(&state, unix_time_ms())?;
+        let strategy_version =
+            strategy_version::load_product_strategy_version(&source, unix_time_ms())?;
+        let run = load_product_runs(&state, unix_time_ms())?
+            .into_iter()
+            .find(|run| run.run_id == run_id)
+            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+        let config = load_run_configs(&state, &source)?
+            .into_iter()
+            .map(|(config, _)| config)
+            .find(|config| config.run_id == run_id)
+            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+        let details_sha256 = config
+            .backtest_details_sha256
+            .as_deref()
+            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_report"))?;
+        let expected = load_backtest_result_expectation(&state, &source, &run.run_id)?;
+        let summary = load_backtest_result_artifact(&state, &run, &strategy_version, &expected)?;
+        let artifact = load_backtest_details_artifact(
+            &state,
+            &run,
+            &strategy_version,
+            &expected,
+            &summary,
+            details_sha256,
+        )?;
+        Ok(RunReportResponse {
+            schema_version: RUN_REPORT_SCHEMA_VERSION.to_string(),
+            contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+            request_id: request_id.clone(),
+            data: artifact,
+            boundaries: ProductReadOnlyBoundaries::enforced(),
+        })
+    });
+    result
+        .map(Json)
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+fn load_backtest_details_artifact(
+    state: &DashboardServerState,
+    run: &ProductRun,
+    strategy_version: &strategy_version::ProductStrategyVersion,
+    expected: &BacktestResultExpectation,
+    summary: &BacktestResultArtifact,
+    expected_sha256: &str,
+) -> Result<BacktestDetailsArtifact, ProductError> {
+    if !is_sha256_ref(expected_sha256) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "details_sha256",
+        ));
+    }
+    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let run_root = canonical_path(&artifact_root.join(&run.run_id), "result_run_root")?;
+    if run_root != artifact_root.join(&run.run_id) || !run_root.starts_with(&artifact_root) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_containment",
+        ));
+    }
+    let raw = read_backtest_result_bytes(&run_root.join("details.json"))?;
+    if sha256_ref(&raw) != expected_sha256 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "details_sha256",
+        ));
+    }
+    let artifact: BacktestDetailsArtifact = serde_json::from_slice(&raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "details_artifact"))?;
+    validate_backtest_details_artifact(&artifact, run, strategy_version, expected, summary)?;
+    Ok(artifact)
+}
+
+fn validate_backtest_details_artifact(
+    artifact: &BacktestDetailsArtifact,
+    run: &ProductRun,
+    strategy_version: &strategy_version::ProductStrategyVersion,
+    expected: &BacktestResultExpectation,
+    summary: &BacktestResultArtifact,
+) -> Result<(), ProductError> {
+    let expected_ref = format!("artifact://backtests/{}/details.json", run.run_id);
+    let start = summary.backtest_start.parse::<u64>();
+    let end = summary.backtest_end.parse::<u64>();
+    let position_ids = artifact
+        .positions
+        .iter()
+        .map(|position| position.position_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let trade_ids = artifact
+        .trades
+        .iter()
+        .map(|trade| trade.trade_id.as_str())
+        .collect::<BTreeSet<_>>();
+    let position_trade_counts =
+        artifact
+            .trades
+            .iter()
+            .fold(BTreeMap::<&str, usize>::new(), |mut counts, trade| {
+                if let Some(position_id) = trade.position_id.as_deref() {
+                    *counts.entry(position_id).or_default() += 1;
+                }
+                counts
+            });
+    let equity_account_id = artifact
+        .equity_curve
+        .first()
+        .map(|point| point.account_id.as_str());
+    let equity_currency = artifact
+        .equity_curve
+        .first()
+        .map(|point| point.currency.as_str());
+    let trades_valid = artifact.trades.iter().all(|trade| {
+        let timestamp = trade.ts_event.parse::<u64>().ok();
+        let commission_valid = trade.commission.as_deref().is_none_or(|value| {
+            value
+                .parse::<Money>()
+                .is_ok_and(|money| money.currency.code.as_str() == trade.currency)
+        });
+        !trade.trade_id.is_empty()
+            && !trade.client_order_id.is_empty()
+            && !trade.venue_order_id.is_empty()
+            && matches!(trade.side.as_str(), "BUY" | "SELL")
+            && !trade.order_type.is_empty()
+            && !trade.currency.is_empty()
+            && equity_currency.is_some_and(|currency| trade.currency == currency)
+            && matches!(trade.liquidity_side.as_str(), "MAKER" | "TAKER")
+            && trade.quantity.parse::<Quantity>().is_ok()
+            && trade.price.parse::<nautilus_model::types::Price>().is_ok()
+            && commission_valid
+            && trade
+                .position_id
+                .as_deref()
+                .is_none_or(|value| position_ids.contains(value))
+            && timestamp.is_some_and(|value| {
+                start.as_ref().is_ok_and(|start| value >= *start)
+                    && end.as_ref().is_ok_and(|end| value <= *end)
+            })
+    });
+    let positions_valid = artifact.positions.iter().all(|position| {
+        let opened = position.ts_opened.parse::<u64>();
+        let closed = position
+            .ts_closed
+            .as_deref()
+            .map(str::parse::<u64>)
+            .transpose();
+        !position.position_id.is_empty()
+            && !position.account_id.is_empty()
+            && equity_account_id.is_some_and(|account_id| position.account_id == account_id)
+            && matches!(position.side.as_str(), "FLAT" | "LONG" | "SHORT")
+            && matches!(position.entry_side.as_str(), "BUY" | "SELL")
+            && position.peak_quantity.parse::<Quantity>().is_ok()
+            && position.buy_quantity.parse::<Quantity>().is_ok()
+            && position.sell_quantity.parse::<Quantity>().is_ok()
+            && position
+                .avg_price_open
+                .parse::<f64>()
+                .is_ok_and(f64::is_finite)
+            && position
+                .avg_price_close
+                .as_deref()
+                .is_none_or(|value| value.parse::<f64>().is_ok_and(f64::is_finite))
+            && position
+                .realized_return
+                .parse::<f64>()
+                .is_ok_and(f64::is_finite)
+            && position.realized_pnl.as_deref().is_none_or(|value| {
+                value.parse::<Money>().is_ok_and(|money| {
+                    equity_currency.is_some_and(|currency| money.currency.code.as_str() == currency)
+                })
+            })
+            && position.trade_count > 0
+            && position_trade_counts.get(position.position_id.as_str())
+                == Some(&position.trade_count)
+            && opened.as_ref().is_ok_and(|opened| {
+                start.as_ref().is_ok_and(|start| opened >= start)
+                    && end.as_ref().is_ok_and(|end| opened <= end)
+            })
+            && closed.as_ref().is_ok_and(|value| {
+                value.is_none_or(|closed| {
+                    opened.as_ref().is_ok_and(|opened| closed >= *opened)
+                        && end.as_ref().is_ok_and(|end| closed <= *end)
+                })
+            })
+            && position.duration_ns.parse::<u64>().is_ok_and(|duration| {
+                closed.as_ref().is_ok_and(|closed| {
+                    closed.is_none_or(|closed| {
+                        opened
+                            .as_ref()
+                            .is_ok_and(|opened| duration == closed.saturating_sub(*opened))
+                    })
+                })
+            })
+    });
+    let equity_valid = !artifact.equity_curve.is_empty()
+        && artifact.equity_curve.iter().all(|point| {
+            let Ok(total) = point.total.parse::<Money>() else {
+                return false;
+            };
+            let Ok(free) = point.free.parse::<Money>() else {
+                return false;
+            };
+            let Ok(locked) = point.locked.parse::<Money>() else {
+                return false;
+            };
+            let timestamp = point.ts_event.parse::<u64>();
+            !point.account_id.is_empty()
+                && !point.currency.is_empty()
+                && total.currency.code.as_str() == point.currency
+                && free.currency.code.as_str() == point.currency
+                && locked.currency.code.as_str() == point.currency
+                && free.raw.checked_add(locked.raw) == Some(total.raw)
+                && timestamp.as_ref().is_ok_and(|timestamp| {
+                    start.as_ref().is_ok_and(|start| timestamp >= start)
+                        && end.as_ref().is_ok_and(|end| timestamp <= end)
+                })
+        });
+    let sorted = artifact.trades.windows(2).all(|pair| {
+        numeric_string_key(&pair[0].ts_event, &pair[0].trade_id)
+            <= numeric_string_key(&pair[1].ts_event, &pair[1].trade_id)
+    }) && artifact.positions.windows(2).all(|pair| {
+        numeric_string_key(&pair[0].ts_opened, &pair[0].position_id)
+            <= numeric_string_key(&pair[1].ts_opened, &pair[1].position_id)
+    }) && artifact.equity_curve.windows(2).all(|pair| {
+        numeric_string_key(&pair[0].ts_event, (&pair[0].currency, &pair[0].total))
+            <= numeric_string_key(&pair[1].ts_event, (&pair[1].currency, &pair[1].total))
+    });
+    if artifact.schema_version != BACKTEST_DETAILS_SCHEMA_VERSION
+        || artifact.run_id != run.run_id
+        || artifact.strategy_id != run.strategy_id
+        || artifact.strategy_version_id != run.strategy_version_id
+        || artifact.strategy_version_content_hash != strategy_version.content_hash()
+        || artifact.data_ref != run.data_ref
+        || artifact.data_sha256 != expected.data_sha256
+        || artifact.config_ref != run.config_ref
+        || artifact.config_sha256 != expected.config_sha256
+        || artifact.details_ref != expected_ref
+        || run.result.report_ref.as_deref() != Some(artifact.details_ref.as_str())
+        || artifact.instrument_id != summary.instrument_id
+        || artifact.equity_basis != "account_balance_total"
+        || trade_ids.len() != artifact.trades.len()
+        || position_ids.len() != artifact.positions.len()
+        || artifact.equity_curve.first().is_none_or(|first| {
+            artifact.equity_curve.iter().any(|point| {
+                point.account_id != first.account_id || point.currency != first.currency
+            })
+        })
+        || artifact
+            .equity_curve
+            .iter()
+            .map(|point| {
+                (
+                    point.account_id.as_str(),
+                    point.currency.as_str(),
+                    point.ts_event.as_str(),
+                    point.total.as_str(),
+                    point.free.as_str(),
+                    point.locked.as_str(),
+                )
+            })
+            .collect::<BTreeSet<_>>()
+            .len()
+            != artifact.equity_curve.len()
+        || (summary.metrics.total_orders > 0 && artifact.trades.is_empty())
+        || artifact.trades.len() > summary.metrics.total_events
+        || artifact.positions.len() != summary.metrics.total_positions
+        || !artifact.boundaries.read_only
+        || artifact.boundaries.external_venue_connection
+        || artifact.boundaries.order_submission_allowed
+        || artifact.boundaries.order_mutation_allowed
+        || artifact.boundaries.automatic_retry_allowed
+        || artifact.boundaries.automatic_remediation_allowed
+        || artifact.boundaries.real_orders_submitted
+        || artifact.boundaries.trading_controls_enabled
+        || start.is_err()
+        || end.is_err()
+        || !trades_valid
+        || !positions_valid
+        || !equity_valid
+        || !sorted
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "details_artifact",
+        ));
+    }
+    Ok(())
+}
+
+fn numeric_string_key<T>(timestamp: &str, secondary: T) -> (Option<u64>, T) {
+    (timestamp.parse::<u64>().ok(), secondary)
 }
 
 fn load_backtest_result_artifact(
@@ -1294,6 +1743,10 @@ fn validate_and_project_run(
         result: ProductRunResult {
             status: config.result_status,
             result_ref: config.result_ref,
+            report_ref: config
+                .backtest_details_sha256
+                .as_ref()
+                .map(|_| format!("artifact://backtests/{}/details.json", config.run_id)),
         },
         risk: ProductRunRisk {
             status: config.risk_status,
@@ -1343,6 +1796,21 @@ fn validate_run_references(
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
             "run_expectation_environment",
+        ));
+    }
+    if config
+        .backtest_details_sha256
+        .as_deref()
+        .is_some_and(|value| {
+            !is_sha256_ref(value)
+                || config.environment != RunEnvironment::Backtest
+                || config.lifecycle != RunLifecycle::Completed
+                || config.result_status != RunResultStatus::Available
+        })
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_details_expectation",
         ));
     }
     for (field, value) in [

@@ -5,6 +5,7 @@ import { validStatusPayload } from "./fixtures";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
 import runListFixture from "./product-api-fixtures/run-list.json";
 import runMetricsFixture from "./product-api-fixtures/run-metrics.json";
+import runReportFixture from "./product-api-fixtures/run-report.json";
 import strategyDetailFixture from "./product-api-fixtures/strategy-detail.json";
 import strategyListFixture from "./product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "./product-api-fixtures/strategy-version-detail.json";
@@ -21,6 +22,7 @@ const createdBacktest = {
   result: {
     status: "available" as const,
     result_ref: "artifact://backtests/backtest-created-001/summary.json",
+    report_ref: "artifact://backtests/backtest-created-001/details.json",
   },
   risk: {
     status: "passed" as const,
@@ -96,6 +98,21 @@ export const server = setupServer(
             },
           }
         : runMetricsFixture,
+    ),
+  ),
+  http.get("/api/product/v1/runs/:runId/report", ({ params }) =>
+    HttpResponse.json(
+      params.runId === createdBacktest.run_id
+        ? {
+            ...runReportFixture,
+            data: {
+              ...runReportFixture.data,
+              run_id: createdBacktest.run_id,
+              config_ref: createdBacktest.config_ref,
+              details_ref: createdBacktest.result.report_ref,
+            },
+          }
+        : runReportFixture,
     ),
   ),
 );

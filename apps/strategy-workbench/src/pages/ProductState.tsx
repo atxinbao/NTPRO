@@ -1,4 +1,4 @@
-import { AlertTriangle, LoaderCircle } from "lucide-react";
+import { AlertTriangle, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { productErrorMessage } from "../features/product/presentation";
 import styles from "./Pages.module.css";
@@ -15,7 +15,15 @@ export function ProductLoading({ label }: { label: string }) {
   );
 }
 
-export function ProductErrorState({ error }: { error: unknown }) {
+export function ProductErrorState({
+  error,
+  onRetry,
+  retrying = false,
+}: {
+  error: unknown;
+  onRetry?: () => void | Promise<unknown>;
+  retrying?: boolean;
+}) {
   const message = productErrorMessage(error);
   return (
     <section
@@ -26,6 +34,19 @@ export function ProductErrorState({ error }: { error: unknown }) {
       <div>
         <strong>{message.title}</strong>
         <span>{message.detail}</span>
+        {onRetry ? (
+          <button
+            type="button"
+            onClick={() => void onRetry()}
+            disabled={retrying}
+          >
+            <RefreshCw
+              className={retrying ? styles.spin : undefined}
+              aria-hidden="true"
+            />
+            {retrying ? "正在重试" : "重试明细"}
+          </button>
+        ) : null}
       </div>
     </section>
   );

@@ -22,6 +22,7 @@ export const productQueryKeys = {
     ["product", "runs", { strategyId, versionId }] as const,
   run: (runId: string) => ["product", "runs", runId] as const,
   runMetrics: (runId: string) => ["product", "runs", runId, "metrics"] as const,
+  runReport: (runId: string) => ["product", "runs", runId, "report"] as const,
 };
 
 export function useCreateBacktestRun() {
@@ -124,6 +125,16 @@ export function useRunMetrics(runId?: string, enabled = false) {
   });
 }
 
+export function useRunReport(runId?: string, enabled = false) {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.runReport(runId ?? ""),
+    queryFn: ({ signal }) =>
+      productApi.getRunReport({ run_id: runId! }, signal),
+    enabled: Boolean(runId && enabled),
+  });
+}
+
 export function useOverviewProductContext() {
   const strategies = useStrategies();
   const strategyId = strategies.data?.data[0]?.strategy_id;
@@ -188,6 +199,10 @@ export function useRunProductContext(runId?: string) {
     run.data.data.result.status === "available",
   );
   const metrics = useRunMetrics(runId, expectsMetrics);
+  const expectsReport = Boolean(
+    expectsMetrics && run.data?.data.result.report_ref,
+  );
+  const report = useRunReport(runId, expectsReport);
   const error = run.error ?? strategy.error ?? version.error ?? metrics.error;
   const isVerifying = Boolean(
     runId &&
@@ -218,6 +233,12 @@ export function useRunProductContext(runId?: string) {
     strategy: isReady ? strategy.data?.data : undefined,
     version: isReady ? version.data?.data : undefined,
     metrics: isReady ? metrics.data?.data : undefined,
+    report: isReady && expectsReport ? report.data?.data : undefined,
+    reportError: isReady && expectsReport ? report.error : null,
+    isReportVerifying: Boolean(
+      isReady && expectsReport && (report.isPending || report.isFetching),
+    ),
+    retryReport: report.refetch,
     requestId: isReady ? run.data?.request_id : undefined,
   };
 }
