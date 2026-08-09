@@ -56,6 +56,25 @@ describe("strategy workbench product slice", () => {
     expect(screen.getAllByText("关闭")).toHaveLength(7);
   });
 
+  it("renders real Backtest metrics only for an available Backtest Run", async () => {
+    renderWorkbench("/runs/backtest-001");
+
+    expect(
+      await screen.findByRole("heading", { name: "backtest-001" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("真实引擎回测结果")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Backtest 指标" }),
+    ).toHaveTextContent("120");
+    expect(screen.getByText("研究结果，不代表 Live 准入")).toBeInTheDocument();
+    expect(screen.getByLabelText("Backtest 收益统计")).toHaveTextContent(
+      "总损益",
+    );
+    expect(screen.getByText("-0.004000000000")).toBeInTheDocument();
+    expect(screen.getAllByText("不可计算").length).toBeGreaterThan(0);
+    expect(screen.getByText("BTCUSDT.BINANCE")).toBeInTheDocument();
+  });
+
   it("renders a verified empty strategy state", async () => {
     const empty = structuredClone(strategyListFixture);
     empty.data = [];

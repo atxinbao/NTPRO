@@ -2,6 +2,7 @@
 
 export {
   getRun,
+  getRunMetrics,
   getStrategy,
   getStrategyVersion,
   listRuns,
@@ -10,11 +11,20 @@ export {
   type Options,
 } from "./sdk.gen";
 export type {
+  BacktestMetrics,
+  BacktestParameters,
+  BacktestResult,
+  BacktestResultBoundaries,
   ClientOptions,
   ContentHash,
   GetRunData,
   GetRunError,
   GetRunErrors,
+  GetRunMetricsData,
+  GetRunMetricsError,
+  GetRunMetricsErrors,
+  GetRunMetricsResponse,
+  GetRunMetricsResponses,
   GetRunResponse,
   GetRunResponses,
   GetStrategyData,
@@ -56,6 +66,7 @@ export type {
   RunId,
   RunLifecycle,
   RunListResponse,
+  RunMetricsResponse,
   RunResult,
   RunResultStatus,
   RunRisk,

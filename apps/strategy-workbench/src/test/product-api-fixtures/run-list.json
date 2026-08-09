@@ -33,7 +33,7 @@
       "error": null,
       "lifecycle": "completed",
       "result": {
-        "result_ref": "artifact://backtests/backtest-001.json",
+        "result_ref": "artifact://backtests/backtest-001/summary.json",
         "status": "available"
       },
       "risk": {

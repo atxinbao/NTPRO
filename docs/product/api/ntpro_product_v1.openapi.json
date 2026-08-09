@@ -409,6 +409,40 @@
           "503": { "$ref": "#/components/responses/ProductError" }
         }
       }
+    },
+    "/runs/{run_id}/metrics": {
+      "get": {
+        "operationId": "getRunMetrics",
+        "summary": "读取已完成 Backtest 的不可变指标",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Backtest 指标",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RunMetricsResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
     }
   },
   "components": {
@@ -846,6 +880,118 @@
           "capabilities": { "$ref": "#/components/schemas/RunCapabilities" }
         }
       },
+      "BacktestParameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["trade_size", "fast_period", "slow_period"],
+        "properties": {
+          "trade_size": { "type": "string", "minLength": 1 },
+          "fast_period": { "type": "integer", "minimum": 1 },
+          "slow_period": { "type": "integer", "minimum": 2 }
+        }
+      },
+      "BacktestMetrics": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "quotes",
+          "iterations",
+          "total_events",
+          "total_orders",
+          "total_positions",
+          "pnl_stats",
+          "return_stats",
+          "general_stats"
+        ],
+        "properties": {
+          "quotes": { "type": "integer", "minimum": 1 },
+          "iterations": { "type": "integer", "minimum": 1 },
+          "total_events": { "type": "integer", "minimum": 0 },
+          "total_orders": { "type": "integer", "minimum": 0 },
+          "total_positions": { "type": "integer", "minimum": 0 },
+          "pnl_stats": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          },
+          "return_stats": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "general_stats": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      },
+      "BacktestResultBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "read_only",
+          "external_venue_connection",
+          "order_submission_allowed",
+          "order_mutation_allowed",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed",
+          "real_orders_submitted",
+          "trading_controls_enabled"
+        ],
+        "properties": {
+          "read_only": { "const": true },
+          "external_venue_connection": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "order_mutation_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
+        }
+      },
+      "BacktestResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "run_id",
+          "strategy_id",
+          "strategy_version_id",
+          "strategy_version_content_hash",
+          "data_ref",
+          "data_sha256",
+          "config_ref",
+          "config_sha256",
+          "result_ref",
+          "instrument_id",
+          "strategy",
+          "parameters",
+          "backtest_start",
+          "backtest_end",
+          "metrics",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": { "const": "ntpro.backtest_result.v1" },
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "strategy_version_content_hash": { "$ref": "#/components/schemas/ContentHash" },
+          "data_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "config_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "config_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "result_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "instrument_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "strategy": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "parameters": { "$ref": "#/components/schemas/BacktestParameters" },
+          "backtest_start": { "type": "string", "pattern": "^[0-9]+$" },
+          "backtest_end": { "type": "string", "pattern": "^[0-9]+$" },
+          "metrics": { "$ref": "#/components/schemas/BacktestMetrics" },
+          "boundaries": { "$ref": "#/components/schemas/BacktestResultBoundaries" }
+        }
+      },
       "ReadOnlyBoundaries": {
         "type": "object",
         "additionalProperties": false,
@@ -1081,6 +1227,24 @@
           "contract_version": { "const": "ntpro.product_api.v1" },
           "request_id": { "$ref": "#/components/schemas/RequestId" },
           "data": { "$ref": "#/components/schemas/Run" },
+          "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
+        }
+      },
+      "RunMetricsResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.run_metrics.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/BacktestResult" },
           "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
         }
       },

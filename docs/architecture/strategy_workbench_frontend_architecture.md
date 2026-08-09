@@ -171,10 +171,16 @@ Strategy 或 Run 数据结构。
 GET /api/product/v1/strategies
 GET /api/product/v1/strategies/{strategy_id}
 GET /api/product/v1/strategies/{strategy_id}/versions
-GET /api/product/v1/strategy-versions/{strategy_version_id}
+GET /api/product/v1/strategies/{strategy_id}/versions/{strategy_version_id}
 GET /api/product/v1/runs
 GET /api/product/v1/runs/{run_id}
 GET /api/product/v1/runs/{run_id}/metrics
+```
+
+其中 metrics 只服务已完成且结果可用的 Backtest Run。以下资源仍属于 S1 后续任务，不得
+在首个切片中冒充已交付：
+
+```text
 GET /api/product/v1/runs/{run_id}/positions
 GET /api/product/v1/runs/{run_id}/orders
 GET /api/product/v1/runs/{run_id}/fills

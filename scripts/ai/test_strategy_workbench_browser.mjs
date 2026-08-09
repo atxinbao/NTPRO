@@ -2,7 +2,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 
 const playwrightPath = process.env.NTPRO_PLAYWRIGHT_CORE_PATH;
@@ -20,8 +20,28 @@ const evidenceDir =
   process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
 const workspace = path.join(root, "workspace");
 const config = path.resolve("configs/nodes/btc-ema-shadow.toml");
+const backtestConfig = path.resolve(
+  "configs/backtests/ema-cross-btcusdt-product.toml",
+);
 const dist = path.resolve("apps/strategy-workbench/dist");
 fs.mkdirSync(evidenceDir, { recursive: true });
+const backtestRunId = "ema-cross-btcusdt-baseline-v1";
+const backtestOutput = path.join(
+  workspace,
+  "artifacts",
+  "backtests",
+  backtestRunId,
+);
+const backtest = spawnSync(
+  "target/debug/nautilus",
+  ["backtest", "run", "--config", backtestConfig, "--output", backtestOutput],
+  { encoding: "utf8" },
+);
+if (backtest.status !== 0) {
+  throw new Error(
+    `product backtest failed before browser smoke: ${backtest.stdout}${backtest.stderr}`,
+  );
+}
 
 const redact = (value) =>
   value.replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]");
@@ -31,9 +51,7 @@ const port = await new Promise((resolve, reject) => {
   listener.once("error", reject);
   listener.listen(0, "127.0.0.1", () => {
     const address = listener.address();
-    listener.close((error) =>
-      error ? reject(error) : resolve(address.port),
-    );
+    listener.close((error) => (error ? reject(error) : resolve(address.port)));
   });
 });
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -85,7 +103,8 @@ try {
     if (match) {
       strategyAccessUrl = new URL(match[1]);
       const token = strategyAccessUrl.searchParams.get("access_token");
-      if (!token) throw new Error("strategy bootstrap URL omitted access_token");
+      if (!token)
+        throw new Error("strategy bootstrap URL omitted access_token");
       institutionCookie = `ntpro_mvp_institution_access=${token}`;
       const response = await fetch(`${baseUrl}/api/mvp/v1/status`, {
         headers: { cookie: institutionCookie },
@@ -117,8 +136,7 @@ try {
   const unauthorizedProductBody = await unauthorizedProductApi.json();
   if (
     unauthorizedProductApi.status !== 403 ||
-    unauthorizedProductBody.schema_version !==
-      "ntpro.product_api.error.v1" ||
+    unauthorizedProductBody.schema_version !== "ntpro.product_api.error.v1" ||
     unauthorizedProductBody.contract_version !== "ntpro.product_api.v1" ||
     unauthorizedProductBody.error?.code !== "product_access_denied" ||
     unauthorizedProductBody.error?.retryable !== false ||
@@ -142,6 +160,20 @@ try {
       `unauthorized run API contract drift: status=${unauthorizedRunApi.status} body=${JSON.stringify(unauthorizedRunBody)}`,
     );
   }
+  const unauthorizedMetricsApi = await fetch(
+    `${baseUrl}/api/product/v1/runs/${backtestRunId}/metrics`,
+  );
+  const unauthorizedMetricsBody = await unauthorizedMetricsApi.json();
+  if (
+    unauthorizedMetricsApi.status !== 403 ||
+    unauthorizedMetricsBody.error?.code !== "product_access_denied" ||
+    unauthorizedMetricsBody.boundaries?.read_only !== true ||
+    unauthorizedMetricsBody.boundaries?.run_mutation_allowed !== false
+  ) {
+    throw new Error(
+      `unauthorized run metrics contract drift: status=${unauthorizedMetricsApi.status} body=${JSON.stringify(unauthorizedMetricsBody)}`,
+    );
+  }
 
   const productListResponse = await fetch(
     `${baseUrl}/api/product/v1/strategies?limit=1&sort=updated_at&order=desc`,
@@ -163,7 +195,9 @@ try {
     productStrategy?.default_version_id !== "ema_cross_btcusdt_v1@v1" ||
     productList.page?.returned_count !== 1
   ) {
-    throw new Error(`product strategy list contract drift: ${JSON.stringify(productList)}`);
+    throw new Error(
+      `product strategy list contract drift: ${JSON.stringify(productList)}`,
+    );
   }
   const expectedFalseBoundaries = [
     "strategy_mutation_allowed",
@@ -201,7 +235,8 @@ try {
     productDetail.schema_version !==
       "ntpro.product_api.strategy_detail.response.v1" ||
     productDetail.data?.strategy_id !== productStrategy.strategy_id ||
-    productDetail.data?.default_version_id !== productStrategy.default_version_id
+    productDetail.data?.default_version_id !==
+      productStrategy.default_version_id
   ) {
     throw new Error(
       `product strategy detail contract drift: ${JSON.stringify(productDetail)}`,
@@ -305,7 +340,8 @@ try {
   ];
   if (
     productRunListResponse.status !== 200 ||
-    productRunList.schema_version !== "ntpro.product_api.run_list.response.v1" ||
+    productRunList.schema_version !==
+      "ntpro.product_api.run_list.response.v1" ||
     productRunList.contract_version !== "ntpro.product_api.v1" ||
     productRunList.page?.returned_count !== 1 ||
     liveRun?.run_id !== "ema-cross-btcusdt-live-v1" ||
@@ -317,12 +353,16 @@ try {
     liveRun?.risk?.status !== "blocked" ||
     liveRun?.adapter_ref !== "adapter://live/disabled" ||
     liveRun?.account_ref !== "account://live/unconfigured" ||
-    runCapabilityFields.some((field) => liveRun?.capabilities?.[field] !== false) ||
+    runCapabilityFields.some(
+      (field) => liveRun?.capabilities?.[field] !== false,
+    ) ||
     expectedFalseBoundaries.some(
       (field) => productRunList.boundaries?.[field] !== false,
     )
   ) {
-    throw new Error(`product run list contract drift: ${JSON.stringify(productRunList)}`);
+    throw new Error(
+      `product run list contract drift: ${JSON.stringify(productRunList)}`,
+    );
   }
 
   const productRunDetailResponse = await fetch(
@@ -332,12 +372,53 @@ try {
   const productRunDetail = await productRunDetailResponse.json();
   if (
     productRunDetailResponse.status !== 200 ||
-    productRunDetail.schema_version !== "ntpro.product_api.run_detail.response.v1" ||
+    productRunDetail.schema_version !==
+      "ntpro.product_api.run_detail.response.v1" ||
     productRunDetail.data?.run_id !== liveRun.run_id ||
     productRunDetail.data?.source?.source_type !== "run_manifest" ||
     productRunDetail.data?.source?.freshness_status !== "fresh"
   ) {
-    throw new Error(`product run detail contract drift: ${JSON.stringify(productRunDetail)}`);
+    throw new Error(
+      `product run detail contract drift: ${JSON.stringify(productRunDetail)}`,
+    );
+  }
+
+  const productRunMetricsResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs/${backtestRunId}/metrics`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const productRunMetrics = await productRunMetricsResponse.json();
+  if (
+    productRunMetricsResponse.status !== 200 ||
+    productRunMetrics.schema_version !==
+      "ntpro.product_api.run_metrics.response.v1" ||
+    productRunMetrics.data?.run_id !== backtestRunId ||
+    productRunMetrics.data?.instrument_id !== "BTCUSDT.BINANCE" ||
+    productRunMetrics.data?.metrics?.quotes !== 120 ||
+    productRunMetrics.data?.metrics?.iterations !== 120 ||
+    productRunMetrics.data?.boundaries?.read_only !== true ||
+    runCapabilityFields.some(
+      (field) => productRunMetrics.data?.boundaries?.[field] !== false,
+    )
+  ) {
+    throw new Error(
+      `product run metrics contract drift: ${JSON.stringify(productRunMetrics)}`,
+    );
+  }
+
+  const liveRunMetricsResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs/${liveRun.run_id}/metrics`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const liveRunMetrics = await liveRunMetricsResponse.json();
+  if (
+    liveRunMetricsResponse.status !== 404 ||
+    liveRunMetrics.error?.code !== "run_not_found" ||
+    liveRunMetrics.error?.field !== "run_metrics"
+  ) {
+    throw new Error(
+      `non-backtest metrics did not fail closed: ${JSON.stringify(liveRunMetrics)}`,
+    );
   }
 
   const missingProductRun = await fetch(
@@ -392,18 +473,17 @@ try {
     ["GET", "/api/product/v1/unknown", 404],
     ["POST", "/api/product/v1/strategies", 405],
     ["POST", "/api/product/v1/runs", 405],
-    [
-      "POST",
-      "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions",
-      405,
-    ],
+    ["POST", `/api/product/v1/runs/${backtestRunId}/metrics`, 405],
+    ["POST", "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions", 405],
   ]) {
     const response = await fetch(`${baseUrl}${url}`, {
       method,
       headers: { cookie: institutionCookie },
     });
     if (response.status !== expected) {
-      throw new Error(`${method} ${url} expected ${expected}, got ${response.status}`);
+      throw new Error(
+        `${method} ${url} expected ${expected}, got ${response.status}`,
+      );
     }
     if (url.startsWith("/api/product/v1/") && method === "POST") {
       const body = await response.json();
@@ -414,7 +494,9 @@ try {
         body.error?.retryable !== false ||
         !body.request_id
       ) {
-        throw new Error(`product method error contract drift: ${JSON.stringify(body)}`);
+        throw new Error(
+          `product method error contract drift: ${JSON.stringify(body)}`,
+        );
       }
     }
   }
@@ -491,11 +573,16 @@ try {
       layout.canvasLeft < layout.railRight ||
       layout.headingLeft < layout.canvasLeft
     ) {
-      throw new Error(`${phase} canvas origin drift: ${JSON.stringify(layout)}`);
+      throw new Error(
+        `${phase} canvas origin drift: ${JSON.stringify(layout)}`,
+      );
     }
   };
   await assertCanvasOrigin("initial");
-  if ((await page.getByTestId("strategy-name").textContent()) !== productStrategy.strategy_id) {
+  if (
+    (await page.getByTestId("strategy-name").textContent()) !==
+    productStrategy.strategy_id
+  ) {
     throw new Error("Product API strategy identity did not render");
   }
   for (const liveButton of await page
@@ -505,11 +592,7 @@ try {
       throw new Error("Live mode must remain disabled");
     }
   }
-  if (
-    await page
-      .getByRole("button", { name: /下单|撤单|改单|平仓/ })
-      .count()
-  ) {
+  if (await page.getByRole("button", { name: /下单|撤单|改单|平仓/ }).count()) {
     throw new Error("trading control appeared in strategy shell");
   }
   if (
@@ -523,18 +606,22 @@ try {
   }
   if (
     ![...productionAssets].some((asset) =>
-      /\/strategy-workbench\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.js$/.test(
-        asset,
-      ),
+      /\/strategy-workbench\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.js$/.test(asset),
     )
   ) {
-    throw new Error("browser did not load a hashed production JavaScript asset");
+    throw new Error(
+      "browser did not load a hashed production JavaScript asset",
+    );
   }
 
   await page.getByRole("tab", { name: "日志" }).click();
   await page.getByText("原始技术日志不在主产品面暴露").waitFor();
   await page.getByRole("button", { name: "收起详情栏" }).click();
-  if ((await page.getByTestId("app-shell").getAttribute("class"))?.includes("drawerOpen")) {
+  if (
+    (await page.getByTestId("app-shell").getAttribute("class"))?.includes(
+      "drawerOpen",
+    )
+  ) {
     throw new Error("details drawer did not close");
   }
   await page.getByRole("button", { name: "展开详情栏" }).click();
@@ -544,13 +631,32 @@ try {
     fullPage: true,
   });
 
+  await page.getByRole("link", { name: new RegExp(backtestRunId) }).click();
+  await page.getByRole("heading", { name: backtestRunId }).waitFor();
+  await page.getByText("真实引擎回测结果").waitFor();
+  await page.getByRole("region", { name: "Backtest 指标" }).waitFor();
+  await page.screenshot({
+    path: path.join(
+      evidenceDir,
+      "strategy-workbench-backtest-metrics-1440.png",
+    ),
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "返回策略总览" }).click();
+  await page.getByText("产品资源已验证").waitFor();
+
   await page.getByRole("link", { name: new RegExp(liveRun.run_id) }).click();
   await page.getByRole("heading", { name: liveRun.run_id }).waitFor();
   if (!page.url().endsWith(`/strategy-workbench/runs/${liveRun.run_id}`)) {
     throw new Error(`Run deep link drifted: ${page.url()}`);
   }
-  if ((await page.getByTestId("strategy-name").textContent()) !== liveRun.strategy_id) {
-    throw new Error("Run detail did not bind the Product API strategy identity");
+  if (
+    (await page.getByTestId("strategy-name").textContent()) !==
+    liveRun.strategy_id
+  ) {
+    throw new Error(
+      "Run detail did not bind the Product API strategy identity",
+    );
   }
   await page.getByText("当前 Run 禁止能力").waitFor();
   await page.reload({ waitUntil: "networkidle" });
@@ -570,7 +676,11 @@ try {
     waitUntil: "networkidle",
   });
   await page.getByText("产品资源已验证").waitFor();
-  if ((await page.getByTestId("app-shell").getAttribute("class"))?.includes("drawerOpen")) {
+  if (
+    (await page.getByTestId("app-shell").getAttribute("class"))?.includes(
+      "drawerOpen",
+    )
+  ) {
     throw new Error("mobile details drawer must default closed");
   }
   const mobileLayout = await page.evaluate(() => ({
@@ -582,7 +692,9 @@ try {
     mobileLayout.documentWidth > mobileLayout.viewportWidth ||
     mobileLayout.scrollX !== 0
   ) {
-    throw new Error(`390 viewport layout drift: ${JSON.stringify(mobileLayout)}`);
+    throw new Error(
+      `390 viewport layout drift: ${JSON.stringify(mobileLayout)}`,
+    );
   }
   const mobileRunTable = await page
     .getByTestId("run-table-scroll")
@@ -599,6 +711,32 @@ try {
     path: path.join(evidenceDir, "strategy-workbench-390.png"),
     fullPage: true,
   });
+  await page.goto(`${baseUrl}/strategy-workbench/runs/${backtestRunId}`, {
+    waitUntil: "networkidle",
+  });
+  await page.getByText("真实引擎回测结果").waitFor();
+  await page.getByLabel("Backtest 收益统计").waitFor();
+  const mobileMetricsLayout = await page.evaluate(() => ({
+    scrollX: window.scrollX,
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+  }));
+  if (
+    mobileMetricsLayout.documentWidth > mobileMetricsLayout.viewportWidth ||
+    mobileMetricsLayout.scrollX !== 0
+  ) {
+    throw new Error(
+      `390 Backtest metrics layout drift: ${JSON.stringify(mobileMetricsLayout)}`,
+    );
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-backtest-metrics-390.png"),
+    fullPage: true,
+  });
+  await page.goto(`${baseUrl}/strategy-workbench/overview`, {
+    waitUntil: "networkidle",
+  });
+  await page.getByText("产品资源已验证").waitFor();
 
   scenario = "boundary";
   await page.getByRole("button", { name: "刷新产品与系统状态" }).click();
@@ -679,6 +817,9 @@ writeEvidence({
   product_strategy_access_control: 1,
   product_run_list: 1,
   product_run_detail: 1,
+  product_run_metrics: 1,
+  product_run_metrics_mobile: 1,
+  product_run_metrics_non_backtest_closed: 1,
   product_run_error: 1,
   product_run_live_boundary: 1,
   product_run_access_control: 1,

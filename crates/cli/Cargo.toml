@@ -44,10 +44,12 @@ anyhow = { workspace = true }
 aws-lc-rs = { workspace = true }
 axum = { workspace = true }
 blake3 = { workspace = true }
+cap-fs-ext = { workspace = true }
+cap-std = { workspace = true }
 clap = { workspace = true }
 dotenvy = { workspace = true }
-log = { workspace = true }
 jsonschema = { workspace = true }
+log = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"] }
 rust_decimal = { workspace = true }
 serde = { workspace = true }

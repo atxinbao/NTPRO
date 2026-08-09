@@ -142,6 +142,62 @@ export type Run = {
   capabilities: RunCapabilities;
 };
 
+export type BacktestParameters = {
+  trade_size: string;
+  fast_period: number;
+  slow_period: number;
+};
+
+export type BacktestMetrics = {
+  quotes: number;
+  iterations: number;
+  total_events: number;
+  total_orders: number;
+  total_positions: number;
+  pnl_stats: {
+    [key: string]: {
+      [key: string]: string;
+    };
+  };
+  return_stats: {
+    [key: string]: string;
+  };
+  general_stats: {
+    [key: string]: string;
+  };
+};
+
+export type BacktestResultBoundaries = {
+  read_only: true;
+  external_venue_connection: false;
+  order_submission_allowed: false;
+  order_mutation_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
+export type BacktestResult = {
+  schema_version: "ntpro.backtest_result.v1";
+  run_id: RunId;
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  strategy_version_content_hash: ContentHash;
+  data_ref: string;
+  data_sha256: ContentHash;
+  config_ref: string;
+  config_sha256: ContentHash;
+  result_ref: string;
+  instrument_id: string;
+  strategy: string;
+  parameters: BacktestParameters;
+  backtest_start: string;
+  backtest_end: string;
+  metrics: BacktestMetrics;
+  boundaries: BacktestResultBoundaries;
+};
+
 export type ReadOnlyBoundaries = {
   read_only: true;
   strategy_mutation_allowed: false;
@@ -210,6 +266,14 @@ export type RunDetailResponse = {
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
   data: Run;
+  boundaries: ReadOnlyBoundaries;
+};
+
+export type RunMetricsResponse = {
+  schema_version: "ntpro.product_api.run_metrics.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: BacktestResult;
   boundaries: ReadOnlyBoundaries;
 };
 
@@ -537,3 +601,51 @@ export type GetRunResponses = {
 };
 
 export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type GetRunMetricsData = {
+  body?: never;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/runs/{run_id}/metrics";
+};
+
+export type GetRunMetricsErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type GetRunMetricsError = GetRunMetricsErrors[keyof GetRunMetricsErrors];
+
+export type GetRunMetricsResponses = {
+  /**
+   * Backtest 指标
+   */
+  200: RunMetricsResponse;
+};
+
+export type GetRunMetricsResponse =
+  GetRunMetricsResponses[keyof GetRunMetricsResponses];

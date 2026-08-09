@@ -29,6 +29,26 @@ use super::strategy_version::*;
 use super::*;
 use crate::dashboard::server::dashboard_router;
 
+#[cfg(unix)]
+fn create_file_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(original, link)
+}
+
+#[cfg(windows)]
+fn create_file_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_file(original, link)
+}
+
+#[cfg(unix)]
+fn create_directory_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(original, link)
+}
+
+#[cfg(windows)]
+fn create_directory_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
+    std::os::windows::fs::symlink_dir(original, link)
+}
+
 struct Fixture {
     root: PathBuf,
     registry_path: PathBuf,
@@ -51,6 +71,12 @@ impl Fixture {
         let registry_path = root.join("supervisor/registry.json");
         let config_path = root.join("node.toml");
         fs::write(&config_path, valid_config()).expect("product config fixture should be written");
+        let result_sha256 = write_valid_backtest_artifact(&root, &config_path);
+        fs::write(
+            &config_path,
+            with_backtest_result_sha256(&valid_config(), &result_sha256),
+        )
+        .expect("trusted result hash should be written to product config");
         let store = SupervisorRegistryStore::new(&registry_path);
         store
             .register_node(RegisterNodeRequest {
@@ -130,6 +156,21 @@ impl Fixture {
 
     fn write_config(&self, value: &str) {
         fs::write(&self.config_path, value).expect("product config fixture should be written");
+    }
+
+    fn trust_current_backtest_result(&self) {
+        let result_path = self
+            .root
+            .join("artifacts/backtests/backtest-001/summary.json");
+        let result_sha256 = sha256_bytes_ref(
+            &fs::read(result_path).expect("backtest result fixture should be readable"),
+        );
+        let config = fs::read_to_string(&self.config_path)
+            .expect("product config fixture should be readable");
+        self.write_config(&with_backtest_result_sha256(&config, &result_sha256));
+        let mut identity = self.identity.clone();
+        identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+        self.write_identity(&identity);
     }
 }
 
@@ -319,6 +360,46 @@ fn invalid_run_queries_and_manifest_drift_fail_closed() {
             "run_manifest",
         ),
         (
+            "partial-backtest-expectation",
+            (|raw: String| raw.replace("backtest_slow_period = 5\n", "")) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_expectation",
+        ),
+        (
+            "invalid-backtest-hash",
+            (|raw: String| {
+                raw.replace(
+                    "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_expectation",
+        ),
+        (
+            "invalid-backtest-result-hash",
+            (|raw: String| {
+                raw.replace(
+                    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                    "sha256:CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_expectation",
+        ),
+        (
+            "sandbox-backtest-expectation",
+            (|raw: String| {
+                raw.replacen(
+                    "result_status = \"pending\"\nrisk_status = \"active\"",
+                    "result_status = \"pending\"\nbacktest_quotes = 120\nrisk_status = \"active\"",
+                    1,
+                )
+            }) as fn(String) -> String,
+            ProductErrorKind::SourceInvalid,
+            "run_expectation",
+        ),
+        (
             "live-reference",
             (|raw: String| raw.replace("adapter://live/disabled", "adapter://live/binance"))
                 as fn(String) -> String,
@@ -475,6 +556,41 @@ fn tracked_strategy_version_and_run_manifest_match_authoritative_identity() {
         backtest_run["account_ref"].as_str(),
         Some(expected_account_ref.as_str())
     );
+    let backtest_config = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../configs/backtests/ema-cross-btcusdt-product.toml");
+    let expected_config_hash = sha256_bytes_ref(
+        &fs::read(backtest_config).expect("tracked Backtest config should be readable"),
+    );
+    assert_eq!(
+        backtest_run["backtest_config_sha256"].as_str(),
+        Some(expected_config_hash.as_str())
+    );
+    assert_eq!(
+        backtest_run["backtest_data_sha256"].as_str(),
+        Some("sha256:18ed30b352b17a11c33294df39387976f15a587b859f729ffbe5e59bc9c75d1e")
+    );
+    assert_eq!(
+        backtest_run["backtest_result_sha256"].as_str(),
+        Some("sha256:4b9bc548f226e55b136eb4c08f2ef5e0274bed104b8626d5431b39fb0a3b8760")
+    );
+    assert_eq!(
+        backtest_run["backtest_trade_size"].as_str(),
+        Some("0.001000")
+    );
+    assert_eq!(backtest_run["backtest_quotes"].as_integer(), Some(120));
+    assert_eq!(backtest_run["backtest_fast_period"].as_integer(), Some(3));
+    assert_eq!(backtest_run["backtest_slow_period"].as_integer(), Some(5));
+}
+
+fn sha256_bytes_ref(bytes: &[u8]) -> String {
+    use aws_lc_rs::digest::{SHA256, digest};
+    use std::fmt::Write as _;
+
+    let mut value = String::from("sha256:");
+    for byte in digest(&SHA256, bytes).as_ref() {
+        write!(&mut value, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+    value
 }
 
 #[test]
@@ -1364,6 +1480,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     let router = fixture.router();
     let list_path = "/api/product/v1/runs";
     let detail_path = "/api/product/v1/runs/ema-cross-live-001";
+    let metrics_path = "/api/product/v1/runs/backtest-001/metrics";
 
     let (status, list) = router_json(&router, Method::GET, list_path).await;
     assert_eq!(status, StatusCode::OK);
@@ -1390,6 +1507,28 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     assert_read_only_boundaries(&detail);
     validate_openapi_instance("RunDetailResponse", &detail);
 
+    let (status, metrics) = router_json(&router, Method::GET, metrics_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        metrics["schema_version"],
+        "ntpro.product_api.run_metrics.response.v1"
+    );
+    assert_eq!(metrics["data"]["run_id"], "backtest-001");
+    assert_eq!(metrics["data"]["metrics"]["quotes"], 120);
+    assert_eq!(metrics["data"]["boundaries"]["read_only"], true);
+    assert_read_only_boundaries(&metrics);
+    validate_openapi_instance("RunMetricsResponse", &metrics);
+
+    let (status, unavailable) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/runs/mvp-strategy-001/metrics",
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(unavailable["error"]["code"], "run_not_found");
+    assert_eq!(unavailable["error"]["field"], "run_metrics");
+
     let (status, filtered) = router_json(
         &router,
         Method::GET,
@@ -1410,7 +1549,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     assert_eq!(malformed["error"]["code"], "product_query_invalid");
     assert_eq!(malformed["error"]["field"], "run_id");
 
-    for path in [list_path, detail_path] {
+    for path in [list_path, detail_path, metrics_path] {
         for method in [
             Method::HEAD,
             Method::POST,
@@ -1434,6 +1573,260 @@ async fn run_routes_are_read_only_and_schema_compatible() {
             }
         }
     }
+}
+
+#[tokio::test]
+async fn run_metrics_fail_closed_for_missing_corrupt_and_mismatched_artifacts() {
+    let fixture = Fixture::new("run-metrics-negative");
+    let result_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/summary.json");
+    let route = "/api/product/v1/runs/backtest-001/metrics";
+
+    fs::remove_file(&result_path).expect("result fixture should be removed");
+    let (status, missing) = router_json(&fixture.router(), Method::GET, route).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(missing["error"]["code"], "product_source_unavailable");
+    assert_eq!(missing["error"]["field"], "result_artifact");
+
+    fs::write(&result_path, b"{not-json").expect("corrupt result should be written");
+    let (status, corrupt) = router_json(&fixture.router(), Method::GET, route).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(corrupt["error"]["code"], "product_source_invalid");
+    assert_eq!(corrupt["error"]["field"], "result_sha256");
+
+    let cases: [(&str, fn(&mut Value), &str, &str); 21] = [
+        (
+            "schema",
+            |v| v["schema_version"] = json!("v2"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "run",
+            |v| v["run_id"] = json!("other"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "strategy",
+            |v| v["strategy_id"] = json!("other"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "version",
+            |v| v["strategy_version_id"] = json!("ema-cross@v2"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "version-hash",
+            |v| {
+                v["strategy_version_content_hash"] =
+                    json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+            },
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "data-ref",
+            |v| v["data_ref"] = json!("dataset://fixtures/other"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "data-hash",
+            |v| {
+                v["data_sha256"] =
+                    json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+            },
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "config-ref",
+            |v| v["config_ref"] = json!("node-config:other#product_runs"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "config-hash",
+            |v| {
+                v["config_sha256"] =
+                    json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+            },
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "result-ref",
+            |v| v["result_ref"] = json!("artifact://backtests/other/summary.json"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "instrument",
+            |v| v["instrument_id"] = json!("OTHER.BINANCE"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "strategy-name",
+            |v| v["strategy"] = json!(""),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "trade-size",
+            |v| v["parameters"]["trade_size"] = json!("1.000000"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "fast",
+            |v| v["parameters"]["fast_period"] = json!(4),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "slow",
+            |v| v["parameters"]["slow_period"] = json!(6),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "time",
+            |v| v["backtest_start"] = json!("1735689800000000000"),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "quotes",
+            |v| v["metrics"]["quotes"] = json!(119),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "iterations",
+            |v| v["metrics"]["iterations"] = json!(0),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+        (
+            "boundary-read-only",
+            |v| v["boundaries"]["read_only"] = json!(false),
+            "product_boundary_violation",
+            "result_boundaries",
+        ),
+        (
+            "boundary-submit",
+            |v| v["boundaries"]["order_submission_allowed"] = json!(true),
+            "product_boundary_violation",
+            "result_boundaries",
+        ),
+        (
+            "unknown-field",
+            |v| v["unexpected"] = json!(true),
+            "product_source_invalid",
+            "result_artifact",
+        ),
+    ];
+    for (name, mutate, expected_code, expected_field) in cases {
+        write_valid_backtest_artifact(&fixture.root, &fixture.config_path);
+        let mut mismatched: Value = serde_json::from_slice(
+            &fs::read(&result_path).expect("result fixture should be readable"),
+        )
+        .expect("result fixture should parse");
+        mutate(&mut mismatched);
+        write_json(&result_path, &mismatched);
+        fixture.trust_current_backtest_result();
+        let (status, mismatch) = router_json(&fixture.router(), Method::GET, route).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{name}");
+        assert_eq!(mismatch["error"]["code"], expected_code, "{name}");
+        assert_eq!(mismatch["error"]["field"], expected_field, "{name}");
+    }
+}
+
+#[tokio::test]
+async fn run_metrics_reject_in_place_result_tampering_against_trusted_hash() {
+    let fixture = Fixture::new("run-metrics-result-hash");
+    let result_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/summary.json");
+    let mut artifact: Value =
+        serde_json::from_slice(&fs::read(&result_path).expect("result fixture should be readable"))
+            .expect("result fixture should parse");
+    artifact["metrics"]["total_orders"] = json!(999);
+    write_json(&result_path, &artifact);
+
+    let (status, body) = router_json(
+        &fixture.router(),
+        Method::GET,
+        "/api/product/v1/runs/backtest-001/metrics",
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "result_sha256");
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn nofollow_directory_open_rejects_path_replacement() {
+    let fixture = Fixture::new("run-metrics-path-replacement");
+    let run_root = fixture.root.join("artifacts/backtests/backtest-001");
+    let original = fixture.root.join("original-run-root");
+    fs::rename(&run_root, &original).expect("original run root should move");
+    create_directory_symlink(&original, &run_root).expect("replacement symlink should be created");
+
+    let error = open_absolute_directory_nofollow(&run_root)
+        .expect_err("a replaced directory path must not validate");
+    assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+    assert_eq!(error.field, "result_root_containment");
+}
+
+#[cfg(any(unix, windows))]
+#[tokio::test]
+async fn run_metrics_reject_symlink_path_escape() {
+    let fixture = Fixture::new("run-metrics-symlink");
+    let result_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/summary.json");
+    let outside = fixture.root.join("outside-result.json");
+    fs::rename(&result_path, &outside).expect("result should move outside artifact root");
+    create_file_symlink(&outside, &result_path).expect("result symlink should be created");
+
+    let (status, body) = router_json(
+        &fixture.router(),
+        Method::GET,
+        "/api/product/v1/runs/backtest-001/metrics",
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "result_artifact_type");
+}
+
+#[cfg(any(unix, windows))]
+#[tokio::test]
+async fn run_metrics_reject_symlinked_artifact_root_escape() {
+    let fixture = Fixture::new("run-metrics-root-symlink");
+    let artifact_root = fixture.root.join("artifacts/backtests");
+    let outside_root = fixture.root.join("outside-backtests");
+    fs::rename(&artifact_root, &outside_root).expect("artifact root should move");
+    create_directory_symlink(&outside_root, &artifact_root)
+        .expect("artifact root symlink should be created");
+
+    let (status, body) = router_json(
+        &fixture.router(),
+        Method::GET,
+        "/api/product/v1/runs/backtest-001/metrics",
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "result_root_containment");
 }
 
 #[tokio::test]
@@ -1476,6 +1869,12 @@ async fn tracked_frontend_fixtures_match_real_rust_routes() {
             StatusCode::OK,
             "/api/product/v1/runs/ema-cross-live-001",
             "RunDetailResponse",
+        ),
+        (
+            "run-metrics.json",
+            StatusCode::OK,
+            "/api/product/v1/runs/backtest-001/metrics",
+            "RunMetricsResponse",
         ),
         (
             "error.json",
@@ -1576,6 +1975,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
         [
             "/runs",
             "/runs/{run_id}",
+            "/runs/{run_id}/metrics",
             "/strategies",
             "/strategies/{strategy_id}",
             "/strategies/{strategy_id}/versions",
@@ -1684,7 +2084,7 @@ venue = "BINANCE"
 [mvp]
 strategy_version = "v1"
 backtest_run_id = "backtest-001"
-backtest_result_ref = "artifact://backtests/backtest-001.json"
+backtest_result_ref = "artifact://backtests/backtest-001/summary.json"
 account_id = "acct-sandbox-001"
 environment = "sandbox"
 
@@ -1700,7 +2100,14 @@ account_ref = "account://simulated/backtest-001"
 venue_ref = "venue://simulated/BINANCE"
 lifecycle = "completed"
 result_status = "available"
-result_ref = "artifact://backtests/backtest-001.json"
+result_ref = "artifact://backtests/backtest-001/summary.json"
+backtest_config_sha256 = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+backtest_data_sha256 = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+backtest_result_sha256 = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+backtest_trade_size = "0.001000"
+backtest_quotes = 120
+backtest_fast_period = 3
+backtest_slow_period = 5
 risk_status = "passed"
 risk_ref = "node-config:node.toml#risk"
 created_at_unix_ms = 1767225600000
@@ -1789,7 +2196,7 @@ venue = "BINANCE"
 [mvp]
 strategy_version = "v1"
 backtest_run_id = "backtest-001"
-backtest_result_ref = "artifact://backtests/backtest-001.json"
+backtest_result_ref = "artifact://backtests/backtest-001/summary.json"
 account_id = "acct-sandbox-001"
 environment = "sandbox"
 "#
@@ -1804,7 +2211,7 @@ fn valid_identity(config_path: &Path, generated_at_unix_ms: u64) -> MvpIdentityC
             strategy_version: "v1".to_string(),
             strategy_version_content_hash: strategy_version_content_hash(config_path),
             backtest_run_id: "backtest-001".to_string(),
-            backtest_result_ref: "artifact://backtests/backtest-001.json".to_string(),
+            backtest_result_ref: "artifact://backtests/backtest-001/summary.json".to_string(),
             node_id: "mvp-node-001".to_string(),
             strategy_instance_id: "mvp-strategy-001".to_string(),
             account_id: "acct-sandbox-001".to_string(),
@@ -1842,6 +2249,79 @@ fn write_json(path: &Path, value: &impl serde::Serialize) {
         serde_json::to_vec_pretty(value).expect("fixture must serialize"),
     )
     .expect("fixture JSON should be written");
+}
+
+fn write_valid_backtest_artifact(root: &Path, config_path: &Path) -> String {
+    let path = root.join("artifacts/backtests/backtest-001/summary.json");
+    fs::create_dir_all(path.parent().expect("result path should have a parent"))
+        .expect("result directory should be created");
+    let raw = serde_json::to_vec_pretty(&json!({
+        "schema_version": "ntpro.backtest_result.v1",
+        "run_id": "backtest-001",
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "strategy_version_content_hash": strategy_version_content_hash(config_path),
+        "data_ref": "dataset://fixtures/ema-cross",
+        "data_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "config_ref": "node-config:node.toml#product_runs",
+        "config_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "result_ref": "artifact://backtests/backtest-001/summary.json",
+        "instrument_id": "BTCUSDT.BINANCE",
+        "strategy": "ema-cross",
+        "parameters": {
+            "trade_size": "0.001000",
+            "fast_period": 3,
+            "slow_period": 5
+        },
+        "backtest_start": "1735689600000000000",
+        "backtest_end": "1735689719000000000",
+        "metrics": {
+            "quotes": 120,
+            "iterations": 120,
+            "total_events": 9,
+            "total_orders": 3,
+            "total_positions": 3,
+            "pnl_stats": {"USDT": {
+                "PnL (total)": "-0.004000000000",
+                "PnL% (total)": "-0.000000400000",
+                "Win Rate": "0.000000000000"
+            }},
+            "return_stats": {
+                "Returns Volatility (252 days)": "NaN",
+                "Sharpe Ratio (252 days)": "NaN",
+                "Sortino Ratio (252 days)": "NaN"
+            },
+            "general_stats": {"Long Ratio": "0.330000000000"}
+        },
+        "boundaries": {
+            "read_only": true,
+            "external_venue_connection": false,
+            "order_submission_allowed": false,
+            "order_mutation_allowed": false,
+            "automatic_retry_allowed": false,
+            "automatic_remediation_allowed": false,
+            "real_orders_submitted": false,
+            "trading_controls_enabled": false
+        }
+    }))
+    .expect("backtest result fixture must serialize");
+    fs::write(&path, &raw).expect("backtest result fixture should be written");
+    sha256_bytes_ref(&raw)
+}
+
+fn with_backtest_result_sha256(config: &str, result_sha256: &str) -> String {
+    config
+        .lines()
+        .map(|line| {
+            if line.starts_with("backtest_result_sha256 = ") {
+                format!("backtest_result_sha256 = \"{result_sha256}\"")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
 }
 
 fn assert_tracked_frontend_fixture(name: &str, value: &Value) {

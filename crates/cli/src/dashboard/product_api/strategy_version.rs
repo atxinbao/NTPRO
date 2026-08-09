@@ -44,6 +44,18 @@ impl ProductStrategyVersion {
     pub(super) fn data_symbols(&self) -> &[String] {
         &self.data_requirements.symbols
     }
+
+    pub(super) fn content_hash(&self) -> &str {
+        &self.content_hash
+    }
+
+    pub(super) fn parameter_const_u64(&self, name: &str) -> Option<u64> {
+        self.parameter_schema
+            .get("properties")?
+            .get(name)?
+            .get("const")?
+            .as_u64()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]

@@ -1,17 +1,27 @@
 //! Backtest、Sandbox 与 Live 三环境 Run 的只读产品合同。
 
-use std::{cmp::Ordering, collections::BTreeSet};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeMap, BTreeSet},
+    ffi::OsStr,
+    io::{Error as IoError, ErrorKind, Read},
+    path::{Component, Path, PathBuf},
+};
 
+use aws_lc_rs::digest::{SHA256, digest};
 use axum::{
     Json,
     extract::{Path as AxumPath, RawQuery, State, rejection::PathRejection},
 };
+use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
 use serde::{Deserialize, Serialize};
 
 use super::*;
 
 const RUN_LIST_SCHEMA_VERSION: &str = "ntpro.product_api.run_list.response.v1";
 const RUN_DETAIL_SCHEMA_VERSION: &str = "ntpro.product_api.run_detail.response.v1";
+const RUN_METRICS_SCHEMA_VERSION: &str = "ntpro.product_api.run_metrics.response.v1";
+const BACKTEST_RESULT_SCHEMA_VERSION: &str = "ntpro.backtest_result.v1";
 const RUN_CURSOR_PREFIX: &str = "run-v1-";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -123,6 +133,13 @@ struct ProductRunConfig {
     lifecycle: RunLifecycle,
     result_status: RunResultStatus,
     result_ref: Option<String>,
+    backtest_config_sha256: Option<String>,
+    backtest_data_sha256: Option<String>,
+    backtest_result_sha256: Option<String>,
+    backtest_trade_size: Option<String>,
+    backtest_quotes: Option<usize>,
+    backtest_fast_period: Option<usize>,
+    backtest_slow_period: Option<usize>,
     risk_status: RunRiskStatus,
     risk_ref: String,
     error_code: Option<String>,
@@ -156,6 +173,82 @@ pub(in crate::dashboard) struct RunDetailResponse {
     contract_version: String,
     request_id: String,
     data: ProductRun,
+    boundaries: ProductReadOnlyBoundaries,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct BacktestResultArtifact {
+    schema_version: String,
+    run_id: String,
+    strategy_id: String,
+    strategy_version_id: String,
+    strategy_version_content_hash: String,
+    data_ref: String,
+    data_sha256: String,
+    config_ref: String,
+    config_sha256: String,
+    result_ref: String,
+    instrument_id: String,
+    strategy: String,
+    parameters: BacktestParameters,
+    backtest_start: String,
+    backtest_end: String,
+    metrics: BacktestMetrics,
+    boundaries: BacktestResultBoundaries,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestParameters {
+    trade_size: String,
+    fast_period: usize,
+    slow_period: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestMetrics {
+    quotes: usize,
+    iterations: usize,
+    total_events: usize,
+    total_orders: usize,
+    total_positions: usize,
+    pnl_stats: BTreeMap<String, BTreeMap<String, String>>,
+    return_stats: BTreeMap<String, String>,
+    general_stats: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestResultBoundaries {
+    read_only: bool,
+    external_venue_connection: bool,
+    order_submission_allowed: bool,
+    order_mutation_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    real_orders_submitted: bool,
+    trading_controls_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct BacktestResultExpectation {
+    config_sha256: String,
+    data_sha256: String,
+    result_sha256: String,
+    trade_size: String,
+    quotes: usize,
+    fast_period: usize,
+    slow_period: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct RunMetricsResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: BacktestResultArtifact,
     boundaries: ProductReadOnlyBoundaries,
 }
 
@@ -224,6 +317,340 @@ pub(in crate::dashboard) async fn run_detail_api(
     result
         .map(Json)
         .map_err(|error| product_error_response(&error, &request_id))
+}
+
+pub(in crate::dashboard) async fn run_metrics_api(
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    RawQuery(raw_query): RawQuery,
+) -> ApiResult<RunMetricsResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(run_id)| run_id).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
+        validate_requested_run_id("run_id", &run_id)?;
+        let source = load_product_source(&state, unix_time_ms())?;
+        let strategy_version =
+            strategy_version::load_product_strategy_version(&source, unix_time_ms())?;
+        let run = load_product_runs(&state, unix_time_ms())?
+            .into_iter()
+            .find(|run| run.run_id == run_id)
+            .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+        if run.environment != RunEnvironment::Backtest
+            || run.lifecycle != RunLifecycle::Completed
+            || run.result.status != RunResultStatus::Available
+        {
+            return Err(product_error(ProductErrorKind::RunNotFound, "run_metrics"));
+        }
+        let expected = load_backtest_result_expectation(&source, &run.run_id)?;
+        let artifact = load_backtest_result_artifact(&state, &run, &strategy_version, &expected)?;
+        Ok(RunMetricsResponse {
+            schema_version: RUN_METRICS_SCHEMA_VERSION.to_string(),
+            contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+            request_id: request_id.clone(),
+            data: artifact,
+            boundaries: ProductReadOnlyBoundaries::enforced(),
+        })
+    });
+    result
+        .map(Json)
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+fn load_backtest_result_artifact(
+    state: &DashboardServerState,
+    run: &ProductRun,
+    strategy_version: &strategy_version::ProductStrategyVersion,
+    expected: &BacktestResultExpectation,
+) -> Result<BacktestResultArtifact, ProductError> {
+    if run.environment != RunEnvironment::Backtest
+        || run.lifecycle != RunLifecycle::Completed
+        || run.result.status != RunResultStatus::Available
+    {
+        return Err(product_error(ProductErrorKind::RunNotFound, "run_metrics"));
+    }
+    let result_ref = run
+        .result
+        .result_ref
+        .as_deref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "result_ref"))?;
+    let expected_ref = format!("artifact://backtests/{}/summary.json", run.run_id);
+    if result_ref != expected_ref {
+        return Err(product_error(ProductErrorKind::SourceInvalid, "result_ref"));
+    }
+
+    let workspace = mvp_workspace_root(&state.registry_path)?;
+    let canonical_workspace = canonical_path(&workspace, "workspace")?;
+    let artifact_root = canonical_path(&workspace.join("artifacts/backtests"), "result_root")?;
+    if artifact_root != canonical_workspace.join("artifacts/backtests") {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_root_containment",
+        ));
+    }
+    let run_root = canonical_path(&artifact_root.join(&run.run_id), "result_run_root")?;
+    let expected_run_root = artifact_root.join(&run.run_id);
+    if run_root != expected_run_root || !run_root.starts_with(&artifact_root) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_containment",
+        ));
+    }
+    let result_path = run_root.join("summary.json");
+    let artifact = read_verified_backtest_result(&result_path, &expected.result_sha256)?;
+    validate_backtest_result_artifact(&artifact, run, strategy_version, expected)?;
+    Ok(artifact)
+}
+
+fn load_backtest_result_expectation(
+    source: &ValidatedProductSource,
+    run_id: &str,
+) -> Result<BacktestResultExpectation, ProductError> {
+    let projection: ProductRunConfigProjection = toml::from_str(&source.raw_config)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "run_manifest"))?;
+    let config = projection
+        .product_runs
+        .into_iter()
+        .find(|config| config.run_id == run_id)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_expectation"))?;
+    backtest_result_expectation(&config)?
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_expectation"))
+}
+
+fn backtest_result_expectation(
+    config: &ProductRunConfig,
+) -> Result<Option<BacktestResultExpectation>, ProductError> {
+    let fields_present = [
+        config.backtest_config_sha256.is_some(),
+        config.backtest_data_sha256.is_some(),
+        config.backtest_result_sha256.is_some(),
+        config.backtest_trade_size.is_some(),
+        config.backtest_quotes.is_some(),
+        config.backtest_fast_period.is_some(),
+        config.backtest_slow_period.is_some(),
+    ];
+    if fields_present.iter().all(|present| !present) {
+        return Ok(None);
+    }
+    if !fields_present.iter().all(|present| *present) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_expectation",
+        ));
+    }
+    let expected = BacktestResultExpectation {
+        config_sha256: config.backtest_config_sha256.clone().unwrap_or_default(),
+        data_sha256: config.backtest_data_sha256.clone().unwrap_or_default(),
+        result_sha256: config.backtest_result_sha256.clone().unwrap_or_default(),
+        trade_size: config.backtest_trade_size.clone().unwrap_or_default(),
+        quotes: config.backtest_quotes.unwrap_or_default(),
+        fast_period: config.backtest_fast_period.unwrap_or_default(),
+        slow_period: config.backtest_slow_period.unwrap_or_default(),
+    };
+    if !is_sha256_ref(&expected.config_sha256)
+        || !is_sha256_ref(&expected.data_sha256)
+        || !is_sha256_ref(&expected.result_sha256)
+        || expected.trade_size.trim().is_empty()
+        || expected.quotes == 0
+        || expected.fast_period == 0
+        || expected.fast_period >= expected.slow_period
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_expectation",
+        ));
+    }
+    Ok(Some(expected))
+}
+
+fn read_verified_backtest_result(
+    path: &Path,
+    expected_sha256: &str,
+) -> Result<BacktestResultArtifact, ProductError> {
+    let raw = read_backtest_result_bytes(path)?;
+    if sha256_ref(&raw) != expected_sha256 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_sha256",
+        ));
+    }
+    serde_json::from_slice(&raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "result_artifact"))
+}
+
+fn read_backtest_result_bytes(path: &Path) -> Result<Vec<u8>, ProductError> {
+    use cap_std::fs::OpenOptions;
+
+    let parent = path
+        .parent()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "result_artifact_path"))?;
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "result_artifact_path"))?;
+    let directory = open_absolute_directory_nofollow(parent)?;
+    let mut options = OpenOptions::new();
+    options.read(true);
+    options.follow(FollowSymlinks::No);
+    let file = directory.open_with(file_name, &options).map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            result_io_error(error, "result_artifact")
+        } else {
+            product_error(ProductErrorKind::SourceInvalid, "result_artifact_type")
+        }
+    })?;
+    let metadata = file
+        .metadata()
+        .map_err(|error| result_io_error(error, "result_artifact"))?;
+    if !metadata.is_file() {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_artifact_type",
+        ));
+    }
+    let mut raw = Vec::new();
+    file.into_std()
+        .read_to_end(&mut raw)
+        .map_err(|error| result_io_error(error, "result_artifact"))?;
+    Ok(raw)
+}
+
+pub(super) fn open_absolute_directory_nofollow(
+    path: &Path,
+) -> Result<cap_std::fs::Dir, ProductError> {
+    use cap_std::fs::Dir;
+
+    if !path.is_absolute() {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_root_containment",
+        ));
+    }
+    let (root, components) = absolute_root_and_components(path)?;
+    let mut directory = Dir::open_ambient_dir(root, cap_std::ambient_authority())
+        .map_err(|error| result_io_error(error, "result_root"))?;
+    for name in components {
+        directory = open_directory_component_nofollow(&directory, name.as_os_str())?;
+    }
+    Ok(directory)
+}
+
+pub(super) fn open_directory_component_nofollow(
+    parent: &cap_std::fs::Dir,
+    name: &OsStr,
+) -> Result<cap_std::fs::Dir, ProductError> {
+    parent
+        .open_dir_nofollow(name)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "result_root_containment"))
+}
+
+fn absolute_root_and_components(path: &Path) -> Result<(PathBuf, Vec<PathBuf>), ProductError> {
+    let invalid = || product_error(ProductErrorKind::SourceInvalid, "result_root_containment");
+    let mut source = path.components();
+    let mut root = PathBuf::new();
+    match source.next() {
+        Some(Component::Prefix(prefix)) => {
+            root.push(prefix.as_os_str());
+            if !matches!(source.next(), Some(Component::RootDir)) {
+                return Err(invalid());
+            }
+            root.push(Path::new(std::path::MAIN_SEPARATOR_STR));
+        }
+        Some(Component::RootDir) => root.push(Path::new(std::path::MAIN_SEPARATOR_STR)),
+        _ => return Err(invalid()),
+    }
+    let mut components = Vec::new();
+    for component in source {
+        match component {
+            Component::Normal(name) => components.push(PathBuf::from(name)),
+            _ => return Err(invalid()),
+        }
+    }
+    Ok((root, components))
+}
+
+fn sha256_ref(bytes: &[u8]) -> String {
+    let hash = digest(&SHA256, bytes);
+    let mut value = String::with_capacity(71);
+    value.push_str("sha256:");
+    for byte in hash.as_ref() {
+        value.push_str(&format!("{byte:02x}"));
+    }
+    value
+}
+
+fn is_sha256_ref(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn result_io_error(_error: IoError, field: &str) -> ProductError {
+    product_error(ProductErrorKind::SourceUnavailable, field)
+}
+
+fn validate_backtest_result_artifact(
+    artifact: &BacktestResultArtifact,
+    run: &ProductRun,
+    strategy_version: &strategy_version::ProductStrategyVersion,
+    expected: &BacktestResultExpectation,
+) -> Result<(), ProductError> {
+    let backtest_start = artifact.backtest_start.parse::<u64>();
+    let backtest_end = artifact.backtest_end.parse::<u64>();
+    let expected_fast_period = strategy_version.parameter_const_u64("fast_period");
+    let expected_slow_period = strategy_version.parameter_const_u64("slow_period");
+    if artifact.schema_version != BACKTEST_RESULT_SCHEMA_VERSION
+        || artifact.run_id != run.run_id
+        || artifact.strategy_id != run.strategy_id
+        || artifact.strategy_version_id != run.strategy_version_id
+        || artifact.strategy_version_content_hash != strategy_version.content_hash()
+        || artifact.data_ref != run.data_ref
+        || artifact.data_sha256 != expected.data_sha256
+        || artifact.config_ref != run.config_ref
+        || artifact.config_sha256 != expected.config_sha256
+        || run.result.result_ref.as_deref() != Some(artifact.result_ref.as_str())
+        || artifact.instrument_id.trim().is_empty()
+        || !strategy_version
+            .data_symbols()
+            .contains(&artifact.instrument_id)
+        || artifact.strategy.trim().is_empty()
+        || artifact.parameters.trade_size != expected.trade_size
+        || artifact.parameters.fast_period != expected.fast_period
+        || artifact.parameters.slow_period != expected.slow_period
+        || expected_fast_period != Some(artifact.parameters.fast_period as u64)
+        || expected_slow_period != Some(artifact.parameters.slow_period as u64)
+        || backtest_start.is_err()
+        || backtest_end.is_err()
+        || backtest_start.ok() > backtest_end.ok()
+        || artifact.metrics.quotes != expected.quotes
+        || artifact.metrics.iterations == 0
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_artifact",
+        ));
+    }
+    let boundaries = &artifact.boundaries;
+    if !boundaries.read_only
+        || boundaries.external_venue_connection
+        || boundaries.order_submission_allowed
+        || boundaries.order_mutation_allowed
+        || boundaries.automatic_retry_allowed
+        || boundaries.automatic_remediation_allowed
+        || boundaries.real_orders_submitted
+        || boundaries.trading_controls_enabled
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "result_boundaries",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn load_product_runs(
@@ -356,6 +783,13 @@ fn validate_run_references(
     source: &ValidatedProductSource,
     strategy_version: &strategy_version::ProductStrategyVersion,
 ) -> Result<(), ProductError> {
+    let backtest_expectation = backtest_result_expectation(config)?;
+    if (config.environment == RunEnvironment::Backtest) != backtest_expectation.is_some() {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "run_expectation_environment",
+        ));
+    }
     for (field, value) in [
         ("run_data_ref", config.data_ref.as_str()),
         ("run_config_ref", config.config_ref.as_str()),
