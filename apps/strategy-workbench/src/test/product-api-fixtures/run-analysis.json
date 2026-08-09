@@ -1,0 +1,160 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": {
+    "analysis_ref": "artifact://backtests/backtest-001/analysis.json",
+    "boundaries": {
+      "automatic_remediation_allowed": false,
+      "automatic_retry_allowed": false,
+      "external_venue_connection": false,
+      "order_mutation_allowed": false,
+      "order_submission_allowed": false,
+      "read_only": true,
+      "real_orders_submitted": false,
+      "trading_controls_enabled": false
+    },
+    "drawdown_curve": [
+      {
+        "drawdown_amount": "0.00000000 USDT",
+        "drawdown_rate": "0.000000000000",
+        "equity": "1000000.00000000 USDT",
+        "peak_equity": "1000000.00000000 USDT",
+        "ts_event": "1735689600000000000"
+      },
+      {
+        "drawdown_amount": "0.00300000 USDT",
+        "drawdown_rate": "0.000000003000",
+        "equity": "999999.99700000 USDT",
+        "peak_equity": "1000000.00000000 USDT",
+        "ts_event": "1735689719000000000"
+      }
+    ],
+    "instrument_id": "BTCUSDT.BINANCE",
+    "provenance": {
+      "config_ref": "node-config:node.toml#product_runs",
+      "config_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "data_ref": "dataset://fixtures/ema-cross",
+      "data_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "details_ref": "artifact://backtests/backtest-001/details.json",
+      "details_sha256": "sha256:76bb997bae0151c92073d2b885541a629e7ee1e2d40eed246de0b0c04935b9e3",
+      "engine_mode": "engine-smoke",
+      "generator": "nautilus_backtest::engine::BacktestEngine",
+      "summary_ref": "artifact://backtests/backtest-001/summary.json",
+      "summary_sha256": "sha256:e209a5841915e05e4f43b32f3e065854d659f6770e6e0ae5d0c72e14c2ddd124"
+    },
+    "risk": {
+      "closed_positions": 3,
+      "currency": "USDT",
+      "current_drawdown_amount": "0.00300000 USDT",
+      "current_drawdown_rate": "0.000000003000",
+      "ending_equity": "999999.99700000 USDT",
+      "losing_positions": 3,
+      "max_drawdown_amount": "0.00300000 USDT",
+      "max_drawdown_rate": "0.000000003000",
+      "max_drawdown_started_at": "1735689600000000000",
+      "max_drawdown_trough_at": "1735689719000000000",
+      "open_positions": 0,
+      "peak_equity": "1000000.00000000 USDT",
+      "profitable_positions": 0,
+      "starting_equity": "1000000.00000000 USDT"
+    },
+    "run_id": "backtest-001",
+    "schema_version": "ntpro.backtest_analysis.v1",
+    "strategy_id": "ema-cross",
+    "strategy_version_content_hash": "sha256:950d09dddab99e9beb225eb1b54f867d5068bc2b6051635b07e612ccce3f101c",
+    "strategy_version_id": "ema-cross@v1",
+    "timeline": [
+      {
+        "entity_ref": "run://backtest-001",
+        "event_id": "event-000000",
+        "event_type": "run_started",
+        "ts_event": "1735689600000000000"
+      },
+      {
+        "entity_ref": "account://SIM-001",
+        "event_id": "event-000001",
+        "event_type": "equity_updated",
+        "ts_event": "1735689600000000000"
+      },
+      {
+        "entity_ref": "trade://T-1",
+        "event_id": "event-000002",
+        "event_type": "trade_filled",
+        "ts_event": "1735689610000000000"
+      },
+      {
+        "entity_ref": "position://P-1",
+        "event_id": "event-000003",
+        "event_type": "position_opened",
+        "ts_event": "1735689610000000000"
+      },
+      {
+        "entity_ref": "position://P-1",
+        "event_id": "event-000004",
+        "event_type": "position_closed",
+        "ts_event": "1735689610500000000"
+      },
+      {
+        "entity_ref": "trade://T-2",
+        "event_id": "event-000005",
+        "event_type": "trade_filled",
+        "ts_event": "1735689620000000000"
+      },
+      {
+        "entity_ref": "position://P-2",
+        "event_id": "event-000006",
+        "event_type": "position_opened",
+        "ts_event": "1735689620000000000"
+      },
+      {
+        "entity_ref": "position://P-2",
+        "event_id": "event-000007",
+        "event_type": "position_closed",
+        "ts_event": "1735689620500000000"
+      },
+      {
+        "entity_ref": "trade://T-3",
+        "event_id": "event-000008",
+        "event_type": "trade_filled",
+        "ts_event": "1735689630000000000"
+      },
+      {
+        "entity_ref": "position://P-3",
+        "event_id": "event-000009",
+        "event_type": "position_opened",
+        "ts_event": "1735689630000000000"
+      },
+      {
+        "entity_ref": "position://P-3",
+        "event_id": "event-000010",
+        "event_type": "position_closed",
+        "ts_event": "1735689630500000000"
+      },
+      {
+        "entity_ref": "account://SIM-001",
+        "event_id": "event-000011",
+        "event_type": "equity_updated",
+        "ts_event": "1735689719000000000"
+      },
+      {
+        "entity_ref": "run://backtest-001",
+        "event_id": "event-000012",
+        "event_type": "run_completed",
+        "ts_event": "1735689719000000000"
+      }
+    ]
+  },
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.run_analysis.response.v1"
+}

@@ -99,6 +99,7 @@ export type RunResult = {
   status: RunResultStatus;
   result_ref: string | null;
   report_ref: string | null;
+  analysis_ref: string | null;
 };
 
 export type RunRisk = {
@@ -294,6 +295,72 @@ export type BacktestDetails = {
   boundaries: BacktestResultBoundaries;
 };
 
+export type BacktestRiskSummary = {
+  currency: string;
+  starting_equity: string;
+  ending_equity: string;
+  peak_equity: string;
+  max_drawdown_amount: string;
+  max_drawdown_rate: string;
+  max_drawdown_started_at: string;
+  max_drawdown_trough_at: string;
+  current_drawdown_amount: string;
+  current_drawdown_rate: string;
+  open_positions: number;
+  closed_positions: number;
+  profitable_positions: number;
+  losing_positions: number;
+};
+
+export type BacktestDrawdownPoint = {
+  ts_event: string;
+  equity: string;
+  peak_equity: string;
+  drawdown_amount: string;
+  drawdown_rate: string;
+};
+
+export type BacktestTimelineEvent = {
+  event_id: string;
+  event_type:
+    | "run_started"
+    | "equity_updated"
+    | "trade_filled"
+    | "position_opened"
+    | "position_closed"
+    | "run_completed";
+  ts_event: string;
+  entity_ref: string;
+};
+
+export type BacktestAnalysisProvenance = {
+  generator: "nautilus_backtest::engine::BacktestEngine";
+  engine_mode: "engine-smoke";
+  data_ref: string;
+  data_sha256: ContentHash;
+  config_ref: string;
+  config_sha256: ContentHash;
+  summary_ref: string;
+  summary_sha256: ContentHash;
+  details_ref: string;
+  details_sha256: ContentHash;
+};
+
+export type BacktestAnalysis = {
+  schema_version: "ntpro.backtest_analysis.v1";
+  run_id: RunId;
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  strategy_version_content_hash: ContentHash;
+  analysis_ref: string;
+  instrument_id: string;
+  risk: BacktestRiskSummary;
+  drawdown_curve: Array<BacktestDrawdownPoint>;
+  timeline: Array<BacktestTimelineEvent>;
+  provenance: BacktestAnalysisProvenance;
+  boundaries: BacktestResultBoundaries;
+};
+
 export type ReadOnlyBoundaries = {
   read_only: true;
   strategy_mutation_allowed: false;
@@ -378,6 +445,14 @@ export type RunReportResponse = {
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
   data: BacktestDetails;
+  boundaries: ReadOnlyBoundaries;
+};
+
+export type RunAnalysisResponse = {
+  schema_version: "ntpro.product_api.run_analysis.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: BacktestAnalysis;
   boundaries: ReadOnlyBoundaries;
 };
 
@@ -850,3 +925,52 @@ export type GetRunReportResponses = {
 
 export type GetRunReportResponse =
   GetRunReportResponses[keyof GetRunReportResponses];
+
+export type GetRunAnalysisData = {
+  body?: never;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/runs/{run_id}/analysis";
+};
+
+export type GetRunAnalysisErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type GetRunAnalysisError =
+  GetRunAnalysisErrors[keyof GetRunAnalysisErrors];
+
+export type GetRunAnalysisResponses = {
+  /**
+   * Backtest 风险、回撤、运行记录与来源明细
+   */
+  200: RunAnalysisResponse;
+};
+
+export type GetRunAnalysisResponse =
+  GetRunAnalysisResponses[keyof GetRunAnalysisResponses];

@@ -3,6 +3,7 @@ import { setupServer } from "msw/node";
 
 import { validStatusPayload } from "./fixtures";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
+import runAnalysisFixture from "./product-api-fixtures/run-analysis.json";
 import runListFixture from "./product-api-fixtures/run-list.json";
 import runMetricsFixture from "./product-api-fixtures/run-metrics.json";
 import runReportFixture from "./product-api-fixtures/run-report.json";
@@ -23,6 +24,7 @@ const createdBacktest = {
     status: "available" as const,
     result_ref: "artifact://backtests/backtest-created-001/summary.json",
     report_ref: "artifact://backtests/backtest-created-001/details.json",
+    analysis_ref: "artifact://backtests/backtest-created-001/analysis.json",
   },
   risk: {
     status: "passed" as const,
@@ -113,6 +115,26 @@ export const server = setupServer(
             },
           }
         : runReportFixture,
+    ),
+  ),
+  http.get("/api/product/v1/runs/:runId/analysis", ({ params }) =>
+    HttpResponse.json(
+      params.runId === createdBacktest.run_id
+        ? {
+            ...runAnalysisFixture,
+            data: {
+              ...runAnalysisFixture.data,
+              run_id: createdBacktest.run_id,
+              analysis_ref: createdBacktest.result.analysis_ref,
+              provenance: {
+                ...runAnalysisFixture.data.provenance,
+                config_ref: createdBacktest.config_ref,
+                summary_ref: createdBacktest.result.result_ref,
+                details_ref: createdBacktest.result.report_ref,
+              },
+            },
+          }
+        : runAnalysisFixture,
     ),
   ),
 );

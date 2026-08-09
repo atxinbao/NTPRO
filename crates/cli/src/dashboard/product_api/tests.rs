@@ -24,6 +24,8 @@ use crate::{
     },
 };
 
+type AnalysisMutation = fn(&mut Value);
+
 use super::run::*;
 use super::strategy_version::*;
 use super::*;
@@ -73,11 +75,20 @@ impl Fixture {
         fs::write(&config_path, valid_config()).expect("product config fixture should be written");
         let result_sha256 = write_valid_backtest_artifact(&root, &config_path);
         let details_sha256 = write_valid_backtest_details_artifact(&root, &config_path);
+        let analysis_sha256 = write_valid_backtest_analysis_artifact(
+            &root,
+            &config_path,
+            &result_sha256,
+            &details_sha256,
+        );
         fs::write(
             &config_path,
-            with_backtest_details_sha256(
-                &with_backtest_result_sha256(&valid_config(), &result_sha256),
-                &details_sha256,
+            with_backtest_analysis_sha256(
+                &with_backtest_details_sha256(
+                    &with_backtest_result_sha256(&valid_config(), &result_sha256),
+                    &details_sha256,
+                ),
+                &analysis_sha256,
             ),
         )
         .expect("trusted result hash should be written to product config");
@@ -188,6 +199,21 @@ impl Fixture {
         let config = fs::read_to_string(&self.config_path)
             .expect("product config fixture should be readable");
         self.write_config(&with_backtest_details_sha256(&config, &details_sha256));
+        let mut identity = self.identity.clone();
+        identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+        self.write_identity(&identity);
+    }
+
+    fn trust_current_backtest_analysis(&self) {
+        let analysis_path = self
+            .root
+            .join("artifacts/backtests/backtest-001/analysis.json");
+        let analysis_sha256 = sha256_bytes_ref(
+            &fs::read(analysis_path).expect("backtest analysis fixture should be readable"),
+        );
+        let config = fs::read_to_string(&self.config_path)
+            .expect("product config fixture should be readable");
+        self.write_config(&with_backtest_analysis_sha256(&config, &analysis_sha256));
         let mut identity = self.identity.clone();
         identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
         self.write_identity(&identity);
@@ -1543,6 +1569,7 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
     assert!(run_root.join("request.toml").is_file());
     assert!(run_root.join("summary.json").is_file());
     assert!(run_root.join("details.json").is_file());
+    assert!(run_root.join("analysis.json").is_file());
     assert!(run_root.join("run-manifest.json").is_file());
 
     let (status, detail) = router_json(
@@ -1556,6 +1583,10 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
     assert_eq!(
         detail["data"]["result"]["report_ref"],
         format!("artifact://backtests/{run_id}/details.json")
+    );
+    assert_eq!(
+        detail["data"]["result"]["analysis_ref"],
+        format!("artifact://backtests/{run_id}/analysis.json")
     );
     let (status, metrics) = router_json(
         &router,
@@ -1594,6 +1625,31 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
     );
     assert_read_only_boundaries(&report);
     validate_openapi_instance("RunReportResponse", &report);
+    let (status, analysis) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}/analysis"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        analysis["schema_version"],
+        "ntpro.product_api.run_analysis.response.v1"
+    );
+    assert_eq!(analysis["data"]["run_id"], run_id);
+    assert_eq!(
+        analysis["data"]["provenance"]["summary_ref"],
+        format!("artifact://backtests/{run_id}/summary.json")
+    );
+    assert!(
+        !analysis["data"]["drawdown_curve"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert!(!analysis["data"]["timeline"].as_array().unwrap().is_empty());
+    assert_read_only_boundaries(&analysis);
+    validate_openapi_instance("RunAnalysisResponse", &analysis);
 }
 
 #[tokio::test]
@@ -1775,6 +1831,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     let detail_path = "/api/product/v1/runs/ema-cross-live-001";
     let metrics_path = "/api/product/v1/runs/backtest-001/metrics";
     let report_path = "/api/product/v1/runs/backtest-001/report";
+    let analysis_path = "/api/product/v1/runs/backtest-001/analysis";
 
     let (status, list) = router_json(&router, Method::GET, list_path).await;
     assert_eq!(status, StatusCode::OK);
@@ -1828,6 +1885,21 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     assert_read_only_boundaries(&report);
     validate_openapi_instance("RunReportResponse", &report);
 
+    let (status, analysis) = router_json(&router, Method::GET, analysis_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        analysis["schema_version"],
+        "ntpro.product_api.run_analysis.response.v1"
+    );
+    assert_eq!(analysis["data"]["run_id"], "backtest-001");
+    assert_eq!(analysis["data"]["risk"]["closed_positions"], 3);
+    assert_eq!(
+        analysis["data"]["timeline"].as_array().map(Vec::len),
+        Some(13)
+    );
+    assert_read_only_boundaries(&analysis);
+    validate_openapi_instance("RunAnalysisResponse", &analysis);
+
     let (status, unavailable) = router_json(
         &router,
         Method::GET,
@@ -1858,7 +1930,13 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     assert_eq!(malformed["error"]["code"], "product_query_invalid");
     assert_eq!(malformed["error"]["field"], "run_id");
 
-    for path in [list_path, detail_path, metrics_path, report_path] {
+    for path in [
+        list_path,
+        detail_path,
+        metrics_path,
+        report_path,
+        analysis_path,
+    ] {
         for method in [
             Method::HEAD,
             Method::PUT,
@@ -1886,7 +1964,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
         }
     }
 
-    for path in [detail_path, metrics_path, report_path] {
+    for path in [detail_path, metrics_path, report_path, analysis_path] {
         let (status, headers, body) = router_json_with_headers(&router, Method::POST, path).await;
         assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "POST {path}");
         assert_eq!(
@@ -2184,6 +2262,127 @@ async fn run_report_fails_closed_for_missing_tampered_and_mismatched_details() {
     }
 }
 
+#[tokio::test]
+async fn run_analysis_fails_closed_for_missing_tampered_and_semantic_drift() {
+    let route = "/api/product/v1/runs/backtest-001/analysis";
+
+    let missing_fixture = Fixture::new("run-analysis-missing");
+    fs::remove_file(
+        missing_fixture
+            .root
+            .join("artifacts/backtests/backtest-001/analysis.json"),
+    )
+    .expect("analysis fixture should be removed");
+    let (status, missing) = router_json(&missing_fixture.router(), Method::GET, route).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(missing["error"]["field"], "result_artifact");
+
+    let tampered_fixture = Fixture::new("run-analysis-tampered");
+    let tampered_path = tampered_fixture
+        .root
+        .join("artifacts/backtests/backtest-001/analysis.json");
+    fs::write(&tampered_path, b"{not-json").expect("tampered analysis should be written");
+    let (status, tampered) = router_json(&tampered_fixture.router(), Method::GET, route).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(tampered["error"]["field"], "analysis_sha256");
+
+    let semantic_fixture = Fixture::new("run-analysis-semantic");
+    let semantic_path = semantic_fixture
+        .root
+        .join("artifacts/backtests/backtest-001/analysis.json");
+    let original = fs::read(&semantic_path).expect("analysis fixture should be readable");
+    let cases: [(&str, AnalysisMutation); 6] = [
+        ("risk", |value| {
+            value["risk"]["max_drawdown_rate"] = json!("0.500000000000");
+        }),
+        ("timeline-id", |value| {
+            value["timeline"][0]["event_id"] = json!("event-999999");
+        }),
+        ("timeline-event", |value| {
+            value["timeline"][0]["event_type"] = json!("run_completed");
+        }),
+        ("provenance", |value| {
+            value["provenance"]["summary_sha256"] =
+                json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc");
+        }),
+        ("boundary", |value| {
+            value["boundaries"]["order_submission_allowed"] = json!(true);
+        }),
+        ("unknown", |value| value["unexpected"] = json!(true)),
+    ];
+    for (name, mutate) in cases {
+        let mut value: Value =
+            serde_json::from_slice(&original).expect("analysis fixture should parse");
+        mutate(&mut value);
+        write_json(&semantic_path, &value);
+        semantic_fixture.trust_current_backtest_analysis();
+        let (status, body) = router_json(&semantic_fixture.router(), Method::GET, route).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{name}");
+        assert_eq!(body["error"]["code"], "product_source_invalid", "{name}");
+        assert_eq!(body["error"]["field"], "analysis_artifact", "{name}");
+    }
+}
+
+#[tokio::test]
+async fn run_analysis_excludes_open_position_realized_pnl_from_closed_outcomes() {
+    let fixture = Fixture::new("run-analysis-partial-close");
+    let details_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/details.json");
+    let mut details: Value = serde_json::from_slice(
+        &fs::read(&details_path).expect("details fixture should be readable"),
+    )
+    .expect("details fixture should parse");
+    details["positions"][0]["side"] = json!("LONG");
+    details["positions"][0]["sell_quantity"] = json!("0.000500");
+    details["positions"][0]["realized_return"] = json!("0.000050000000");
+    details["positions"][0]["realized_pnl"] = json!("0.00050000 USDT");
+    details["positions"][0]["ts_closed"] = Value::Null;
+    details["positions"][0]["duration_ns"] = json!("0");
+    write_json(&details_path, &details);
+    let details_sha256 = sha256_bytes_ref(
+        &fs::read(&details_path).expect("changed details fixture should be readable"),
+    );
+    fixture.trust_current_backtest_details();
+
+    let analysis_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/analysis.json");
+    let mut analysis: Value = serde_json::from_slice(
+        &fs::read(&analysis_path).expect("analysis fixture should be readable"),
+    )
+    .expect("analysis fixture should parse");
+    analysis["risk"]["open_positions"] = json!(1);
+    analysis["risk"]["closed_positions"] = json!(2);
+    analysis["risk"]["profitable_positions"] = json!(0);
+    analysis["risk"]["losing_positions"] = json!(2);
+    analysis["provenance"]["details_sha256"] = json!(details_sha256);
+    let timeline = analysis["timeline"]
+        .as_array_mut()
+        .expect("analysis timeline should be an array");
+    timeline.retain(|event| {
+        event["event_type"].as_str() != Some("position_closed")
+            || event["entity_ref"].as_str() != Some("position://P-1")
+    });
+    for (index, event) in timeline.iter_mut().enumerate() {
+        event["event_id"] = json!(format!("event-{index:06}"));
+    }
+    write_json(&analysis_path, &analysis);
+    fixture.trust_current_backtest_analysis();
+
+    let (status, body) = router_json(
+        &fixture.router(),
+        Method::GET,
+        "/api/product/v1/runs/backtest-001/analysis",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["data"]["risk"]["open_positions"], 1);
+    assert_eq!(body["data"]["risk"]["closed_positions"], 2);
+    assert_eq!(body["data"]["risk"]["profitable_positions"], 0);
+    assert_eq!(body["data"]["risk"]["losing_positions"], 2);
+}
+
 #[cfg(any(unix, windows))]
 #[test]
 fn nofollow_directory_open_rejects_path_replacement() {
@@ -2236,6 +2435,28 @@ async fn run_report_rejects_symlink_path_escape() {
         &fixture.router(),
         Method::GET,
         "/api/product/v1/runs/backtest-001/report",
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "result_artifact_type");
+}
+
+#[cfg(any(unix, windows))]
+#[tokio::test]
+async fn run_analysis_rejects_symlink_path_escape() {
+    let fixture = Fixture::new("run-analysis-symlink");
+    let analysis_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/analysis.json");
+    let outside = fixture.root.join("outside-analysis.json");
+    fs::rename(&analysis_path, &outside).expect("analysis should move outside artifact root");
+    create_file_symlink(&outside, &analysis_path).expect("analysis symlink should be created");
+
+    let (status, body) = router_json(
+        &fixture.router(),
+        Method::GET,
+        "/api/product/v1/runs/backtest-001/analysis",
     )
     .await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
@@ -2316,6 +2537,12 @@ async fn tracked_frontend_fixtures_match_real_rust_routes() {
             StatusCode::OK,
             "/api/product/v1/runs/backtest-001/report",
             "RunReportResponse",
+        ),
+        (
+            "run-analysis.json",
+            StatusCode::OK,
+            "/api/product/v1/runs/backtest-001/analysis",
+            "RunAnalysisResponse",
         ),
         (
             "error.json",
@@ -2416,6 +2643,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
         [
             "/runs",
             "/runs/{run_id}",
+            "/runs/{run_id}/analysis",
             "/runs/{run_id}/metrics",
             "/runs/{run_id}/report",
             "/strategies",
@@ -2584,6 +2812,7 @@ backtest_config_sha256 = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 backtest_data_sha256 = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 backtest_result_sha256 = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 backtest_details_sha256 = "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+backtest_analysis_sha256 = "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
 backtest_trade_size = "0.001000"
 backtest_quotes = 120
 backtest_fast_period = 3
@@ -2881,6 +3110,108 @@ fn write_valid_backtest_details_artifact(root: &Path, config_path: &Path) -> Str
     sha256_bytes_ref(&raw)
 }
 
+fn write_valid_backtest_analysis_artifact(
+    root: &Path,
+    config_path: &Path,
+    result_sha256: &str,
+    details_sha256: &str,
+) -> String {
+    let path = root.join("artifacts/backtests/backtest-001/analysis.json");
+    let timeline = [
+        ("run_started", "1735689600000000000", "run://backtest-001"),
+        ("equity_updated", "1735689600000000000", "account://SIM-001"),
+        ("trade_filled", "1735689610000000000", "trade://T-1"),
+        ("position_opened", "1735689610000000000", "position://P-1"),
+        ("position_closed", "1735689610500000000", "position://P-1"),
+        ("trade_filled", "1735689620000000000", "trade://T-2"),
+        ("position_opened", "1735689620000000000", "position://P-2"),
+        ("position_closed", "1735689620500000000", "position://P-2"),
+        ("trade_filled", "1735689630000000000", "trade://T-3"),
+        ("position_opened", "1735689630000000000", "position://P-3"),
+        ("position_closed", "1735689630500000000", "position://P-3"),
+        ("equity_updated", "1735689719000000000", "account://SIM-001"),
+        ("run_completed", "1735689719000000000", "run://backtest-001"),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, (event_type, ts_event, entity_ref))| {
+        json!({
+            "event_id": format!("event-{index:06}"),
+            "event_type": event_type,
+            "ts_event": ts_event,
+            "entity_ref": entity_ref
+        })
+    })
+    .collect::<Vec<_>>();
+    let raw = serde_json::to_vec_pretty(&json!({
+        "schema_version": "ntpro.backtest_analysis.v1",
+        "run_id": "backtest-001",
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "strategy_version_content_hash": strategy_version_content_hash(config_path),
+        "analysis_ref": "artifact://backtests/backtest-001/analysis.json",
+        "instrument_id": "BTCUSDT.BINANCE",
+        "risk": {
+            "currency": "USDT",
+            "starting_equity": "1000000.00000000 USDT",
+            "ending_equity": "999999.99700000 USDT",
+            "peak_equity": "1000000.00000000 USDT",
+            "max_drawdown_amount": "0.00300000 USDT",
+            "max_drawdown_rate": "0.000000003000",
+            "max_drawdown_started_at": "1735689600000000000",
+            "max_drawdown_trough_at": "1735689719000000000",
+            "current_drawdown_amount": "0.00300000 USDT",
+            "current_drawdown_rate": "0.000000003000",
+            "open_positions": 0,
+            "closed_positions": 3,
+            "profitable_positions": 0,
+            "losing_positions": 3
+        },
+        "drawdown_curve": [
+            {
+                "ts_event": "1735689600000000000",
+                "equity": "1000000.00000000 USDT",
+                "peak_equity": "1000000.00000000 USDT",
+                "drawdown_amount": "0.00000000 USDT",
+                "drawdown_rate": "0.000000000000"
+            },
+            {
+                "ts_event": "1735689719000000000",
+                "equity": "999999.99700000 USDT",
+                "peak_equity": "1000000.00000000 USDT",
+                "drawdown_amount": "0.00300000 USDT",
+                "drawdown_rate": "0.000000003000"
+            }
+        ],
+        "timeline": timeline,
+        "provenance": {
+            "generator": "nautilus_backtest::engine::BacktestEngine",
+            "engine_mode": "engine-smoke",
+            "data_ref": "dataset://fixtures/ema-cross",
+            "data_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "config_ref": "node-config:node.toml#product_runs",
+            "config_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "summary_ref": "artifact://backtests/backtest-001/summary.json",
+            "summary_sha256": result_sha256,
+            "details_ref": "artifact://backtests/backtest-001/details.json",
+            "details_sha256": details_sha256
+        },
+        "boundaries": {
+            "read_only": true,
+            "external_venue_connection": false,
+            "order_submission_allowed": false,
+            "order_mutation_allowed": false,
+            "automatic_retry_allowed": false,
+            "automatic_remediation_allowed": false,
+            "real_orders_submitted": false,
+            "trading_controls_enabled": false
+        }
+    }))
+    .expect("backtest analysis fixture must serialize");
+    fs::write(&path, &raw).expect("backtest analysis fixture should be written");
+    sha256_bytes_ref(&raw)
+}
+
 fn with_backtest_result_sha256(config: &str, result_sha256: &str) -> String {
     config
         .lines()
@@ -2902,6 +3233,21 @@ fn with_backtest_details_sha256(config: &str, details_sha256: &str) -> String {
         .map(|line| {
             if line.starts_with("backtest_details_sha256 = ") {
                 format!("backtest_details_sha256 = \"{details_sha256}\"")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
+fn with_backtest_analysis_sha256(config: &str, analysis_sha256: &str) -> String {
+    config
+        .lines()
+        .map(|line| {
+            if line.starts_with("backtest_analysis_sha256 = ") {
+                format!("backtest_analysis_sha256 = \"{analysis_sha256}\"")
             } else {
                 line.to_string()
             }

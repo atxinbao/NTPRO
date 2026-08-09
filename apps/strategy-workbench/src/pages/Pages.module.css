@@ -408,6 +408,10 @@
   vector-effect: non-scaling-stroke;
 }
 
+.drawdownChart polyline {
+  stroke: var(--red);
+}
+
 .sourcePanel {
   grid-column: 1 / -1;
 }

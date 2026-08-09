@@ -19,10 +19,12 @@ export function ProductErrorState({
   error,
   onRetry,
   retrying = false,
+  retryLabel = "重试明细",
 }: {
   error: unknown;
   onRetry?: () => void | Promise<unknown>;
   retrying?: boolean;
+  retryLabel?: string;
 }) {
   const message = productErrorMessage(error);
   return (
@@ -44,7 +46,7 @@ export function ProductErrorState({
               className={retrying ? styles.spin : undefined}
               aria-hidden="true"
             />
-            {retrying ? "正在重试" : "重试明细"}
+            {retrying ? "正在重试" : retryLabel}
           </button>
         ) : null}
       </div>

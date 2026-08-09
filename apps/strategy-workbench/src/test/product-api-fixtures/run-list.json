@@ -33,6 +33,7 @@
       "error": null,
       "lifecycle": "completed",
       "result": {
+        "analysis_ref": "artifact://backtests/backtest-001/analysis.json",
         "report_ref": "artifact://backtests/backtest-001/details.json",
         "result_ref": "artifact://backtests/backtest-001/summary.json",
         "status": "available"
@@ -77,6 +78,7 @@
       "error": null,
       "lifecycle": "created",
       "result": {
+        "analysis_ref": null,
         "report_ref": null,
         "result_ref": null,
         "status": "pending"
@@ -121,6 +123,7 @@
       "error": null,
       "lifecycle": "running",
       "result": {
+        "analysis_ref": null,
         "report_ref": null,
         "result_ref": null,
         "status": "pending"

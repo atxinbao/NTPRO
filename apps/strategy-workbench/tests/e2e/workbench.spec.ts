@@ -17,6 +17,7 @@ function readProductFixture(name: string): Record<string, unknown> {
 
 const errorFixture = readProductFixture("error");
 const runDetailFixture = readProductFixture("run-detail");
+const runAnalysisFixture = readProductFixture("run-analysis");
 const runListFixture = readProductFixture("run-list");
 const runMetricsFixture = readProductFixture("run-metrics");
 const runReportFixture = readProductFixture("run-report");
@@ -38,6 +39,7 @@ const createdBacktest = {
     status: "available",
     result_ref: "artifact://backtests/backtest-browser-001/summary.json",
     report_ref: "artifact://backtests/backtest-browser-001/details.json",
+    analysis_ref: "artifact://backtests/backtest-browser-001/analysis.json",
   },
   risk: {
     status: "passed",
@@ -91,6 +93,9 @@ function productFixtureForPath(path: string): Record<string, unknown> {
   if (path === "/api/product/v1/runs/backtest-001/report") {
     return runReportFixture;
   }
+  if (path === "/api/product/v1/runs/backtest-001/analysis") {
+    return runAnalysisFixture;
+  }
   if (path === "/api/product/v1/runs/backtest-001") {
     const run = (runListFixture.data as Array<Record<string, unknown>>).find(
       (item) => item.run_id === "backtest-001",
@@ -121,6 +126,26 @@ function productFixtureForPath(path: string): Record<string, unknown> {
         config_ref: createdBacktest.config_ref,
         details_ref: (createdBacktest.result as Record<string, unknown>)
           .report_ref,
+      },
+    };
+  }
+  if (path === "/api/product/v1/runs/backtest-browser-001/analysis") {
+    return {
+      ...runAnalysisFixture,
+      data: {
+        ...(runAnalysisFixture.data as Record<string, unknown>),
+        run_id: "backtest-browser-001",
+        analysis_ref: (createdBacktest.result as Record<string, unknown>)
+          .analysis_ref,
+        provenance: {
+          ...((runAnalysisFixture.data as Record<string, unknown>)
+            .provenance as Record<string, unknown>),
+          config_ref: createdBacktest.config_ref,
+          summary_ref: (createdBacktest.result as Record<string, unknown>)
+            .result_ref,
+          details_ref: (createdBacktest.result as Record<string, unknown>)
+            .report_ref,
+        },
       },
     };
   }
@@ -259,6 +284,15 @@ test("Backtest Run deep link renders immutable engine metrics", async ({
   await expect(page.getByRole("region", { name: "持仓明细" })).toContainText(
     "P-1",
   );
+  await expect(
+    page.getByRole("img", { name: "账户权益回撤随回测时间变化" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Backtest 运行记录" }),
+  ).toContainText("运行开始");
+  await expect(
+    page.getByRole("region", { name: "Backtest 分析来源" }),
+  ).toContainText("artifact://backtests/backtest-001/summary.json");
   await page.screenshot({
     path: testInfo.outputPath("strategy-workbench-backtest-report-1440.png"),
     fullPage: true,
@@ -312,6 +346,9 @@ test("mobile shell keeps the drawer closed and has no page overflow", async ({
   await expect(page.getByLabel("Backtest 收益统计")).toContainText("夏普比率");
   await expect(
     page.getByRole("img", { name: "账户权益随回测时间变化" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "账户权益回撤随回测时间变化" }),
   ).toBeVisible();
   expect(
     await page.evaluate(

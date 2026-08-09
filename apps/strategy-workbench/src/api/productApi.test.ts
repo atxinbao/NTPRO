@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import runListFixture from "../test/product-api-fixtures/run-list.json";
 import runMetricsFixture from "../test/product-api-fixtures/run-metrics.json";
@@ -45,6 +46,7 @@ function createBacktestResponse() {
         status: "available",
         result_ref: "artifact://backtests/backtest-created-001/summary.json",
         report_ref: "artifact://backtests/backtest-created-001/details.json",
+        analysis_ref: "artifact://backtests/backtest-created-001/analysis.json",
       },
     },
     boundaries: {
@@ -144,6 +146,15 @@ describe("product API generated client", () => {
         }),
     },
     {
+      name: "run analysis",
+      fixture: runAnalysisFixture,
+      path: "/api/product/v1/runs/backtest-001/analysis",
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).getRunAnalysis({
+          run_id: "backtest-001",
+        }),
+    },
+    {
       name: "run report",
       fixture: runReportFixture,
       path: "/api/product/v1/runs/backtest-001/report",
@@ -167,6 +178,33 @@ describe("product API generated client", () => {
     expect((request as Request).credentials).toBe("same-origin");
     expect((request as Request).headers.get("Accept")).toBe("application/json");
     expect((request as Request).method).toBe("GET");
+  });
+
+  it.each([
+    {
+      name: "mismatched Run identity",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.run_id = "backtest-other";
+      },
+      field: "run_analysis.path.run_id",
+    },
+    {
+      name: "mismatched summary provenance",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.provenance.summary_ref =
+          "artifact://backtests/backtest-other/summary.json";
+      },
+      field: "run_analysis.data.provenance",
+    },
+  ])("fails closed for $name in Run analysis", async ({ mutate, field }) => {
+    const payload = structuredClone(runAnalysisFixture) as Record<string, any>;
+    mutate(payload);
+
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(payload) }).getRunAnalysis({
+        run_id: "backtest-001",
+      }),
+    ).rejects.toMatchObject({ name: "ProductApiContractError", field });
   });
 
   it("creates a Backtest Run through the generated POST client", async () => {
@@ -214,6 +252,13 @@ describe("product API generated client", () => {
       name: "missing report reference",
       mutate: (payload: Record<string, any>) => {
         payload.data.result.report_ref = null;
+      },
+      field: "run_create.data.lifecycle",
+    },
+    {
+      name: "missing analysis reference",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.result.analysis_ref = null;
       },
       field: "run_create.data.lifecycle",
     },

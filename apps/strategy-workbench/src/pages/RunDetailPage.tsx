@@ -2,6 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, LockKeyhole } from "lucide-react";
 
 import type {
+  BacktestAnalysis,
   BacktestEquityPoint,
   BacktestPosition,
   BacktestTrade,
@@ -195,6 +196,29 @@ export function RunDetailPage() {
         </section>
       ) : null}
 
+      {product.analysis ? (
+        <BacktestAnalysisPanel analysis={product.analysis} />
+      ) : detail.result.analysis_ref && product.isAnalysisVerifying ? (
+        <ProductLoading label="正在验证 Backtest 风险与运行记录" />
+      ) : detail.result.analysis_ref && product.analysisError ? (
+        <ProductErrorState
+          error={product.analysisError}
+          onRetry={product.retryAnalysis}
+          retrying={product.isAnalysisVerifying}
+          retryLabel="重试分析"
+        />
+      ) : product.metrics ? (
+        <section className={styles.panel} aria-label="Backtest 分析">
+          <header>
+            <div>
+              <span className="eyebrow">风险与运行记录</span>
+              <h2>历史 Run 未生成分析产物</h2>
+            </div>
+            <span>重新运行后生成分析</span>
+          </header>
+        </section>
+      ) : null}
+
       <div className={styles.detailGrid}>
         <section className={styles.panel}>
           <header>
@@ -281,6 +305,183 @@ export function RunDetailPage() {
         </section>
       </div>
     </>
+  );
+}
+
+function BacktestAnalysisPanel({ analysis }: { analysis: BacktestAnalysis }) {
+  return (
+    <div className={styles.reportGrid} aria-label="Backtest 风险与运行记录">
+      <section className={`${styles.panel} ${styles.reportWide}`}>
+        <header>
+          <div>
+            <span className="eyebrow">风险与回撤</span>
+            <h2>账户权益回撤</h2>
+          </div>
+          <span>{analysis.risk.currency}</span>
+        </header>
+        <div className={styles.metricGrid}>
+          <Metric
+            label="最大回撤"
+            value={formatRate(analysis.risk.max_drawdown_rate)}
+            note={analysis.risk.max_drawdown_amount}
+            warning={Number(analysis.risk.max_drawdown_rate) > 0}
+          />
+          <Metric
+            label="当前回撤"
+            value={formatRate(analysis.risk.current_drawdown_rate)}
+            note={analysis.risk.current_drawdown_amount}
+            warning={Number(analysis.risk.current_drawdown_rate) > 0}
+          />
+          <Metric
+            label="峰值权益"
+            value={analysis.risk.peak_equity}
+            note={`结束 ${analysis.risk.ending_equity}`}
+          />
+          <Metric
+            label="已平仓"
+            value={String(analysis.risk.closed_positions)}
+            note={`${analysis.risk.profitable_positions} 盈利 · ${analysis.risk.losing_positions} 亏损`}
+          />
+        </div>
+        <DrawdownCurve analysis={analysis} />
+      </section>
+
+      <section className={styles.panel} aria-label="Backtest 运行记录">
+        <header>
+          <div>
+            <span className="eyebrow">运行记录</span>
+            <h2>结构化事件时间线</h2>
+          </div>
+          <span>{analysis.timeline.length} 条</span>
+        </header>
+        <div className={styles.tableWrap}>
+          <table className={styles.detailTable}>
+            <thead>
+              <tr>
+                <th>事件</th>
+                <th>时间</th>
+                <th>类型</th>
+                <th>关联对象</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analysis.timeline.map((event) => (
+                <tr key={event.event_id}>
+                  <td>{event.event_id}</td>
+                  <td>{formatNanos(event.ts_event)}</td>
+                  <td>{eventTypeLabel(event.event_type)}</td>
+                  <td>{event.entity_ref}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.panel} aria-label="Backtest 分析来源">
+        <header>
+          <div>
+            <span className="eyebrow">分析来源</span>
+            <h2>不可变产物链</h2>
+          </div>
+          <span>{analysis.provenance.engine_mode}</span>
+        </header>
+        <div className={styles.sourceRows}>
+          <SourceHash
+            label="数据"
+            reference={analysis.provenance.data_ref}
+            hash={analysis.provenance.data_sha256}
+          />
+          <SourceHash
+            label="配置"
+            reference={analysis.provenance.config_ref}
+            hash={analysis.provenance.config_sha256}
+          />
+          <SourceHash
+            label="汇总"
+            reference={analysis.provenance.summary_ref}
+            hash={analysis.provenance.summary_sha256}
+          />
+          <SourceHash
+            label="明细"
+            reference={analysis.provenance.details_ref}
+            hash={analysis.provenance.details_sha256}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DrawdownCurve({ analysis }: { analysis: BacktestAnalysis }) {
+  const rates = analysis.drawdown_curve.map((point) =>
+    Number(point.drawdown_rate),
+  );
+  const maximum = Math.max(...rates, 0);
+  const range = maximum || 1;
+  const points = rates
+    .map((rate, index) => {
+      const x =
+        rates.length === 1 ? 300 : (index / (rates.length - 1)) * 580 + 10;
+      const y = 15 + (rate / range) * 90;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+  return (
+    <div className={`${styles.equityChart} ${styles.drawdownChart}`}>
+      <div>
+        <span>回撤开始</span>
+        <strong>{formatNanos(analysis.risk.max_drawdown_started_at)}</strong>
+      </div>
+      <svg
+        viewBox="0 0 600 120"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="账户权益回撤随回测时间变化"
+      >
+        <line x1="10" y1="15" x2="590" y2="15" />
+        <polyline points={points} />
+      </svg>
+      <div>
+        <span>回撤低点</span>
+        <strong>{formatNanos(analysis.risk.max_drawdown_trough_at)}</strong>
+      </div>
+    </div>
+  );
+}
+
+function SourceHash({
+  label,
+  reference,
+  hash,
+}: {
+  label: string;
+  reference: string;
+  hash: string;
+}) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong title={hash}>{reference}</strong>
+    </div>
+  );
+}
+
+function formatRate(value: string): string {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${(parsed * 100).toFixed(2)}%` : "不可计算";
+}
+
+function eventTypeLabel(value: string): string {
+  return (
+    {
+      run_started: "运行开始",
+      equity_updated: "权益更新",
+      trade_filled: "成交",
+      position_opened: "开仓",
+      position_closed: "平仓",
+      run_completed: "运行完成",
+    }[value] ?? value
   );
 }
 
