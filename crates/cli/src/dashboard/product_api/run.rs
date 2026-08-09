@@ -4,25 +4,37 @@ use std::{
     cmp::Ordering,
     collections::{BTreeMap, BTreeSet},
     ffi::OsStr,
-    io::{Error as IoError, ErrorKind, Read},
+    fs,
+    io::{Error as IoError, ErrorKind, Read, Write},
     path::{Component, Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering as AtomicOrdering},
 };
 
 use aws_lc_rs::digest::{SHA256, digest};
 use axum::{
     Json,
-    extract::{Path as AxumPath, RawQuery, State, rejection::PathRejection},
+    extract::{
+        Path as AxumPath, RawQuery, State,
+        rejection::{JsonRejection, PathRejection},
+    },
+    http::StatusCode,
 };
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
+use nautilus_model::types::{Money, Quantity};
 use serde::{Deserialize, Serialize};
+
+use crate::dashboard::ApiStatusResult;
 
 use super::*;
 
 const RUN_LIST_SCHEMA_VERSION: &str = "ntpro.product_api.run_list.response.v1";
 const RUN_DETAIL_SCHEMA_VERSION: &str = "ntpro.product_api.run_detail.response.v1";
 const RUN_METRICS_SCHEMA_VERSION: &str = "ntpro.product_api.run_metrics.response.v1";
+const RUN_CREATE_SCHEMA_VERSION: &str = "ntpro.product_api.run_create.response.v1";
+const BACKTEST_RUN_MANIFEST_SCHEMA_VERSION: &str = "ntpro.product_api.backtest_run_manifest.v1";
 const BACKTEST_RESULT_SCHEMA_VERSION: &str = "ntpro.backtest_result.v1";
 const RUN_CURSOR_PREFIX: &str = "run-v1-";
+static RUN_MANIFEST_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(super) struct ProductRun {
@@ -119,7 +131,8 @@ struct ProductRunConfigProjection {
     product_runs: Vec<ProductRunConfig>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct ProductRunConfig {
     run_id: String,
     strategy_id: String,
@@ -155,6 +168,69 @@ struct ProductRunConfig {
     automatic_remediation_allowed: bool,
     real_orders_submitted: bool,
     trading_controls_enabled: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::dashboard) struct CreateBacktestRunRequest {
+    strategy_id: String,
+    strategy_version_id: String,
+    environment: RunEnvironment,
+    data_ref: String,
+    venue_ref: String,
+    starting_balance: String,
+    quotes: usize,
+    trade_size: String,
+    fast_period: usize,
+    slow_period: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct BacktestRunCreationBoundaries {
+    backtest_run_creation_allowed: bool,
+    sandbox_run_creation_allowed: bool,
+    live_run_creation_allowed: bool,
+    external_venue_connection: bool,
+    order_submission_allowed: bool,
+    order_mutation_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    real_orders_submitted: bool,
+    trading_controls_enabled: bool,
+}
+
+impl BacktestRunCreationBoundaries {
+    const fn enforced() -> Self {
+        Self {
+            backtest_run_creation_allowed: true,
+            sandbox_run_creation_allowed: false,
+            live_run_creation_allowed: false,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct RunCreateResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: ProductRun,
+    boundaries: BacktestRunCreationBoundaries,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DynamicBacktestRunManifest {
+    schema_version: String,
+    request_sha256: String,
+    config: ProductRunConfig,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -264,6 +340,397 @@ pub(super) struct RunListQuery {
     lifecycle: Option<RunLifecycle>,
 }
 
+pub(in crate::dashboard) async fn run_create_api(
+    State(state): State<DashboardServerState>,
+    payload: Result<Json<CreateBacktestRunRequest>, JsonRejection>,
+) -> ApiStatusResult<RunCreateResponse> {
+    let request_id = product_request_id();
+    let Json(request) = payload.map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "request_body"),
+            &request_id,
+        )
+    })?;
+    let permit = state
+        .backtest_creation_gate
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| {
+            product_error_response(
+                &product_error(ProductErrorKind::Conflict, "backtest_creation_in_progress"),
+                &request_id,
+            )
+        })?;
+    let worker_state = state.clone();
+    let worker_request_id = request_id.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        create_backtest_run(&worker_state, request, &worker_request_id)
+    })
+    .await
+    .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "backtest_worker"))
+    .and_then(|result| result);
+
+    result
+        .map(|data| {
+            (
+                StatusCode::CREATED,
+                Json(RunCreateResponse {
+                    schema_version: RUN_CREATE_SCHEMA_VERSION.to_string(),
+                    contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+                    request_id: request_id.clone(),
+                    data,
+                    boundaries: BacktestRunCreationBoundaries::enforced(),
+                }),
+            )
+        })
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+fn create_backtest_run(
+    state: &DashboardServerState,
+    request: CreateBacktestRunRequest,
+    request_id: &str,
+) -> Result<ProductRun, ProductError> {
+    let created_at = unix_time_ms();
+    let source = load_product_source(state, created_at)?;
+    let strategy_version = strategy_version::load_product_strategy_version(&source, created_at)?;
+    validate_backtest_creation_request(&request, &source, &strategy_version)?;
+    if load_run_configs(state, &source)?.len() >= MAX_PAGE_LIMIT {
+        return Err(product_error(ProductErrorKind::Conflict, "run_capacity"));
+    }
+
+    let run_id = request_id.replacen("product-", "backtest-", 1);
+    validate_identifier("run_id", &run_id)?;
+    let config_ref = format!("artifact://backtests/{run_id}/request.toml");
+    let result_ref = format!("artifact://backtests/{run_id}/summary.json");
+    let risk_ref = format!("artifact://backtests/{run_id}/run-manifest.json#risk");
+    let instrument_id = strategy_version
+        .data_symbols()
+        .first()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "strategy_data_symbol"))?;
+    let engine_venue = instrument_id
+        .rsplit_once('.')
+        .map(|(_, venue)| venue)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "strategy_data_symbol"))?;
+    let config_raw = build_backtest_config(
+        &run_id,
+        instrument_id,
+        engine_venue,
+        &request,
+        strategy_version.content_hash(),
+        &config_ref,
+        &result_ref,
+    )?;
+    let request_sha256 = sha256_ref(&config_raw);
+    let run_directory = create_dynamic_run_directory(state, &run_id)?;
+    write_new_run_file(&run_directory, "request.toml", &config_raw)?;
+
+    let started_at = unix_time_ms();
+    let execution = crate::backtest::execute_product_backtest(&config_raw);
+    let completed_at = unix_time_ms().max(started_at);
+    let config = match execution {
+        Ok(result_raw) => {
+            let artifact: BacktestResultArtifact = serde_json::from_slice(&result_raw)
+                .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "backtest_result"))?;
+            let result_sha256 = sha256_ref(&result_raw);
+            write_new_run_file(&run_directory, "summary.json", &result_raw)?;
+            ProductRunConfig {
+                run_id: run_id.clone(),
+                strategy_id: request.strategy_id,
+                strategy_version_id: request.strategy_version_id,
+                environment: RunEnvironment::Backtest,
+                data_ref: request.data_ref,
+                config_ref,
+                adapter_ref: "adapter://backtest/simulated".to_string(),
+                account_ref: format!("account://simulated/{run_id}"),
+                venue_ref: request.venue_ref,
+                lifecycle: RunLifecycle::Completed,
+                result_status: RunResultStatus::Available,
+                result_ref: Some(result_ref),
+                backtest_config_sha256: Some(request_sha256.clone()),
+                backtest_data_sha256: Some(artifact.data_sha256),
+                backtest_result_sha256: Some(result_sha256),
+                backtest_trade_size: Some(artifact.parameters.trade_size),
+                backtest_quotes: Some(artifact.metrics.quotes),
+                backtest_fast_period: Some(artifact.parameters.fast_period),
+                backtest_slow_period: Some(artifact.parameters.slow_period),
+                risk_status: RunRiskStatus::Passed,
+                risk_ref,
+                error_code: None,
+                error_summary: None,
+                created_at_unix_ms: created_at,
+                started_at_unix_ms: Some(started_at),
+                completed_at_unix_ms: Some(completed_at),
+                updated_at_unix_ms: completed_at,
+                external_venue_connection: false,
+                order_submission_allowed: false,
+                order_mutation_allowed: false,
+                automatic_retry_allowed: false,
+                automatic_remediation_allowed: false,
+                real_orders_submitted: false,
+                trading_controls_enabled: false,
+            }
+        }
+        Err(error) => {
+            let summary = sanitize_execution_error(&error.to_string());
+            let config = ProductRunConfig {
+                run_id: run_id.clone(),
+                strategy_id: request.strategy_id,
+                strategy_version_id: request.strategy_version_id,
+                environment: RunEnvironment::Backtest,
+                data_ref: request.data_ref,
+                config_ref,
+                adapter_ref: "adapter://backtest/simulated".to_string(),
+                account_ref: format!("account://simulated/{run_id}"),
+                venue_ref: request.venue_ref,
+                lifecycle: RunLifecycle::Failed,
+                result_status: RunResultStatus::Unavailable,
+                result_ref: None,
+                backtest_config_sha256: None,
+                backtest_data_sha256: None,
+                backtest_result_sha256: None,
+                backtest_trade_size: None,
+                backtest_quotes: None,
+                backtest_fast_period: None,
+                backtest_slow_period: None,
+                risk_status: RunRiskStatus::Blocked,
+                risk_ref,
+                error_code: Some("backtest_execution_failed".to_string()),
+                error_summary: Some(summary),
+                created_at_unix_ms: created_at,
+                started_at_unix_ms: Some(started_at),
+                completed_at_unix_ms: Some(completed_at),
+                updated_at_unix_ms: completed_at,
+                external_venue_connection: false,
+                order_submission_allowed: false,
+                order_mutation_allowed: false,
+                automatic_retry_allowed: false,
+                automatic_remediation_allowed: false,
+                real_orders_submitted: false,
+                trading_controls_enabled: false,
+            };
+            write_dynamic_manifest(&run_directory, &request_sha256, &config)?;
+            return Err(product_error(
+                ProductErrorKind::ExecutionFailed,
+                "backtest_engine",
+            ));
+        }
+    };
+    write_dynamic_manifest(&run_directory, &request_sha256, &config)?;
+    let expected_version_id = strategy_version_resource_id(
+        &source.strategy.strategy_id,
+        &source.identity.identities.strategy_version,
+    );
+    validate_and_project_run(
+        config,
+        &source,
+        &strategy_version,
+        &expected_version_id,
+        completed_at,
+        Some(format!("artifact://backtests/{run_id}/run-manifest.json")),
+    )
+}
+
+fn build_backtest_config(
+    run_id: &str,
+    instrument_id: &str,
+    engine_venue: &str,
+    request: &CreateBacktestRunRequest,
+    content_hash: &str,
+    config_ref: &str,
+    result_ref: &str,
+) -> Result<Vec<u8>, ProductError> {
+    let quoted = |value: &str| {
+        serde_json::to_string(value)
+            .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "backtest_config"))
+    };
+    let raw = format!(
+        "[run]\nid = {}\nmode = \"engine-smoke\"\n\n[data]\nsource = \"synthetic-quotes\"\ninstrument_id = {}\nquotes = {}\n\n[strategy]\nname = \"ema-cross\"\ntrade_size = {}\nfast_period = {}\nslow_period = {}\n\n[venue]\nname = {}\nstarting_balance = {}\n\n[product]\nstrategy_id = {}\nstrategy_version_id = {}\nstrategy_version_content_hash = {}\ndata_ref = {}\nconfig_ref = {}\nresult_ref = {}\n",
+        quoted(run_id)?,
+        quoted(instrument_id)?,
+        request.quotes,
+        quoted(&request.trade_size)?,
+        request.fast_period,
+        request.slow_period,
+        quoted(engine_venue)?,
+        quoted(&request.starting_balance)?,
+        quoted(&request.strategy_id)?,
+        quoted(&request.strategy_version_id)?,
+        quoted(content_hash)?,
+        quoted(&request.data_ref)?,
+        quoted(config_ref)?,
+        quoted(result_ref)?,
+    );
+    Ok(raw.into_bytes())
+}
+
+fn validate_backtest_creation_request(
+    request: &CreateBacktestRunRequest,
+    source: &ValidatedProductSource,
+    strategy_version: &strategy_version::ProductStrategyVersion,
+) -> Result<(), ProductError> {
+    if request.environment != RunEnvironment::Backtest {
+        return Err(product_error(ProductErrorKind::BadRequest, "environment"));
+    }
+    let expected_version_id = strategy_version_resource_id(
+        &source.strategy.strategy_id,
+        &source.identity.identities.strategy_version,
+    );
+    if request.strategy_id != source.strategy.strategy_id
+        || request.strategy_version_id != expected_version_id
+    {
+        return Err(product_error(
+            ProductErrorKind::BadRequest,
+            "strategy_version_id",
+        ));
+    }
+    let expected_data_ref = format!(
+        "dataset://fixtures/{}",
+        source.strategy.strategy_id.replace('_', "-")
+    );
+    if request.data_ref != expected_data_ref {
+        return Err(product_error(ProductErrorKind::BadRequest, "data_ref"));
+    }
+    if !strategy_version
+        .data_venues()
+        .iter()
+        .any(|venue| request.venue_ref == format!("venue://simulated/{venue}"))
+    {
+        return Err(product_error(ProductErrorKind::BadRequest, "venue_ref"));
+    }
+    if !(30..=10_000).contains(&request.quotes) {
+        return Err(product_error(ProductErrorKind::BadRequest, "quotes"));
+    }
+    if request.fast_period == 0
+        || request.fast_period >= request.slow_period
+        || request.slow_period > 500
+        || request.quotes <= request.slow_period
+        || strategy_version.parameter_const_u64("fast_period") != Some(request.fast_period as u64)
+        || strategy_version.parameter_const_u64("slow_period") != Some(request.slow_period as u64)
+    {
+        return Err(product_error(
+            ProductErrorKind::BadRequest,
+            "strategy_parameters",
+        ));
+    }
+    let trade_size = request
+        .trade_size
+        .parse::<Quantity>()
+        .map_err(|_| product_error(ProductErrorKind::BadRequest, "trade_size"))?;
+    if trade_size.raw == 0 || trade_size.precision != 6 {
+        return Err(product_error(ProductErrorKind::BadRequest, "trade_size"));
+    }
+    let starting_balance = request
+        .starting_balance
+        .parse::<Money>()
+        .map_err(|_| product_error(ProductErrorKind::BadRequest, "starting_balance"))?;
+    if starting_balance.raw <= 0 || starting_balance.currency.to_string() != "USDT" {
+        return Err(product_error(
+            ProductErrorKind::BadRequest,
+            "starting_balance",
+        ));
+    }
+    Ok(())
+}
+
+fn create_dynamic_run_directory(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<cap_std::fs::Dir, ProductError> {
+    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let root = open_absolute_directory_nofollow(&artifact_root)?;
+    root.create_dir(run_id).map_err(|error| {
+        if error.kind() == ErrorKind::AlreadyExists {
+            product_error(ProductErrorKind::Conflict, "run_id")
+        } else {
+            product_error(ProductErrorKind::SourceUnavailable, "result_root")
+        }
+    })?;
+    root.open_dir_nofollow(run_id)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "result_root_containment"))
+}
+
+fn write_new_run_file(
+    directory: &cap_std::fs::Dir,
+    name: &str,
+    raw: &[u8],
+) -> Result<(), ProductError> {
+    use cap_std::fs::OpenOptions;
+
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    options.follow(FollowSymlinks::No);
+    let mut file = directory.open_with(name, &options).map_err(|error| {
+        if error.kind() == ErrorKind::AlreadyExists {
+            product_error(ProductErrorKind::Conflict, name)
+        } else {
+            product_error(ProductErrorKind::SourceUnavailable, name)
+        }
+    })?;
+    file.write_all(raw)
+        .and_then(|()| file.sync_all())
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, name))
+}
+
+fn write_dynamic_manifest(
+    directory: &cap_std::fs::Dir,
+    request_sha256: &str,
+    config: &ProductRunConfig,
+) -> Result<(), ProductError> {
+    let manifest = DynamicBacktestRunManifest {
+        schema_version: BACKTEST_RUN_MANIFEST_SCHEMA_VERSION.to_string(),
+        request_sha256: request_sha256.to_string(),
+        config: config.clone(),
+    };
+    let raw = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&manifest)
+            .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "run_manifest"))?
+    );
+    publish_new_run_file(directory, "run-manifest.json", raw.as_bytes())
+}
+
+pub(super) fn publish_new_run_file(
+    directory: &cap_std::fs::Dir,
+    name: &str,
+    raw: &[u8],
+) -> Result<(), ProductError> {
+    let sequence = RUN_MANIFEST_TEMP_SEQUENCE.fetch_add(1, AtomicOrdering::Relaxed);
+    let temp_name = format!(".{name}.tmp.{}.{}", std::process::id(), sequence);
+    let result = (|| {
+        write_new_run_file(directory, &temp_name, raw)?;
+        directory
+            .hard_link(&temp_name, directory, name)
+            .map_err(|error| {
+                if error.kind() == ErrorKind::AlreadyExists {
+                    product_error(ProductErrorKind::Conflict, name)
+                } else {
+                    product_error(ProductErrorKind::SourceUnavailable, name)
+                }
+            })?;
+        if let Ok(parent) = directory.open(".") {
+            let _ = parent.sync_all();
+        }
+        Ok(())
+    })();
+    let _ = directory.remove_file(&temp_name);
+    result
+}
+
+fn sanitize_execution_error(value: &str) -> String {
+    let summary: String = value
+        .chars()
+        .filter(|character| !character.is_control())
+        .take(300)
+        .collect();
+    if summary.trim().is_empty() {
+        "回测引擎执行失败".to_string()
+    } else {
+        summary
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum RunSort {
     RunId,
@@ -346,7 +813,7 @@ pub(in crate::dashboard) async fn run_metrics_api(
         {
             return Err(product_error(ProductErrorKind::RunNotFound, "run_metrics"));
         }
-        let expected = load_backtest_result_expectation(&source, &run.run_id)?;
+        let expected = load_backtest_result_expectation(&state, &source, &run.run_id)?;
         let artifact = load_backtest_result_artifact(&state, &run, &strategy_version, &expected)?;
         Ok(RunMetricsResponse {
             schema_version: RUN_METRICS_SCHEMA_VERSION.to_string(),
@@ -383,15 +850,7 @@ fn load_backtest_result_artifact(
         return Err(product_error(ProductErrorKind::SourceInvalid, "result_ref"));
     }
 
-    let workspace = mvp_workspace_root(&state.registry_path)?;
-    let canonical_workspace = canonical_path(&workspace, "workspace")?;
-    let artifact_root = canonical_path(&workspace.join("artifacts/backtests"), "result_root")?;
-    if artifact_root != canonical_workspace.join("artifacts/backtests") {
-        return Err(product_error(
-            ProductErrorKind::SourceInvalid,
-            "result_root_containment",
-        ));
-    }
+    let artifact_root = canonical_backtest_artifact_root(state)?;
     let run_root = canonical_path(&artifact_root.join(&run.run_id), "result_run_root")?;
     let expected_run_root = artifact_root.join(&run.run_id);
     if run_root != expected_run_root || !run_root.starts_with(&artifact_root) {
@@ -407,14 +866,13 @@ fn load_backtest_result_artifact(
 }
 
 fn load_backtest_result_expectation(
+    state: &DashboardServerState,
     source: &ValidatedProductSource,
     run_id: &str,
 ) -> Result<BacktestResultExpectation, ProductError> {
-    let projection: ProductRunConfigProjection = toml::from_str(&source.raw_config)
-        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "run_manifest"))?;
-    let config = projection
-        .product_runs
+    let config = load_run_configs(state, source)?
         .into_iter()
+        .map(|(config, _)| config)
         .find(|config| config.run_id == run_id)
         .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_expectation"))?;
     backtest_result_expectation(&config)?
@@ -659,9 +1117,8 @@ pub(super) fn load_product_runs(
 ) -> Result<Vec<ProductRun>, ProductError> {
     let source = load_product_source(state, now_unix_ms)?;
     let strategy_version = strategy_version::load_product_strategy_version(&source, now_unix_ms)?;
-    let projection: ProductRunConfigProjection = toml::from_str(&source.raw_config)
-        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "run_manifest"))?;
-    if projection.product_runs.is_empty() || projection.product_runs.len() > MAX_PAGE_LIMIT {
+    let configs = load_run_configs(state, &source)?;
+    if configs.is_empty() || configs.len() > MAX_PAGE_LIMIT {
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
             "run_manifest",
@@ -672,10 +1129,9 @@ pub(super) fn load_product_runs(
         &source.identity.identities.strategy_version,
     );
     let mut run_ids = BTreeSet::new();
-    projection
-        .product_runs
+    configs
         .into_iter()
-        .map(|config| {
+        .map(|(config, source_ref)| {
             if !run_ids.insert(config.run_id.clone()) {
                 return Err(product_error(ProductErrorKind::SourceInvalid, "run_id"));
             }
@@ -685,9 +1141,94 @@ pub(super) fn load_product_runs(
                 &strategy_version,
                 &expected_version_id,
                 now_unix_ms,
+                source_ref,
             )
         })
         .collect()
+}
+
+fn load_run_configs(
+    state: &DashboardServerState,
+    source: &ValidatedProductSource,
+) -> Result<Vec<(ProductRunConfig, Option<String>)>, ProductError> {
+    let projection: ProductRunConfigProjection = toml::from_str(&source.raw_config)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "run_manifest"))?;
+    let mut configs: Vec<_> = projection
+        .product_runs
+        .into_iter()
+        .map(|config| (config, None))
+        .collect();
+    configs.extend(load_dynamic_run_configs(state)?);
+    Ok(configs)
+}
+
+fn load_dynamic_run_configs(
+    state: &DashboardServerState,
+) -> Result<Vec<(ProductRunConfig, Option<String>)>, ProductError> {
+    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let mut entries = fs::read_dir(&artifact_root)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "result_root"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "result_root"))?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    let mut configs = Vec::new();
+    for entry in entries {
+        let file_type = entry
+            .file_type()
+            .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "result_root"))?;
+        if file_type.is_symlink() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "result_root_containment",
+            ));
+        }
+        if !file_type.is_dir() {
+            continue;
+        }
+        let run_id = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "run_id"))?;
+        validate_identifier("run_id", &run_id)?;
+        let manifest_path = entry.path().join("run-manifest.json");
+        if !manifest_path.exists() {
+            continue;
+        }
+        let raw = read_backtest_result_bytes(&manifest_path)?;
+        let manifest: DynamicBacktestRunManifest = serde_json::from_slice(&raw)
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "run_manifest"))?;
+        let request_path = entry.path().join("request.toml");
+        let request_raw = read_backtest_result_bytes(&request_path)?;
+        if manifest.schema_version != BACKTEST_RUN_MANIFEST_SCHEMA_VERSION
+            || manifest.config.run_id != run_id
+            || !is_sha256_ref(&manifest.request_sha256)
+            || sha256_ref(&request_raw) != manifest.request_sha256
+            || manifest.config.config_ref != format!("artifact://backtests/{run_id}/request.toml")
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "run_manifest",
+            ));
+        }
+        configs.push((
+            manifest.config,
+            Some(format!("artifact://backtests/{run_id}/run-manifest.json")),
+        ));
+    }
+    Ok(configs)
+}
+
+fn canonical_backtest_artifact_root(state: &DashboardServerState) -> Result<PathBuf, ProductError> {
+    let workspace = mvp_workspace_root(&state.registry_path)?;
+    let canonical_workspace = canonical_path(&workspace, "workspace")?;
+    let artifact_root = canonical_path(&workspace.join("artifacts/backtests"), "result_root")?;
+    if artifact_root != canonical_workspace.join("artifacts/backtests") {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "result_root_containment",
+        ));
+    }
+    Ok(artifact_root)
 }
 
 fn validate_and_project_run(
@@ -696,6 +1237,7 @@ fn validate_and_project_run(
     strategy_version: &strategy_version::ProductStrategyVersion,
     expected_version_id: &str,
     now_unix_ms: u64,
+    dynamic_source_ref: Option<String>,
 ) -> Result<ProductRun, ProductError> {
     validate_identifier("run_id", &config.run_id)?;
     validate_identifier("run_strategy_id", &config.strategy_id)?;
@@ -765,14 +1307,25 @@ fn validate_and_project_run(
         source: ProductSource {
             source_type: "run_manifest".to_string(),
             freshness_status: "fresh".to_string(),
-            source_refs: vec![
-                MVP_IDENTITY_CONTRACT_PATH.to_string(),
-                MVP_STATUS_CONTRACT_PATH.to_string(),
-                format!(
-                    "node-config:{}#product_runs:{}",
-                    source.config_name, config.run_id
-                ),
-            ],
+            source_refs: dynamic_source_ref.map_or_else(
+                || {
+                    vec![
+                        MVP_IDENTITY_CONTRACT_PATH.to_string(),
+                        MVP_STATUS_CONTRACT_PATH.to_string(),
+                        format!(
+                            "node-config:{}#product_runs:{}",
+                            source.config_name, config.run_id
+                        ),
+                    ]
+                },
+                |value| {
+                    vec![
+                        MVP_IDENTITY_CONTRACT_PATH.to_string(),
+                        MVP_STATUS_CONTRACT_PATH.to_string(),
+                        value,
+                    ]
+                },
+            ),
         },
         capabilities,
     })
@@ -784,7 +1337,9 @@ fn validate_run_references(
     strategy_version: &strategy_version::ProductStrategyVersion,
 ) -> Result<(), ProductError> {
     let backtest_expectation = backtest_result_expectation(config)?;
-    if (config.environment == RunEnvironment::Backtest) != backtest_expectation.is_some() {
+    let expectation_required = config.environment == RunEnvironment::Backtest
+        && config.lifecycle == RunLifecycle::Completed;
+    if expectation_required != backtest_expectation.is_some() {
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
             "run_expectation_environment",
@@ -809,9 +1364,18 @@ fn validate_run_references(
             ));
         }
     }
-    if config.config_ref != format!("node-config:{}#product_runs", source.config_name)
-        || config.risk_ref != format!("node-config:{}#risk", source.config_name)
-    {
+    let dynamic_config_ref = format!("artifact://backtests/{}/request.toml", config.run_id);
+    let dynamic_risk_ref = format!(
+        "artifact://backtests/{}/run-manifest.json#risk",
+        config.run_id
+    );
+    let is_dynamic_backtest = config.environment == RunEnvironment::Backtest
+        && config.config_ref == dynamic_config_ref
+        && config.risk_ref == dynamic_risk_ref;
+    let is_static_config = config.config_ref
+        == format!("node-config:{}#product_runs", source.config_name)
+        && config.risk_ref == format!("node-config:{}#risk", source.config_name);
+    if !is_dynamic_backtest && !is_static_config {
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
             "run_config_reference",
@@ -821,18 +1385,27 @@ fn validate_run_references(
         "dataset://fixtures/{}",
         source.strategy.strategy_id.replace('_', "-")
     );
+    let expected_dynamic_result_ref =
+        format!("artifact://backtests/{}/summary.json", config.run_id);
     let valid = match config.environment {
         RunEnvironment::Backtest => {
-            config.run_id == source.identity.identities.backtest_run_id
-                && config.result_ref.as_deref()
-                    == Some(source.identity.identities.backtest_result_ref.as_str())
+            let result_reference_valid = if is_dynamic_backtest {
+                match config.lifecycle {
+                    RunLifecycle::Completed => {
+                        config.result_ref.as_deref() == Some(expected_dynamic_result_ref.as_str())
+                    }
+                    RunLifecycle::Failed => config.result_ref.is_none(),
+                    _ => false,
+                }
+            } else {
+                config.run_id == source.identity.identities.backtest_run_id
+                    && config.result_ref.as_deref()
+                        == Some(source.identity.identities.backtest_result_ref.as_str())
+            };
+            result_reference_valid
                 && config.data_ref == expected_backtest_data_ref
                 && config.adapter_ref == "adapter://backtest/simulated"
-                && config.account_ref
-                    == format!(
-                        "account://simulated/{}",
-                        source.identity.identities.backtest_run_id
-                    )
+                && config.account_ref == format!("account://simulated/{}", config.run_id)
                 && strategy_version
                     .data_venues()
                     .iter()

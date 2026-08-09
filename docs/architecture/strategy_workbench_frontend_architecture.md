@@ -12,7 +12,8 @@ Status: implementation contract
 当前 `/strategy-workbench` 已采用 React、TypeScript、Vite、TanStack Router、TanStack
 Query、CSS Modules、Vitest 与 Playwright，并由 Rust/Axum 同源提供生产静态资源。
 `GET /api/mvp/v1/status` 继续提供辅助技术状态；策略总览与 Run 详情通过生成的
-`productApi` 消费 Strategy、StrategyVersion 和 Run 只读产品资源。
+`productApi` 消费 Strategy、StrategyVersion 和 Run 产品资源；读取合同保持只读，当前仅
+为机构用户开放受限的 Backtest Run 创建操作。
 
 ## 2. 产品目标与用户
 
@@ -44,8 +45,8 @@ Supervisor、node、Axum、文件路径和进程控制是技术支撑，不主�
 - 版本化只读共享状态 API；
 - 策略工作台页面框架与响应式浏览器验证。
 - 独立前端工程、组件体系和类型化路由；
-- 稳定、强校验的 `Strategy / StrategyVersion / Run` 只读产品 API；
-- 策略总览和 Run 详情首个只读产品纵向切片。
+- 稳定、强校验的 `Strategy / StrategyVersion / Run` 产品 API；
+- 策略总览、Backtest 创建和 Run 详情纵向切片。
 
 当前尚未具备：
 
@@ -173,11 +174,13 @@ GET /api/product/v1/strategies/{strategy_id}
 GET /api/product/v1/strategies/{strategy_id}/versions
 GET /api/product/v1/strategies/{strategy_id}/versions/{strategy_version_id}
 GET /api/product/v1/runs
+POST /api/product/v1/runs
 GET /api/product/v1/runs/{run_id}
 GET /api/product/v1/runs/{run_id}/metrics
 ```
 
-其中 metrics 只服务已完成且结果可用的 Backtest Run。以下资源仍属于 S1 后续任务，不得
+其中 POST 仅允许机构用户基于当前登记的 StrategyVersion、数据集和模拟 Venue 创建
+Backtest；metrics 只服务已完成且结果可用的 Backtest Run。以下资源仍属于 S1 后续任务，不得
 在首个切片中冒充已交付：
 
 ```text

@@ -160,6 +160,24 @@ try {
       `unauthorized run API contract drift: status=${unauthorizedRunApi.status} body=${JSON.stringify(unauthorizedRunBody)}`,
     );
   }
+  const unauthorizedRunCreateApi = await fetch(
+    `${baseUrl}/api/product/v1/runs`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    },
+  );
+  const unauthorizedRunCreateBody = await unauthorizedRunCreateApi.json();
+  if (
+    unauthorizedRunCreateApi.status !== 403 ||
+    unauthorizedRunCreateBody.error?.code !== "product_access_denied" ||
+    unauthorizedRunCreateBody.error?.retryable !== false
+  ) {
+    throw new Error(
+      `unauthorized run creation did not fail closed: ${JSON.stringify(unauthorizedRunCreateBody)}`,
+    );
+  }
   const unauthorizedMetricsApi = await fetch(
     `${baseUrl}/api/product/v1/runs/${backtestRunId}/metrics`,
   );
@@ -421,6 +439,90 @@ try {
     );
   }
 
+  const backtestCreateRequest = {
+    strategy_id: productStrategy.strategy_id,
+    strategy_version_id: productVersion.strategy_version_id,
+    environment: "backtest",
+    data_ref: "dataset://fixtures/ema-cross-btcusdt-v1",
+    venue_ref: "venue://simulated/BINANCE_TESTNET",
+    starting_balance: "1000000 USDT",
+    quotes: 120,
+    trade_size: "0.001000",
+    fast_period: 3,
+    slow_period: 5,
+  };
+  const productRunCreateResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs`,
+    {
+      method: "POST",
+      headers: {
+        cookie: institutionCookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(backtestCreateRequest),
+    },
+  );
+  const productRunCreate = await productRunCreateResponse.json();
+  const createdRun = productRunCreate.data;
+  const creationBoundaryFields = [
+    "sandbox_run_creation_allowed",
+    "live_run_creation_allowed",
+    "external_venue_connection",
+    "order_submission_allowed",
+    "order_mutation_allowed",
+    "automatic_retry_allowed",
+    "automatic_remediation_allowed",
+    "real_orders_submitted",
+    "trading_controls_enabled",
+  ];
+  if (
+    productRunCreateResponse.status !== 201 ||
+    productRunCreate.schema_version !==
+      "ntpro.product_api.run_create.response.v1" ||
+    productRunCreate.contract_version !== "ntpro.product_api.v1" ||
+    !productRunCreate.request_id ||
+    !createdRun?.run_id?.startsWith("backtest-") ||
+    createdRun?.strategy_id !== backtestCreateRequest.strategy_id ||
+    createdRun?.strategy_version_id !==
+      backtestCreateRequest.strategy_version_id ||
+    createdRun?.data_ref !== backtestCreateRequest.data_ref ||
+    createdRun?.venue_ref !== backtestCreateRequest.venue_ref ||
+    createdRun?.environment !== "backtest" ||
+    createdRun?.lifecycle !== "completed" ||
+    createdRun?.result?.status !== "available" ||
+    !createdRun?.result?.result_ref ||
+    productRunCreate.boundaries?.backtest_run_creation_allowed !== true ||
+    creationBoundaryFields.some(
+      (field) => productRunCreate.boundaries?.[field] !== false,
+    )
+  ) {
+    throw new Error(
+      `product run creation contract drift: ${JSON.stringify(productRunCreate)}`,
+    );
+  }
+  const createdRunDetailResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs/${createdRun.run_id}`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const createdRunDetail = await createdRunDetailResponse.json();
+  const createdRunMetricsResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs/${createdRun.run_id}/metrics`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const createdRunMetrics = await createdRunMetricsResponse.json();
+  if (
+    createdRunDetailResponse.status !== 200 ||
+    createdRunDetail.data?.run_id !== createdRun.run_id ||
+    createdRunMetricsResponse.status !== 200 ||
+    createdRunMetrics.data?.run_id !== createdRun.run_id ||
+    createdRunMetrics.data?.metrics?.quotes !== 120 ||
+    createdRunMetrics.data?.metrics?.total_orders !== 5
+  ) {
+    throw new Error(
+      `created run readback drift: detail=${JSON.stringify(createdRunDetail)} metrics=${JSON.stringify(createdRunMetrics)}`,
+    );
+  }
+
   const missingProductRun = await fetch(
     `${baseUrl}/api/product/v1/runs/missing`,
     { headers: { cookie: institutionCookie } },
@@ -466,15 +568,25 @@ try {
       `malformed product path did not use the product error contract: ${JSON.stringify(malformedProductPathBody)}`,
     );
   }
-  for (const [method, url, expected] of [
-    ["GET", "/strategy-workbench/system-status", 200],
-    ["POST", "/strategy-workbench/overview", 405],
-    ["GET", "/strategy-workbench/assets/missing.js", 404],
-    ["GET", "/api/product/v1/unknown", 404],
-    ["POST", "/api/product/v1/strategies", 405],
-    ["POST", "/api/product/v1/runs", 405],
-    ["POST", `/api/product/v1/runs/${backtestRunId}/metrics`, 405],
-    ["POST", "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions", 405],
+  for (const [method, url, expected, expectedAllow] of [
+    ["GET", "/strategy-workbench/system-status", 200, null],
+    ["POST", "/strategy-workbench/overview", 405, null],
+    ["GET", "/strategy-workbench/assets/missing.js", 404, null],
+    ["GET", "/api/product/v1/unknown", 404, null],
+    ["POST", "/api/product/v1/strategies", 405, "GET"],
+    ["PUT", "/api/product/v1/runs", 405, "GET, POST"],
+    [
+      "POST",
+      `/api/product/v1/runs/${backtestRunId}/metrics`,
+      405,
+      "GET",
+    ],
+    [
+      "POST",
+      "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions",
+      405,
+      "GET",
+    ],
   ]) {
     const response = await fetch(`${baseUrl}${url}`, {
       method,
@@ -485,10 +597,10 @@ try {
         `${method} ${url} expected ${expected}, got ${response.status}`,
       );
     }
-    if (url.startsWith("/api/product/v1/") && method === "POST") {
+    if (expectedAllow) {
       const body = await response.json();
       if (
-        response.headers.get("allow") !== "GET" ||
+        response.headers.get("allow") !== expectedAllow ||
         body.schema_version !== "ntpro.product_api.error.v1" ||
         body.error?.code !== "product_method_not_allowed" ||
         body.error?.retryable !== false ||
@@ -630,6 +742,27 @@ try {
     path: path.join(evidenceDir, "strategy-workbench-1440.png"),
     fullPage: true,
   });
+
+  await page.getByRole("link", { name: "Backtest", exact: true }).click();
+  await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-backtest-create-1440.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "创建并运行" }).click();
+  await page.waitForURL(/\/strategy-workbench\/runs\/backtest-/);
+  const browserCreatedRunId = page.url().split("/").at(-1);
+  if (!browserCreatedRunId?.startsWith("backtest-")) {
+    throw new Error(`browser-created Run ID drifted: ${page.url()}`);
+  }
+  await page.getByRole("heading", { name: browserCreatedRunId }).waitFor();
+  await page.getByText("真实引擎回测结果").waitFor();
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-backtest-created-1440.png"),
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "返回策略总览" }).click();
+  await page.getByText("产品资源已验证").waitFor();
 
   await page.getByRole("link", { name: new RegExp(backtestRunId) }).click();
   await page.getByRole("heading", { name: backtestRunId }).waitFor();
@@ -819,6 +952,10 @@ writeEvidence({
   product_run_detail: 1,
   product_run_metrics: 1,
   product_run_metrics_mobile: 1,
+  product_run_create_api: 1,
+  product_run_create_browser: 1,
+  product_run_create_readback: 1,
+  product_run_create_access_control: 1,
   product_run_metrics_non_backtest_closed: 1,
   product_run_error: 1,
   product_run_live_boundary: 1,

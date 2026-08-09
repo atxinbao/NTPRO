@@ -298,6 +298,7 @@ struct DashboardServerState {
     workflow_root: Option<PathBuf>,
     ntpro_node_bin: PathBuf,
     lifecycle_action_lock: Arc<Mutex<()>>,
+    backtest_creation_gate: Arc<tokio::sync::Semaphore>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

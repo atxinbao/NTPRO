@@ -9,7 +9,7 @@ import errorFixture from "../test/product-api-fixtures/error.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
-import { server } from "../test/server";
+import { createdBacktestResponse, server } from "../test/server";
 import { createAppRouter } from "./router";
 
 function renderWorkbench(path: string) {
@@ -27,6 +27,41 @@ function renderWorkbench(path: string) {
 }
 
 describe("strategy workbench product slice", () => {
+  it("creates a Backtest Run from the product page and opens its detail", async () => {
+    let submittedBody: unknown;
+    server.use(
+      http.post("/api/product/v1/runs", async ({ request }) => {
+        submittedBody = await request.json();
+        return HttpResponse.json(createdBacktestResponse, { status: 201 });
+      }),
+    );
+    renderWorkbench("/backtests");
+
+    expect(
+      await screen.findByRole("heading", { name: "创建策略回测" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Backtest" })).toHaveAttribute(
+      "href",
+      "/strategy-workbench/backtests",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "创建并运行" }));
+    expect(
+      await screen.findByRole("heading", { name: "backtest-created-001" }),
+    ).toBeInTheDocument();
+    expect(submittedBody).toEqual({
+      strategy_id: "ema-cross",
+      strategy_version_id: "ema-cross@v1",
+      environment: "backtest",
+      data_ref: "dataset://fixtures/ema-cross",
+      venue_ref: "venue://simulated/BINANCE",
+      starting_balance: "1000000 USDT",
+      quotes: 120,
+      trade_size: "0.001000",
+      fast_period: 3,
+      slow_period: 5,
+    });
+  });
+
   it("renders Product API resources and opens a Run deep link", async () => {
     renderWorkbench("/overview");
 

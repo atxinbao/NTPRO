@@ -691,6 +691,7 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         (Method::GET, "/api/mvp/v1/status"),
         (Method::GET, "/api/mvp/v1/event-correlation"),
         (Method::GET, "/api/product/v1/strategies"),
+        (Method::POST, "/api/product/v1/runs"),
         (Method::GET, "/api/product/v1/strategies/ema-cross/versions"),
         (
             Method::GET,
@@ -751,10 +752,20 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         "/api/product/v1/strategies",
         "/api/product/v1/strategies/ema-cross/versions",
         "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1",
+        "/api/product/v1/runs",
     ] {
         let response = router_response(&router, Method::GET, path, Some(&institution_cookie)).await;
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{path}");
     }
+    let response = router_response(
+        &router,
+        Method::POST,
+        "/api/product/v1/runs",
+        Some(&institution_cookie),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_private_response_headers(&response, "/api/product/v1/runs");
     for (method, path) in [
         (Method::GET, "/control-center"),
         (Method::GET, "/dashboard"),
@@ -802,6 +813,15 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
         let response = router_response(&router, Method::GET, path, Some(&operator_cookie)).await;
         assert_eq!(response.status(), StatusCode::FORBIDDEN, "{path}");
     }
+    let response = router_response(
+        &router,
+        Method::POST,
+        "/api/product/v1/runs",
+        Some(&operator_cookie),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_private_response_headers(&response, "/api/product/v1/runs");
 
     let both_cookies = format!("{institution_cookie}; {operator_cookie}");
     for path in [

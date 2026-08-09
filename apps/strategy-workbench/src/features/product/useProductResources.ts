@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { productApi } from "../../api/productApi";
+import type { CreateBacktestRunRequest } from "../../api/generated/productApi";
 
 const productQueryPolicy = {
   staleTime: 0,
@@ -9,6 +10,7 @@ const productQueryPolicy = {
 };
 
 export const productQueryKeys = {
+  allRuns: ["product", "runs"] as const,
   strategies: ["product", "strategies"] as const,
   strategy: (strategyId: string) =>
     ["product", "strategies", strategyId] as const,
@@ -21,6 +23,19 @@ export const productQueryKeys = {
   run: (runId: string) => ["product", "runs", runId] as const,
   runMetrics: (runId: string) => ["product", "runs", runId, "metrics"] as const,
 };
+
+export function useCreateBacktestRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: CreateBacktestRunRequest) =>
+      productApi.createBacktestRun(request),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: productQueryKeys.allRuns,
+      });
+    },
+  });
+}
 
 export function useStrategies() {
   return useQuery({

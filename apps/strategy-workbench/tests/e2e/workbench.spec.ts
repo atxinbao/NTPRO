@@ -25,6 +25,51 @@ const strategyVersionDetailFixture = readProductFixture(
   "strategy-version-detail",
 );
 const strategyVersionListFixture = readProductFixture("strategy-version-list");
+const baselineBacktest = (
+  runListFixture.data as Array<Record<string, unknown>>
+).find((run) => run.environment === "backtest")!;
+const createdBacktest = {
+  ...baselineBacktest,
+  run_id: "backtest-browser-001",
+  config_ref: "artifact://backtests/backtest-browser-001/request.toml",
+  account_ref: "account://simulated/backtest-browser-001",
+  result: {
+    status: "available",
+    result_ref: "artifact://backtests/backtest-browser-001/summary.json",
+  },
+  risk: {
+    status: "passed",
+    risk_ref:
+      "artifact://backtests/backtest-browser-001/run-manifest.json#risk",
+  },
+  source: {
+    source_type: "run_manifest",
+    freshness_status: "fresh",
+    source_refs: [
+      "mvp/identity_contract.json",
+      "mvp/status_contract.json",
+      "artifact://backtests/backtest-browser-001/run-manifest.json",
+    ],
+  },
+};
+const createdBacktestResponse = {
+  schema_version: "ntpro.product_api.run_create.response.v1",
+  contract_version: "ntpro.product_api.v1",
+  request_id: "product-0000000000000001-0000000000000001",
+  data: createdBacktest,
+  boundaries: {
+    backtest_run_creation_allowed: true,
+    sandbox_run_creation_allowed: false,
+    live_run_creation_allowed: false,
+    external_venue_connection: false,
+    order_submission_allowed: false,
+    order_mutation_allowed: false,
+    automatic_retry_allowed: false,
+    automatic_remediation_allowed: false,
+    real_orders_submitted: false,
+    trading_controls_enabled: false,
+  },
+};
 
 function productFixtureForPath(path: string): Record<string, unknown> {
   if (path === "/api/product/v1/strategies") return strategyListFixture;
@@ -47,6 +92,21 @@ function productFixtureForPath(path: string): Record<string, unknown> {
     );
     return { ...runDetailFixture, data: run };
   }
+  if (path === "/api/product/v1/runs/backtest-browser-001") {
+    return { ...runDetailFixture, data: createdBacktest };
+  }
+  if (path === "/api/product/v1/runs/backtest-browser-001/metrics") {
+    return {
+      ...runMetricsFixture,
+      data: {
+        ...(runMetricsFixture.data as Record<string, unknown>),
+        run_id: "backtest-browser-001",
+        config_ref: createdBacktest.config_ref,
+        result_ref: (createdBacktest.result as Record<string, unknown>)
+          .result_ref,
+      },
+    };
+  }
   if (path === "/api/product/v1/runs/ema-cross-live-001") {
     return runDetailFixture;
   }
@@ -63,12 +123,51 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route("**/api/product/v1/**", async (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname);
+    if (
+      route.request().method() === "POST" &&
+      path === "/api/product/v1/runs"
+    ) {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(createdBacktestResponse),
+      });
+      return;
+    }
     await route.fulfill({
       status: path === "/api/product/v1/runs/missing" ? 404 : 200,
       contentType: "application/json",
       body: JSON.stringify(productFixtureForPath(path)),
     });
   });
+});
+
+test("Backtest page creates a Run and stays inside the workbench shell", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("backtests");
+  await expect(
+    page.getByRole("heading", { name: "创建策略回测" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("初始资金")).toHaveValue("1000000 USDT");
+  await expect(page.getByLabel("每次交易数量")).toHaveValue("0.001000");
+  await page.screenshot({
+    path: testInfo.outputPath("strategy-workbench-backtest-create-1440.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "创建并运行" }).click();
+  await expect(
+    page.getByRole("heading", { name: "backtest-browser-001" }),
+  ).toBeVisible();
+  await expect(page.getByText("真实引擎回测结果")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 });
 
 test("desktop shell renders verified read-only status", async ({

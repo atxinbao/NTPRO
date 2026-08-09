@@ -1,5 +1,6 @@
 import { createClient } from "./generated/productApi/client";
 import {
+  createBacktestRun,
   getRun,
   getRunMetrics,
   getStrategy,
@@ -7,6 +8,7 @@ import {
   listRuns,
   listStrategies,
   listStrategyVersions,
+  type CreateBacktestRunRequest,
   type GetRunData,
   type GetRunMetricsData,
   type GetStrategyData,
@@ -15,6 +17,7 @@ import {
   type ListStrategiesData,
   type ListStrategyVersionsData,
   type ProductErrorResponse,
+  type RunCreateResponse,
   type RunDetailResponse,
   type RunListResponse,
   type RunMetricsResponse,
@@ -25,6 +28,7 @@ import {
 } from "./generated/productApi";
 import {
   zProductErrorResponse,
+  zRunCreateResponse,
   zRunDetailResponse,
   zRunListResponse,
   zRunMetricsResponse,
@@ -281,6 +285,60 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
   });
 
   return {
+    async createBacktestRun(
+      body: CreateBacktestRunRequest,
+      signal?: AbortSignal,
+    ): Promise<RunCreateResponse> {
+      const payload = await resolveResponse(
+        createBacktestRun({ client, body, signal }),
+        zRunCreateResponse,
+        "run_create",
+      );
+      assertIdentity(
+        payload.data.strategy_id === body.strategy_id,
+        "run_create.body.strategy_id",
+      );
+      assertIdentity(
+        payload.data.strategy_version_id === body.strategy_version_id,
+        "run_create.body.strategy_version_id",
+      );
+      assertIdentity(
+        payload.data.data_ref === body.data_ref,
+        "run_create.body.data_ref",
+      );
+      assertIdentity(
+        payload.data.venue_ref === body.venue_ref,
+        "run_create.body.venue_ref",
+      );
+      assertIdentity(
+        payload.data.environment === "backtest" &&
+          payload.data.lifecycle === "completed" &&
+          payload.data.result.status === "available" &&
+          payload.data.result.result_ref !== null &&
+          payload.data.started_at_unix_ms !== null &&
+          payload.data.completed_at_unix_ms !== null &&
+          payload.data.created_at_unix_ms <= payload.data.started_at_unix_ms &&
+          payload.data.started_at_unix_ms <=
+            payload.data.completed_at_unix_ms &&
+          payload.data.completed_at_unix_ms <= payload.data.updated_at_unix_ms,
+        "run_create.data.lifecycle",
+      );
+      assertIdentity(
+        payload.boundaries.backtest_run_creation_allowed &&
+          !payload.boundaries.sandbox_run_creation_allowed &&
+          !payload.boundaries.live_run_creation_allowed &&
+          !payload.boundaries.external_venue_connection &&
+          !payload.boundaries.order_submission_allowed &&
+          !payload.boundaries.order_mutation_allowed &&
+          !payload.boundaries.automatic_retry_allowed &&
+          !payload.boundaries.automatic_remediation_allowed &&
+          !payload.boundaries.real_orders_submitted &&
+          !payload.boundaries.trading_controls_enabled,
+        "run_create.boundaries",
+      );
+      return payload;
+    },
+
     async listStrategies(
       query?: ListStrategiesQuery,
       signal?: AbortSignal,

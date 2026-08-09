@@ -14,6 +14,52 @@ import {
   ProductApiTransportError,
 } from "./productApi";
 
+const createBacktestBody = {
+  strategy_id: "ema-cross",
+  strategy_version_id: "ema-cross@v1",
+  environment: "backtest" as const,
+  data_ref: "dataset://fixtures/ema-cross",
+  venue_ref: "venue://simulated/BINANCE",
+  starting_balance: "100000 USDT",
+  quotes: 120,
+  trade_size: "0.001000",
+  fast_period: 3,
+  slow_period: 5,
+};
+
+function createBacktestResponse() {
+  const baseline = structuredClone(
+    runListFixture.data.find((run) => run.environment === "backtest")!,
+  );
+  return {
+    schema_version: "ntpro.product_api.run_create.response.v1",
+    contract_version: "ntpro.product_api.v1",
+    request_id: "product-0000000000000001-0000000000000001",
+    data: {
+      ...baseline,
+      run_id: "backtest-created-001",
+      config_ref: "artifact://backtests/backtest-created-001/request.toml",
+      account_ref: "account://simulated/backtest-created-001",
+      result: {
+        status: "available",
+        result_ref: "artifact://backtests/backtest-created-001/summary.json",
+      },
+    },
+    boundaries: {
+      backtest_run_creation_allowed: true,
+      sandbox_run_creation_allowed: false,
+      live_run_creation_allowed: false,
+      external_venue_connection: false,
+      order_submission_allowed: false,
+      order_mutation_allowed: false,
+      automatic_retry_allowed: false,
+      automatic_remediation_allowed: false,
+      real_orders_submitted: false,
+      trading_controls_enabled: false,
+    },
+  };
+}
+
 function jsonFetch(payload: unknown, status = 200) {
   return vi.fn<typeof fetch>(async () =>
     Promise.resolve(
@@ -110,6 +156,57 @@ describe("product API generated client", () => {
     expect((request as Request).credentials).toBe("same-origin");
     expect((request as Request).headers.get("Accept")).toBe("application/json");
     expect((request as Request).method).toBe("GET");
+  });
+
+  it("creates a Backtest Run through the generated POST client", async () => {
+    const payload = createBacktestResponse();
+    const fetch = jsonFetch(payload, 201);
+
+    await expect(
+      createProductApiClient({ fetch }).createBacktestRun(createBacktestBody),
+    ).resolves.toEqual(payload);
+
+    const request = fetch.mock.calls[0]?.[0];
+    expect(request).toBeInstanceOf(Request);
+    expect((request as Request).url).toBe(
+      `${globalThis.location.origin}/api/product/v1/runs`,
+    );
+    expect((request as Request).method).toBe("POST");
+    await expect((request as Request).json()).resolves.toEqual(
+      createBacktestBody,
+    );
+  });
+
+  it.each([
+    {
+      name: "open Live creation boundary",
+      mutate: (payload: Record<string, any>) => {
+        payload.boundaries.live_run_creation_allowed = true;
+      },
+      field: "run_create",
+    },
+    {
+      name: "mismatched dataset identity",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.data_ref = "dataset://fixtures/other";
+      },
+      field: "run_create.body.data_ref",
+    },
+    {
+      name: "missing result reference",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.result.result_ref = null;
+      },
+      field: "run_create.data.lifecycle",
+    },
+  ])("fails closed for a $name", async ({ mutate, field }) => {
+    const payload = createBacktestResponse();
+    mutate(payload);
+    await expect(
+      createProductApiClient({
+        fetch: jsonFetch(payload, 201),
+      }).createBacktestRun(createBacktestBody),
+    ).rejects.toMatchObject({ field });
   });
 
   it("preserves stable error identity and retry semantics", async () => {
