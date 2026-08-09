@@ -1577,6 +1577,8 @@ async fn run_routes_are_read_only_and_schema_compatible() {
 
 #[tokio::test]
 async fn run_metrics_fail_closed_for_missing_corrupt_and_mismatched_artifacts() {
+    type ArtifactMutationCase = (&'static str, fn(&mut Value), &'static str, &'static str);
+
     let fixture = Fixture::new("run-metrics-negative");
     let result_path = fixture
         .root
@@ -1595,7 +1597,7 @@ async fn run_metrics_fail_closed_for_missing_corrupt_and_mismatched_artifacts() 
     assert_eq!(corrupt["error"]["code"], "product_source_invalid");
     assert_eq!(corrupt["error"]["field"], "result_sha256");
 
-    let cases: [(&str, fn(&mut Value), &str, &str); 21] = [
+    let cases: [ArtifactMutationCase; 21] = [
         (
             "schema",
             |v| v["schema_version"] = json!("v2"),
@@ -1623,8 +1625,9 @@ async fn run_metrics_fail_closed_for_missing_corrupt_and_mismatched_artifacts() 
         (
             "version-hash",
             |v| {
-                v["strategy_version_content_hash"] =
-                    json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+                v["strategy_version_content_hash"] = json!(
+                    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                );
             },
             "product_source_invalid",
             "result_artifact",
@@ -1638,8 +1641,9 @@ async fn run_metrics_fail_closed_for_missing_corrupt_and_mismatched_artifacts() 
         (
             "data-hash",
             |v| {
-                v["data_sha256"] =
-                    json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+                v["data_sha256"] = json!(
+                    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                );
             },
             "product_source_invalid",
             "result_artifact",
@@ -1653,8 +1657,9 @@ async fn run_metrics_fail_closed_for_missing_corrupt_and_mismatched_artifacts() 
         (
             "config-hash",
             |v| {
-                v["config_sha256"] =
-                    json!("sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+                v["config_sha256"] = json!(
+                    "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                );
             },
             "product_source_invalid",
             "result_artifact",
