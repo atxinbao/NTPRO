@@ -3,6 +3,7 @@ import {
   createBacktestRun,
   getRun,
   getRunMetrics,
+  getRunReport,
   getStrategy,
   getStrategyVersion,
   listRuns,
@@ -11,6 +12,7 @@ import {
   type CreateBacktestRunRequest,
   type GetRunData,
   type GetRunMetricsData,
+  type GetRunReportData,
   type GetStrategyData,
   type GetStrategyVersionData,
   type ListRunsData,
@@ -21,6 +23,7 @@ import {
   type RunDetailResponse,
   type RunListResponse,
   type RunMetricsResponse,
+  type RunReportResponse,
   type StrategyDetailResponse,
   type StrategyListResponse,
   type StrategyVersionDetailResponse,
@@ -32,6 +35,7 @@ import {
   zRunDetailResponse,
   zRunListResponse,
   zRunMetricsResponse,
+  zRunReportResponse,
   zStrategyDetailResponse,
   zStrategyListResponse,
   zStrategyVersionDetailResponse,
@@ -48,6 +52,7 @@ type StrategyVersionPath = GetStrategyVersionData["path"];
 type ListRunsQuery = NonNullable<ListRunsData["query"]>;
 type RunPath = GetRunData["path"];
 type RunMetricsPath = GetRunMetricsData["path"];
+type RunReportPath = GetRunReportData["path"];
 
 interface ProductApiClientOptions {
   baseUrl?: string;
@@ -315,6 +320,7 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           payload.data.lifecycle === "completed" &&
           payload.data.result.status === "available" &&
           payload.data.result.result_ref !== null &&
+          payload.data.result.report_ref !== null &&
           payload.data.started_at_unix_ms !== null &&
           payload.data.completed_at_unix_ms !== null &&
           payload.data.created_at_unix_ms <= payload.data.started_at_unix_ms &&
@@ -446,6 +452,22 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         payload.data.run_id === path.run_id,
         "run_metrics.path.run_id",
+      );
+      return payload;
+    },
+
+    async getRunReport(
+      path: RunReportPath,
+      signal?: AbortSignal,
+    ): Promise<RunReportResponse> {
+      const payload = await resolveResponse(
+        getRunReport({ client, path, signal }),
+        zRunReportResponse,
+        "run_report",
+      );
+      assertIdentity(
+        payload.data.run_id === path.run_id,
+        "run_report.path.run_id",
       );
       return payload;
     },

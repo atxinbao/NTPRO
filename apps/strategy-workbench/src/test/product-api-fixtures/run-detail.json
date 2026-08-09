@@ -32,6 +32,7 @@
     "error": null,
     "lifecycle": "created",
     "result": {
+      "report_ref": null,
       "result_ref": null,
       "status": "pending"
     },

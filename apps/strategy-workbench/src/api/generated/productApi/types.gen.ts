@@ -98,6 +98,7 @@ export type RunSource = {
 export type RunResult = {
   status: RunResultStatus;
   result_ref: string | null;
+  report_ref: string | null;
 };
 
 export type RunRisk = {
@@ -232,6 +233,67 @@ export type BacktestResult = {
   boundaries: BacktestResultBoundaries;
 };
 
+export type BacktestTrade = {
+  trade_id: string;
+  client_order_id: string;
+  venue_order_id: string;
+  position_id: string | null;
+  side: "BUY" | "SELL";
+  order_type: string;
+  quantity: string;
+  price: string;
+  currency: string;
+  liquidity_side: "MAKER" | "TAKER";
+  commission: string | null;
+  ts_event: string;
+};
+
+export type BacktestPosition = {
+  position_id: string;
+  account_id: string;
+  side: "FLAT" | "LONG" | "SHORT";
+  entry_side: "BUY" | "SELL";
+  peak_quantity: string;
+  buy_quantity: string;
+  sell_quantity: string;
+  avg_price_open: string;
+  avg_price_close: string | null;
+  realized_return: string;
+  realized_pnl: string | null;
+  trade_count: number;
+  ts_opened: string;
+  ts_closed: string | null;
+  duration_ns: string;
+};
+
+export type BacktestEquityPoint = {
+  account_id: string;
+  currency: string;
+  total: string;
+  free: string;
+  locked: string;
+  ts_event: string;
+};
+
+export type BacktestDetails = {
+  schema_version: "ntpro.backtest_details.v1";
+  run_id: RunId;
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  strategy_version_content_hash: ContentHash;
+  data_ref: string;
+  data_sha256: ContentHash;
+  config_ref: string;
+  config_sha256: ContentHash;
+  details_ref: string;
+  instrument_id: string;
+  equity_basis: "account_balance_total";
+  trades: Array<BacktestTrade>;
+  positions: Array<BacktestPosition>;
+  equity_curve: Array<BacktestEquityPoint>;
+  boundaries: BacktestResultBoundaries;
+};
+
 export type ReadOnlyBoundaries = {
   read_only: true;
   strategy_mutation_allowed: false;
@@ -308,6 +370,14 @@ export type RunMetricsResponse = {
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
   data: BacktestResult;
+  boundaries: ReadOnlyBoundaries;
+};
+
+export type RunReportResponse = {
+  schema_version: "ntpro.product_api.run_report.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: BacktestDetails;
   boundaries: ReadOnlyBoundaries;
 };
 
@@ -732,3 +802,51 @@ export type GetRunMetricsResponses = {
 
 export type GetRunMetricsResponse =
   GetRunMetricsResponses[keyof GetRunMetricsResponses];
+
+export type GetRunReportData = {
+  body?: never;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/runs/{run_id}/report";
+};
+
+export type GetRunReportErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type GetRunReportError = GetRunReportErrors[keyof GetRunReportErrors];
+
+export type GetRunReportResponses = {
+  /**
+   * Backtest 交易、持仓与收益明细
+   */
+  200: RunReportResponse;
+};
+
+export type GetRunReportResponse =
+  GetRunReportResponses[keyof GetRunReportResponses];

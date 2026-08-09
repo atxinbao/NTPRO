@@ -1,6 +1,12 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { ArrowLeft, LockKeyhole } from "lucide-react";
 
+import type {
+  BacktestEquityPoint,
+  BacktestPosition,
+  BacktestTrade,
+} from "../api/generated/productApi";
+
 import {
   environmentLabels,
   formatTimestamp,
@@ -163,6 +169,32 @@ export function RunDetailPage() {
         </section>
       ) : null}
 
+      {product.report ? (
+        <BacktestReport
+          trades={product.report.trades}
+          positions={product.report.positions}
+          equity={product.report.equity_curve}
+        />
+      ) : detail.result.report_ref && product.isReportVerifying ? (
+        <ProductLoading label="正在验证 Backtest 结果明细" />
+      ) : detail.result.report_ref && product.reportError ? (
+        <ProductErrorState
+          error={product.reportError}
+          onRetry={product.retryReport}
+          retrying={product.isReportVerifying}
+        />
+      ) : product.metrics ? (
+        <section className={styles.panel} aria-label="Backtest 结果明细">
+          <header>
+            <div>
+              <span className="eyebrow">结果明细</span>
+              <h2>历史 Run 仅保留聚合指标</h2>
+            </div>
+            <span>重新运行后生成明细</span>
+          </header>
+        </section>
+      ) : null}
+
       <div className={styles.detailGrid}>
         <section className={styles.panel}>
           <header>
@@ -250,6 +282,151 @@ export function RunDetailPage() {
       </div>
     </>
   );
+}
+
+function BacktestReport({
+  trades,
+  positions,
+  equity,
+}: {
+  trades: BacktestTrade[];
+  positions: BacktestPosition[];
+  equity: BacktestEquityPoint[];
+}) {
+  return (
+    <div className={styles.reportGrid} aria-label="Backtest 结果明细">
+      <section className={`${styles.panel} ${styles.reportWide}`}>
+        <header>
+          <div>
+            <span className="eyebrow">账户权益</span>
+            <h2>已实现收益曲线</h2>
+          </div>
+          <span>{equity[0]?.currency ?? "--"}</span>
+        </header>
+        <EquityCurve points={equity} />
+      </section>
+
+      <section className={styles.panel} aria-label="交易明细">
+        <header>
+          <div>
+            <span className="eyebrow">成交记录</span>
+            <h2>交易明细</h2>
+          </div>
+          <span>{trades.length} 笔</span>
+        </header>
+        <div className={styles.tableWrap}>
+          <table className={styles.detailTable}>
+            <thead>
+              <tr>
+                <th>Trade</th>
+                <th>时间</th>
+                <th>方向</th>
+                <th>数量</th>
+                <th>价格</th>
+                <th>手续费</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trades.map((trade) => (
+                <tr key={trade.trade_id}>
+                  <td>{trade.trade_id}</td>
+                  <td>{formatNanos(trade.ts_event)}</td>
+                  <td className={sideClass(trade.side)}>{trade.side}</td>
+                  <td>{trade.quantity}</td>
+                  <td>{trade.price}</td>
+                  <td>{trade.commission ?? "--"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className={styles.panel} aria-label="持仓明细">
+        <header>
+          <div>
+            <span className="eyebrow">持仓周期</span>
+            <h2>持仓明细</h2>
+          </div>
+          <span>{positions.length} 个</span>
+        </header>
+        <div className={styles.tableWrap}>
+          <table className={styles.detailTable}>
+            <thead>
+              <tr>
+                <th>Position</th>
+                <th>方向</th>
+                <th>开仓均价</th>
+                <th>平仓均价</th>
+                <th>已实现损益</th>
+              </tr>
+            </thead>
+            <tbody>
+              {positions.map((position) => (
+                <tr key={position.position_id}>
+                  <td>{position.position_id}</td>
+                  <td className={sideClass(position.entry_side)}>
+                    {position.entry_side}
+                  </td>
+                  <td>{position.avg_price_open}</td>
+                  <td>{position.avg_price_close ?? "--"}</td>
+                  <td>{position.realized_pnl ?? "未实现"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function EquityCurve({ points }: { points: BacktestEquityPoint[] }) {
+  const totals = points.map((point) => moneyValue(point.total));
+  const minimum = Math.min(...totals);
+  const maximum = Math.max(...totals);
+  const range = maximum - minimum || 1;
+  const chartPoints = totals
+    .map((value, index) => {
+      const x =
+        points.length === 1 ? 300 : (index / (points.length - 1)) * 580 + 10;
+      const y = 105 - ((value - minimum) / range) * 90;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(" ");
+  const first = points[0];
+  const last = points.at(-1);
+
+  return (
+    <div className={styles.equityChart}>
+      <div>
+        <span>起始权益</span>
+        <strong>{first?.total ?? "--"}</strong>
+      </div>
+      <svg
+        viewBox="0 0 600 120"
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="账户权益随回测时间变化"
+      >
+        <line x1="10" y1="105" x2="590" y2="105" />
+        <polyline points={chartPoints} />
+      </svg>
+      <div>
+        <span>结束权益</span>
+        <strong>{last?.total ?? "--"}</strong>
+      </div>
+    </div>
+  );
+}
+
+function moneyValue(value: string): number {
+  const parsed = Number(value.split(" ")[0]?.replaceAll("_", ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sideClass(side: string): string {
+  return side === "BUY" ? styles.sideBuy : styles.sideSell;
 }
 
 function formatNanos(value: string): string {

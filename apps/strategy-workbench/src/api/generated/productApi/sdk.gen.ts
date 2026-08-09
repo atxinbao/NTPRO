@@ -17,6 +17,9 @@ import type {
   GetRunMetricsData,
   GetRunMetricsErrors,
   GetRunMetricsResponses,
+  GetRunReportData,
+  GetRunReportErrors,
+  GetRunReportResponses,
   GetRunResponses,
   GetStrategyData,
   GetStrategyErrors,
@@ -273,5 +276,32 @@ export const getRunMetrics = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/runs/{run_id}/metrics",
+    ...options,
+  });
+
+/**
+ * 读取已完成 Backtest 的不可变交易、持仓与收益明细
+ */
+export const getRunReport = <ThrowOnError extends boolean = false>(
+  options: Options<GetRunReportData, ThrowOnError>,
+): RequestResult<GetRunReportResponses, GetRunReportErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetRunReportResponses,
+    GetRunReportErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/runs/{run_id}/report",
     ...options,
   });

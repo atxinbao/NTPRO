@@ -472,6 +472,40 @@
           "503": { "$ref": "#/components/responses/ProductError" }
         }
       }
+    },
+    "/runs/{run_id}/report": {
+      "get": {
+        "operationId": "getRunReport",
+        "summary": "读取已完成 Backtest 的不可变交易、持仓与收益明细",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Backtest 交易、持仓与收益明细",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/RunReportResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
     }
   },
   "components": {
@@ -827,10 +861,15 @@
       "RunResult": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "result_ref"],
+        "required": ["status", "result_ref", "report_ref"],
         "properties": {
           "status": { "$ref": "#/components/schemas/RunResultStatus" },
           "result_ref": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "report_ref": {
             "type": ["string", "null"],
             "minLength": 1,
             "maxLength": 512
@@ -1117,6 +1156,133 @@
           "boundaries": { "$ref": "#/components/schemas/BacktestResultBoundaries" }
         }
       },
+      "BacktestTrade": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "trade_id",
+          "client_order_id",
+          "venue_order_id",
+          "position_id",
+          "side",
+          "order_type",
+          "quantity",
+          "price",
+          "currency",
+          "liquidity_side",
+          "commission",
+          "ts_event"
+        ],
+        "properties": {
+          "trade_id": { "type": "string", "minLength": 1 },
+          "client_order_id": { "type": "string", "minLength": 1 },
+          "venue_order_id": { "type": "string", "minLength": 1 },
+          "position_id": { "type": ["string", "null"], "minLength": 1 },
+          "side": { "type": "string", "enum": ["BUY", "SELL"] },
+          "order_type": { "type": "string", "minLength": 1 },
+          "quantity": { "type": "string", "minLength": 1 },
+          "price": { "type": "string", "minLength": 1 },
+          "currency": { "type": "string", "minLength": 1 },
+          "liquidity_side": { "type": "string", "enum": ["MAKER", "TAKER"] },
+          "commission": { "type": ["string", "null"], "minLength": 1 },
+          "ts_event": { "type": "string", "pattern": "^[0-9]+$" }
+        }
+      },
+      "BacktestPosition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "position_id",
+          "account_id",
+          "side",
+          "entry_side",
+          "peak_quantity",
+          "buy_quantity",
+          "sell_quantity",
+          "avg_price_open",
+          "avg_price_close",
+          "realized_return",
+          "realized_pnl",
+          "trade_count",
+          "ts_opened",
+          "ts_closed",
+          "duration_ns"
+        ],
+        "properties": {
+          "position_id": { "type": "string", "minLength": 1 },
+          "account_id": { "type": "string", "minLength": 1 },
+          "side": { "type": "string", "enum": ["FLAT", "LONG", "SHORT"] },
+          "entry_side": { "type": "string", "enum": ["BUY", "SELL"] },
+          "peak_quantity": { "type": "string", "minLength": 1 },
+          "buy_quantity": { "type": "string", "minLength": 1 },
+          "sell_quantity": { "type": "string", "minLength": 1 },
+          "avg_price_open": { "type": "string", "minLength": 1 },
+          "avg_price_close": { "type": ["string", "null"], "minLength": 1 },
+          "realized_return": { "type": "string", "minLength": 1 },
+          "realized_pnl": { "type": ["string", "null"], "minLength": 1 },
+          "trade_count": { "type": "integer", "minimum": 1 },
+          "ts_opened": { "type": "string", "pattern": "^[0-9]+$" },
+          "ts_closed": { "type": ["string", "null"], "pattern": "^[0-9]+$" },
+          "duration_ns": { "type": "string", "pattern": "^[0-9]+$" }
+        }
+      },
+      "BacktestEquityPoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["account_id", "currency", "total", "free", "locked", "ts_event"],
+        "properties": {
+          "account_id": { "type": "string", "minLength": 1 },
+          "currency": { "type": "string", "minLength": 1 },
+          "total": { "type": "string", "minLength": 1 },
+          "free": { "type": "string", "minLength": 1 },
+          "locked": { "type": "string", "minLength": 1 },
+          "ts_event": { "type": "string", "pattern": "^[0-9]+$" }
+        }
+      },
+      "BacktestDetails": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "run_id",
+          "strategy_id",
+          "strategy_version_id",
+          "strategy_version_content_hash",
+          "data_ref",
+          "data_sha256",
+          "config_ref",
+          "config_sha256",
+          "details_ref",
+          "instrument_id",
+          "equity_basis",
+          "trades",
+          "positions",
+          "equity_curve",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": { "const": "ntpro.backtest_details.v1" },
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "strategy_version_content_hash": { "$ref": "#/components/schemas/ContentHash" },
+          "data_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "config_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "config_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "details_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "instrument_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "equity_basis": { "const": "account_balance_total" },
+          "trades": { "type": "array", "items": { "$ref": "#/components/schemas/BacktestTrade" } },
+          "positions": { "type": "array", "items": { "$ref": "#/components/schemas/BacktestPosition" } },
+          "equity_curve": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/BacktestEquityPoint" }
+          },
+          "boundaries": { "$ref": "#/components/schemas/BacktestResultBoundaries" }
+        }
+      },
       "ReadOnlyBoundaries": {
         "type": "object",
         "additionalProperties": false,
@@ -1370,6 +1536,18 @@
           "contract_version": { "const": "ntpro.product_api.v1" },
           "request_id": { "$ref": "#/components/schemas/RequestId" },
           "data": { "$ref": "#/components/schemas/BacktestResult" },
+          "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
+        }
+      },
+      "RunReportResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.run_report.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/BacktestDetails" },
           "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
         }
       },

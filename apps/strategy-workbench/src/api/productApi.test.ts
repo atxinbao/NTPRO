@@ -4,6 +4,7 @@ import errorFixture from "../test/product-api-fixtures/error.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import runListFixture from "../test/product-api-fixtures/run-list.json";
 import runMetricsFixture from "../test/product-api-fixtures/run-metrics.json";
+import runReportFixture from "../test/product-api-fixtures/run-report.json";
 import strategyDetailFixture from "../test/product-api-fixtures/strategy-detail.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
@@ -43,6 +44,7 @@ function createBacktestResponse() {
       result: {
         status: "available",
         result_ref: "artifact://backtests/backtest-created-001/summary.json",
+        report_ref: "artifact://backtests/backtest-created-001/details.json",
       },
     },
     boundaries: {
@@ -141,6 +143,15 @@ describe("product API generated client", () => {
           run_id: "backtest-001",
         }),
     },
+    {
+      name: "run report",
+      fixture: runReportFixture,
+      path: "/api/product/v1/runs/backtest-001/report",
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).getRunReport({
+          run_id: "backtest-001",
+        }),
+    },
   ] as const;
 
   it.each(routeCases)("consumes the Rust $name fixture", async (testCase) => {
@@ -196,6 +207,13 @@ describe("product API generated client", () => {
       name: "missing result reference",
       mutate: (payload: Record<string, any>) => {
         payload.data.result.result_ref = null;
+      },
+      field: "run_create.data.lifecycle",
+    },
+    {
+      name: "missing report reference",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.result.report_ref = null;
       },
       field: "run_create.data.lifecycle",
     },

@@ -327,6 +327,87 @@
   margin-top: 10px;
 }
 
+.reportGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.reportWide {
+  grid-column: 1 / -1;
+}
+
+.detailTable {
+  min-width: 760px;
+}
+
+.detailTable th:first-child,
+.detailTable td:first-child {
+  width: 25%;
+}
+
+.sideBuy {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.sideSell {
+  color: var(--red);
+  font-weight: 800;
+}
+
+.equityChart {
+  display: grid;
+  min-height: 180px;
+  grid-template-columns: minmax(120px, 0.25fr) minmax(260px, 1fr) minmax(
+      120px,
+      0.25fr
+    );
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+.equityChart > div {
+  display: grid;
+  gap: 6px;
+}
+
+.equityChart > div:last-child {
+  text-align: right;
+}
+
+.equityChart span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.equityChart strong {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+}
+
+.equityChart svg {
+  width: 100%;
+  height: 130px;
+  overflow: visible;
+}
+
+.equityChart line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.equityChart polyline {
+  fill: none;
+  stroke: var(--green);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
 .sourcePanel {
   grid-column: 1 / -1;
 }
@@ -390,6 +471,31 @@
 .productState span {
   color: var(--muted);
   font-size: 9px;
+}
+
+.productState button {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  padding: 6px 9px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+}
+
+.productState button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.productState button svg {
+  width: 13px;
+  height: 13px;
 }
 
 .productStateError {
@@ -679,12 +785,27 @@
   .mainGrid,
   .statusGrid,
   .detailGrid,
+  .reportGrid,
   .backtestLayout {
     grid-template-columns: 1fr;
   }
 
   .sourcePanel {
     grid-column: auto;
+  }
+
+  .reportWide {
+    grid-column: auto;
+  }
+
+  .equityChart {
+    min-height: 210px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .equityChart svg {
+    grid-column: 1 / -1;
+    grid-row: 1;
   }
 
   .modeProgress {

@@ -72,9 +72,13 @@ impl Fixture {
         let config_path = root.join("node.toml");
         fs::write(&config_path, valid_config()).expect("product config fixture should be written");
         let result_sha256 = write_valid_backtest_artifact(&root, &config_path);
+        let details_sha256 = write_valid_backtest_details_artifact(&root, &config_path);
         fs::write(
             &config_path,
-            with_backtest_result_sha256(&valid_config(), &result_sha256),
+            with_backtest_details_sha256(
+                &with_backtest_result_sha256(&valid_config(), &result_sha256),
+                &details_sha256,
+            ),
         )
         .expect("trusted result hash should be written to product config");
         let store = SupervisorRegistryStore::new(&registry_path);
@@ -169,6 +173,21 @@ impl Fixture {
         let config = fs::read_to_string(&self.config_path)
             .expect("product config fixture should be readable");
         self.write_config(&with_backtest_result_sha256(&config, &result_sha256));
+        let mut identity = self.identity.clone();
+        identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+        self.write_identity(&identity);
+    }
+
+    fn trust_current_backtest_details(&self) {
+        let details_path = self
+            .root
+            .join("artifacts/backtests/backtest-001/details.json");
+        let details_sha256 = sha256_bytes_ref(
+            &fs::read(details_path).expect("backtest details fixture should be readable"),
+        );
+        let config = fs::read_to_string(&self.config_path)
+            .expect("product config fixture should be readable");
+        self.write_config(&with_backtest_details_sha256(&config, &details_sha256));
         let mut identity = self.identity.clone();
         identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
         self.write_identity(&identity);
@@ -1523,6 +1542,7 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
     let run_root = fixture.root.join("artifacts/backtests").join(run_id);
     assert!(run_root.join("request.toml").is_file());
     assert!(run_root.join("summary.json").is_file());
+    assert!(run_root.join("details.json").is_file());
     assert!(run_root.join("run-manifest.json").is_file());
 
     let (status, detail) = router_json(
@@ -1533,6 +1553,10 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
     .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(detail["data"]["run_id"], run_id);
+    assert_eq!(
+        detail["data"]["result"]["report_ref"],
+        format!("artifact://backtests/{run_id}/details.json")
+    );
     let (status, metrics) = router_json(
         &router,
         Method::GET,
@@ -1543,6 +1567,33 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
     assert_eq!(metrics["data"]["metrics"]["quotes"], 120);
     assert_eq!(metrics["data"]["parameters"]["fast_period"], 3);
     assert_eq!(metrics["data"]["parameters"]["slow_period"], 5);
+    let (status, report) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}/report"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        report["schema_version"],
+        "ntpro.product_api.run_report.response.v1"
+    );
+    assert_eq!(report["data"]["run_id"], run_id);
+    assert!(!report["data"]["trades"].as_array().unwrap().is_empty());
+    assert_eq!(
+        report["data"]["positions"].as_array().map(Vec::len),
+        metrics["data"]["metrics"]["total_positions"]
+            .as_u64()
+            .map(|value| value as usize)
+    );
+    assert!(
+        !report["data"]["equity_curve"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_read_only_boundaries(&report);
+    validate_openapi_instance("RunReportResponse", &report);
 }
 
 #[tokio::test]
@@ -1723,6 +1774,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     let list_path = "/api/product/v1/runs";
     let detail_path = "/api/product/v1/runs/ema-cross-live-001";
     let metrics_path = "/api/product/v1/runs/backtest-001/metrics";
+    let report_path = "/api/product/v1/runs/backtest-001/report";
 
     let (status, list) = router_json(&router, Method::GET, list_path).await;
     assert_eq!(status, StatusCode::OK);
@@ -1761,6 +1813,21 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     assert_read_only_boundaries(&metrics);
     validate_openapi_instance("RunMetricsResponse", &metrics);
 
+    let (status, report) = router_json(&router, Method::GET, report_path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        report["schema_version"],
+        "ntpro.product_api.run_report.response.v1"
+    );
+    assert_eq!(report["data"]["run_id"], "backtest-001");
+    assert_eq!(report["data"]["trades"].as_array().map(Vec::len), Some(3));
+    assert_eq!(
+        report["data"]["positions"].as_array().map(Vec::len),
+        Some(3)
+    );
+    assert_read_only_boundaries(&report);
+    validate_openapi_instance("RunReportResponse", &report);
+
     let (status, unavailable) = router_json(
         &router,
         Method::GET,
@@ -1791,7 +1858,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     assert_eq!(malformed["error"]["code"], "product_query_invalid");
     assert_eq!(malformed["error"]["field"], "run_id");
 
-    for path in [list_path, detail_path, metrics_path] {
+    for path in [list_path, detail_path, metrics_path, report_path] {
         for method in [
             Method::HEAD,
             Method::PUT,
@@ -1819,7 +1886,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
         }
     }
 
-    for path in [detail_path, metrics_path] {
+    for path in [detail_path, metrics_path, report_path] {
         let (status, headers, body) = router_json_with_headers(&router, Method::POST, path).await;
         assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "POST {path}");
         assert_eq!(
@@ -2031,6 +2098,92 @@ async fn run_metrics_reject_in_place_result_tampering_against_trusted_hash() {
     assert_eq!(body["error"]["field"], "result_sha256");
 }
 
+#[tokio::test]
+async fn run_report_fails_closed_for_missing_tampered_and_mismatched_details() {
+    type DetailsMutationCase = (&'static str, fn(&mut Value));
+
+    let fixture = Fixture::new("run-report-negative");
+    let details_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/details.json");
+    let route = "/api/product/v1/runs/backtest-001/report";
+    let original = fs::read(&details_path).expect("details fixture should be readable");
+
+    fs::remove_file(&details_path).expect("details fixture should be removed");
+    let (status, missing) = router_json(&fixture.router(), Method::GET, route).await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(missing["error"]["field"], "result_artifact");
+
+    fs::write(&details_path, b"{not-json").expect("corrupt details should be written");
+    let (status, tampered) = router_json(&fixture.router(), Method::GET, route).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(tampered["error"]["field"], "details_sha256");
+
+    let cases: [DetailsMutationCase; 17] = [
+        ("run", |value| value["run_id"] = json!("other")),
+        ("position-count", |value| {
+            value["positions"]
+                .as_array_mut()
+                .expect("positions should be an array")
+                .pop();
+        }),
+        ("boundary", |value| {
+            value["boundaries"]["order_submission_allowed"] = json!(true);
+        }),
+        ("trade-side", |value| {
+            value["trades"][0]["side"] = json!("UNKNOWN");
+        }),
+        ("commission-currency", |value| {
+            value["trades"][0]["commission"] = json!("1.00 USD");
+        }),
+        ("trade-equity-currency", |value| {
+            value["trades"][0]["currency"] = json!("USD");
+            value["trades"][0]["commission"] = json!("1.00 USD");
+        }),
+        ("duplicate-trade-id", |value| {
+            value["trades"][1]["trade_id"] = value["trades"][0]["trade_id"].clone();
+        }),
+        ("duplicate-position-id", |value| {
+            value["positions"][1]["position_id"] = value["positions"][0]["position_id"].clone();
+        }),
+        ("position-trade-count", |value| {
+            value["positions"][0]["trade_count"] = json!(2);
+        }),
+        ("orphan-position", |value| {
+            value["trades"][0]["position_id"] = Value::Null;
+        }),
+        ("position-duration", |value| {
+            value["positions"][0]["duration_ns"] = json!("1");
+        }),
+        ("position-equity-account", |value| {
+            value["positions"][0]["account_id"] = json!("OTHER-001");
+        }),
+        ("position-pnl-currency", |value| {
+            value["positions"][0]["realized_pnl"] = json!("1.00 USD");
+        }),
+        ("equity-account", |value| {
+            value["equity_curve"][1]["account_id"] = json!("OTHER-001");
+        }),
+        ("equity-currency", |value| {
+            value["equity_curve"][0]["total"] = json!("100000.00 USD");
+        }),
+        ("equity-balance", |value| {
+            value["equity_curve"][0]["total"] = json!("999999.00 USDT");
+        }),
+        ("unknown", |value| value["unexpected"] = json!(true)),
+    ];
+    for (name, mutate) in cases {
+        let mut value: Value = serde_json::from_slice(&original).expect("details should parse");
+        mutate(&mut value);
+        write_json(&details_path, &value);
+        fixture.trust_current_backtest_details();
+        let (status, body) = router_json(&fixture.router(), Method::GET, route).await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{name}");
+        assert_eq!(body["error"]["code"], "product_source_invalid", "{name}");
+        assert_eq!(body["error"]["field"], "details_artifact", "{name}");
+    }
+}
+
 #[cfg(any(unix, windows))]
 #[test]
 fn nofollow_directory_open_rejects_path_replacement() {
@@ -2061,6 +2214,28 @@ async fn run_metrics_reject_symlink_path_escape() {
         &fixture.router(),
         Method::GET,
         "/api/product/v1/runs/backtest-001/metrics",
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "result_artifact_type");
+}
+
+#[cfg(any(unix, windows))]
+#[tokio::test]
+async fn run_report_rejects_symlink_path_escape() {
+    let fixture = Fixture::new("run-report-symlink");
+    let details_path = fixture
+        .root
+        .join("artifacts/backtests/backtest-001/details.json");
+    let outside = fixture.root.join("outside-details.json");
+    fs::rename(&details_path, &outside).expect("details should move outside artifact root");
+    create_file_symlink(&outside, &details_path).expect("details symlink should be created");
+
+    let (status, body) = router_json(
+        &fixture.router(),
+        Method::GET,
+        "/api/product/v1/runs/backtest-001/report",
     )
     .await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
@@ -2135,6 +2310,12 @@ async fn tracked_frontend_fixtures_match_real_rust_routes() {
             StatusCode::OK,
             "/api/product/v1/runs/backtest-001/metrics",
             "RunMetricsResponse",
+        ),
+        (
+            "run-report.json",
+            StatusCode::OK,
+            "/api/product/v1/runs/backtest-001/report",
+            "RunReportResponse",
         ),
         (
             "error.json",
@@ -2236,6 +2417,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/runs",
             "/runs/{run_id}",
             "/runs/{run_id}/metrics",
+            "/runs/{run_id}/report",
             "/strategies",
             "/strategies/{strategy_id}",
             "/strategies/{strategy_id}/versions",
@@ -2401,6 +2583,7 @@ result_ref = "artifact://backtests/backtest-001/summary.json"
 backtest_config_sha256 = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 backtest_data_sha256 = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 backtest_result_sha256 = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+backtest_details_sha256 = "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 backtest_trade_size = "0.001000"
 backtest_quotes = 120
 backtest_fast_period = 3
@@ -2606,12 +2789,119 @@ fn write_valid_backtest_artifact(root: &Path, config_path: &Path) -> String {
     sha256_bytes_ref(&raw)
 }
 
+fn write_valid_backtest_details_artifact(root: &Path, config_path: &Path) -> String {
+    let path = root.join("artifacts/backtests/backtest-001/details.json");
+    fs::create_dir_all(path.parent().expect("details path should have a parent"))
+        .expect("details directory should be created");
+    let positions = (1..=3)
+        .map(|index| {
+            json!({
+                "position_id": format!("P-{index}"),
+                "account_id": "SIM-001",
+                "side": "FLAT",
+                "entry_side": if index % 2 == 0 { "SELL" } else { "BUY" },
+                "peak_quantity": "0.001000",
+                "buy_quantity": "0.001000",
+                "sell_quantity": "0.001000",
+                "avg_price_open": format!("{}.000000000000", 100 + index),
+                "avg_price_close": format!("{}.000000000000", 100 + index),
+                "realized_return": "-0.000100000000",
+                "realized_pnl": "-0.00100000 USDT",
+                "trade_count": 1,
+                "ts_opened": format!("17356896{}000000000", index * 10),
+                "ts_closed": format!("17356896{}500000000", index * 10),
+                "duration_ns": "500000000"
+            })
+        })
+        .collect::<Vec<_>>();
+    let trades = (1..=3)
+        .map(|index| {
+            json!({
+                "trade_id": format!("T-{index}"),
+                "client_order_id": format!("O-{index}"),
+                "venue_order_id": format!("V-{index}"),
+                "position_id": format!("P-{index}"),
+                "side": if index % 2 == 0 { "SELL" } else { "BUY" },
+                "order_type": "MARKET",
+                "quantity": "0.001000",
+                "price": format!("{}.00", 100 + index),
+                "currency": "USDT",
+                "liquidity_side": "TAKER",
+                "commission": "0.00010000 USDT",
+                "ts_event": format!("17356896{}000000000", index * 10)
+            })
+        })
+        .collect::<Vec<_>>();
+    let raw = serde_json::to_vec_pretty(&json!({
+        "schema_version": "ntpro.backtest_details.v1",
+        "run_id": "backtest-001",
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "strategy_version_content_hash": strategy_version_content_hash(config_path),
+        "data_ref": "dataset://fixtures/ema-cross",
+        "data_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "config_ref": "node-config:node.toml#product_runs",
+        "config_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "details_ref": "artifact://backtests/backtest-001/details.json",
+        "instrument_id": "BTCUSDT.BINANCE",
+        "equity_basis": "account_balance_total",
+        "trades": trades,
+        "positions": positions,
+        "equity_curve": [
+            {
+                "account_id": "SIM-001",
+                "currency": "USDT",
+                "total": "1000000.00000000 USDT",
+                "free": "1000000.00000000 USDT",
+                "locked": "0.00000000 USDT",
+                "ts_event": "1735689600000000000"
+            },
+            {
+                "account_id": "SIM-001",
+                "currency": "USDT",
+                "total": "999999.99700000 USDT",
+                "free": "999999.99700000 USDT",
+                "locked": "0.00000000 USDT",
+                "ts_event": "1735689719000000000"
+            }
+        ],
+        "boundaries": {
+            "read_only": true,
+            "external_venue_connection": false,
+            "order_submission_allowed": false,
+            "order_mutation_allowed": false,
+            "automatic_retry_allowed": false,
+            "automatic_remediation_allowed": false,
+            "real_orders_submitted": false,
+            "trading_controls_enabled": false
+        }
+    }))
+    .expect("backtest details fixture must serialize");
+    fs::write(&path, &raw).expect("backtest details fixture should be written");
+    sha256_bytes_ref(&raw)
+}
+
 fn with_backtest_result_sha256(config: &str, result_sha256: &str) -> String {
     config
         .lines()
         .map(|line| {
             if line.starts_with("backtest_result_sha256 = ") {
                 format!("backtest_result_sha256 = \"{result_sha256}\"")
+            } else {
+                line.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+        + "\n"
+}
+
+fn with_backtest_details_sha256(config: &str, details_sha256: &str) -> String {
+    config
+        .lines()
+        .map(|line| {
+            if line.starts_with("backtest_details_sha256 = ") {
+                format!("backtest_details_sha256 = \"{details_sha256}\"")
             } else {
                 line.to_string()
             }
