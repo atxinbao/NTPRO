@@ -9,6 +9,7 @@ User-facing migration guide and API compatibility notes live here.
 - [MVP control center](MVP-007-control-center.md)
 - [MVP cross-portal event correlation](MVP-008-event-correlation.md)
 - [S1 Backtest report details](S1-BT-003-backtest-report.md)
+- [S1 Backtest analysis](S1-BT-004-backtest-analysis.md)
 - [Workflow connectivity-probe semantics](workflow_connectivity_probe_semantics.md)
 - [Workflow run_id contract](workflow_run_id_contract.md)
 - [Legacy Python API appendix retired](legacy_python_api_appendix_retired.md)

@@ -42,6 +42,7 @@ use nautilus_model::{
     types::{Money, Price, Quantity},
 };
 use nautilus_trading::examples::strategies::EmaCross;
+use rust_decimal::Decimal;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -61,6 +62,7 @@ const AUDUSD_SIM_INSTRUMENT_ID: &str = "AUD/USD.SIM";
 const BTCUSDT_BINANCE_INSTRUMENT_ID: &str = "BTCUSDT.BINANCE";
 const BACKTEST_RESULT_SCHEMA_VERSION: &str = "ntpro.backtest_result.v1";
 const BACKTEST_DETAILS_SCHEMA_VERSION: &str = "ntpro.backtest_details.v1";
+const BACKTEST_ANALYSIS_SCHEMA_VERSION: &str = "ntpro.backtest_analysis.v1";
 static IMMUTABLE_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, Deserialize)]
@@ -201,6 +203,76 @@ pub(crate) struct BacktestDetailsArtifact {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
+pub(crate) struct BacktestAnalysisArtifact {
+    schema_version: String,
+    run_id: String,
+    strategy_id: String,
+    strategy_version_id: String,
+    strategy_version_content_hash: String,
+    analysis_ref: String,
+    instrument_id: String,
+    risk: BacktestRiskSummary,
+    drawdown_curve: Vec<BacktestDrawdownPoint>,
+    timeline: Vec<BacktestTimelineEvent>,
+    provenance: BacktestAnalysisProvenance,
+    boundaries: BacktestResultBoundaries,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestRiskSummary {
+    currency: String,
+    starting_equity: String,
+    ending_equity: String,
+    peak_equity: String,
+    max_drawdown_amount: String,
+    max_drawdown_rate: String,
+    max_drawdown_started_at: String,
+    max_drawdown_trough_at: String,
+    current_drawdown_amount: String,
+    current_drawdown_rate: String,
+    open_positions: usize,
+    closed_positions: usize,
+    profitable_positions: usize,
+    losing_positions: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestDrawdownPoint {
+    ts_event: String,
+    equity: String,
+    peak_equity: String,
+    drawdown_amount: String,
+    drawdown_rate: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestTimelineEvent {
+    event_id: String,
+    event_type: String,
+    ts_event: String,
+    entity_ref: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BacktestAnalysisProvenance {
+    generator: String,
+    engine_mode: String,
+    data_ref: String,
+    data_sha256: String,
+    config_ref: String,
+    config_sha256: String,
+    summary_ref: String,
+    summary_sha256: String,
+    details_ref: String,
+    details_sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
 struct BacktestTrade {
     trade_id: String,
     client_order_id: String,
@@ -251,6 +323,7 @@ struct BacktestEquityPoint {
 pub(crate) struct ProductBacktestArtifacts {
     pub(crate) summary: Vec<u8>,
     pub(crate) details: Vec<u8>,
+    pub(crate) analysis: Vec<u8>,
 }
 
 pub(crate) fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
@@ -380,8 +453,19 @@ fn run_backtest_engine_smoke(
             &engine_run,
             &sha256_ref(&config_bytes),
         );
+        let summary_raw = serialized_artifact(&artifact)?;
+        let details_raw = serialized_artifact(&details)?;
+        let analysis = build_backtest_analysis_artifact(
+            run_id,
+            product,
+            &artifact,
+            &details,
+            &sha256_ref(&summary_raw),
+            &sha256_ref(&details_raw),
+        )?;
         write_immutable_result(&output_dir.join("summary.json"), &artifact)?;
         write_immutable_details(&output_dir.join("details.json"), &details)?;
+        write_immutable_analysis(&output_dir.join("analysis.json"), &analysis)?;
     }
 
     let summary_path = output_dir.join("summary.txt");
@@ -446,9 +530,20 @@ pub(crate) fn execute_product_backtest(
         &engine_run,
         &sha256_ref(config_raw),
     );
+    let summary = serialized_artifact(&artifact)?;
+    let details_raw = serialized_artifact(&details)?;
+    let analysis = build_backtest_analysis_artifact(
+        &config.run.id,
+        product,
+        &artifact,
+        &details,
+        &sha256_ref(&summary),
+        &sha256_ref(&details_raw),
+    )?;
     Ok(ProductBacktestArtifacts {
-        summary: format!("{}\n", serde_json::to_string_pretty(&artifact)?).into_bytes(),
-        details: format!("{}\n", serde_json::to_string_pretty(&details)?).into_bytes(),
+        summary,
+        details: details_raw,
+        analysis: serialized_artifact(&analysis)?,
     })
 }
 
@@ -820,6 +915,233 @@ fn build_backtest_details_artifact(
     }
 }
 
+fn build_backtest_analysis_artifact(
+    run_id: &str,
+    product: &MinimalProductConfig,
+    summary: &BacktestResultArtifact,
+    details: &BacktestDetailsArtifact,
+    summary_sha256: &str,
+    details_sha256: &str,
+) -> anyhow::Result<BacktestAnalysisArtifact> {
+    let first = details
+        .equity_curve
+        .first()
+        .context("backtest analysis requires at least one equity point")?;
+    let currency = first.currency.as_str();
+    let starting = first.total.parse::<Money>().map_err(anyhow::Error::msg)?;
+    let mut peak = starting;
+    let mut peak_at = first.ts_event.clone();
+    let mut max_amount = Decimal::ZERO;
+    let mut max_rate = Decimal::ZERO;
+    let mut max_started_at = peak_at.clone();
+    let mut max_trough_at = peak_at.clone();
+    let mut drawdown_curve = Vec::with_capacity(details.equity_curve.len());
+
+    for point in &details.equity_curve {
+        let equity = point.total.parse::<Money>().map_err(anyhow::Error::msg)?;
+        if point.currency != currency || equity.currency != starting.currency {
+            anyhow::bail!("backtest analysis equity currency changed");
+        }
+        if equity > peak {
+            peak = equity;
+            peak_at.clone_from(&point.ts_event);
+        }
+        let amount = peak.as_decimal() - equity.as_decimal();
+        let rate = if peak.as_decimal() == Decimal::ZERO {
+            Decimal::ZERO
+        } else {
+            amount / peak.as_decimal()
+        };
+        if rate > max_rate {
+            max_amount = amount;
+            max_rate = rate;
+            max_started_at.clone_from(&peak_at);
+            max_trough_at.clone_from(&point.ts_event);
+        }
+        drawdown_curve.push(BacktestDrawdownPoint {
+            ts_event: point.ts_event.clone(),
+            equity: point.total.clone(),
+            peak_equity: peak.to_string(),
+            drawdown_amount: Money::from_decimal(amount, starting.currency)?.to_string(),
+            drawdown_rate: canonical_decimal(rate),
+        });
+    }
+
+    let ending = details
+        .equity_curve
+        .last()
+        .context("backtest analysis requires ending equity")?
+        .total
+        .parse::<Money>()
+        .map_err(anyhow::Error::msg)?;
+    let current_amount = peak.as_decimal() - ending.as_decimal();
+    let current_rate = if peak.as_decimal() == Decimal::ZERO {
+        Decimal::ZERO
+    } else {
+        current_amount / peak.as_decimal()
+    };
+    let open_positions = details
+        .positions
+        .iter()
+        .filter(|position| position.ts_closed.is_none())
+        .count();
+    let profitable_positions = details
+        .positions
+        .iter()
+        .filter(|position| {
+            position.ts_closed.is_some()
+                && position
+                    .realized_pnl
+                    .as_deref()
+                    .and_then(|value| value.parse::<Money>().ok())
+                    .is_some_and(|value| value.raw > 0)
+        })
+        .count();
+    let losing_positions = details
+        .positions
+        .iter()
+        .filter(|position| {
+            position.ts_closed.is_some()
+                && position
+                    .realized_pnl
+                    .as_deref()
+                    .and_then(|value| value.parse::<Money>().ok())
+                    .is_some_and(|value| value.raw < 0)
+        })
+        .count();
+
+    Ok(BacktestAnalysisArtifact {
+        schema_version: BACKTEST_ANALYSIS_SCHEMA_VERSION.to_string(),
+        run_id: run_id.to_string(),
+        strategy_id: product.strategy_id.clone(),
+        strategy_version_id: product.strategy_version_id.clone(),
+        strategy_version_content_hash: product.strategy_version_content_hash.clone(),
+        analysis_ref: format!("artifact://backtests/{run_id}/analysis.json"),
+        instrument_id: summary.instrument_id.clone(),
+        risk: BacktestRiskSummary {
+            currency: currency.to_string(),
+            starting_equity: starting.to_string(),
+            ending_equity: ending.to_string(),
+            peak_equity: peak.to_string(),
+            max_drawdown_amount: Money::from_decimal(max_amount, starting.currency)?.to_string(),
+            max_drawdown_rate: canonical_decimal(max_rate),
+            max_drawdown_started_at: max_started_at,
+            max_drawdown_trough_at: max_trough_at,
+            current_drawdown_amount: Money::from_decimal(current_amount, starting.currency)?
+                .to_string(),
+            current_drawdown_rate: canonical_decimal(current_rate),
+            open_positions,
+            closed_positions: details.positions.len().saturating_sub(open_positions),
+            profitable_positions,
+            losing_positions,
+        },
+        drawdown_curve,
+        timeline: build_backtest_timeline(run_id, summary, details),
+        provenance: BacktestAnalysisProvenance {
+            generator: "nautilus_backtest::engine::BacktestEngine".to_string(),
+            engine_mode: ENGINE_SMOKE_MODE.to_string(),
+            data_ref: product.data_ref.clone(),
+            data_sha256: summary.data_sha256.clone(),
+            config_ref: product.config_ref.clone(),
+            config_sha256: summary.config_sha256.clone(),
+            summary_ref: summary.result_ref.clone(),
+            summary_sha256: summary_sha256.to_string(),
+            details_ref: details.details_ref.clone(),
+            details_sha256: details_sha256.to_string(),
+        },
+        boundaries: BacktestResultBoundaries {
+            read_only: true,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+        },
+    })
+}
+
+fn build_backtest_timeline(
+    run_id: &str,
+    summary: &BacktestResultArtifact,
+    details: &BacktestDetailsArtifact,
+) -> Vec<BacktestTimelineEvent> {
+    let mut events = vec![
+        (
+            summary.backtest_start.clone(),
+            0_u8,
+            "run_started".to_string(),
+            format!("run://{run_id}"),
+        ),
+        (
+            summary.backtest_end.clone(),
+            5_u8,
+            "run_completed".to_string(),
+            format!("run://{run_id}"),
+        ),
+    ];
+    events.extend(details.equity_curve.iter().map(|point| {
+        (
+            point.ts_event.clone(),
+            1_u8,
+            "equity_updated".to_string(),
+            format!("account://{}", point.account_id),
+        )
+    }));
+    events.extend(details.trades.iter().map(|trade| {
+        (
+            trade.ts_event.clone(),
+            2_u8,
+            "trade_filled".to_string(),
+            format!("trade://{}", trade.trade_id),
+        )
+    }));
+    events.extend(details.positions.iter().flat_map(|position| {
+        let opened = (
+            position.ts_opened.clone(),
+            3_u8,
+            "position_opened".to_string(),
+            format!("position://{}", position.position_id),
+        );
+        let closed = position.ts_closed.as_ref().map(|timestamp| {
+            (
+                timestamp.clone(),
+                4_u8,
+                "position_closed".to_string(),
+                format!("position://{}", position.position_id),
+            )
+        });
+        std::iter::once(opened).chain(closed)
+    }));
+    events.sort_by(|left, right| {
+        numeric_timestamp(&left.0)
+            .cmp(&numeric_timestamp(&right.0))
+            .then_with(|| left.1.cmp(&right.1))
+            .then_with(|| left.3.cmp(&right.3))
+    });
+    events
+        .into_iter()
+        .enumerate()
+        .map(
+            |(index, (ts_event, _, event_type, entity_ref))| BacktestTimelineEvent {
+                event_id: format!("event-{index:06}"),
+                event_type,
+                ts_event,
+                entity_ref,
+            },
+        )
+        .collect()
+}
+
+fn numeric_timestamp(value: &str) -> Option<u64> {
+    value.parse::<u64>().ok()
+}
+
+fn canonical_decimal(value: Decimal) -> String {
+    format!("{value:.12}")
+}
+
 fn canonical_stats<'a>(
     values: impl Iterator<Item = (&'a String, &'a f64)>,
 ) -> BTreeMap<String, String> {
@@ -852,6 +1174,20 @@ fn write_immutable_result(path: &Path, artifact: &BacktestResultArtifact) -> any
 
 fn write_immutable_details(path: &Path, artifact: &BacktestDetailsArtifact) -> anyhow::Result<()> {
     write_immutable_artifact(path, artifact)
+}
+
+fn write_immutable_analysis(
+    path: &Path,
+    artifact: &BacktestAnalysisArtifact,
+) -> anyhow::Result<()> {
+    write_immutable_artifact(path, artifact)
+}
+
+fn serialized_artifact<T>(artifact: &T) -> anyhow::Result<Vec<u8>>
+where
+    T: Serialize,
+{
+    Ok(format!("{}\n", serde_json::to_string_pretty(artifact)?).into_bytes())
 }
 
 fn write_immutable_artifact<T>(path: &Path, artifact: &T) -> anyhow::Result<()>
@@ -1308,8 +1644,10 @@ dir = "{}"
         run_backtest_run(&opt).expect("first product backtest should complete");
         let result_path = output_dir.join("summary.json");
         let details_path = output_dir.join("details.json");
+        let analysis_path = output_dir.join("analysis.json");
         let first = fs::read(&result_path).expect("product result should exist");
         let first_details = fs::read(&details_path).expect("product details should exist");
+        let first_analysis = fs::read(&analysis_path).expect("product analysis should exist");
         let artifact: BacktestResultArtifact =
             serde_json::from_slice(&first).expect("product result should parse");
         assert_eq!(artifact.schema_version, BACKTEST_RESULT_SCHEMA_VERSION);
@@ -1343,6 +1681,23 @@ dir = "{}"
         assert_eq!(details.equity_basis, "account_balance_total");
         assert!(details.boundaries.read_only);
         assert!(!details.boundaries.trading_controls_enabled);
+        let analysis: BacktestAnalysisArtifact =
+            serde_json::from_slice(&first_analysis).expect("product analysis should parse");
+        assert_eq!(analysis.schema_version, BACKTEST_ANALYSIS_SCHEMA_VERSION);
+        assert_eq!(analysis.run_id, artifact.run_id);
+        assert_eq!(analysis.drawdown_curve.len(), details.equity_curve.len());
+        assert_eq!(analysis.provenance.summary_sha256, sha256_ref(&first));
+        assert_eq!(
+            analysis.provenance.details_sha256,
+            sha256_ref(&first_details)
+        );
+        assert_eq!(analysis.timeline.first().unwrap().event_type, "run_started");
+        assert_eq!(
+            analysis.timeline.last().unwrap().event_type,
+            "run_completed"
+        );
+        assert!(analysis.boundaries.read_only);
+        assert!(!analysis.boundaries.trading_controls_enabled);
 
         run_backtest_run(&opt).expect("identical replay should be idempotent");
         assert_eq!(
@@ -1352,6 +1707,10 @@ dir = "{}"
         assert_eq!(
             fs::read(&details_path).expect("replayed details should exist"),
             first_details
+        );
+        assert_eq!(
+            fs::read(&analysis_path).expect("replayed analysis should exist"),
+            first_analysis
         );
 
         let mut changed = artifact;
@@ -1381,16 +1740,85 @@ dir = "{}"
             serde_json::from_slice(&result.summary).expect("result should parse");
         let details: BacktestDetailsArtifact =
             serde_json::from_slice(&result.details).expect("details should parse");
+        let analysis: BacktestAnalysisArtifact =
+            serde_json::from_slice(&result.analysis).expect("analysis should parse");
         assert_eq!(artifact.metrics.quotes, 120);
         assert_eq!(artifact.config_sha256, sha256_ref(raw.as_bytes()));
         assert_eq!(details.config_sha256, artifact.config_sha256);
         assert_eq!(details.positions.len(), artifact.metrics.total_positions);
+        assert_eq!(
+            analysis.provenance.summary_sha256,
+            sha256_ref(&result.summary)
+        );
+        assert_eq!(
+            analysis.provenance.details_sha256,
+            sha256_ref(&result.details)
+        );
 
         let invalid = raw.replace("250000 USDT", "250000 USD");
         let error = execute_product_backtest(invalid.as_bytes())
             .expect_err("wrong starting balance currency must fail")
             .to_string();
         assert!(error.contains("currency must be USDT"));
+    }
+
+    #[test]
+    fn analysis_excludes_partially_closed_open_position_from_closed_outcomes() {
+        let config_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("configs/backtests/ema-cross-btcusdt-product.toml");
+        let raw = fs::read_to_string(config_path)
+            .expect("tracked product Backtest config should be readable");
+        let artifacts = execute_product_backtest(raw.as_bytes())
+            .expect("in-memory product Backtest should complete");
+        let summary: BacktestResultArtifact =
+            serde_json::from_slice(&artifacts.summary).expect("summary should parse");
+        let mut details: BacktestDetailsArtifact =
+            serde_json::from_slice(&artifacts.details).expect("details should parse");
+        for position in &mut details.positions {
+            position.realized_pnl = Some("0.00000000 USDT".to_string());
+        }
+        let partially_closed = details
+            .positions
+            .iter_mut()
+            .find(|position| position.ts_closed.is_none())
+            .expect("engine fixture should contain an open position");
+        partially_closed.side = "LONG".to_string();
+        partially_closed.realized_pnl = Some("1.00000000 USDT".to_string());
+        partially_closed.ts_closed = None;
+        partially_closed.duration_ns = "0".to_string();
+
+        let config = parse_minimal_backtest_config(&raw, "partial-close-fixture")
+            .expect("product config should parse");
+        let product = config
+            .product
+            .as_ref()
+            .expect("product section should exist");
+        let analysis = build_backtest_analysis_artifact(
+            &summary.run_id,
+            product,
+            &summary,
+            &details,
+            &sha256_ref(&artifacts.summary),
+            &sha256_ref(
+                &serde_json::to_vec_pretty(&details).expect("details fixture should serialize"),
+            ),
+        )
+        .expect("partial-close analysis should build");
+
+        let expected_open = details
+            .positions
+            .iter()
+            .filter(|position| position.ts_closed.is_none())
+            .count();
+        assert!(expected_open > 0);
+        assert_eq!(analysis.risk.open_positions, expected_open);
+        assert_eq!(
+            analysis.risk.closed_positions,
+            details.positions.len().saturating_sub(expected_open)
+        );
+        assert_eq!(analysis.risk.profitable_positions, 0);
+        assert_eq!(analysis.risk.losing_positions, 0);
     }
 
     #[test]

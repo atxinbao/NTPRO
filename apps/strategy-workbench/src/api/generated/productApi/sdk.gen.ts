@@ -12,6 +12,9 @@ import type {
   CreateBacktestRunData,
   CreateBacktestRunErrors,
   CreateBacktestRunResponses,
+  GetRunAnalysisData,
+  GetRunAnalysisErrors,
+  GetRunAnalysisResponses,
   GetRunData,
   GetRunErrors,
   GetRunMetricsData,
@@ -303,5 +306,32 @@ export const getRunReport = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/runs/{run_id}/report",
+    ...options,
+  });
+
+/**
+ * 读取已完成 Backtest 的不可变风险、回撤、运行记录与来源明细
+ */
+export const getRunAnalysis = <ThrowOnError extends boolean = false>(
+  options: Options<GetRunAnalysisData, ThrowOnError>,
+): RequestResult<GetRunAnalysisResponses, GetRunAnalysisErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetRunAnalysisResponses,
+    GetRunAnalysisErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/runs/{run_id}/analysis",
     ...options,
   });

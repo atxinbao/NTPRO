@@ -6,8 +6,10 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import runListFixture from "../test/product-api-fixtures/run-list.json";
+import runMetricsFixture from "../test/product-api-fixtures/run-metrics.json";
 import runReportFixture from "../test/product-api-fixtures/run-report.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
@@ -119,6 +121,15 @@ describe("strategy workbench product slice", () => {
     expect(screen.getByRole("region", { name: "持仓明细" })).toHaveTextContent(
       "P-1",
     );
+    expect(
+      screen.getByRole("img", { name: "账户权益回撤随回测时间变化" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Backtest 运行记录" }),
+    ).toHaveTextContent("运行开始");
+    expect(
+      screen.getByRole("region", { name: "Backtest 分析来源" }),
+    ).toHaveTextContent("artifact://backtests/backtest-001/summary.json");
   });
 
   it.each([404, 500, 503])(
@@ -193,6 +204,98 @@ describe("strategy workbench product slice", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("真实引擎回测结果")).toBeInTheDocument();
     expect(reportRequests).toBe(0);
+  });
+
+  it.each([404, 500, 503])(
+    "keeps Run metrics and report visible when the analysis route returns %s",
+    async (status) => {
+      server.use(
+        http.get("/api/product/v1/runs/:runId/analysis", () =>
+          HttpResponse.json(errorFixture, { status }),
+        ),
+      );
+
+      renderWorkbench("/runs/backtest-001");
+      expect(
+        await screen.findByRole("heading", { name: "backtest-001" }),
+      ).toBeInTheDocument();
+      expect(screen.getByText("真实引擎回测结果")).toBeInTheDocument();
+      expect(
+        await screen.findByRole("img", { name: "账户权益随回测时间变化" }),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: "重试分析" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("历史 Run 未生成分析产物"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("retries only a failed analysis resource", async () => {
+    let shouldFail = true;
+    let analysisRequests = 0;
+    let metricsRequests = 0;
+    let reportRequests = 0;
+    server.use(
+      http.get("/api/product/v1/runs/:runId/metrics", () => {
+        metricsRequests += 1;
+        return HttpResponse.json(runMetricsFixture);
+      }),
+      http.get("/api/product/v1/runs/:runId/report", () => {
+        reportRequests += 1;
+        return HttpResponse.json(runReportFixture);
+      }),
+      http.get("/api/product/v1/runs/:runId/analysis", () => {
+        analysisRequests += 1;
+        return shouldFail
+          ? HttpResponse.json(errorFixture, { status: 503 })
+          : HttpResponse.json(runAnalysisFixture);
+      }),
+    );
+
+    renderWorkbench("/runs/backtest-001");
+    const retry = await screen.findByRole("button", { name: "重试分析" });
+    const metricsBeforeRetry = metricsRequests;
+    const reportBeforeRetry = reportRequests;
+    shouldFail = false;
+    await userEvent.click(retry);
+    expect(
+      await screen.findByRole("img", {
+        name: "账户权益回撤随回测时间变化",
+      }),
+    ).toBeInTheDocument();
+    expect(analysisRequests).toBeGreaterThanOrEqual(2);
+    expect(metricsRequests).toBe(metricsBeforeRetry);
+    expect(reportRequests).toBe(reportBeforeRetry);
+  });
+
+  it("keeps report visible and skips analysis for a historical Run", async () => {
+    const historical = structuredClone(runDetailFixture) as Record<string, any>;
+    const backtest = structuredClone(
+      runListFixture.data.find((run) => run.run_id === "backtest-001")!,
+    );
+    backtest.result.analysis_ref = null;
+    historical.data = backtest;
+    let analysisRequests = 0;
+    server.use(
+      http.get("/api/product/v1/runs/backtest-001", () =>
+        HttpResponse.json(historical),
+      ),
+      http.get("/api/product/v1/runs/backtest-001/analysis", () => {
+        analysisRequests += 1;
+        return HttpResponse.json(runAnalysisFixture);
+      }),
+    );
+
+    renderWorkbench("/runs/backtest-001");
+    expect(
+      await screen.findByText("历史 Run 未生成分析产物"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("img", { name: "账户权益随回测时间变化" }),
+    ).toBeInTheDocument();
+    expect(analysisRequests).toBe(0);
   });
 
   it("renders a verified empty strategy state", async () => {

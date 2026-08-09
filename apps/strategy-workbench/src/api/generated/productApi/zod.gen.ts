@@ -127,6 +127,7 @@ export const zRunResult = z.object({
   status: zRunResultStatus,
   result_ref: z.string().min(1).max(512).nullable(),
   report_ref: z.string().min(1).max(512).nullable(),
+  analysis_ref: z.string().min(1).max(512).nullable(),
 });
 
 export const zRunRisk = z.object({
@@ -324,6 +325,73 @@ export const zBacktestDetails = z.object({
   boundaries: zBacktestResultBoundaries,
 });
 
+export const zBacktestRiskSummary = z.object({
+  currency: z.string().min(1),
+  starting_equity: z.string().min(1),
+  ending_equity: z.string().min(1),
+  peak_equity: z.string().min(1),
+  max_drawdown_amount: z.string().min(1),
+  max_drawdown_rate: z.string().regex(/^[0-9]+\.[0-9]{12}$/),
+  max_drawdown_started_at: z.string().regex(/^[0-9]+$/),
+  max_drawdown_trough_at: z.string().regex(/^[0-9]+$/),
+  current_drawdown_amount: z.string().min(1),
+  current_drawdown_rate: z.string().regex(/^[0-9]+\.[0-9]{12}$/),
+  open_positions: z.int().gte(0),
+  closed_positions: z.int().gte(0),
+  profitable_positions: z.int().gte(0),
+  losing_positions: z.int().gte(0),
+});
+
+export const zBacktestDrawdownPoint = z.object({
+  ts_event: z.string().regex(/^[0-9]+$/),
+  equity: z.string().min(1),
+  peak_equity: z.string().min(1),
+  drawdown_amount: z.string().min(1),
+  drawdown_rate: z.string().regex(/^[0-9]+\.[0-9]{12}$/),
+});
+
+export const zBacktestTimelineEvent = z.object({
+  event_id: z.string().regex(/^event-[0-9]{6}$/),
+  event_type: z.enum([
+    "run_started",
+    "equity_updated",
+    "trade_filled",
+    "position_opened",
+    "position_closed",
+    "run_completed",
+  ]),
+  ts_event: z.string().regex(/^[0-9]+$/),
+  entity_ref: z.string().min(1).max(512),
+});
+
+export const zBacktestAnalysisProvenance = z.object({
+  generator: z.literal("nautilus_backtest::engine::BacktestEngine"),
+  engine_mode: z.literal("engine-smoke"),
+  data_ref: z.string().min(1).max(512),
+  data_sha256: zContentHash,
+  config_ref: z.string().min(1).max(512),
+  config_sha256: zContentHash,
+  summary_ref: z.string().min(1).max(512),
+  summary_sha256: zContentHash,
+  details_ref: z.string().min(1).max(512),
+  details_sha256: zContentHash,
+});
+
+export const zBacktestAnalysis = z.object({
+  schema_version: z.literal("ntpro.backtest_analysis.v1"),
+  run_id: zRunId,
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  strategy_version_content_hash: zContentHash,
+  analysis_ref: z.string().min(1).max(512),
+  instrument_id: z.string().min(1).max(128),
+  risk: zBacktestRiskSummary,
+  drawdown_curve: z.array(zBacktestDrawdownPoint).min(1),
+  timeline: z.array(zBacktestTimelineEvent).min(2),
+  provenance: zBacktestAnalysisProvenance,
+  boundaries: zBacktestResultBoundaries,
+});
+
 export const zReadOnlyBoundaries = z.object({
   read_only: z.literal(true),
   strategy_mutation_allowed: z.literal(false),
@@ -412,6 +480,14 @@ export const zRunReportResponse = z.object({
   contract_version: z.literal("ntpro.product_api.v1"),
   request_id: zRequestId,
   data: zBacktestDetails,
+  boundaries: zReadOnlyBoundaries,
+});
+
+export const zRunAnalysisResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.run_analysis.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zBacktestAnalysis,
   boundaries: zReadOnlyBoundaries,
 });
 
@@ -551,3 +627,12 @@ export const zGetRunReportPath = z.object({
  * Backtest 交易、持仓与收益明细
  */
 export const zGetRunReportResponse = zRunReportResponse;
+
+export const zGetRunAnalysisPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * Backtest 风险、回撤、运行记录与来源明细
+ */
+export const zGetRunAnalysisResponse = zRunAnalysisResponse;

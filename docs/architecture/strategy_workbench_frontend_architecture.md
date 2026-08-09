@@ -180,7 +180,7 @@ GET /api/product/v1/runs/{run_id}/metrics
 ```
 
 其中 POST 仅允许机构用户基于当前登记的 StrategyVersion、数据集和模拟 Venue 创建
-Backtest；metrics 只服务已完成且结果可用的 Backtest Run。以下资源仍属于 S1 后续任务，不得
+Backtest；metrics、report 和 analysis 只服务已完成且结果可用的 Backtest Run。以下资源仍属于 S1 后续任务，不得
 在首个切片中冒充已交付：
 
 ```text

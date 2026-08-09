@@ -1,6 +1,7 @@
 import { createClient } from "./generated/productApi/client";
 import {
   createBacktestRun,
+  getRunAnalysis,
   getRun,
   getRunMetrics,
   getRunReport,
@@ -11,6 +12,7 @@ import {
   listStrategyVersions,
   type CreateBacktestRunRequest,
   type GetRunData,
+  type GetRunAnalysisData,
   type GetRunMetricsData,
   type GetRunReportData,
   type GetStrategyData,
@@ -20,6 +22,7 @@ import {
   type ListStrategyVersionsData,
   type ProductErrorResponse,
   type RunCreateResponse,
+  type RunAnalysisResponse,
   type RunDetailResponse,
   type RunListResponse,
   type RunMetricsResponse,
@@ -32,6 +35,7 @@ import {
 import {
   zProductErrorResponse,
   zRunCreateResponse,
+  zRunAnalysisResponse,
   zRunDetailResponse,
   zRunListResponse,
   zRunMetricsResponse,
@@ -51,6 +55,7 @@ type ListStrategyVersionsQuery = NonNullable<ListStrategyVersionsData["query"]>;
 type StrategyVersionPath = GetStrategyVersionData["path"];
 type ListRunsQuery = NonNullable<ListRunsData["query"]>;
 type RunPath = GetRunData["path"];
+type RunAnalysisPath = GetRunAnalysisData["path"];
 type RunMetricsPath = GetRunMetricsData["path"];
 type RunReportPath = GetRunReportData["path"];
 
@@ -321,6 +326,7 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           payload.data.result.status === "available" &&
           payload.data.result.result_ref !== null &&
           payload.data.result.report_ref !== null &&
+          payload.data.result.analysis_ref !== null &&
           payload.data.started_at_unix_ms !== null &&
           payload.data.completed_at_unix_ms !== null &&
           payload.data.created_at_unix_ms <= payload.data.started_at_unix_ms &&
@@ -468,6 +474,31 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         payload.data.run_id === path.run_id,
         "run_report.path.run_id",
+      );
+      return payload;
+    },
+
+    async getRunAnalysis(
+      path: RunAnalysisPath,
+      signal?: AbortSignal,
+    ): Promise<RunAnalysisResponse> {
+      const payload = await resolveResponse(
+        getRunAnalysis({ client, path, signal }),
+        zRunAnalysisResponse,
+        "run_analysis",
+      );
+      assertIdentity(
+        payload.data.run_id === path.run_id,
+        "run_analysis.path.run_id",
+      );
+      assertIdentity(
+        payload.data.analysis_ref ===
+          `artifact://backtests/${path.run_id}/analysis.json` &&
+          payload.data.provenance.summary_ref ===
+            `artifact://backtests/${path.run_id}/summary.json` &&
+          payload.data.provenance.details_ref ===
+            `artifact://backtests/${path.run_id}/details.json`,
+        "run_analysis.data.provenance",
       );
       return payload;
     },
