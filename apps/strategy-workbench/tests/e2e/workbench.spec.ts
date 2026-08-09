@@ -40,6 +40,7 @@ const createdBacktest = {
     result_ref: "artifact://backtests/backtest-browser-001/summary.json",
     report_ref: "artifact://backtests/backtest-browser-001/details.json",
     analysis_ref: "artifact://backtests/backtest-browser-001/analysis.json",
+    reproduction_ref: null,
   },
   risk: {
     status: "passed",
@@ -55,6 +56,43 @@ const createdBacktest = {
       "artifact://backtests/backtest-browser-001/run-manifest.json",
     ],
   },
+};
+const reproducedBacktest = {
+  ...createdBacktest,
+  run_id: "backtest-browser-reproduced-001",
+  config_ref:
+    "artifact://backtests/backtest-browser-reproduced-001/request.toml",
+  account_ref: "account://simulated/backtest-browser-reproduced-001",
+  result: {
+    status: "available",
+    result_ref:
+      "artifact://backtests/backtest-browser-reproduced-001/summary.json",
+    report_ref:
+      "artifact://backtests/backtest-browser-reproduced-001/details.json",
+    analysis_ref:
+      "artifact://backtests/backtest-browser-reproduced-001/analysis.json",
+    reproduction_ref:
+      "artifact://backtests/backtest-browser-reproduced-001/reproduction.json",
+  },
+};
+const reproductionProof = {
+  schema_version: "ntpro.backtest_reproduction_proof.v1",
+  source_run_id: createdBacktest.run_id,
+  reproduced_run_id: reproducedBacktest.run_id,
+  proof_ref: reproducedBacktest.result.reproduction_ref,
+  source_input_sha256:
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  reproduced_input_sha256:
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  source_output_sha256:
+    "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  reproduced_output_sha256:
+    "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  input_equivalent: true,
+  output_equivalent: true,
+  user_initiated: true,
+  automatic_retry_allowed: false,
+  automatic_remediation_allowed: false,
 };
 const createdBacktestResponse = {
   schema_version: "ntpro.product_api.run_create.response.v1",
@@ -75,6 +113,66 @@ const createdBacktestResponse = {
   },
 };
 
+const comparisonItem = (runId: string) => ({
+  run_id: runId,
+  strategy_version_id: (runMetricsFixture.data as Record<string, unknown>)
+    .strategy_version_id,
+  data_ref: (runMetricsFixture.data as Record<string, unknown>).data_ref,
+  data_sha256: (runMetricsFixture.data as Record<string, unknown>).data_sha256,
+  config_sha256: (runMetricsFixture.data as Record<string, unknown>)
+    .config_sha256,
+  instrument_id: (runMetricsFixture.data as Record<string, unknown>)
+    .instrument_id,
+  parameters: (runMetricsFixture.data as Record<string, unknown>).parameters,
+  metrics: (runMetricsFixture.data as Record<string, unknown>).metrics,
+  risk: (runAnalysisFixture.data as Record<string, unknown>).risk,
+  provenance: (runAnalysisFixture.data as Record<string, unknown>).provenance,
+  reproduction_ref: null,
+});
+
+const comparisonResponse = {
+  schema_version: "ntpro.product_api.run_comparison.response.v1",
+  contract_version: "ntpro.product_api.v1",
+  request_id: "product-0000000000000001-0000000000000002",
+  data: {
+    baseline_run_id: baselineBacktest.run_id,
+    run_ids: [baselineBacktest.run_id, createdBacktest.run_id],
+    items: [
+      comparisonItem(String(baselineBacktest.run_id)),
+      comparisonItem(createdBacktest.run_id),
+    ],
+    compatibility: {
+      same_strategy: true,
+      same_strategy_version: true,
+      same_data: true,
+      same_instrument: true,
+      same_currency: true,
+      directly_comparable: true,
+    },
+  },
+  boundaries: runDetailFixture.boundaries,
+};
+
+const reproductionResponse = {
+  schema_version: "ntpro.product_api.run_reproduction.response.v1",
+  contract_version: "ntpro.product_api.v1",
+  request_id: "product-0000000000000001-0000000000000003",
+  data: {
+    source_run_id: createdBacktest.run_id,
+    reproduced_run: reproducedBacktest,
+    proof: reproductionProof,
+  },
+  boundaries: createdBacktestResponse.boundaries,
+};
+
+const reproductionProofResponse = {
+  schema_version: "ntpro.product_api.run_reproduction_proof.response.v1",
+  contract_version: "ntpro.product_api.v1",
+  request_id: "product-0000000000000001-0000000000000004",
+  data: reproductionProof,
+  boundaries: runDetailFixture.boundaries,
+};
+
 function productFixtureForPath(path: string): Record<string, unknown> {
   if (path === "/api/product/v1/strategies") return strategyListFixture;
   if (path === "/api/product/v1/strategies/ema-cross") {
@@ -86,7 +184,23 @@ function productFixtureForPath(path: string): Record<string, unknown> {
   if (path === "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1") {
     return strategyVersionDetailFixture;
   }
-  if (path === "/api/product/v1/runs") return runListFixture;
+  if (path === "/api/product/v1/runs") {
+    return {
+      ...runListFixture,
+      data: [
+        ...(runListFixture.data as Array<Record<string, unknown>>),
+        createdBacktest,
+      ],
+      page: {
+        ...(runListFixture.page as Record<string, unknown>),
+        returned_count:
+          (runListFixture.data as Array<Record<string, unknown>>).length + 1,
+      },
+    };
+  }
+  if (path === "/api/product/v1/run-comparisons") {
+    return comparisonResponse;
+  }
   if (path === "/api/product/v1/runs/backtest-001/metrics") {
     return runMetricsFixture;
   }
@@ -149,6 +263,55 @@ function productFixtureForPath(path: string): Record<string, unknown> {
       },
     };
   }
+  if (path === "/api/product/v1/runs/backtest-browser-reproduced-001") {
+    return { ...runDetailFixture, data: reproducedBacktest };
+  }
+  if (path === "/api/product/v1/runs/backtest-browser-reproduced-001/metrics") {
+    return {
+      ...runMetricsFixture,
+      data: {
+        ...(runMetricsFixture.data as Record<string, unknown>),
+        run_id: reproducedBacktest.run_id,
+        config_ref: reproducedBacktest.config_ref,
+        result_ref: reproducedBacktest.result.result_ref,
+      },
+    };
+  }
+  if (path === "/api/product/v1/runs/backtest-browser-reproduced-001/report") {
+    return {
+      ...runReportFixture,
+      data: {
+        ...(runReportFixture.data as Record<string, unknown>),
+        run_id: reproducedBacktest.run_id,
+        config_ref: reproducedBacktest.config_ref,
+        details_ref: reproducedBacktest.result.report_ref,
+      },
+    };
+  }
+  if (
+    path === "/api/product/v1/runs/backtest-browser-reproduced-001/analysis"
+  ) {
+    return {
+      ...runAnalysisFixture,
+      data: {
+        ...(runAnalysisFixture.data as Record<string, unknown>),
+        run_id: reproducedBacktest.run_id,
+        analysis_ref: reproducedBacktest.result.analysis_ref,
+        provenance: {
+          ...((runAnalysisFixture.data as Record<string, unknown>)
+            .provenance as Record<string, unknown>),
+          config_ref: reproducedBacktest.config_ref,
+          summary_ref: reproducedBacktest.result.result_ref,
+          details_ref: reproducedBacktest.result.report_ref,
+        },
+      },
+    };
+  }
+  if (
+    path === "/api/product/v1/runs/backtest-browser-reproduced-001/reproduction"
+  ) {
+    return reproductionProofResponse;
+  }
   if (path === "/api/product/v1/runs/ema-cross-live-001") {
     return runDetailFixture;
   }
@@ -176,12 +339,64 @@ test.beforeEach(async ({ page }) => {
       });
       return;
     }
+    if (
+      route.request().method() === "POST" &&
+      path === "/api/product/v1/runs/backtest-browser-001/reproduction"
+    ) {
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(reproductionResponse),
+      });
+      return;
+    }
     await route.fulfill({
       status: path === "/api/product/v1/runs/missing" ? 404 : 200,
       contentType: "application/json",
       body: JSON.stringify(productFixtureForPath(path)),
     });
   });
+});
+
+test("Backtest comparison reproduces a Run only after explicit confirmation", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("backtests/compare");
+  await expect(
+    page.getByRole("heading", { name: "多 Run 对比与确定性复现" }),
+  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "比较兼容性" })).toContainText(
+    "结果可直接比较",
+  );
+  await expect(
+    page.getByRole("region", { name: "Backtest 比较结果" }),
+  ).toContainText("backtest-browser-001");
+  await page.screenshot({
+    path: testInfo.outputPath("strategy-workbench-backtest-compare-1440.png"),
+    fullPage: true,
+  });
+
+  await page.getByRole("button", { name: /backtest-browser-001/ }).click();
+  const createButton = page.getByRole("button", { name: "创建复现 Run" });
+  await expect(createButton).toBeDisabled();
+  await page
+    .getByRole("checkbox", { name: /我确认这是一次用户主动的确定性复现/ })
+    .check();
+  await createButton.click();
+  await expect(
+    page.getByRole("heading", { name: "backtest-browser-reproduced-001" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Backtest 确定性复现证明" }),
+  ).toContainText("输入与输出均等价");
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
 });
 
 test("Backtest page creates a Run and stays inside the workbench shell", async ({
@@ -477,7 +692,7 @@ test("real browser consumes every Rust product API fixture through the generated
 
   expect(result).toEqual({
     run: "ema-cross-live-001",
-    runs: 3,
+    runs: 4,
     strategies: 1,
     strategy: "ema-cross",
     version: "ema-cross@v1",

@@ -7,6 +7,7 @@ import {
   CircleGauge,
   Database,
   FlaskConical,
+  GitCompareArrows,
   LayoutDashboard,
   ListTree,
   Radio,
@@ -37,7 +38,7 @@ interface AppShellProps {
 interface NavigationItem {
   label: string;
   icon: LucideIcon;
-  to?: "/overview" | "/backtests" | "/system-status";
+  to?: "/overview" | "/backtests" | "/backtests/compare" | "/system-status";
   disabledReason?: string;
 }
 
@@ -49,6 +50,7 @@ const navigation: NavigationItem[] = [
     disabledReason: "当前在总览中选择策略",
   },
   { label: "Backtest", icon: FlaskConical, to: "/backtests" },
+  { label: "运行对比", icon: GitCompareArrows, to: "/backtests/compare" },
   { label: "Demo", icon: Radio, disabledReason: "等待 S2 产品化" },
   { label: "Live", icon: Activity, disabledReason: "等待 S3 独立准入" },
   { label: "运行", icon: ListTree, disabledReason: "从策略总览进入 Run 详情" },
@@ -253,7 +255,7 @@ export function AppShell({ children }: AppShellProps) {
             detail={modeDetail(runItems, "live")}
             state={modeState(runItems, "live")}
           />
-          <Mode label="运行对比" detail="等待 S4 产品化" state="neutral" />
+          <Mode label="运行对比" detail="2 至 4 个 Backtest" state="complete" />
         </div>
 
         <div className={styles.workarea}>

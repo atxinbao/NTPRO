@@ -100,6 +100,7 @@ export type RunResult = {
   result_ref: string | null;
   report_ref: string | null;
   analysis_ref: string | null;
+  reproduction_ref: string | null;
 };
 
 export type RunRisk = {
@@ -155,6 +156,11 @@ export type CreateBacktestRunRequest = {
   trade_size: string;
   fast_period: number;
   slow_period: number;
+};
+
+export type ReproduceBacktestRunRequest = {
+  source_run_id: RunId;
+  deterministic_replay: true;
 };
 
 export type BacktestRunCreationBoundaries = {
@@ -361,6 +367,58 @@ export type BacktestAnalysis = {
   boundaries: BacktestResultBoundaries;
 };
 
+export type BacktestComparisonItem = {
+  run_id: RunId;
+  strategy_version_id: StrategyVersionId;
+  data_ref: string;
+  data_sha256: ContentHash;
+  config_sha256: ContentHash;
+  instrument_id: string;
+  parameters: BacktestParameters;
+  metrics: BacktestMetrics;
+  risk: BacktestRiskSummary;
+  provenance: BacktestAnalysisProvenance;
+  reproduction_ref: string | null;
+};
+
+export type BacktestComparisonCompatibility = {
+  same_strategy: true;
+  same_strategy_version: boolean;
+  same_data: boolean;
+  same_instrument: boolean;
+  same_currency: boolean;
+  directly_comparable: boolean;
+};
+
+export type BacktestComparison = {
+  baseline_run_id: RunId;
+  run_ids: Array<RunId>;
+  items: Array<BacktestComparisonItem>;
+  compatibility: BacktestComparisonCompatibility;
+};
+
+export type BacktestReproductionProof = {
+  schema_version: "ntpro.backtest_reproduction_proof.v1";
+  source_run_id: RunId;
+  reproduced_run_id: RunId;
+  proof_ref: string;
+  source_input_sha256: ContentHash;
+  reproduced_input_sha256: ContentHash;
+  source_output_sha256: ContentHash;
+  reproduced_output_sha256: ContentHash;
+  input_equivalent: true;
+  output_equivalent: true;
+  user_initiated: true;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+};
+
+export type BacktestReproduction = {
+  source_run_id: RunId;
+  reproduced_run: Run;
+  proof: BacktestReproductionProof;
+};
+
 export type ReadOnlyBoundaries = {
   read_only: true;
   strategy_mutation_allowed: false;
@@ -453,6 +511,30 @@ export type RunAnalysisResponse = {
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
   data: BacktestAnalysis;
+  boundaries: ReadOnlyBoundaries;
+};
+
+export type RunComparisonResponse = {
+  schema_version: "ntpro.product_api.run_comparison.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: BacktestComparison;
+  boundaries: ReadOnlyBoundaries;
+};
+
+export type RunReproductionResponse = {
+  schema_version: "ntpro.product_api.run_reproduction.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: BacktestReproduction;
+  boundaries: BacktestRunCreationBoundaries;
+};
+
+export type RunReproductionProofResponse = {
+  schema_version: "ntpro.product_api.run_reproduction_proof.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: BacktestReproductionProof;
   boundaries: ReadOnlyBoundaries;
 };
 
@@ -783,6 +865,58 @@ export type CreateBacktestRunResponses = {
 export type CreateBacktestRunResponse =
   CreateBacktestRunResponses[keyof CreateBacktestRunResponses];
 
+export type CompareBacktestRunsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * 2 至 4 个逗号分隔且唯一的 Run ID
+     */
+    run_ids: string;
+  };
+  url: "/run-comparisons";
+};
+
+export type CompareBacktestRunsErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type CompareBacktestRunsError =
+  CompareBacktestRunsErrors[keyof CompareBacktestRunsErrors];
+
+export type CompareBacktestRunsResponses = {
+  /**
+   * 可信 Backtest 比较结果
+   */
+  200: RunComparisonResponse;
+};
+
+export type CompareBacktestRunsResponse =
+  CompareBacktestRunsResponses[keyof CompareBacktestRunsResponses];
+
 export type GetRunData = {
   body?: never;
   path: {
@@ -974,3 +1108,105 @@ export type GetRunAnalysisResponses = {
 
 export type GetRunAnalysisResponse =
   GetRunAnalysisResponses[keyof GetRunAnalysisResponses];
+
+export type GetRunReproductionProofData = {
+  body?: never;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/runs/{run_id}/reproduction";
+};
+
+export type GetRunReproductionProofErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * Run 集合仅允许 GET 与 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type GetRunReproductionProofError =
+  GetRunReproductionProofErrors[keyof GetRunReproductionProofErrors];
+
+export type GetRunReproductionProofResponses = {
+  /**
+   * 经过独立重算的确定性复现证明
+   */
+  200: RunReproductionProofResponse;
+};
+
+export type GetRunReproductionProofResponse =
+  GetRunReproductionProofResponses[keyof GetRunReproductionProofResponses];
+
+export type ReproduceBacktestRunData = {
+  body: ReproduceBacktestRunRequest;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/runs/{run_id}/reproduction";
+};
+
+export type ReproduceBacktestRunErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * Run 集合仅允许 GET 与 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type ReproduceBacktestRunError =
+  ReproduceBacktestRunErrors[keyof ReproduceBacktestRunErrors];
+
+export type ReproduceBacktestRunResponses = {
+  /**
+   * 复现 Run 与确定性证明已创建
+   */
+  201: RunReproductionResponse;
+};
+
+export type ReproduceBacktestRunResponse =
+  ReproduceBacktestRunResponses[keyof ReproduceBacktestRunResponses];

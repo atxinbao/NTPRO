@@ -35,6 +35,7 @@
       "result": {
         "analysis_ref": "artifact://backtests/backtest-001/analysis.json",
         "report_ref": "artifact://backtests/backtest-001/details.json",
+        "reproduction_ref": null,
         "result_ref": "artifact://backtests/backtest-001/summary.json",
         "status": "available"
       },
@@ -80,6 +81,7 @@
       "result": {
         "analysis_ref": null,
         "report_ref": null,
+        "reproduction_ref": null,
         "result_ref": null,
         "status": "pending"
       },
@@ -125,6 +127,7 @@
       "result": {
         "analysis_ref": null,
         "report_ref": null,
+        "reproduction_ref": null,
         "result_ref": null,
         "status": "pending"
       },

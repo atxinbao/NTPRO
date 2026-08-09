@@ -761,6 +761,266 @@
   color: var(--green);
 }
 
+.comparePicker,
+.reproductionPanel {
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.comparePicker > header,
+.reproductionPanel > header {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.comparePicker h2,
+.reproductionPanel h2 {
+  margin-top: 3px;
+  font-size: 11px;
+}
+
+.comparePicker header a,
+.reproductionPanel header button {
+  border: 0;
+  background: transparent;
+  color: var(--green);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.comparePicker > p {
+  padding: 18px 10px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.runSelectorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+}
+
+.runSelectorGrid label {
+  display: grid;
+  min-width: 0;
+  min-height: 54px;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #121814;
+  cursor: pointer;
+}
+
+.runSelectorGrid label:hover,
+.runSelectorGrid .runSelected {
+  background: #192720;
+}
+
+.runSelectorGrid input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--green);
+}
+
+.runSelectorGrid span,
+.runSelectorGrid strong,
+.runSelectorGrid small {
+  display: block;
+  min-width: 0;
+}
+
+.runSelectorGrid strong,
+.runSelectorGrid small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runSelectorGrid strong {
+  font-size: 9px;
+}
+
+.runSelectorGrid small,
+.runSelectorGrid em {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 8px;
+  font-style: normal;
+}
+
+.comparisonNotice {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+  background: #1d1d16;
+}
+
+.comparisonNotice svg {
+  width: 16px;
+  color: var(--amber);
+}
+
+.comparisonNotice div {
+  display: grid;
+  gap: 3px;
+}
+
+.comparisonNotice strong {
+  font-size: 9px;
+}
+
+.comparisonNotice span {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.comparisonReady {
+  border-left-color: var(--green);
+  background: #15221b;
+}
+
+.comparisonReady svg {
+  color: var(--green);
+}
+
+.comparisonWarning {
+  border-left-color: var(--amber);
+}
+
+.comparisonTableWrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.comparisonTable {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.comparisonTable th,
+.comparisonTable td {
+  padding: 8px 10px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  overflow-wrap: anywhere;
+  font-size: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.comparisonTable th:first-child {
+  width: 105px;
+  color: var(--muted);
+}
+
+.comparisonTable thead th {
+  background: #151c18;
+  color: #fff;
+  font-size: 9px;
+}
+
+.comparisonTable a {
+  color: var(--green);
+}
+
+.monoCell {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.reproductionActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.reproductionActions > span {
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.reproductionActions button,
+.reproductionPanel > button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid #3f8064;
+  border-radius: 3px;
+  background: #1c382c;
+  color: #fff;
+  font-size: 8px;
+  cursor: pointer;
+}
+
+.reproductionActions button:disabled,
+.reproductionPanel > button:disabled {
+  border-color: var(--line);
+  background: #191e1b;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.reproductionActions svg,
+.reproductionPanel > button svg {
+  width: 12px;
+}
+
+.reproductionPanel {
+  margin-top: 10px;
+  padding-bottom: 10px;
+}
+
+.reproductionPanel > p,
+.reproductionPanel > label,
+.reproductionPanel > button,
+.reproductionPanel > span {
+  margin: 10px 10px 0;
+}
+
+.reproductionPanel > p {
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.7;
+}
+
+.reproductionPanel > label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #fff;
+  font-size: 9px;
+}
+
+.reproductionPanel > label input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--green);
+}
+
 @media (max-width: 760px) {
   .pageHeading {
     display: grid;
@@ -832,6 +1092,10 @@
 
   .backtestForm > footer button {
     width: 100%;
+  }
+
+  .runSelectorGrid {
+    grid-template-columns: 1fr;
   }
 }
 

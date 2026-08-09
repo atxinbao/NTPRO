@@ -9,6 +9,9 @@ import type {
 } from "./client";
 import { client } from "./client.gen";
 import type {
+  CompareBacktestRunsData,
+  CompareBacktestRunsErrors,
+  CompareBacktestRunsResponses,
   CreateBacktestRunData,
   CreateBacktestRunErrors,
   CreateBacktestRunResponses,
@@ -23,6 +26,9 @@ import type {
   GetRunReportData,
   GetRunReportErrors,
   GetRunReportResponses,
+  GetRunReproductionProofData,
+  GetRunReproductionProofErrors,
+  GetRunReproductionProofResponses,
   GetRunResponses,
   GetStrategyData,
   GetStrategyErrors,
@@ -39,6 +45,9 @@ import type {
   ListStrategyVersionsData,
   ListStrategyVersionsErrors,
   ListStrategyVersionsResponses,
+  ReproduceBacktestRunData,
+  ReproduceBacktestRunErrors,
+  ReproduceBacktestRunResponses,
 } from "./types.gen";
 
 export type Options<
@@ -233,6 +242,37 @@ export const createBacktestRun = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * 比较 2 至 4 个已完成 Backtest Run
+ */
+export const compareBacktestRuns = <ThrowOnError extends boolean = false>(
+  options: Options<CompareBacktestRunsData, ThrowOnError>,
+): RequestResult<
+  CompareBacktestRunsResponses,
+  CompareBacktestRunsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    CompareBacktestRunsResponses,
+    CompareBacktestRunsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/run-comparisons",
+    ...options,
+  });
+
+/**
  * 读取运行记录详情
  */
 export const getRun = <ThrowOnError extends boolean = false>(
@@ -334,4 +374,65 @@ export const getRunAnalysis = <ThrowOnError extends boolean = false>(
     ],
     url: "/runs/{run_id}/analysis",
     ...options,
+  });
+
+/**
+ * 读取确定性复现证明
+ */
+export const getRunReproductionProof = <ThrowOnError extends boolean = false>(
+  options: Options<GetRunReproductionProofData, ThrowOnError>,
+): RequestResult<
+  GetRunReproductionProofResponses,
+  GetRunReproductionProofErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetRunReproductionProofResponses,
+    GetRunReproductionProofErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/runs/{run_id}/reproduction",
+    ...options,
+  });
+
+/**
+ * 由用户显式复现已完成 Backtest Run
+ */
+export const reproduceBacktestRun = <ThrowOnError extends boolean = false>(
+  options: Options<ReproduceBacktestRunData, ThrowOnError>,
+): RequestResult<
+  ReproduceBacktestRunResponses,
+  ReproduceBacktestRunErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ReproduceBacktestRunResponses,
+    ReproduceBacktestRunErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/runs/{run_id}/reproduction",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });

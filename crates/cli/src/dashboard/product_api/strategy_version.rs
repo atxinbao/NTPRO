@@ -17,7 +17,10 @@ const STRATEGY_VERSION_DETAIL_SCHEMA_VERSION: &str =
     "ntpro.product_api.strategy_version_detail.response.v1";
 const VERSION_CURSOR_PREFIX: &str = "strategy-version-v1-";
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+const STRATEGY_VERSION_SNAPSHOT_SCHEMA_VERSION: &str =
+    "ntpro.backtest_strategy_version_snapshot.v1";
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub(super) struct ProductStrategyVersion {
     strategy_version_id: String,
     strategy_id: String,
@@ -33,6 +36,14 @@ pub(super) struct ProductStrategyVersion {
 }
 
 impl ProductStrategyVersion {
+    pub(super) fn strategy_version_id(&self) -> &str {
+        &self.strategy_version_id
+    }
+
+    pub(super) fn strategy_id(&self) -> &str {
+        &self.strategy_id
+    }
+
     pub(super) const fn created_at_unix_ms(&self) -> u64 {
         self.created_at_unix_ms
     }
@@ -56,6 +67,13 @@ impl ProductStrategyVersion {
             .get("const")?
             .as_u64()
     }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ProductStrategyVersionSnapshot {
+    schema_version: String,
+    strategy_version: ProductStrategyVersionConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -269,9 +287,7 @@ fn validate_strategy_version_config(
     source: &ValidatedProductSource,
     now_unix_ms: u64,
 ) -> Result<(), ProductError> {
-    validate_identifier("strategy_version_strategy_id", &config.strategy_id)?;
-    validate_identifier("strategy_version", &config.version)?;
-    validate_version_resource_id("strategy_version_id", &config.strategy_version_id)?;
+    validate_strategy_version_definition(config, now_unix_ms)?;
     let expected_id = strategy_version_resource_id(&config.strategy_id, &config.version);
     if config.strategy_id != source.strategy.strategy_id
         || config.strategy_id != source.identity.identities.strategy_id
@@ -279,7 +295,26 @@ fn validate_strategy_version_config(
         || config.content_hash != source.identity.identities.strategy_version_content_hash
         || config.strategy_version_id != expected_id
         || source.strategy.default_version_id != expected_id
+        || config.created_at_unix_ms < source.strategy.created_at_unix_ms
+        || config.created_at_unix_ms > source.strategy.updated_at_unix_ms
     {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "strategy_version_ownership",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_strategy_version_definition(
+    config: &ProductStrategyVersionConfig,
+    now_unix_ms: u64,
+) -> Result<(), ProductError> {
+    validate_identifier("strategy_version_strategy_id", &config.strategy_id)?;
+    validate_identifier("strategy_version", &config.version)?;
+    validate_version_resource_id("strategy_version_id", &config.strategy_version_id)?;
+    let expected_id = strategy_version_resource_id(&config.strategy_id, &config.version);
+    if config.strategy_version_id != expected_id {
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
             "strategy_version_ownership",
@@ -301,8 +336,7 @@ fn validate_strategy_version_config(
             "strategy_version_status",
         ));
     }
-    if config.created_at_unix_ms < source.strategy.created_at_unix_ms
-        || config.created_at_unix_ms > source.strategy.updated_at_unix_ms
+    if config.created_at_unix_ms == 0
         || config.created_at_unix_ms > now_unix_ms.saturating_add(MAX_CLOCK_SKEW_MS)
     {
         return Err(product_error(
@@ -319,6 +353,68 @@ fn validate_strategy_version_config(
         ));
     }
     Ok(())
+}
+
+pub(super) fn serialize_strategy_version_snapshot(
+    version: &ProductStrategyVersion,
+) -> Result<Vec<u8>, ProductError> {
+    let snapshot = ProductStrategyVersionSnapshot {
+        schema_version: STRATEGY_VERSION_SNAPSHOT_SCHEMA_VERSION.to_string(),
+        strategy_version: ProductStrategyVersionConfig {
+            strategy_version_id: version.strategy_version_id.clone(),
+            strategy_id: version.strategy_id.clone(),
+            version: version.version.clone(),
+            content_hash: version.content_hash.clone(),
+            code_ref: version.code_ref.clone(),
+            parameter_schema: version.parameter_schema.clone(),
+            data_requirements: version.data_requirements.clone(),
+            risk_config: version.risk_config.clone(),
+            status: version.status,
+            created_at_unix_ms: version.created_at_unix_ms,
+        },
+    };
+    serde_json::to_string_pretty(&snapshot)
+        .map(|value| format!("{value}\n").into_bytes())
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::ExecutionFailed,
+                "strategy_version_snapshot",
+            )
+        })
+}
+
+pub(super) fn deserialize_strategy_version_snapshot(
+    raw: &[u8],
+    source_ref: String,
+    now_unix_ms: u64,
+) -> Result<ProductStrategyVersion, ProductError> {
+    let snapshot: ProductStrategyVersionSnapshot = serde_json::from_slice(raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "strategy_version_snapshot"))?;
+    if snapshot.schema_version != STRATEGY_VERSION_SNAPSHOT_SCHEMA_VERSION {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "strategy_version_snapshot",
+        ));
+    }
+    let config = snapshot.strategy_version;
+    validate_strategy_version_definition(&config, now_unix_ms)?;
+    Ok(ProductStrategyVersion {
+        strategy_version_id: config.strategy_version_id,
+        strategy_id: config.strategy_id,
+        version: config.version,
+        content_hash: config.content_hash,
+        code_ref: config.code_ref,
+        parameter_schema: config.parameter_schema,
+        data_requirements: config.data_requirements,
+        risk_config: config.risk_config,
+        status: config.status,
+        created_at_unix_ms: config.created_at_unix_ms,
+        source: ProductSource {
+            source_type: "backtest_strategy_version_snapshot".to_string(),
+            freshness_status: "immutable".to_string(),
+            source_refs: vec![source_ref],
+        },
+    })
 }
 
 fn valid_immutable_code_ref(value: &str) -> bool {
