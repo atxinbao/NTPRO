@@ -81,7 +81,7 @@ FEA-001 前端架构文档
   -> S1-BT-002 工作台创建 Backtest Run 与服务端生命周期（DONE）
   -> S1-BT-003 Backtest 交易、持仓与收益明细（DONE）
   -> S1-BT-004 Backtest 风险、回撤、运行记录与来源明细（DONE）
-  -> S1-BT-005 Backtest 多 Run 比较与确定性复现（REVIEW_APPROVED，hosted pending）
+  -> S1-BT-005 Backtest 多 Run 比较与确定性复现（DONE_ON_MERGE）
   -> S1-S4 三模式产品闭环
 ```
 
