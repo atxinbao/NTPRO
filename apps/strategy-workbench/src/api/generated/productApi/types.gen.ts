@@ -142,6 +142,40 @@ export type Run = {
   capabilities: RunCapabilities;
 };
 
+export type CreateBacktestRunRequest = {
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  environment: "backtest";
+  data_ref: string;
+  venue_ref: string;
+  starting_balance: string;
+  quotes: number;
+  trade_size: string;
+  fast_period: number;
+  slow_period: number;
+};
+
+export type BacktestRunCreationBoundaries = {
+  backtest_run_creation_allowed: true;
+  sandbox_run_creation_allowed: false;
+  live_run_creation_allowed: false;
+  external_venue_connection: false;
+  order_submission_allowed: false;
+  order_mutation_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
+export type RunCreateResponse = {
+  schema_version: "ntpro.product_api.run_create.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: Run;
+  boundaries: BacktestRunCreationBoundaries;
+};
+
 export type BacktestParameters = {
   trade_size: string;
   fast_period: number;
@@ -282,6 +316,8 @@ export type ProductError = {
     | "product_query_invalid"
     | "product_access_denied"
     | "product_method_not_allowed"
+    | "backtest_run_conflict"
+    | "backtest_execution_failed"
     | "strategy_not_found"
     | "strategy_version_not_found"
     | "run_not_found"
@@ -531,7 +567,7 @@ export type ListRunsErrors = {
    */
   403: ProductErrorResponse;
   /**
-   * 产品 API 仅允许 GET
+   * Run 集合仅允许 GET 与 POST
    */
   405: ProductErrorResponse;
   /**
@@ -554,6 +590,53 @@ export type ListRunsResponses = {
 };
 
 export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+
+export type CreateBacktestRunData = {
+  body: CreateBacktestRunRequest;
+  path?: never;
+  query?: never;
+  url: "/runs";
+};
+
+export type CreateBacktestRunErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * Run 集合仅允许 GET 与 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type CreateBacktestRunError =
+  CreateBacktestRunErrors[keyof CreateBacktestRunErrors];
+
+export type CreateBacktestRunResponses = {
+  /**
+   * Backtest 已完成并登记
+   */
+  201: RunCreateResponse;
+};
+
+export type CreateBacktestRunResponse =
+  CreateBacktestRunResponses[keyof CreateBacktestRunResponses];
 
 export type GetRunData = {
   body?: never;

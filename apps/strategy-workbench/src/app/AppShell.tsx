@@ -13,7 +13,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useParams, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 
@@ -37,7 +37,7 @@ interface AppShellProps {
 interface NavigationItem {
   label: string;
   icon: LucideIcon;
-  to?: "/overview" | "/system-status";
+  to?: "/overview" | "/backtests" | "/system-status";
   disabledReason?: string;
 }
 
@@ -48,7 +48,7 @@ const navigation: NavigationItem[] = [
     icon: BookOpenCheck,
     disabledReason: "当前在总览中选择策略",
   },
-  { label: "Backtest", icon: FlaskConical, disabledReason: "等待 S1 产品化" },
+  { label: "Backtest", icon: FlaskConical, to: "/backtests" },
   { label: "Demo", icon: Radio, disabledReason: "等待 S2 产品化" },
   { label: "Live", icon: Activity, disabledReason: "等待 S3 独立准入" },
   { label: "运行", icon: ListTree, disabledReason: "从策略总览进入 Run 详情" },
@@ -78,6 +78,10 @@ export function AppShell({ children }: AppShellProps) {
   const query = useMvpStatus();
   const data = query.error ? undefined : query.data;
   const params = useParams({ strict: false });
+  const routePath = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const isBacktestRoute = routePath.endsWith("/backtests");
   const routeRunId =
     "runId" in params && typeof params.runId === "string"
       ? params.runId
@@ -94,8 +98,9 @@ export function AppShell({ children }: AppShellProps) {
     : overviewProduct.isReady
       ? (overviewProduct.runs?.data ?? [])
       : [];
-  const overviewRun =
-    runItems.find((run) => run.lifecycle === "running") ?? runItems[0];
+  const overviewRun = isBacktestRoute
+    ? (runItems.find((run) => run.environment === "backtest") ?? runItems[0])
+    : (runItems.find((run) => run.lifecycle === "running") ?? runItems[0]);
   const currentRun = routeRunId
     ? runProduct.isReady
       ? runProduct.run

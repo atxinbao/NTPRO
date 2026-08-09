@@ -183,6 +183,7 @@ environment = "sandbox"
                 workflow_root: None,
                 ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
                 lifecycle_action_lock: Arc::new(Mutex::new(())),
+                backtest_creation_gate: Arc::new(tokio::sync::Semaphore::new(1)),
             },
             identity,
             status,

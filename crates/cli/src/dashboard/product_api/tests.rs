@@ -128,6 +128,7 @@ impl Fixture {
             workflow_root: None,
             ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
             lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
+            backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
         }
     }
 
@@ -1475,6 +1476,247 @@ async fn strategy_version_routes_are_read_only_and_schema_compatible() {
 }
 
 #[tokio::test]
+async fn institution_can_create_a_real_immutable_backtest_run() {
+    let fixture = Fixture::new("create-backtest-run");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+
+    let (status, created) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(
+        created["schema_version"],
+        "ntpro.product_api.run_create.response.v1"
+    );
+    assert_eq!(created["data"]["environment"], "backtest");
+    assert_eq!(created["data"]["lifecycle"], "completed");
+    assert_eq!(created["boundaries"]["backtest_run_creation_allowed"], true);
+    for field in [
+        "sandbox_run_creation_allowed",
+        "live_run_creation_allowed",
+        "external_venue_connection",
+        "order_submission_allowed",
+        "order_mutation_allowed",
+        "automatic_retry_allowed",
+        "automatic_remediation_allowed",
+        "real_orders_submitted",
+        "trading_controls_enabled",
+    ] {
+        assert_eq!(created["boundaries"][field], false, "{field}");
+    }
+    validate_openapi_instance("RunCreateResponse", &created);
+
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Run ID should be present");
+    let run_root = fixture.root.join("artifacts/backtests").join(run_id);
+    assert!(run_root.join("request.toml").is_file());
+    assert!(run_root.join("summary.json").is_file());
+    assert!(run_root.join("run-manifest.json").is_file());
+
+    let (status, detail) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(detail["data"]["run_id"], run_id);
+    let (status, metrics) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}/metrics"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(metrics["data"]["metrics"]["quotes"], 120);
+    assert_eq!(metrics["data"]["parameters"]["fast_period"], 3);
+    assert_eq!(metrics["data"]["parameters"]["slow_period"], 5);
+}
+
+#[tokio::test]
+async fn concurrent_backtest_creation_accepts_one_request_and_rejects_one() {
+    let fixture = Fixture::new("create-backtest-concurrent");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 10000,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+
+    let first = router_json_body(&router, Method::POST, "/api/product/v1/runs", &request);
+    let second = router_json_body(&router, Method::POST, "/api/product/v1/runs", &request);
+    let ((first_status, first_body), (second_status, second_body)) = tokio::join!(first, second);
+    let mut responses = [(first_status, first_body), (second_status, second_body)];
+    responses.sort_by_key(|(status, _)| status.as_u16());
+
+    assert_eq!(responses[0].0, StatusCode::CREATED);
+    assert_eq!(responses[1].0, StatusCode::CONFLICT);
+    assert_eq!(
+        responses[1].1["error"]["field"],
+        "backtest_creation_in_progress"
+    );
+    let published_runs = fs::read_dir(fixture.root.join("artifacts/backtests"))
+        .expect("artifact root should remain readable")
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().join("run-manifest.json").is_file())
+        .count();
+    assert_eq!(published_runs, 1, "only one dynamic Run may be published");
+}
+
+#[test]
+fn run_manifest_publication_is_atomic_for_concurrent_readers() {
+    let fixture = Fixture::new("manifest-atomic-publication");
+    let run_root = fixture.root.join("artifacts/backtests/backtest-atomic");
+    fs::create_dir(&run_root).expect("atomic publication directory should be created");
+    let canonical_run_root =
+        fs::canonicalize(&run_root).expect("run directory should canonicalize");
+    let directory = open_absolute_directory_nofollow(&canonical_run_root)
+        .expect("run directory should open safely");
+    let manifest_path = run_root.join("run-manifest.json");
+    let manifest = vec![b'x'; 4 * 1024 * 1024];
+    let expected = manifest.clone();
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+    let reader_barrier = barrier.clone();
+    let reader = std::thread::spawn(move || {
+        reader_barrier.wait();
+        for _ in 0..100_000 {
+            match fs::read(&manifest_path) {
+                Ok(observed) => {
+                    assert_eq!(observed, expected, "published manifest must be complete");
+                    return;
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    std::thread::yield_now();
+                }
+                Err(error) => panic!("manifest read failed unexpectedly: {error}"),
+            }
+        }
+        panic!("manifest was not published before reader timeout");
+    });
+
+    barrier.wait();
+    publish_new_run_file(&directory, "run-manifest.json", &manifest)
+        .expect("manifest should publish atomically");
+    reader.join().expect("concurrent reader should complete");
+}
+
+#[tokio::test]
+async fn interrupted_manifest_temp_file_does_not_publish_or_poison_run_listing() {
+    let fixture = Fixture::new("manifest-interrupted-temp");
+    let interrupted_root = fixture
+        .root
+        .join("artifacts/backtests/backtest-interrupted");
+    fs::create_dir(&interrupted_root).expect("interrupted Run directory should be created");
+    fs::write(
+        interrupted_root.join(".run-manifest.json.tmp.interrupted"),
+        b"{partial",
+    )
+    .expect("interrupted temp file should be written");
+
+    let (status, list) = router_json(&fixture.router(), Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list["data"].as_array().map(Vec::len), Some(3));
+    assert!(
+        list["data"]
+            .as_array()
+            .expect("Run list should be an array")
+            .iter()
+            .all(|run| run["run_id"] != "backtest-interrupted"),
+        "temporary manifest must not publish a Run"
+    );
+}
+
+#[tokio::test]
+async fn backtest_creation_rejects_unknown_fields_and_non_backtest_environments() {
+    let fixture = Fixture::new("create-backtest-negative");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "live",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+    let (status, invalid) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(invalid["error"]["field"], "environment");
+
+    let mut unknown = request;
+    unknown["environment"] = json!("backtest");
+    unknown["output_path"] = json!("/tmp/escape");
+    let (status, malformed) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &unknown).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(malformed["error"]["field"], "request_body");
+    assert_eq!(
+        fs::read_dir(fixture.root.join("artifacts/backtests"))
+            .expect("artifact root should exist")
+            .count(),
+        1,
+        "rejected requests must not create Run directories"
+    );
+}
+
+#[cfg(any(unix, windows))]
+#[tokio::test]
+async fn backtest_creation_rejects_symlinked_artifact_root_escape() {
+    let fixture = Fixture::new("create-backtest-root-symlink");
+    let artifact_root = fixture.root.join("artifacts/backtests");
+    let outside_root = fixture.root.join("outside-backtests");
+    fs::rename(&artifact_root, &outside_root).expect("artifact root should move");
+    create_directory_symlink(&outside_root, &artifact_root)
+        .expect("artifact root symlink should be created");
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+
+    let (status, body) = router_json_body(
+        &fixture.router(),
+        Method::POST,
+        "/api/product/v1/runs",
+        &request,
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "result_root_containment");
+}
+
+#[tokio::test]
 async fn run_routes_are_read_only_and_schema_compatible() {
     let fixture = Fixture::new("run-routes");
     let router = fixture.router();
@@ -1552,7 +1794,6 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     for path in [list_path, detail_path, metrics_path] {
         for method in [
             Method::HEAD,
-            Method::POST,
             Method::PUT,
             Method::PATCH,
             Method::DELETE,
@@ -1565,13 +1806,27 @@ async fn run_routes_are_read_only_and_schema_compatible() {
             assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method} {path}");
             assert_eq!(
                 headers.get(ALLOW).and_then(|value| value.to_str().ok()),
-                Some("GET")
+                Some(if path == list_path {
+                    "GET, POST"
+                } else {
+                    "GET"
+                })
             );
             if method != Method::HEAD {
                 assert_eq!(body["error"]["code"], "product_method_not_allowed");
                 validate_openapi_instance("ProductErrorResponse", &body);
             }
         }
+    }
+
+    for path in [detail_path, metrics_path] {
+        let (status, headers, body) = router_json_with_headers(&router, Method::POST, path).await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "POST {path}");
+        assert_eq!(
+            headers.get(ALLOW).and_then(|value| value.to_str().ok()),
+            Some("GET")
+        );
+        assert_eq!(body["error"]["code"], "product_method_not_allowed");
     }
 }
 
@@ -1987,11 +2242,16 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/strategies/{strategy_id}/versions/{version_id}"
         ]
     );
-    for path in paths.values() {
+    for (path_name, path) in paths {
         let methods = path.as_object().expect("path item must be an object");
+        let expected_methods = if path_name == "/runs" {
+            vec!["get", "post"]
+        } else {
+            vec!["get"]
+        };
         assert_eq!(
             methods.keys().map(String::as_str).collect::<Vec<_>>(),
-            ["get"]
+            expected_methods
         );
         let operation = &path["get"];
         assert_eq!(
@@ -2002,10 +2262,16 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             operation["responses"]["403"]["$ref"],
             "#/components/responses/ProductError"
         );
-        assert_eq!(
-            operation["responses"]["405"]["$ref"],
+        let method_response = if path_name == "/runs" {
+            "#/components/responses/ProductRunMethodNotAllowed"
+        } else {
             "#/components/responses/ProductMethodNotAllowed"
-        );
+        };
+        assert_eq!(operation["responses"]["405"]["$ref"], method_response);
+        if path_name == "/runs" {
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "createBacktestRun");
+        }
     }
 
     let schema = json!({
@@ -2028,6 +2294,32 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
         jsonschema::draft202012::new(&run_schema).expect("RunId validator should build");
     assert!(run_validator.is_valid(&json!("ema-cross-live-001")));
     assert!(!run_validator.is_valid(&json!("..")));
+
+    let create_schema = json!({
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$ref": "#/components/schemas/CreateBacktestRunRequest",
+        "components": openapi["components"].clone(),
+    });
+    let create_validator = jsonschema::draft202012::new(&create_schema)
+        .expect("CreateBacktestRunRequest validator should build");
+    let mut create_request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": "dataset://fixtures/ema-cross",
+        "venue_ref": "venue://simulated/BINANCE",
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+    assert!(create_validator.is_valid(&create_request));
+    create_request["trade_size"] = json!("0.001");
+    assert!(
+        !create_validator.is_valid(&create_request),
+        "public schema must reject precision that the service rejects"
+    );
 }
 
 fn valid_config() -> String {
@@ -2400,6 +2692,34 @@ async fn router_json_with_headers(
         serde_json::from_slice(&body).expect("response should be valid JSON")
     };
     (status, headers, value)
+}
+
+async fn router_json_body(
+    router: &Router,
+    method: Method,
+    path: &str,
+    body: &Value,
+) -> (StatusCode, Value) {
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::to_vec(body).expect("request body should serialize"),
+                ))
+                .expect("request should build"),
+        )
+        .await
+        .expect("router request should complete");
+    let status = response.status();
+    let raw = to_bytes(response.into_body(), 2 * 1024 * 1024)
+        .await
+        .expect("response body should be readable");
+    let value = serde_json::from_slice(&raw).expect("response should be valid JSON");
+    (status, value)
 }
 
 fn assert_read_only_boundaries(value: &Value) {

@@ -46,9 +46,9 @@ use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
 use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
 use super::product_api::{
-    product_access_denied_response, product_method_not_allowed, run_detail_api, run_list_api,
-    run_metrics_api, strategy_detail_api, strategy_list_api, strategy_version_detail_api,
-    strategy_version_list_api,
+    product_access_denied_response, product_method_not_allowed, product_run_method_not_allowed,
+    run_create_api, run_detail_api, run_list_api, run_metrics_api, strategy_detail_api,
+    strategy_list_api, strategy_version_detail_api, strategy_version_list_api,
 };
 use super::trader_terminal_api::{
     audit_entries_api, backend_closure_status_api, deployment_state_api, permission_snapshot_api,
@@ -262,6 +262,7 @@ fn dashboard_router_with_workflow_root(
         workflow_root,
         ntpro_node_bin,
         lifecycle_action_lock: Arc::new(std::sync::Mutex::new(())),
+        backtest_creation_gate: Arc::new(tokio::sync::Semaphore::new(1)),
     };
     let strategy_workbench_routes = strategy_workbench_routes(strategy_workbench_dist);
     let public_routes = Router::new()
@@ -322,8 +323,9 @@ fn dashboard_router_with_workflow_root(
         .route(
             "/api/product/v1/runs",
             get(run_list_api)
-                .head(product_method_not_allowed)
-                .fallback(product_method_not_allowed),
+                .post(run_create_api)
+                .head(product_run_method_not_allowed)
+                .fallback(product_run_method_not_allowed),
         )
         .route(
             "/api/product/v1/runs/{run_id}",
@@ -337,7 +339,7 @@ fn dashboard_router_with_workflow_root(
                 .head(product_method_not_allowed)
                 .fallback(product_method_not_allowed),
         )
-        .route_layer(middleware::from_fn(require_product_read_access));
+        .route_layer(middleware::from_fn(require_product_access));
     let shared_read_routes = Router::new()
         .route(
             "/api/mvp/v1/status",
@@ -434,12 +436,17 @@ async fn require_shared_read_access(
     require_role_access(access, PortalRole::SharedRead, request, next).await
 }
 
-async fn require_product_read_access(
+async fn require_product_access(
     Extension(access): Extension<PortalAccess>,
     request: Request,
     next: Next,
 ) -> Response {
-    if access.authorizes(request.headers(), PortalRole::SharedRead) {
+    let role = if request.method() == Method::POST {
+        PortalRole::InstitutionUser
+    } else {
+        PortalRole::SharedRead
+    };
+    if access.authorizes(request.headers(), role) {
         let mut response = next.run(request).await;
         add_private_response_headers(response.headers_mut());
         response

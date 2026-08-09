@@ -8,6 +8,7 @@ import {
 
 import { AppShell } from "./AppShell";
 import { OverviewPage } from "../pages/OverviewPage";
+import { BacktestPage } from "../pages/BacktestPage";
 import { RunDetailPage } from "../pages/RunDetailPage";
 import { SystemStatusPage } from "../pages/SystemStatusPage";
 
@@ -34,6 +35,12 @@ const overviewRoute = createRoute({
   component: OverviewPage,
 });
 
+const backtestRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/backtests",
+  component: BacktestPage,
+});
+
 const systemStatusRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/system-status",
@@ -49,6 +56,7 @@ const runDetailRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   overviewRoute,
+  backtestRoute,
   runDetailRoute,
   systemStatusRoute,
 ]);

@@ -55,7 +55,7 @@ mod strategy_version;
 #[cfg(test)]
 mod tests;
 
-pub(super) use run::{run_detail_api, run_list_api, run_metrics_api};
+pub(super) use run::{run_create_api, run_detail_api, run_list_api, run_metrics_api};
 pub(super) use strategy_version::{strategy_version_detail_api, strategy_version_list_api};
 
 const PRODUCT_API_CONTRACT_VERSION: &str = "ntpro.product_api.v1";
@@ -203,6 +203,8 @@ struct RuntimeArtifactContract<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ProductErrorKind {
     BadRequest,
+    Conflict,
+    ExecutionFailed,
     Forbidden,
     MethodNotAllowed,
     NotFound,
@@ -310,6 +312,19 @@ pub(super) async fn product_method_not_allowed() -> Response {
     response
         .headers_mut()
         .insert(ALLOW, HeaderValue::from_static("GET"));
+    response
+}
+
+pub(super) async fn product_run_method_not_allowed() -> Response {
+    let request_id = product_request_id();
+    let mut response = product_error_response(
+        &product_error(ProductErrorKind::MethodNotAllowed, "method"),
+        &request_id,
+    )
+    .into_response();
+    response
+        .headers_mut()
+        .insert(ALLOW, HeaderValue::from_static("GET, POST"));
     response
 }
 
@@ -1211,16 +1226,28 @@ fn product_error_response(error: &ProductError, request_id: &str) -> (StatusCode
             "查询条件不符合产品 API 合同",
             false,
         ),
+        ProductErrorKind::Conflict => (
+            StatusCode::CONFLICT,
+            "backtest_run_conflict",
+            "回测运行与已有不可变记录冲突",
+            false,
+        ),
+        ProductErrorKind::ExecutionFailed => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "backtest_execution_failed",
+            "回测引擎执行或运行记录处理失败",
+            false,
+        ),
         ProductErrorKind::Forbidden => (
             StatusCode::FORBIDDEN,
             "product_access_denied",
-            "当前账号无权读取策略产品资源",
+            "当前账号无权访问策略产品资源",
             false,
         ),
         ProductErrorKind::MethodNotAllowed => (
             StatusCode::METHOD_NOT_ALLOWED,
             "product_method_not_allowed",
-            "策略产品 API 仅允许只读 GET 请求",
+            "当前策略产品 API 路径不支持该请求方法",
             false,
         ),
         ProductErrorKind::NotFound => (

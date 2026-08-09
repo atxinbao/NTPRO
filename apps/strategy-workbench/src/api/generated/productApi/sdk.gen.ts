@@ -9,6 +9,9 @@ import type {
 } from "./client";
 import { client } from "./client.gen";
 import type {
+  CreateBacktestRunData,
+  CreateBacktestRunErrors,
+  CreateBacktestRunResponses,
   GetRunData,
   GetRunErrors,
   GetRunMetricsData,
@@ -191,6 +194,36 @@ export const listRuns = <ThrowOnError extends boolean = false>(
     ],
     url: "/runs",
     ...options,
+  });
+
+/**
+ * 基于当前策略版本创建 Backtest Run
+ */
+export const createBacktestRun = <ThrowOnError extends boolean = false>(
+  options: Options<CreateBacktestRunData, ThrowOnError>,
+): RequestResult<
+  CreateBacktestRunResponses,
+  CreateBacktestRunErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateBacktestRunResponses,
+    CreateBacktestRunErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/runs",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**

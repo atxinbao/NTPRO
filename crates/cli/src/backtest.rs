@@ -65,6 +65,7 @@ struct MinimalBacktestConfig {
     run: MinimalRunConfig,
     data: MinimalDataConfig,
     strategy: MinimalStrategyConfig,
+    venue: Option<MinimalVenueConfig>,
     product: Option<MinimalProductConfig>,
     output: Option<MinimalOutputConfig>,
 }
@@ -91,6 +92,13 @@ struct MinimalStrategyConfig {
     trade_size: Option<String>,
     fast_period: Option<usize>,
     slow_period: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MinimalVenueConfig {
+    name: String,
+    starting_balance: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -319,6 +327,32 @@ fn run_backtest_engine_smoke(
     Ok(())
 }
 
+/// Executes a product-bound Backtest from trusted in-memory configuration.
+///
+/// The caller owns immutable persistence. Keeping execution in memory avoids exposing host
+/// filesystem paths through the Product API while reusing the same engine path as the CLI.
+pub(crate) fn execute_product_backtest(config_raw: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let raw = std::str::from_utf8(config_raw).context("backtest config must be UTF-8")?;
+    let config = parse_minimal_backtest_config(raw, "product request")?;
+    validate_exact("run.mode", &config.run.mode, ENGINE_SMOKE_MODE)?;
+    validate_exact("strategy.name", &config.strategy.name, EMA_CROSS_STRATEGY)?;
+    let product = config
+        .product
+        .as_ref()
+        .context("product-bound backtest requires product configuration")?;
+    let strategy = resolve_ema_cross_strategy(&config.strategy)?;
+    let engine_run = run_ema_cross_engine(&config, &strategy)?;
+    let artifact = build_backtest_result_artifact(
+        &config.run.id,
+        &config,
+        product,
+        &strategy,
+        &engine_run,
+        &sha256_ref(config_raw),
+    )?;
+    Ok(format!("{}\n", serde_json::to_string_pretty(&artifact)?).into_bytes())
+}
+
 #[derive(Debug)]
 struct EmaCrossStrategySettings {
     trade_size: Quantity,
@@ -361,7 +395,7 @@ fn run_ema_cross_engine(
 ) -> anyhow::Result<EmaCrossEngineRun> {
     let mut engine = BacktestEngine::new(BacktestEngineConfig::default())?;
 
-    let (venue, starting_balance, instrument) = match config.data.instrument_id.as_str() {
+    let (venue, default_starting_balance, instrument) = match config.data.instrument_id.as_str() {
         AUDUSD_SIM_INSTRUMENT_ID => (
             Venue::from("SIM"),
             Money::from("1_000_000 USD"),
@@ -373,6 +407,25 @@ fn run_ema_cross_engine(
             InstrumentAny::CurrencyPair(currency_pair_btcusdt()),
         ),
         value => anyhow::bail!("unsupported data.instrument_id '{value}'"),
+    };
+    let starting_balance = if let Some(configured) = &config.venue {
+        validate_exact("venue.name", &configured.name, venue.as_str())?;
+        let balance = configured
+            .starting_balance
+            .parse::<Money>()
+            .map_err(|error| anyhow::anyhow!("venue.starting_balance is invalid: {error}"))?;
+        if balance.raw <= 0 {
+            anyhow::bail!("venue.starting_balance must be greater than zero");
+        }
+        if balance.currency != default_starting_balance.currency {
+            anyhow::bail!(
+                "venue.starting_balance currency must be {}",
+                default_starting_balance.currency
+            );
+        }
+        balance
+    } else {
+        default_starting_balance
     };
 
     engine.add_venue(
@@ -709,8 +762,12 @@ fn sync_parent_dir_best_effort(path: &Path) {
 fn load_minimal_backtest_config(path: &Path) -> anyhow::Result<MinimalBacktestConfig> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("failed to read backtest config '{}'", path.display()))?;
-    let config: MinimalBacktestConfig = toml::from_str(&raw)
-        .with_context(|| format!("failed to parse backtest config '{}'", path.display()))?;
+    parse_minimal_backtest_config(&raw, &path.display().to_string())
+}
+
+fn parse_minimal_backtest_config(raw: &str, source: &str) -> anyhow::Result<MinimalBacktestConfig> {
+    let config: MinimalBacktestConfig = toml::from_str(raw)
+        .with_context(|| format!("failed to parse backtest config '{source}'"))?;
     validate_minimal_backtest_config(&config)?;
     Ok(config)
 }
@@ -748,6 +805,10 @@ fn validate_minimal_backtest_config(config: &MinimalBacktestConfig) -> anyhow::R
         && let Some(dir) = &output.dir
     {
         validate_non_empty("output.dir", dir.to_string_lossy().as_ref())?;
+    }
+    if let Some(venue) = &config.venue {
+        validate_non_empty("venue.name", &venue.name)?;
+        validate_non_empty("venue.starting_balance", &venue.starting_balance)?;
     }
     if let Some(product) = &config.product {
         for (field, value) in [
@@ -1027,6 +1088,31 @@ dir = "{}"
             .to_string();
         assert!(error.contains("is immutable and differs"));
         let _ = fs::remove_dir_all(output_dir);
+    }
+
+    #[test]
+    fn product_backtest_executes_from_memory_with_validated_starting_balance() {
+        let config_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("configs/backtests/ema-cross-btcusdt-product.toml");
+        let raw = fs::read_to_string(config_path)
+            .expect("tracked product Backtest config should be readable")
+            .replace(
+                "[product]",
+                "[venue]\nname = \"BINANCE\"\nstarting_balance = \"250000 USDT\"\n\n[product]",
+            );
+        let result = execute_product_backtest(raw.as_bytes())
+            .expect("in-memory product Backtest should complete");
+        let artifact: BacktestResultArtifact =
+            serde_json::from_slice(&result).expect("result should parse");
+        assert_eq!(artifact.metrics.quotes, 120);
+        assert_eq!(artifact.config_sha256, sha256_ref(raw.as_bytes()));
+
+        let invalid = raw.replace("250000 USDT", "250000 USD");
+        let error = execute_product_backtest(invalid.as_bytes())
+            .expect_err("wrong starting balance currency must fail")
+            .to_string();
+        assert!(error.contains("currency must be USDT"));
     }
 
     #[test]

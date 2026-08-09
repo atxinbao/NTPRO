@@ -170,6 +170,47 @@ export const zRun = z.object({
   capabilities: zRunCapabilities,
 });
 
+export const zCreateBacktestRunRequest = z.object({
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  environment: z.literal("backtest"),
+  data_ref: z.string().min(1).max(512),
+  venue_ref: z.string().min(1).max(512),
+  starting_balance: z
+    .string()
+    .max(64)
+    .regex(/^[0-9][0-9_]*(\.[0-9]+)? USDT$/),
+  quotes: z.int().gte(30).lte(10000),
+  trade_size: z
+    .string()
+    .min(8)
+    .max(64)
+    .regex(/^[0-9]+\.[0-9]{6}$/),
+  fast_period: z.int().gte(1).lte(499),
+  slow_period: z.int().gte(2).lte(500),
+});
+
+export const zBacktestRunCreationBoundaries = z.object({
+  backtest_run_creation_allowed: z.literal(true),
+  sandbox_run_creation_allowed: z.literal(false),
+  live_run_creation_allowed: z.literal(false),
+  external_venue_connection: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  order_mutation_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  real_orders_submitted: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zRunCreateResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.run_create.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zRun,
+  boundaries: zBacktestRunCreationBoundaries,
+});
+
 export const zBacktestParameters = z.object({
   trade_size: z.string().min(1),
   fast_period: z.int().gte(1),
@@ -306,6 +347,8 @@ export const zProductError = z.object({
     "product_query_invalid",
     "product_access_denied",
     "product_method_not_allowed",
+    "backtest_run_conflict",
+    "backtest_execution_failed",
     "strategy_not_found",
     "strategy_version_not_found",
     "run_not_found",
@@ -401,6 +444,13 @@ export const zListRunsQuery = z.object({
  * Run 列表
  */
 export const zListRunsResponse = zRunListResponse;
+
+export const zCreateBacktestRunBody = zCreateBacktestRunRequest;
+
+/**
+ * Backtest 已完成并登记
+ */
+export const zCreateBacktestRunResponse = zRunCreateResponse;
 
 export const zGetRunPath = z.object({
   run_id: zRunId,
