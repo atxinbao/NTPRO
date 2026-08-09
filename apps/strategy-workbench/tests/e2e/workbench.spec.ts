@@ -18,6 +18,7 @@ function readProductFixture(name: string): Record<string, unknown> {
 const errorFixture = readProductFixture("error");
 const runDetailFixture = readProductFixture("run-detail");
 const runListFixture = readProductFixture("run-list");
+const runMetricsFixture = readProductFixture("run-metrics");
 const strategyDetailFixture = readProductFixture("strategy-detail");
 const strategyListFixture = readProductFixture("strategy-list");
 const strategyVersionDetailFixture = readProductFixture(
@@ -37,6 +38,15 @@ function productFixtureForPath(path: string): Record<string, unknown> {
     return strategyVersionDetailFixture;
   }
   if (path === "/api/product/v1/runs") return runListFixture;
+  if (path === "/api/product/v1/runs/backtest-001/metrics") {
+    return runMetricsFixture;
+  }
+  if (path === "/api/product/v1/runs/backtest-001") {
+    const run = (runListFixture.data as Array<Record<string, unknown>>).find(
+      (item) => item.run_id === "backtest-001",
+    );
+    return { ...runDetailFixture, data: run };
+  }
   if (path === "/api/product/v1/runs/ema-cross-live-001") {
     return runDetailFixture;
   }
@@ -110,6 +120,22 @@ test("desktop shell renders verified read-only status", async ({
   await expect(page.getByRole("heading", { name: "系统状态" })).toBeVisible();
 });
 
+test("Backtest Run deep link renders immutable engine metrics", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("runs/backtest-001");
+  await expect(
+    page.getByRole("heading", { name: "backtest-001" }),
+  ).toBeVisible();
+  await expect(page.getByText("真实引擎回测结果")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Backtest 指标" }),
+  ).toContainText("120");
+  await expect(page.getByText("研究结果，不代表 Live 准入")).toBeVisible();
+  await expect(page.getByLabel("Backtest 收益统计")).toContainText("总损益");
+});
+
 test("mobile shell keeps the drawer closed and has no page overflow", async ({
   page,
 }, testInfo) => {
@@ -151,6 +177,21 @@ test("mobile shell keeps the drawer closed and has no page overflow", async ({
         document.documentElement.clientWidth,
     ),
   ).toBe(true);
+
+  await page.goto("runs/backtest-001");
+  await expect(page.getByText("真实引擎回测结果")).toBeVisible();
+  await expect(page.getByLabel("Backtest 收益统计")).toContainText("夏普比率");
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("strategy-workbench-backtest-390.png"),
+    fullPage: true,
+  });
 });
 
 test("technical boundary violation stays separate from Product API resources", async ({

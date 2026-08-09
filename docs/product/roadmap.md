@@ -60,8 +60,9 @@ SWB-001 页面框架、FEF-001 React/TypeScript/Vite 工程、FEI-001 Axum 静�
 S0-API-001 只读产品合同均已交付。生产前端由 Rust/Axum 提供，并同时消费技术状态 API
 与生成、强校验的 Product API；Node.js 只参与开发、测试和构建。
 
-SWB-002 正在交付首个业务纵向切片：策略总览读取 Strategy、默认不可变 StrategyVersion
-和三模式 Run，Run 详情使用 `/runs/{run_id}` 可恢复深链。该阶段仍是只读产品面，不新增
+SWB-002 已交付首个业务纵向切片：策略总览读取 Strategy、默认不可变 StrategyVersion
+和三模式 Run，Run 详情使用 `/runs/{run_id}` 可恢复深链。S1-BT-001 正在把真实
+BacktestEngine 的不可变结果接入 `/runs/{run_id}/metrics`；当前仍是只读产品面，不新增
 Run 创建、启动、停止或交易操作。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
@@ -71,7 +72,8 @@ FEA-001 前端架构文档
   -> FEF-001 React / TypeScript / Vite 工程底座
   -> FEI-001 Axum 静态资源接入与旧页面迁移
   -> S0-API-001 Strategy / StrategyVersion / Run 只读产品合同
-  -> SWB-002 策略总览与 Run 详情纵向切片（当前 REVIEW_REQUIRED）
+  -> SWB-002 策略总览与 Run 详情纵向切片（DONE）
+  -> S1-BT-001 Backtest 不可变结果与 Run metrics（当前 IN_PROGRESS）
   -> S1-S4 三模式产品闭环
 ```
 

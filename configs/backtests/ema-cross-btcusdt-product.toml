@@ -1,0 +1,22 @@
+[run]
+id = "ema-cross-btcusdt-baseline-v1"
+mode = "engine-smoke"
+
+[data]
+source = "synthetic-quotes"
+instrument_id = "BTCUSDT.BINANCE"
+quotes = 120
+
+[strategy]
+name = "ema-cross"
+trade_size = "0.001000"
+fast_period = 3
+slow_period = 5
+
+[product]
+strategy_id = "ema_cross_btcusdt_v1"
+strategy_version_id = "ema_cross_btcusdt_v1@v1"
+strategy_version_content_hash = "sha256:2f58f5cf2bd2680773a10fb136db0c3214af9ae23b1d757c7be2b26cadc1148d"
+data_ref = "dataset://fixtures/ema-cross-btcusdt-v1"
+config_ref = "node-config:btc-ema-shadow.toml#product_runs"
+result_ref = "artifact://backtests/ema-cross-btcusdt-baseline-v1/summary.json"

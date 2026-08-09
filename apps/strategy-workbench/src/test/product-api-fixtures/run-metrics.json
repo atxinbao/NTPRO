@@ -1,0 +1,70 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": {
+    "backtest_end": "1735689719000000000",
+    "backtest_start": "1735689600000000000",
+    "boundaries": {
+      "automatic_remediation_allowed": false,
+      "automatic_retry_allowed": false,
+      "external_venue_connection": false,
+      "order_mutation_allowed": false,
+      "order_submission_allowed": false,
+      "read_only": true,
+      "real_orders_submitted": false,
+      "trading_controls_enabled": false
+    },
+    "config_ref": "node-config:node.toml#product_runs",
+    "config_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "data_ref": "dataset://fixtures/ema-cross",
+    "data_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "instrument_id": "BTCUSDT.BINANCE",
+    "metrics": {
+      "general_stats": {
+        "Long Ratio": "0.330000000000"
+      },
+      "iterations": 120,
+      "pnl_stats": {
+        "USDT": {
+          "PnL (total)": "-0.004000000000",
+          "PnL% (total)": "-0.000000400000",
+          "Win Rate": "0.000000000000"
+        }
+      },
+      "quotes": 120,
+      "return_stats": {
+        "Returns Volatility (252 days)": "NaN",
+        "Sharpe Ratio (252 days)": "NaN",
+        "Sortino Ratio (252 days)": "NaN"
+      },
+      "total_events": 9,
+      "total_orders": 3,
+      "total_positions": 3
+    },
+    "parameters": {
+      "fast_period": 3,
+      "slow_period": 5,
+      "trade_size": "0.001000"
+    },
+    "result_ref": "artifact://backtests/backtest-001/summary.json",
+    "run_id": "backtest-001",
+    "schema_version": "ntpro.backtest_result.v1",
+    "strategy": "ema-cross",
+    "strategy_id": "ema-cross",
+    "strategy_version_content_hash": "sha256:950d09dddab99e9beb225eb1b54f867d5068bc2b6051635b07e612ccce3f101c",
+    "strategy_version_id": "ema-cross@v1"
+  },
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.run_metrics.response.v1"
+}

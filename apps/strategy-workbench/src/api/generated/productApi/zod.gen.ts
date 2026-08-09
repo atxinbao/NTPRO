@@ -170,6 +170,54 @@ export const zRun = z.object({
   capabilities: zRunCapabilities,
 });
 
+export const zBacktestParameters = z.object({
+  trade_size: z.string().min(1),
+  fast_period: z.int().gte(1),
+  slow_period: z.int().gte(2),
+});
+
+export const zBacktestMetrics = z.object({
+  quotes: z.int().gte(1),
+  iterations: z.int().gte(1),
+  total_events: z.int().gte(0),
+  total_orders: z.int().gte(0),
+  total_positions: z.int().gte(0),
+  pnl_stats: z.record(z.string(), z.record(z.string(), z.string())),
+  return_stats: z.record(z.string(), z.string()),
+  general_stats: z.record(z.string(), z.string()),
+});
+
+export const zBacktestResultBoundaries = z.object({
+  read_only: z.literal(true),
+  external_venue_connection: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  order_mutation_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  real_orders_submitted: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zBacktestResult = z.object({
+  schema_version: z.literal("ntpro.backtest_result.v1"),
+  run_id: zRunId,
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  strategy_version_content_hash: zContentHash,
+  data_ref: z.string().min(1).max(512),
+  data_sha256: zContentHash,
+  config_ref: z.string().min(1).max(512),
+  config_sha256: zContentHash,
+  result_ref: z.string().min(1).max(512),
+  instrument_id: z.string().min(1).max(128),
+  strategy: z.string().min(1).max(128),
+  parameters: zBacktestParameters,
+  backtest_start: z.string().regex(/^[0-9]+$/),
+  backtest_end: z.string().regex(/^[0-9]+$/),
+  metrics: zBacktestMetrics,
+  boundaries: zBacktestResultBoundaries,
+});
+
 export const zReadOnlyBoundaries = z.object({
   read_only: z.literal(true),
   strategy_mutation_allowed: z.literal(false),
@@ -242,6 +290,14 @@ export const zRunDetailResponse = z.object({
   contract_version: z.literal("ntpro.product_api.v1"),
   request_id: zRequestId,
   data: zRun,
+  boundaries: zReadOnlyBoundaries,
+});
+
+export const zRunMetricsResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.run_metrics.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zBacktestResult,
   boundaries: zReadOnlyBoundaries,
 });
 
@@ -354,3 +410,12 @@ export const zGetRunPath = z.object({
  * Run 详情
  */
 export const zGetRunResponse = zRunDetailResponse;
+
+export const zGetRunMetricsPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * Backtest 指标
+ */
+export const zGetRunMetricsResponse = zRunMetricsResponse;

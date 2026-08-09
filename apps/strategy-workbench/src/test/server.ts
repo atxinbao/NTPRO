@@ -4,6 +4,7 @@ import { setupServer } from "msw/node";
 import { validStatusPayload } from "./fixtures";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
 import runListFixture from "./product-api-fixtures/run-list.json";
+import runMetricsFixture from "./product-api-fixtures/run-metrics.json";
 import strategyDetailFixture from "./product-api-fixtures/strategy-detail.json";
 import strategyListFixture from "./product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "./product-api-fixtures/strategy-version-detail.json";
@@ -24,7 +25,15 @@ export const server = setupServer(
     HttpResponse.json(strategyVersionDetailFixture),
   ),
   http.get("/api/product/v1/runs", () => HttpResponse.json(runListFixture)),
-  http.get("/api/product/v1/runs/:runId", () =>
-    HttpResponse.json(runDetailFixture),
+  http.get("/api/product/v1/runs/:runId", ({ params }) => {
+    const run = runListFixture.data.find(
+      (item) => item.run_id === params.runId,
+    );
+    return HttpResponse.json(
+      run ? { ...runDetailFixture, data: run } : runDetailFixture,
+    );
+  }),
+  http.get("/api/product/v1/runs/:runId/metrics", () =>
+    HttpResponse.json(runMetricsFixture),
   ),
 );

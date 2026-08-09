@@ -19,6 +19,7 @@ export const productQueryKeys = {
   runs: (strategyId: string, versionId: string) =>
     ["product", "runs", { strategyId, versionId }] as const,
   run: (runId: string) => ["product", "runs", runId] as const,
+  runMetrics: (runId: string) => ["product", "runs", runId, "metrics"] as const,
 };
 
 export function useStrategies() {
@@ -98,6 +99,16 @@ export function useRun(runId?: string) {
   });
 }
 
+export function useRunMetrics(runId?: string, enabled = false) {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.runMetrics(runId ?? ""),
+    queryFn: ({ signal }) =>
+      productApi.getRunMetrics({ run_id: runId! }, signal),
+    enabled: Boolean(runId && enabled),
+  });
+}
+
 export function useOverviewProductContext() {
   const strategies = useStrategies();
   const strategyId = strategies.data?.data[0]?.strategy_id;
@@ -156,7 +167,13 @@ export function useRunProductContext(runId?: string) {
   const versionId = run.data?.data.strategy_version_id;
   const strategy = useStrategy(strategyId);
   const version = useStrategyVersion(strategyId, versionId);
-  const error = run.error ?? strategy.error ?? version.error;
+  const expectsMetrics = Boolean(
+    run.data?.data.environment === "backtest" &&
+    run.data.data.lifecycle === "completed" &&
+    run.data.data.result.status === "available",
+  );
+  const metrics = useRunMetrics(runId, expectsMetrics);
+  const error = run.error ?? strategy.error ?? version.error ?? metrics.error;
   const isVerifying = Boolean(
     runId &&
     (run.isPending ||
@@ -165,7 +182,8 @@ export function useRunProductContext(runId?: string) {
         (strategy.isPending ||
           strategy.isFetching ||
           version.isPending ||
-          version.isFetching))),
+          version.isFetching ||
+          (expectsMetrics && (metrics.isPending || metrics.isFetching))))),
   );
   const isReady = Boolean(
     runId &&
@@ -173,7 +191,8 @@ export function useRunProductContext(runId?: string) {
     !isVerifying &&
     run.data &&
     strategy.data &&
-    version.data,
+    version.data &&
+    (!expectsMetrics || metrics.data),
   );
 
   return {
@@ -183,6 +202,7 @@ export function useRunProductContext(runId?: string) {
     run: isReady ? run.data?.data : undefined,
     strategy: isReady ? strategy.data?.data : undefined,
     version: isReady ? version.data?.data : undefined,
+    metrics: isReady ? metrics.data?.data : undefined,
     requestId: isReady ? run.data?.request_id : undefined,
   };
 }

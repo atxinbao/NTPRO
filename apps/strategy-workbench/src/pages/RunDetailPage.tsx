@@ -22,6 +22,13 @@ export function RunDetailPage() {
   }
 
   const detail = product.run;
+  const pnlCurrency = product.metrics
+    ? Object.keys(product.metrics.metrics.pnl_stats).sort()[0]
+    : undefined;
+  const pnlStats = pnlCurrency
+    ? product.metrics?.metrics.pnl_stats[pnlCurrency]
+    : undefined;
+  const returnStats = product.metrics?.metrics.return_stats;
   return (
     <>
       <header className={styles.pageHeading}>
@@ -87,6 +94,74 @@ export function RunDetailPage() {
           note={detail.result.result_ref ?? "尚无结果产物"}
         />
       </section>
+
+      {product.metrics ? (
+        <section className={styles.panel} aria-label="Backtest 指标">
+          <header>
+            <div>
+              <span className="eyebrow">Backtest 指标</span>
+              <h2>真实引擎回测结果</h2>
+            </div>
+            <span>研究结果，不代表 Live 准入</span>
+          </header>
+          <div className={styles.metricGrid}>
+            <Metric
+              label="订单"
+              value={String(product.metrics.metrics.total_orders)}
+              note={`${product.metrics.metrics.total_events} 个事件`}
+            />
+            <Metric
+              label="持仓"
+              value={String(product.metrics.metrics.total_positions)}
+              note={`${product.metrics.metrics.iterations} 次迭代`}
+            />
+            <Metric
+              label="行情样本"
+              value={String(product.metrics.metrics.quotes)}
+              note={product.metrics.data_ref}
+            />
+            <Metric
+              label="回测区间"
+              value={formatNanos(product.metrics.backtest_start)}
+              note={`至 ${formatNanos(product.metrics.backtest_end)}`}
+            />
+          </div>
+          <div className={styles.metricGrid} aria-label="Backtest 收益统计">
+            <Metric
+              label="总损益"
+              value={displayStat(pnlStats?.["PnL (total)"])}
+              note={pnlCurrency ?? "无结算币种"}
+            />
+            <Metric
+              label="累计收益率"
+              value={displayStat(pnlStats?.["PnL% (total)"])}
+              note="引擎原始统计"
+            />
+            <Metric
+              label="胜率"
+              value={displayStat(pnlStats?.["Win Rate"])}
+              note="已完成交易"
+            />
+            <Metric
+              label="夏普比率"
+              value={displayStat(returnStats?.["Sharpe Ratio (252 days)"])}
+              note="252 天年化"
+            />
+            <Metric
+              label="索提诺比率"
+              value={displayStat(returnStats?.["Sortino Ratio (252 days)"])}
+              note="252 天年化"
+            />
+            <Metric
+              label="收益波动率"
+              value={displayStat(
+                returnStats?.["Returns Volatility (252 days)"],
+              )}
+              note={product.metrics.instrument_id}
+            />
+          </div>
+        </section>
+      ) : null}
 
       <div className={styles.detailGrid}>
         <section className={styles.panel}>
@@ -175,6 +250,23 @@ export function RunDetailPage() {
       </div>
     </>
   );
+}
+
+function formatNanos(value: string): string {
+  const millis = Number(BigInt(value) / 1_000_000n);
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(millis));
+}
+
+function displayStat(value: string | undefined): string {
+  if (!value) return "暂无数据";
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? value : "不可计算";
 }
 
 function Metric({

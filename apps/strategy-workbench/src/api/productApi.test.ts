@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import errorFixture from "../test/product-api-fixtures/error.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import runListFixture from "../test/product-api-fixtures/run-list.json";
+import runMetricsFixture from "../test/product-api-fixtures/run-metrics.json";
 import strategyDetailFixture from "../test/product-api-fixtures/strategy-detail.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
@@ -83,6 +84,15 @@ describe("product API generated client", () => {
       invoke: (fetch: typeof globalThis.fetch) =>
         createProductApiClient({ fetch }).getRun({
           run_id: "ema-cross-live-001",
+        }),
+    },
+    {
+      name: "run metrics",
+      fixture: runMetricsFixture,
+      path: "/api/product/v1/runs/backtest-001/metrics",
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).getRunMetrics({
+          run_id: "backtest-001",
         }),
     },
   ] as const;

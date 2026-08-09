@@ -1,12 +1,14 @@
 import { createClient } from "./generated/productApi/client";
 import {
   getRun,
+  getRunMetrics,
   getStrategy,
   getStrategyVersion,
   listRuns,
   listStrategies,
   listStrategyVersions,
   type GetRunData,
+  type GetRunMetricsData,
   type GetStrategyData,
   type GetStrategyVersionData,
   type ListRunsData,
@@ -15,6 +17,7 @@ import {
   type ProductErrorResponse,
   type RunDetailResponse,
   type RunListResponse,
+  type RunMetricsResponse,
   type StrategyDetailResponse,
   type StrategyListResponse,
   type StrategyVersionDetailResponse,
@@ -24,6 +27,7 @@ import {
   zProductErrorResponse,
   zRunDetailResponse,
   zRunListResponse,
+  zRunMetricsResponse,
   zStrategyDetailResponse,
   zStrategyListResponse,
   zStrategyVersionDetailResponse,
@@ -39,6 +43,7 @@ type ListStrategyVersionsQuery = NonNullable<ListStrategyVersionsData["query"]>;
 type StrategyVersionPath = GetStrategyVersionData["path"];
 type ListRunsQuery = NonNullable<ListRunsData["query"]>;
 type RunPath = GetRunData["path"];
+type RunMetricsPath = GetRunMetricsData["path"];
 
 interface ProductApiClientOptions {
   baseUrl?: string;
@@ -367,6 +372,22 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         payload.data.run_id === path.run_id,
         "run_detail.path.run_id",
+      );
+      return payload;
+    },
+
+    async getRunMetrics(
+      path: RunMetricsPath,
+      signal?: AbortSignal,
+    ): Promise<RunMetricsResponse> {
+      const payload = await resolveResponse(
+        getRunMetrics({ client, path, signal }),
+        zRunMetricsResponse,
+        "run_metrics",
+      );
+      assertIdentity(
+        payload.data.run_id === path.run_id,
+        "run_metrics.path.run_id",
       );
       return payload;
     },

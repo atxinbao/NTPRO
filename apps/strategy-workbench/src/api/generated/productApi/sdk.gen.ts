@@ -11,6 +11,9 @@ import { client } from "./client.gen";
 import type {
   GetRunData,
   GetRunErrors,
+  GetRunMetricsData,
+  GetRunMetricsErrors,
+  GetRunMetricsResponses,
   GetRunResponses,
   GetStrategyData,
   GetStrategyErrors,
@@ -210,5 +213,32 @@ export const getRun = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/runs/{run_id}",
+    ...options,
+  });
+
+/**
+ * 读取已完成 Backtest 的不可变指标
+ */
+export const getRunMetrics = <ThrowOnError extends boolean = false>(
+  options: Options<GetRunMetricsData, ThrowOnError>,
+): RequestResult<GetRunMetricsResponses, GetRunMetricsErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetRunMetricsResponses,
+    GetRunMetricsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/runs/{run_id}/metrics",
     ...options,
   });
