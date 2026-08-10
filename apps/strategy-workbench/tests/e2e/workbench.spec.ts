@@ -113,6 +113,60 @@ const createdBacktestResponse = {
   },
 };
 
+const createdDemo = {
+  ...baselineBacktest,
+  run_id: "demo-browser-001",
+  environment: "sandbox",
+  data_ref: "market://sandbox/BTCUSDT.BINANCE",
+  config_ref: "artifact://demo-runs/demo-browser-001/request.json",
+  adapter_ref: "adapter://sandbox/fixture-stream",
+  account_ref: "account://sandbox/acct-sandbox-001",
+  venue_ref: "venue://sandbox/BINANCE",
+  lifecycle: "created",
+  result: {
+    status: "pending",
+    result_ref: null,
+    report_ref: null,
+    analysis_ref: null,
+    reproduction_ref: null,
+  },
+  risk: {
+    status: "pending",
+    risk_ref: "artifact://demo-runs/demo-browser-001/run-manifest.json#risk",
+  },
+  started_at_unix_ms: null,
+  completed_at_unix_ms: null,
+  runtime: {
+    supervisor_node_id: "mvp-node-001",
+    strategy_instance_id: "mvp-strategy-001",
+    process_state: "not_started",
+    lifecycle_state: "stopped",
+  },
+  source: {
+    source_type: "run_manifest",
+    freshness_status: "fresh",
+    source_refs: [
+      "mvp/identity_contract.json",
+      "mvp/status_contract.json",
+      "artifact://demo-runs/demo-browser-001/run-manifest.json",
+    ],
+  },
+};
+
+const demoBoundaries = {
+  demo_run_creation_allowed: true,
+  demo_start_allowed: true,
+  demo_stop_allowed: true,
+  live_run_creation_allowed: false,
+  external_venue_connection: false,
+  order_submission_allowed: false,
+  order_mutation_allowed: false,
+  automatic_retry_allowed: false,
+  automatic_remediation_allowed: false,
+  real_orders_submitted: false,
+  trading_controls_enabled: false,
+};
+
 const comparisonItem = (runId: string) => ({
   run_id: runId,
   strategy_version_id: (runMetricsFixture.data as Record<string, unknown>)
@@ -319,6 +373,7 @@ function productFixtureForPath(path: string): Record<string, unknown> {
 }
 
 test.beforeEach(async ({ page }) => {
+  let currentDemo: Record<string, unknown> | undefined;
   await page.route("**/api/mvp/v1/status", async (route) => {
     await route.fulfill({
       status: 200,
@@ -328,6 +383,68 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route("**/api/product/v1/**", async (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname);
+    if (
+      route.request().method() === "POST" &&
+      path === "/api/product/v1/demo-runs"
+    ) {
+      currentDemo = structuredClone(createdDemo);
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "ntpro.product_api.demo_run_create.response.v1",
+          contract_version: "ntpro.product_api.v1",
+          request_id: "product-0000000000000001-0000000000000010",
+          data: currentDemo,
+          boundaries: demoBoundaries,
+        }),
+      });
+      return;
+    }
+    if (
+      route.request().method() === "POST" &&
+      path === "/api/product/v1/demo-runs/demo-browser-001/actions" &&
+      currentDemo
+    ) {
+      const request = route.request().postDataJSON() as { action: string };
+      const previousLifecycle = currentDemo.lifecycle;
+      const running = request.action === "start";
+      currentDemo = {
+        ...currentDemo,
+        lifecycle: running ? "running" : "stopped",
+        started_at_unix_ms: 1_786_400_000_000,
+        completed_at_unix_ms: running ? null : 1_786_400_001_000,
+        risk: {
+          ...(currentDemo.risk as Record<string, unknown>),
+          status: running ? "active" : "blocked",
+        },
+        runtime: {
+          ...(currentDemo.runtime as Record<string, unknown>),
+          process_state: running ? "running" : "stopped",
+          lifecycle_state: running ? "running" : "stopped",
+        },
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          schema_version: "ntpro.product_api.demo_run_action.response.v1",
+          contract_version: "ntpro.product_api.v1",
+          request_id:
+            request.action === "start"
+              ? "product-0000000000000001-0000000000000011"
+              : "product-0000000000000001-0000000000000012",
+          data: {
+            run_id: "demo-browser-001",
+            action: request.action,
+            previous_lifecycle: previousLifecycle,
+            current_run: currentDemo,
+          },
+          boundaries: demoBoundaries,
+        }),
+      });
+      return;
+    }
     if (
       route.request().method() === "POST" &&
       path === "/api/product/v1/runs"
@@ -350,11 +467,84 @@ test.beforeEach(async ({ page }) => {
       });
       return;
     }
+    if (route.request().method() === "GET" && path === "/api/product/v1/runs") {
+      const response = productFixtureForPath(path);
+      const data = response.data as Array<Record<string, unknown>>;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...response,
+          data: currentDemo ? [...data, currentDemo] : data,
+          page: {
+            ...(response.page as Record<string, unknown>),
+            returned_count: data.length + (currentDemo ? 1 : 0),
+          },
+        }),
+      });
+      return;
+    }
+    if (
+      route.request().method() === "GET" &&
+      path === "/api/product/v1/runs/demo-browser-001" &&
+      currentDemo
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ...runDetailFixture, data: currentDemo }),
+      });
+      return;
+    }
     await route.fulfill({
       status: path === "/api/product/v1/runs/missing" ? 404 : 200,
       contentType: "application/json",
       body: JSON.stringify(productFixtureForPath(path)),
     });
+  });
+});
+
+test("Demo page creates a Run and explicitly controls Supervisor lifecycle", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("demo");
+  await expect(
+    page.getByRole("heading", { name: "Sandbox 策略运行" }),
+  ).toBeVisible();
+  await expect(page.getByText("真实订单关闭")).toBeVisible();
+  const createButton = page.getByRole("button", { name: "创建 Demo Run" });
+  await expect(createButton).toBeDisabled();
+  await page.getByRole("checkbox", { name: /我确认创建 Demo Run/ }).check();
+  await createButton.click();
+  await expect(
+    page.getByRole("heading", { name: "demo-browser-001" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Demo 生命周期" }),
+  ).toContainText("not_started");
+
+  await page.getByRole("button", { name: "启动" }).click();
+  await expect(
+    page.getByRole("region", { name: "Demo 生命周期" }),
+  ).toContainText("running");
+  await page.getByRole("button", { name: "停止" }).click();
+  await expect(
+    page.getByRole("region", { name: "Demo 生命周期" }),
+  ).toContainText("stopped");
+  await expect(
+    page.getByRole("button", { name: /下单|撤单|改单|平仓/ }),
+  ).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: testInfo.outputPath("strategy-workbench-demo-lifecycle-1440.png"),
+    fullPage: true,
   });
 });
 
@@ -692,7 +882,7 @@ test("real browser consumes every Rust product API fixture through the generated
 
   expect(result).toEqual({
     run: "ema-cross-live-001",
-    runs: 4,
+    runs: 3,
     strategies: 1,
     strategy: "ema-cross",
     version: "ema-cross@v1",

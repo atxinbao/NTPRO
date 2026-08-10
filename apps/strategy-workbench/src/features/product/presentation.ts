@@ -25,6 +25,7 @@ export const lifecycleLabels: Record<RunLifecycle, string> = {
   failed: "失败",
   cancelled: "已取消",
   stopped: "已停止",
+  paused: "已暂停",
 };
 
 export const resultLabels: Record<RunResultStatus, string> = {

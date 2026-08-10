@@ -1,7 +1,9 @@
 import { createClient } from "./generated/productApi/client";
 import {
+  actOnDemoRun,
   compareBacktestRuns,
   createBacktestRun,
+  createDemoRun,
   getRunReproductionProof,
   getRunAnalysis,
   getRun,
@@ -15,6 +17,10 @@ import {
   reproduceBacktestRun,
   type CompareBacktestRunsData,
   type CreateBacktestRunRequest,
+  type CreateDemoRunRequest,
+  type DemoRunAction,
+  type DemoRunActionResponse,
+  type DemoRunCreateResponse,
   type GetRunData,
   type GetRunAnalysisData,
   type GetRunMetricsData,
@@ -42,6 +48,8 @@ import {
   type StrategyVersionListResponse,
 } from "./generated/productApi";
 import {
+  zDemoRunActionResponse,
+  zDemoRunCreateResponse,
   zProductErrorResponse,
   zRunCreateResponse,
   zRunAnalysisResponse,
@@ -284,6 +292,46 @@ function assertReadOnlyBoundaries(
   );
 }
 
+function assertDemoBoundaries(
+  boundaries: DemoRunCreateResponse["boundaries"],
+  field: string,
+): void {
+  assertIdentity(
+    boundaries.demo_run_creation_allowed &&
+      boundaries.demo_start_allowed &&
+      boundaries.demo_stop_allowed &&
+      !boundaries.live_run_creation_allowed &&
+      !boundaries.external_venue_connection &&
+      !boundaries.order_submission_allowed &&
+      !boundaries.order_mutation_allowed &&
+      !boundaries.automatic_retry_allowed &&
+      !boundaries.automatic_remediation_allowed &&
+      !boundaries.real_orders_submitted &&
+      !boundaries.trading_controls_enabled,
+    field,
+  );
+}
+
+function assertDemoRun(
+  run: DemoRunCreateResponse["data"],
+  field: string,
+): void {
+  assertIdentity(
+    run.environment === "sandbox" &&
+      run.runtime !== null &&
+      run.runtime.supervisor_node_id.trim() !== "" &&
+      run.runtime.strategy_instance_id.trim() !== "" &&
+      !run.capabilities.external_venue_connection &&
+      !run.capabilities.order_submission_allowed &&
+      !run.capabilities.order_mutation_allowed &&
+      !run.capabilities.automatic_retry_allowed &&
+      !run.capabilities.automatic_remediation_allowed &&
+      !run.capabilities.real_orders_submitted &&
+      !run.capabilities.trading_controls_enabled,
+    field,
+  );
+}
+
 async function resolveResponse<T>(
   request: Promise<RequestFields>,
   schema: z.ZodType<T>,
@@ -327,6 +375,66 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
   });
 
   return {
+    async createDemoRun(
+      body: CreateDemoRunRequest,
+      signal?: AbortSignal,
+    ): Promise<DemoRunCreateResponse> {
+      const payload = await resolveResponse(
+        createDemoRun({ client, body, signal }),
+        zDemoRunCreateResponse,
+        "demo_run_create",
+      );
+      assertIdentity(
+        payload.data.strategy_id === body.strategy_id &&
+          payload.data.strategy_version_id === body.strategy_version_id &&
+          payload.data.account_ref === body.account_ref &&
+          payload.data.venue_ref === body.venue_ref &&
+          payload.data.runtime?.supervisor_node_id ===
+            body.supervisor_node_id &&
+          payload.data.lifecycle === "created",
+        "demo_run_create.data.identity",
+      );
+      assertDemoRun(payload.data, "demo_run_create.data.boundaries");
+      assertDemoBoundaries(payload.boundaries, "demo_run_create.boundaries");
+      return payload;
+    },
+
+    async actOnDemoRun(
+      runId: string,
+      action: DemoRunAction,
+      signal?: AbortSignal,
+    ): Promise<DemoRunActionResponse> {
+      const body = { run_id: runId, action, user_confirmed: true } as const;
+      const payload = await resolveResponse(
+        actOnDemoRun({ client, path: { run_id: runId }, body, signal }),
+        zDemoRunActionResponse,
+        "demo_run_action",
+      );
+      assertIdentity(
+        payload.data.run_id === runId &&
+          payload.data.action === action &&
+          payload.data.current_run.run_id === runId,
+        "demo_run_action.data.identity",
+      );
+      assertDemoRun(
+        payload.data.current_run,
+        "demo_run_action.data.boundaries",
+      );
+      if (action === "start") {
+        assertIdentity(
+          ["queued", "running"].includes(payload.data.current_run.lifecycle),
+          "demo_run_action.data.lifecycle",
+        );
+      } else {
+        assertIdentity(
+          payload.data.current_run.lifecycle === "stopped",
+          "demo_run_action.data.lifecycle",
+        );
+      }
+      assertDemoBoundaries(payload.boundaries, "demo_run_action.boundaries");
+      return payload;
+    },
+
     async compareBacktestRuns(
       runIds: string[],
       signal?: AbortSignal,

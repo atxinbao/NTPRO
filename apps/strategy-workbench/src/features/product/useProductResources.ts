@@ -1,7 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { productApi } from "../../api/productApi";
-import type { CreateBacktestRunRequest } from "../../api/generated/productApi";
+import type {
+  CreateBacktestRunRequest,
+  CreateDemoRunRequest,
+  DemoRunAction,
+} from "../../api/generated/productApi";
 
 const productQueryPolicy = {
   staleTime: 0,
@@ -40,6 +44,58 @@ export function useCreateBacktestRun() {
       await queryClient.invalidateQueries({
         queryKey: productQueryKeys.allRuns,
       });
+    },
+  });
+}
+
+export function useCreateDemoRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: CreateDemoRunRequest) =>
+      productApi.createDemoRun(request),
+    retry: false,
+    onSuccess: async (response) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: productQueryKeys.allRuns }),
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.run(response.data.run_id),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useDemoRunAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ runId, action }: { runId: string; action: DemoRunAction }) =>
+      productApi.actOnDemoRun(runId, action),
+    retry: false,
+    onSuccess: async (response) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: productQueryKeys.allRuns }),
+        queryClient.setQueryData(productQueryKeys.run(response.data.run_id), {
+          schema_version: "ntpro.product_api.run_detail.response.v1",
+          contract_version: response.contract_version,
+          request_id: response.request_id,
+          data: response.data.current_run,
+          boundaries: {
+            read_only: true,
+            strategy_mutation_allowed: false,
+            run_mutation_allowed: false,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+          },
+        }),
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.run(response.data.run_id),
+        }),
+      ]);
     },
   });
 }

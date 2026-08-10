@@ -25,6 +25,7 @@ use std::{
 };
 
 use anyhow::{Context, ensure};
+use cap_fs_ext::DirExt;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -43,6 +44,7 @@ use crate::{
 
 const REGISTRY_PATH: &str = "supervisor/registry.json";
 const NODE_ARTIFACT_ROOT: &str = "nodes";
+const PRODUCT_ARTIFACT_ROOT: &str = "artifacts";
 const STRATEGY_VERSION_REGISTRY_PATH: &str = "mvp/strategy_version_registry.json";
 const STRATEGY_VERSION_REGISTRY_SCHEMA_VERSION: &str = "ntpro.mvp_strategy_version_registry.v1";
 const MIN_STATUS_FRESHNESS_MAX_AGE_MS: u64 = 2_000;
@@ -77,7 +79,20 @@ struct MvpRuntime {
 }
 
 impl MvpRuntime {
+    #[cfg(test)]
     fn start(opt: &MvpServeOpt, ntpro_node_bin: PathBuf) -> anyhow::Result<Self> {
+        Self::start_with_mode(opt, ntpro_node_bin, true)
+    }
+
+    fn prepare(opt: &MvpServeOpt, ntpro_node_bin: PathBuf) -> anyhow::Result<Self> {
+        Self::start_with_mode(opt, ntpro_node_bin, false)
+    }
+
+    fn start_with_mode(
+        opt: &MvpServeOpt,
+        ntpro_node_bin: PathBuf,
+        start_node: bool,
+    ) -> anyhow::Result<Self> {
         ensure!(
             opt.bind.ip().is_loopback(),
             "MVP Dashboard 只能绑定本地 loopback 地址"
@@ -119,7 +134,15 @@ impl MvpRuntime {
             opt.workspace.display(),
             opt.node_id
         );
-        if registry.nodes.contains_key(&opt.node_id) {
+        if let Some(existing) = registry.nodes.get(&opt.node_id) {
+            validate_mvp_registry_record_paths(existing, &opt.config, &artifact_root)
+                .with_context(|| {
+                    format!(
+                        "MVP 工作区 '{}' 的节点 '{}' 注册路径不可信",
+                        opt.workspace.display(),
+                        opt.node_id
+                    )
+                })?;
             let existing = store.refresh_process_state(&opt.node_id)?;
             ensure!(
                 matches!(
@@ -152,26 +175,69 @@ impl MvpRuntime {
             )
         })?;
 
-        store.register_node(RegisterNodeRequest {
-            node_id: opt.node_id.clone(),
-            config_path: opt.config.clone(),
-            artifact_root: Some(artifact_root.clone()),
+        let existing_has_active_run = registry.nodes.get(&opt.node_id).is_some_and(|record| {
+            record
+                .run_ownership
+                .values()
+                .any(|ownership| ownership.terminal.is_none())
+        });
+        if existing_has_active_run {
+            let existing = registry.nodes.get(&opt.node_id).with_context(|| {
+                format!(
+                    "MVP 工作区 '{}' 缺少预期节点 '{}'",
+                    opt.workspace.display(),
+                    opt.node_id
+                )
+            })?;
+            ensure!(
+                existing.config_path == opt.config && existing.artifact_root == artifact_root,
+                "MVP 工作区 '{}' 的活动 Demo Run 绑定了不同节点配置或工件目录",
+                opt.workspace.display()
+            );
+        } else {
+            if registry.nodes.contains_key(&opt.node_id) {
+                remove_mvp_runtime_artifacts_nofollow(&opt.workspace, &opt.node_id).with_context(
+                    || {
+                        format!(
+                            "清理 MVP 工作区 '{}' 的节点 '{}' 旧运行时工件失败",
+                            opt.workspace.display(),
+                            opt.node_id
+                        )
+                    },
+                )?;
+            }
+            store.register_node(RegisterNodeRequest {
+                node_id: opt.node_id.clone(),
+                config_path: opt.config.clone(),
+                artifact_root: Some(artifact_root.clone()),
+            })?;
+        }
+        std::fs::create_dir_all(opt.workspace.join(PRODUCT_ARTIFACT_ROOT)).with_context(|| {
+            format!(
+                "初始化 MVP 产品工件目录 '{}' 失败",
+                opt.workspace.join(PRODUCT_ARTIFACT_ROOT).display()
+            )
         })?;
         let startup_timeout = duration_from_millis("startup_timeout_ms", opt.startup_timeout_ms)?;
         let node_shutdown_timeout =
             duration_from_millis("node_shutdown_timeout_ms", opt.node_shutdown_timeout_ms)?;
-        store.start_node_process(&StartNodeRequest {
-            node_id: opt.node_id.clone(),
-            ntpro_node_bin,
-            startup_timeout,
-            node_max_runtime: duration_from_millis("node_max_runtime_ms", opt.node_max_runtime_ms)?,
-            node_heartbeat_interval: duration_from_millis(
-                "node_heartbeat_interval_ms",
-                opt.node_heartbeat_interval_ms,
-            )?,
-            node_parent_pid: Some(std::process::id()),
-            node_shutdown_timeout,
-        })?;
+        if start_node {
+            store.start_node_process(&StartNodeRequest {
+                node_id: opt.node_id.clone(),
+                ntpro_node_bin,
+                startup_timeout,
+                node_max_runtime: duration_from_millis(
+                    "node_max_runtime_ms",
+                    opt.node_max_runtime_ms,
+                )?,
+                node_heartbeat_interval: duration_from_millis(
+                    "node_heartbeat_interval_ms",
+                    opt.node_heartbeat_interval_ms,
+                )?,
+                node_parent_pid: Some(std::process::id()),
+                node_shutdown_timeout,
+            })?;
+        }
 
         let mut runtime = Self {
             store,
@@ -185,7 +251,9 @@ impl MvpRuntime {
             freshness_max_age_ms,
         };
         let startup_result = (|| {
-            runtime.prepare_observability(startup_timeout)?;
+            if start_node {
+                runtime.prepare_observability(startup_timeout)?;
+            }
             atomic_write_json(&runtime.identity_contract_path, &runtime.identity_contract)
                 .with_context(|| {
                     format!(
@@ -257,6 +325,8 @@ impl MvpRuntime {
     }
 
     fn stop(&self, timeout: Duration) -> anyhow::Result<()> {
+        crate::dashboard::shutdown_active_demo_run(&self.registry_path, timeout)
+            .context("MVP 退出时收口活动 Demo Run 失败")?;
         let record = self.store.refresh_process_state(&self.node_id)?;
         match record.process.state {
             SupervisorProcessState::Running => {
@@ -336,6 +406,68 @@ impl MvpRuntime {
         (published != self.identity_contract)
             .then(|| "MVP identity contract does not match current runtime identity".to_string())
     }
+}
+
+fn validate_mvp_registry_record_paths(
+    record: &crate::supervisor::SupervisorNodeRecord,
+    config_path: &Path,
+    artifact_root: &Path,
+) -> anyhow::Result<()> {
+    ensure!(record.config_path == config_path, "config_path 不匹配");
+    ensure!(
+        record.artifact_root == artifact_root,
+        "artifact_root 不匹配"
+    );
+    for (field, actual, expected) in [
+        ("pid_path", &record.pid_path, artifact_root.join("pid.json")),
+        (
+            "status_path",
+            &record.status_path,
+            artifact_root.join("status.json"),
+        ),
+        (
+            "metrics_path",
+            &record.metrics_path,
+            artifact_root.join("metrics.json"),
+        ),
+        (
+            "stdout_log_path",
+            &record.stdout_log_path,
+            artifact_root.join("logs/stdout.log"),
+        ),
+        (
+            "stderr_log_path",
+            &record.stderr_log_path,
+            artifact_root.join("logs/stderr.log"),
+        ),
+        (
+            "events_log_path",
+            &record.events_log_path,
+            artifact_root.join("logs/events.log"),
+        ),
+    ] {
+        ensure!(actual == &expected, "{field} 不匹配");
+    }
+    Ok(())
+}
+
+fn remove_mvp_runtime_artifacts_nofollow(workspace: &Path, node_id: &str) -> anyhow::Result<()> {
+    let workspace = cap_std::fs::Dir::open_ambient_dir(workspace, cap_std::ambient_authority())
+        .context("打开 MVP workspace 失败")?;
+    let nodes = workspace
+        .open_dir_nofollow("nodes")
+        .context("打开 MVP nodes 目录失败")?;
+    let artifact_root = nodes
+        .open_dir_nofollow(node_id)
+        .context("打开 MVP node 工件目录失败")?;
+    for name in ["pid.json", "status.json", "metrics.json"] {
+        match artifact_root.remove_file(name) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).with_context(|| format!("删除 '{name}' 失败")),
+        }
+    }
+    Ok(())
 }
 
 fn prepare_strategy_version_registry_update(
@@ -459,10 +591,10 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
         duration_from_millis("node_shutdown_timeout_ms", opt.node_shutdown_timeout_ms)?;
     let status_refresh_interval =
         duration_from_millis("node_heartbeat_interval_ms", opt.node_heartbeat_interval_ms)?;
-    let runtime = MvpRuntime::start(&opt, ntpro_node_bin.clone())?;
+    let runtime = MvpRuntime::prepare(&opt, ntpro_node_bin.clone())?;
 
     println!(
-        "mvp.serve status=ok node_id={} registry={} artifact_root={} identity_contract={} status_contract={} dashboard_bind={} portal_access=dashboard_bootstrap_output external_venue_connection=false real_orders_submitted=false",
+        "mvp.serve status=ready node_id={} node_process=stopped registry={} artifact_root={} identity_contract={} status_contract={} dashboard_bind={} portal_access=dashboard_bootstrap_output external_venue_connection=false real_orders_submitted=false",
         runtime.node_id,
         runtime.registry_path.display(),
         runtime.artifact_root.display(),
@@ -547,7 +679,20 @@ mod tests {
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
 
+    use axum::{
+        Router,
+        body::{Body, to_bytes},
+        http::{Method, Request, StatusCode},
+    };
+    use serde_json::{Value, json};
+    use tower::ServiceExt;
+
     use super::*;
+    use crate::{
+        backtest::run_backtest_command,
+        opt::{BacktestCommand, BacktestOpt, BacktestRunOpt},
+        supervisor::RegistryArtifactState,
+    };
 
     #[cfg(unix)]
     static MVP_PROCESS_TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -610,6 +755,40 @@ environment = "sandbox"
             node_heartbeat_interval_ms: 50,
             node_shutdown_timeout_ms: 2_000,
         }
+    }
+
+    fn mvp_product_options(root: &Path, ntpro_node_bin: PathBuf) -> MvpServeOpt {
+        let mut opt = mvp_options(root, ntpro_node_bin);
+        opt.config = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../configs/nodes/btc-ema-shadow.toml");
+        opt.node_id = "mvp-node-001".to_string();
+        opt
+    }
+
+    async fn mvp_router_json(
+        router: &Router,
+        method: Method,
+        path: &str,
+        body: Option<&Value>,
+    ) -> (StatusCode, Value) {
+        let mut request = Request::builder().method(method).uri(path);
+        let request_body = if let Some(body) = body {
+            request = request.header("content-type", "application/json");
+            Body::from(serde_json::to_vec(body).expect("request body should serialize"))
+        } else {
+            Body::empty()
+        };
+        let response = router
+            .clone()
+            .oneshot(request.body(request_body).expect("request should build"))
+            .await
+            .expect("router request should complete");
+        let status = response.status();
+        let raw = to_bytes(response.into_body(), 2 * 1024 * 1024)
+            .await
+            .expect("response body should be readable");
+        let value = serde_json::from_slice(&raw).expect("response should be valid JSON");
+        (status, value)
     }
 
     fn read_json(path: &Path) -> serde_json::Value {
@@ -816,7 +995,203 @@ environment = "sandbox"
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn mvp_dashboard_bind_failure_stops_started_node() {
+    #[allow(
+        clippy::await_holding_lock,
+        reason = "the shared process-test guard intentionally serializes fixture child processes"
+    )]
+    async fn mvp_serve_entry_supports_demo_lifecycle_and_same_workspace_restart() {
+        let _guard = process_test_guard();
+        let root = temp_root("demo-entry-restart");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_product_options(&root, fixture_node.clone());
+        run_backtest_command(BacktestOpt {
+            command: BacktestCommand::Run(BacktestRunOpt {
+                config: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../configs/backtests/ema-cross-btcusdt-product.toml"),
+                run_id: None,
+                output: Some(
+                    opt.workspace
+                        .join("artifacts/backtests/ema-cross-btcusdt-baseline-v1"),
+                ),
+                dry_run: false,
+            }),
+        })
+        .expect("the current StrategyVersion backtest baseline should be created first");
+
+        let runtime = MvpRuntime::prepare(&opt, fixture_node.clone())
+            .expect("official MVP entry should prepare without prestarting the node");
+        let prepared = runtime.store.load().expect("prepared registry should load");
+        assert_eq!(
+            prepared.nodes[&opt.node_id].process.state,
+            SupervisorProcessState::NotStarted
+        );
+
+        let router =
+            crate::dashboard::dashboard_router(runtime.registry_path.clone(), fixture_node.clone());
+        let identity = &runtime.identity_contract.identities;
+        let create = json!({
+            "strategy_id": identity.strategy_id,
+            "strategy_version_id": format!("{}@{}", identity.strategy_id, identity.strategy_version),
+            "environment": "sandbox",
+            "supervisor_node_id": identity.node_id,
+            "account_ref": format!("account://sandbox/{}", identity.account_id),
+            "venue_ref": format!("venue://sandbox/{}", identity.venue_id),
+            "user_confirmed": true
+        });
+        let (status, created) = mvp_router_json(
+            &router,
+            Method::POST,
+            "/api/product/v1/demo-runs",
+            Some(&create),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{created}");
+        let run_id = created["data"]["run_id"]
+            .as_str()
+            .expect("created Demo Run should expose run_id")
+            .to_string();
+        let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+        let start = json!({
+            "run_id": run_id,
+            "action": "start",
+            "user_confirmed": true
+        });
+        let (status, started) =
+            mvp_router_json(&router, Method::POST, &action_path, Some(&start)).await;
+        assert_eq!(status, StatusCode::OK, "{started}");
+        assert_eq!(started["data"]["current_run"]["lifecycle"], "running");
+
+        let mut stale_status = read_json(&runtime.status_contract_path);
+        stale_status["provenance"]["generated_at_unix_ms"] = json!(1);
+        write_json(&runtime.status_contract_path, &stale_status);
+
+        runtime
+            .stop(Duration::from_secs(2))
+            .expect("official MVP exit should stop and terminalize the active Demo Run");
+        drop(runtime);
+
+        let restarted = MvpRuntime::prepare(&opt, fixture_node.clone())
+            .expect("official MVP entry should reopen the same workspace");
+        let restarted_registry = restarted
+            .store
+            .load()
+            .expect("restarted registry should load");
+        assert_eq!(
+            restarted_registry.nodes[&opt.node_id].process.state,
+            SupervisorProcessState::NotStarted
+        );
+        assert_eq!(
+            restarted_registry.nodes[&opt.node_id].status_artifact,
+            RegistryArtifactState::Missing
+        );
+        assert_eq!(
+            restarted_registry.nodes[&opt.node_id].metrics_artifact,
+            RegistryArtifactState::Missing
+        );
+        assert!(!restarted_registry.nodes[&opt.node_id].status_path.exists());
+        assert!(!restarted_registry.nodes[&opt.node_id].metrics_path.exists());
+        let ownership = &restarted_registry.nodes[&opt.node_id].run_ownership[&run_id];
+        assert!(ownership.terminal.is_some());
+
+        let mut delayed_status = read_json(&restarted.status_contract_path);
+        delayed_status["provenance"]["generated_at_unix_ms"] = json!(1);
+        write_json(&restarted.status_contract_path, &delayed_status);
+
+        let restarted_router =
+            crate::dashboard::dashboard_router(restarted.registry_path.clone(), fixture_node);
+        let (status, detail) = mvp_router_json(
+            &restarted_router,
+            Method::GET,
+            &format!("/api/product/v1/runs/{run_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{detail}");
+        assert_eq!(detail["data"]["lifecycle"], "stopped");
+        assert_eq!(detail["data"]["runtime"]["process_state"], "stopped");
+
+        restarted
+            .stop(Duration::from_secs(2))
+            .expect("restarted MVP runtime should stop cleanly");
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[test]
+    fn mvp_prepare_rejects_registry_runtime_path_drift_before_cleanup() {
+        for field in ["pid", "status", "metrics"] {
+            let root = temp_root(&format!("registry-{field}-path-drift"));
+            let fixture_node = write_fixture_node(&root);
+            let opt = mvp_options(&root, fixture_node.clone());
+            let runtime = MvpRuntime::prepare(&opt, fixture_node.clone())
+                .expect("initial MVP prepare should succeed");
+            let store = SupervisorRegistryStore::new(&runtime.registry_path);
+            let mut registry = store.load().expect("registry should load for drift test");
+            let external = root.join(format!("outside-{field}.json"));
+            fs::write(&external, "preserve-me").expect("external sentinel should be written");
+            let record = registry
+                .nodes
+                .get_mut(&opt.node_id)
+                .expect("MVP node should exist");
+            match field {
+                "pid" => record.pid_path = external.clone(),
+                "status" => record.status_path = external.clone(),
+                "metrics" => record.metrics_path = external.clone(),
+                _ => unreachable!(),
+            }
+            store.save(&registry).expect("drifted registry should save");
+            drop(runtime);
+
+            let error = MvpRuntime::prepare(&opt, fixture_node)
+                .expect_err("registry path drift must fail before cleanup");
+            assert!(format!("{error:#}").contains("注册路径不可信"));
+            assert_eq!(
+                fs::read_to_string(&external).expect("external sentinel must survive"),
+                "preserve-me"
+            );
+            fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mvp_prepare_rejects_symlinked_artifact_root_before_cleanup() {
+        let root = temp_root("registry-artifact-root-symlink");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_options(&root, fixture_node.clone());
+        let runtime = MvpRuntime::prepare(&opt, fixture_node.clone())
+            .expect("initial MVP prepare should succeed");
+        let artifact_root = runtime.artifact_root.clone();
+        let original = root.join("original-node-artifacts");
+        let external = root.join("external-node-artifacts");
+        fs::rename(&artifact_root, &original).expect("node artifacts should move aside");
+        fs::create_dir(&external).expect("external sentinel directory should be created");
+        for name in ["pid.json", "status.json", "metrics.json"] {
+            fs::write(external.join(name), "preserve-me")
+                .expect("external sentinel should be written");
+        }
+        std::os::unix::fs::symlink(&external, &artifact_root)
+            .expect("artifact root symlink should be created");
+        drop(runtime);
+
+        let error = MvpRuntime::prepare(&opt, fixture_node)
+            .expect_err("symlinked artifact root must fail before cleanup");
+        assert!(
+            format!("{error:#}").contains("打开 MVP node 工件目录失败"),
+            "{error:#}"
+        );
+        for name in ["pid.json", "status.json", "metrics.json"] {
+            assert_eq!(
+                fs::read_to_string(external.join(name))
+                    .expect("external sentinel must remain readable"),
+                "preserve-me"
+            );
+        }
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn mvp_dashboard_bind_failure_leaves_prepared_node_not_started() {
         let root = temp_root("bind-failure");
         let fixture_node = write_fixture_node(&root);
         let mut opt = mvp_options(&root, fixture_node);
@@ -838,7 +1213,7 @@ environment = "sandbox"
             .expect("registry should load after Dashboard failure");
         assert_eq!(
             registry.nodes["mvp-node-001"].process.state,
-            SupervisorProcessState::Stopped
+            SupervisorProcessState::NotStarted
         );
         drop(listener);
         fs::remove_dir_all(root).expect("temporary MVP root should be removed");
@@ -846,7 +1221,7 @@ environment = "sandbox"
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn mvp_periodic_status_write_failure_stops_started_node() {
+    async fn mvp_periodic_status_write_failure_leaves_prepared_node_not_started() {
         let root = temp_root("periodic-status-write-failure");
         let fixture_node = write_fixture_node(&root);
         let mut opt = mvp_options(&root, fixture_node);
@@ -885,7 +1260,7 @@ environment = "sandbox"
             .expect("registry should load after periodic refresh failure");
         assert_eq!(
             registry.nodes["mvp-node-001"].process.state,
-            SupervisorProcessState::Stopped
+            SupervisorProcessState::NotStarted
         );
         fs::remove_dir_all(root).expect("temporary MVP root should be removed");
     }
@@ -1512,21 +1887,28 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 mkdir -p "$output/logs"
+touch "$output/logs/stdout.log" "$output/logs/stderr.log" "$output/logs/events.log"
 write_status() {
   state="$1"
   previous="$2"
+  stops="$3"
   now_ms="$(($(date +%s) * 1000))"
+  stopped='{"availability":"unknown"}'
+  if [ "$state" = "stopped" ]; then
+    stopped="{\"availability\":\"available\",\"value\":\"$now_ms\"}"
+  fi
   cat > "$output/status.json.tmp" <<EOF
-{"schema_version":"ntpro.node_status.v1","node_id":"$node_id","process_mode":"spawned_process","config_path":{"availability":"available","value":"fixture.toml"},"artifact_root":{"availability":"available","value":"$output"},"lifecycle_state":"$state","previous_lifecycle_state":"$previous","data_connection":"not_configured","execution_connection":"disconnected","execution":{"gateway_id":{"availability":"available","value":"SANDBOX"},"connection":"disconnected","started":{"availability":"available","value":true},"account_ref":{"availability":"available","value":"configured"},"orders_open":{"availability":"unknown"},"orders_inflight":{"availability":"unknown"},"orders_closed":{"availability":"unknown"},"last_report_at":{"availability":"unknown"},"last_reconciliation_at":{"availability":"unknown"},"last_error":null},"risk":{"trading_state":"unknown","health":"unknown","command_count":{"availability":"unknown"},"event_count":{"availability":"unknown"},"rejections_total":{"availability":"unknown"},"last_rejection":null,"last_error":null},"generated_at":{"availability":"available","value":"$now_ms"},"started_at":{"availability":"available","value":"$now_ms"},"stopped_at":{"availability":"unknown"},"last_transition_at":{"availability":"available","value":"$now_ms"},"last_error":null,"external_venue_connection":false,"real_orders_submitted":false}
+{"schema_version":"ntpro.node_status.v1","node_id":"$node_id","process_mode":"spawned_process","config_path":{"availability":"available","value":"fixture.toml"},"artifact_root":{"availability":"available","value":"$output"},"lifecycle_state":"$state","previous_lifecycle_state":"$previous","data_connection":"not_configured","execution_connection":"disconnected","execution":{"gateway_id":{"availability":"available","value":"SANDBOX"},"connection":"disconnected","started":{"availability":"available","value":false},"account_ref":{"availability":"available","value":"account://sandbox/SANDBOX-001"},"orders_open":{"availability":"available","value":0},"orders_inflight":{"availability":"available","value":0},"orders_closed":{"availability":"available","value":0},"last_report_at":{"availability":"unknown"},"last_reconciliation_at":{"availability":"unknown"},"last_error":null},"risk":{"trading_state":"unknown","health":"unknown","command_count":{"availability":"available","value":0},"event_count":{"availability":"available","value":0},"rejections_total":{"availability":"available","value":0},"last_rejection":null,"last_error":null},"generated_at":{"availability":"available","value":"$now_ms"},"started_at":{"availability":"available","value":"$now_ms"},"stopped_at":$stopped,"last_transition_at":{"availability":"available","value":"$now_ms"},"last_error":null,"external_venue_connection":false,"real_orders_submitted":false}
 EOF
   mv "$output/status.json.tmp" "$output/status.json"
-}
-write_status running starting
-cat > "$output/metrics.json" <<EOF
-{"schema_version":"ntpro.node_metrics.v1","node_id":"$node_id","lifecycle_state":"running","previous_lifecycle_state":"starting","process_mode":"spawned_process","uptime_ms":{"availability":"available","value":0},"starts_total":1,"stops_total":0,"state_transitions_total":1,"connection_counts":{"data_connected":0,"data_disconnected":0,"data_not_configured":1,"execution_connected":0,"execution_disconnected":1,"execution_not_configured":0},"last_error_summary":null,"generated_at":{"availability":"available","value":"$now_ms"},"started_at":{"availability":"available","value":"$now_ms"},"stopped_at":{"availability":"unknown"},"status_artifact_path":{"availability":"available","value":"$output/status.json"},"stdout_log_path":{"availability":"available","value":"$output/logs/stdout.log"},"stderr_log_path":{"availability":"available","value":"$output/logs/stderr.log"},"events_log_path":{"availability":"available","value":"$output/logs/events.log"},"external_venue_connection":false,"real_orders_submitted":false}
+  cat > "$output/metrics.json.tmp" <<EOF
+{"schema_version":"ntpro.node_metrics.v1","node_id":"$node_id","lifecycle_state":"$state","previous_lifecycle_state":"$previous","process_mode":"spawned_process","uptime_ms":{"availability":"available","value":1},"starts_total":1,"stops_total":$stops,"state_transitions_total":2,"connection_counts":{"data_connected":0,"data_disconnected":0,"data_not_configured":1,"execution_connected":0,"execution_disconnected":1,"execution_not_configured":0},"last_error_summary":null,"generated_at":{"availability":"available","value":"$now_ms"},"started_at":{"availability":"available","value":"$now_ms"},"stopped_at":$stopped,"status_artifact_path":{"availability":"available","value":"$output/status.json"},"stdout_log_path":{"availability":"available","value":"$output/logs/stdout.log"},"stderr_log_path":{"availability":"available","value":"$output/logs/stderr.log"},"events_log_path":{"availability":"available","value":"$output/logs/events.log"},"strategy_signal_count":{"availability":"available","value":0},"strategy_rejection_count":{"availability":"available","value":0},"kill_switch_dry_run":{"artifact_path":{"availability":"available","value":"$output/kill-switch.json"},"artifact_status":{"availability":"available","value":"verified"},"kill_switch_active":{"availability":"available","value":false},"kill_switch_dry_run":{"availability":"available","value":true},"manual_approval_recorded":{"availability":"available","value":false},"approval_state":{"availability":"available","value":"not_approved"},"production_order_submission_allowed":{"availability":"available","value":false},"production_order_mutation_allowed":{"availability":"available","value":false},"production_order_state_reads_allowed":{"availability":"available","value":false},"listen_key_lifecycle_allowed":{"availability":"available","value":false},"production_order_submissions_attempted":{"availability":"available","value":0},"production_orders_submitted":{"availability":"available","value":0},"production_order_mutations_attempted":{"availability":"available","value":0},"production_order_state_reads_attempted":{"availability":"available","value":0},"dashboard_order_controls_enabled":{"availability":"available","value":false},"real_orders_submitted":{"availability":"available","value":false},"network_attempted":{"availability":"available","value":false},"values_are_exchange_truth":{"availability":"available","value":false}},"external_venue_connection":false,"real_orders_submitted":false}
 EOF
+  mv "$output/metrics.json.tmp" "$output/metrics.json"
+}
+write_status running starting 0
 while [ ! -f "$stop_file" ]; do sleep 0.05; done
-write_status stopped running
+write_status stopped running 1
 "#,
         )
         .expect("fixture node should be written");

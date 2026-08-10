@@ -761,6 +761,65 @@
   color: var(--green);
 }
 
+.confirmationRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 10px;
+  color: var(--text);
+  font-size: 9px;
+}
+
+.confirmationRow input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--green);
+}
+
+.runActions {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+}
+
+.runActions > span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.runActions a,
+.runActions button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid #3f8064;
+  border-radius: 3px;
+  background: #1c382c;
+  color: #fff;
+  font-size: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.runActions button:disabled {
+  border-color: var(--line);
+  background: #191e1b;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.runActions svg {
+  width: 12px;
+  height: 12px;
+}
+
 .comparePicker,
 .reproductionPanel {
   margin-bottom: 10px;

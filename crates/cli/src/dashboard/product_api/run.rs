@@ -8,6 +8,8 @@ use std::{
     io::{Error as IoError, ErrorKind, Read, Write},
     path::{Component, Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering as AtomicOrdering},
+    thread,
+    time::{Duration, Instant},
 };
 
 use aws_lc_rs::digest::{SHA256, digest};
@@ -20,11 +22,18 @@ use axum::{
     http::StatusCode,
 };
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
+use nautilus_live::status::LifecycleStatus;
 use nautilus_model::types::{Money, Quantity};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
-use crate::dashboard::ApiStatusResult;
+use crate::{
+    dashboard::ApiStatusResult,
+    supervisor::{
+        StartNodeRequest, StopNodeRequest, SupervisorRegistryStore, SupervisorRunOwnership,
+        SupervisorRunTerminalAnchor,
+    },
+};
 
 use super::*;
 
@@ -43,6 +52,10 @@ const RUN_REPRODUCTION_SCHEMA_VERSION: &str = "ntpro.product_api.run_reproductio
 const RUN_REPRODUCTION_PROOF_SCHEMA_VERSION: &str =
     "ntpro.product_api.run_reproduction_proof.response.v1";
 const BACKTEST_REPRODUCTION_PROOF_SCHEMA_VERSION: &str = "ntpro.backtest_reproduction_proof.v1";
+const DEMO_RUN_CREATE_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_create.response.v1";
+const DEMO_RUN_ACTION_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_action.response.v1";
+const DEMO_RUN_MANIFEST_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_manifest.v1";
+const DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_terminal_state.v1";
 const RUN_CURSOR_PREFIX: &str = "run-v1-";
 static RUN_MANIFEST_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
@@ -67,6 +80,15 @@ pub(super) struct ProductRun {
     updated_at_unix_ms: u64,
     source: ProductSource,
     capabilities: ProductRunCapabilities,
+    runtime: Option<ProductRunRuntime>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+struct ProductRunRuntime {
+    supervisor_node_id: String,
+    strategy_instance_id: String,
+    process_state: SupervisorProcessState,
+    lifecycle_state: LifecycleStatus,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -88,6 +110,7 @@ enum RunLifecycle {
     Failed,
     Cancelled,
     Stopped,
+    Paused,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -188,6 +211,18 @@ struct ProductRunConfig {
     automatic_remediation_allowed: bool,
     real_orders_submitted: bool,
     trading_controls_enabled: bool,
+    #[serde(default)]
+    demo_supervisor_node_id: Option<String>,
+    #[serde(default)]
+    demo_strategy_instance_id: Option<String>,
+    #[serde(default)]
+    demo_identity_contract_id: Option<String>,
+    #[serde(default)]
+    demo_supervisor_record_baseline_unix_ms: Option<u64>,
+    #[serde(skip)]
+    demo_process_state: Option<SupervisorProcessState>,
+    #[serde(skip)]
+    demo_lifecycle_state: Option<LifecycleStatus>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -210,6 +245,33 @@ pub(in crate::dashboard) struct CreateBacktestRunRequest {
 pub(in crate::dashboard) struct ReproduceBacktestRunRequest {
     source_run_id: String,
     deterministic_replay: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::dashboard) struct CreateDemoRunRequest {
+    strategy_id: String,
+    strategy_version_id: String,
+    environment: RunEnvironment,
+    supervisor_node_id: String,
+    account_ref: String,
+    venue_ref: String,
+    user_confirmed: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::dashboard) struct DemoRunActionRequest {
+    run_id: String,
+    action: DemoRunAction,
+    user_confirmed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum DemoRunAction {
+    Start,
+    Stop,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -244,6 +306,39 @@ impl BacktestRunCreationBoundaries {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoRunBoundaries {
+    demo_run_creation_allowed: bool,
+    demo_start_allowed: bool,
+    demo_stop_allowed: bool,
+    live_run_creation_allowed: bool,
+    external_venue_connection: bool,
+    order_submission_allowed: bool,
+    order_mutation_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    real_orders_submitted: bool,
+    trading_controls_enabled: bool,
+}
+
+impl DemoRunBoundaries {
+    const fn enforced() -> Self {
+        Self {
+            demo_run_creation_allowed: true,
+            demo_start_allowed: true,
+            demo_stop_allowed: true,
+            live_run_creation_allowed: false,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(in crate::dashboard) struct RunCreateResponse {
     schema_version: String,
     contract_version: String,
@@ -252,12 +347,71 @@ pub(in crate::dashboard) struct RunCreateResponse {
     boundaries: BacktestRunCreationBoundaries,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct DemoRunCreateResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: ProductRun,
+    boundaries: DemoRunBoundaries,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoRunActionResult {
+    run_id: String,
+    action: DemoRunAction,
+    previous_lifecycle: RunLifecycle,
+    current_run: ProductRun,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct DemoRunActionResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: DemoRunActionResult,
+    boundaries: DemoRunBoundaries,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct DynamicBacktestRunManifest {
     schema_version: String,
     request_sha256: String,
     config: ProductRunConfig,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DynamicDemoRunManifest {
+    schema_version: String,
+    request_sha256: String,
+    strategy_version_snapshot_sha256: String,
+    config: ProductRunConfig,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DynamicDemoRunTerminalState {
+    schema_version: String,
+    source_manifest_sha256: String,
+    run_id: String,
+    lifecycle: RunLifecycle,
+    runtime: ProductRunRuntime,
+    started_at_unix_ms: Option<u64>,
+    completed_at_unix_ms: u64,
+    updated_at_unix_ms: u64,
+    error_code: Option<String>,
+    error_summary: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DemoTerminalIdentity {
+    run_id: String,
+    supervisor_node_id: String,
+    strategy_instance_id: String,
+    created_at_unix_ms: u64,
+    started_at_unix_ms: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -764,6 +918,742 @@ pub(in crate::dashboard) async fn run_create_api(
         .map_err(|error| product_error_response(&error, &request_id))
 }
 
+pub(in crate::dashboard) async fn demo_run_create_api(
+    State(state): State<DashboardServerState>,
+    payload: Result<Json<CreateDemoRunRequest>, JsonRejection>,
+) -> ApiStatusResult<DemoRunCreateResponse> {
+    let request_id = product_request_id();
+    let Json(request) = payload.map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "request_body"),
+            &request_id,
+        )
+    })?;
+    let permit = state
+        .backtest_creation_gate
+        .clone()
+        .try_acquire_owned()
+        .map_err(|_| {
+            product_error_response(
+                &product_error(ProductErrorKind::DemoConflict, "run_creation_in_progress"),
+                &request_id,
+            )
+        })?;
+    let worker_state = state.clone();
+    let worker_request_id = request_id.clone();
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        create_demo_run(&worker_state, request, &worker_request_id)
+    })
+    .await
+    .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_worker"))
+    .and_then(|result| result)
+    .map(|data| {
+        (
+            StatusCode::CREATED,
+            Json(DemoRunCreateResponse {
+                schema_version: DEMO_RUN_CREATE_SCHEMA_VERSION.to_string(),
+                contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+                request_id: request_id.clone(),
+                data,
+                boundaries: DemoRunBoundaries::enforced(),
+            }),
+        )
+    })
+    .map_err(|error| demo_product_error_response(&error, &request_id))
+}
+
+pub(in crate::dashboard) async fn demo_run_action_api(
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<DemoRunActionRequest>, JsonRejection>,
+) -> ApiStatusResult<DemoRunActionResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(run_id)| run_id).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let Json(request) = payload.map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "request_body"),
+            &request_id,
+        )
+    })?;
+    let worker_state = state.clone();
+    tokio::task::spawn_blocking(move || run_demo_action(&worker_state, &run_id, &request))
+        .await
+        .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_action_worker"))
+        .and_then(|result| result)
+        .map(|data| {
+            (
+                StatusCode::OK,
+                Json(DemoRunActionResponse {
+                    schema_version: DEMO_RUN_ACTION_SCHEMA_VERSION.to_string(),
+                    contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+                    request_id: request_id.clone(),
+                    data,
+                    boundaries: DemoRunBoundaries::enforced(),
+                }),
+            )
+        })
+        .map_err(|error| demo_product_error_response(&error, &request_id))
+}
+
+fn create_demo_run(
+    state: &DashboardServerState,
+    request: CreateDemoRunRequest,
+    request_id: &str,
+) -> Result<ProductRun, ProductError> {
+    let _guard = state
+        .lifecycle_action_lock
+        .lock()
+        .map_err(|_| product_error(ProductErrorKind::DemoConflict, "demo_action_lock"))?;
+    let now = unix_time_ms();
+    let source = load_product_source(state, now)?;
+    let version = strategy_version::load_product_strategy_version(&source, now)?;
+    validate_demo_creation_request(&request, &source, &version)?;
+    let existing_runs = load_product_runs_unlocked(state, now)?;
+    if existing_runs.iter().any(|run| {
+        run.environment == RunEnvironment::Sandbox && !is_terminal_demo_lifecycle(run.lifecycle)
+    }) {
+        return Err(product_error(
+            ProductErrorKind::DemoConflict,
+            "active_demo_run",
+        ));
+    }
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    let registry = store
+        .load()
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "registry"))?;
+    let record = registry
+        .nodes
+        .get(&request.supervisor_node_id)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "supervisor_node_id"))?;
+    if !matches!(
+        record.process.state,
+        SupervisorProcessState::NotStarted | SupervisorProcessState::Stopped
+    ) || record.last_known_status.lifecycle_state != LifecycleStatus::Stopped
+    {
+        return Err(product_error(
+            ProductErrorKind::Conflict,
+            "supervisor_node_state",
+        ));
+    }
+
+    let run_id = request_id.replacen("product-", "demo-", 1);
+    validate_identifier("run_id", &run_id)?;
+    let request_raw = serde_json::to_vec_pretty(&request)
+        .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "demo_request"))?;
+    let request_sha256 = sha256_ref(&request_raw);
+    let version_raw = strategy_version::serialize_strategy_version_snapshot(&version)?;
+    let version_sha256 = sha256_ref(&version_raw);
+    let config = ProductRunConfig {
+        run_id: run_id.clone(),
+        strategy_id: request.strategy_id,
+        strategy_version_id: request.strategy_version_id,
+        environment: RunEnvironment::Sandbox,
+        data_ref: format!(
+            "market://sandbox/{}",
+            version.data_symbols().first().ok_or_else(|| {
+                product_error(ProductErrorKind::SourceInvalid, "strategy_data_symbol")
+            })?
+        ),
+        config_ref: format!("artifact://demo-runs/{run_id}/request.json"),
+        adapter_ref: "adapter://sandbox/fixture-stream".to_string(),
+        account_ref: request.account_ref,
+        venue_ref: request.venue_ref,
+        lifecycle: RunLifecycle::Created,
+        result_status: RunResultStatus::Pending,
+        result_ref: None,
+        backtest_config_sha256: None,
+        backtest_data_sha256: None,
+        backtest_result_sha256: None,
+        backtest_details_sha256: None,
+        backtest_analysis_sha256: None,
+        strategy_version_snapshot_sha256: Some(version_sha256.clone()),
+        reproduction_source_run_id: None,
+        reproduction_input_sha256: None,
+        reproduction_output_sha256: None,
+        reproduction_proof_sha256: None,
+        backtest_trade_size: None,
+        backtest_quotes: None,
+        backtest_fast_period: None,
+        backtest_slow_period: None,
+        risk_status: RunRiskStatus::Pending,
+        risk_ref: format!("artifact://demo-runs/{run_id}/run-manifest.json#risk"),
+        error_code: None,
+        error_summary: None,
+        created_at_unix_ms: now,
+        started_at_unix_ms: None,
+        completed_at_unix_ms: None,
+        updated_at_unix_ms: now,
+        external_venue_connection: false,
+        order_submission_allowed: false,
+        order_mutation_allowed: false,
+        automatic_retry_allowed: false,
+        automatic_remediation_allowed: false,
+        real_orders_submitted: false,
+        trading_controls_enabled: false,
+        demo_supervisor_node_id: Some(request.supervisor_node_id),
+        demo_strategy_instance_id: Some(source.identity.identities.strategy_instance_id.clone()),
+        demo_identity_contract_id: Some(source.identity.contract_id.clone()),
+        demo_supervisor_record_baseline_unix_ms: Some(
+            snapshot_timestamp(&record.updated_at).ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "supervisor_record_baseline",
+                )
+            })?,
+        ),
+        demo_process_state: Some(record.process.state),
+        demo_lifecycle_state: Some(record.last_known_status.lifecycle_state),
+    };
+    let directory = create_demo_run_directory(state, &run_id)?;
+    write_new_run_file(&directory, "request.json", &request_raw)?;
+    write_new_run_file(&directory, "strategy-version.json", &version_raw)?;
+    let manifest = DynamicDemoRunManifest {
+        schema_version: DEMO_RUN_MANIFEST_SCHEMA_VERSION.to_string(),
+        request_sha256,
+        strategy_version_snapshot_sha256: version_sha256,
+        config: config.clone(),
+    };
+    let manifest_raw = serde_json::to_vec_pretty(&manifest)
+        .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "demo_manifest"))?;
+    let projected = validate_and_project_run(
+        config,
+        &source,
+        &version,
+        version.strategy_version_id(),
+        now,
+        Some(format!("artifact://demo-runs/{run_id}/run-manifest.json")),
+    )?;
+    write_new_run_file(&directory, "run-manifest.json", &manifest_raw)?;
+    let manifest_sha256 = sha256_ref(&manifest_raw);
+    if store
+        .claim_run_ownership(
+            &projected
+                .runtime
+                .as_ref()
+                .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_runtime"))?
+                .supervisor_node_id,
+            SupervisorRunOwnership {
+                run_id: run_id.clone(),
+                manifest_sha256,
+                claimed_at_unix_ms: now,
+                terminal: None,
+            },
+        )
+        .is_err()
+    {
+        drop(directory);
+        fs::remove_dir_all(canonical_demo_artifact_root(state, false)?.join(&run_id)).map_err(
+            |_| product_error(ProductErrorKind::SourceUnavailable, "demo_claim_cleanup"),
+        )?;
+        return Err(product_error(
+            ProductErrorKind::DemoConflict,
+            "demo_run_ownership",
+        ));
+    }
+    Ok(projected)
+}
+
+const fn is_terminal_demo_lifecycle(lifecycle: RunLifecycle) -> bool {
+    matches!(lifecycle, RunLifecycle::Stopped | RunLifecycle::Failed)
+}
+
+fn validate_demo_creation_request(
+    request: &CreateDemoRunRequest,
+    source: &ValidatedProductSource,
+    version: &strategy_version::ProductStrategyVersion,
+) -> Result<(), ProductError> {
+    if request.environment != RunEnvironment::Sandbox || !request.user_confirmed {
+        return Err(product_error(
+            ProductErrorKind::BadRequest,
+            "demo_confirmation",
+        ));
+    }
+    if request.strategy_id != source.strategy.strategy_id
+        || request.strategy_id != version.strategy_id()
+        || request.strategy_version_id != version.strategy_version_id()
+        || request.supervisor_node_id != source.identity.identities.node_id
+        || request.account_ref
+            != format!(
+                "account://sandbox/{}",
+                source.identity.identities.account_id
+            )
+        || request.venue_ref != format!("venue://sandbox/{}", source.identity.identities.venue_id)
+    {
+        return Err(product_error(ProductErrorKind::BadRequest, "demo_identity"));
+    }
+    Ok(())
+}
+
+fn run_demo_action(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &DemoRunActionRequest,
+) -> Result<DemoRunActionResult, ProductError> {
+    validate_requested_run_id("run_id", path_run_id)?;
+    if request.run_id != path_run_id || !request.user_confirmed {
+        return Err(product_error(
+            ProductErrorKind::BadRequest,
+            "demo_action_identity",
+        ));
+    }
+    let _guard = state
+        .lifecycle_action_lock
+        .lock()
+        .map_err(|_| product_error(ProductErrorKind::Conflict, "demo_action_lock"))?;
+    let previous = load_product_runs_unlocked(state, unix_time_ms())?
+        .into_iter()
+        .find(|run| run.run_id == path_run_id && run.environment == RunEnvironment::Sandbox)
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))?;
+    let runtime = previous
+        .runtime
+        .as_ref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_runtime"))?;
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    let manifest_sha256 = demo_run_manifest_sha256(state, path_run_id)?;
+    let current = match request.action {
+        DemoRunAction::Start if previous.lifecycle == RunLifecycle::Created => {
+            let started = store
+                .start_node_process_for_run(
+                    &StartNodeRequest {
+                        node_id: runtime.supervisor_node_id.clone(),
+                        ntpro_node_bin: state.ntpro_node_bin.clone(),
+                        startup_timeout: Duration::from_millis(
+                            super::super::DASHBOARD_ACTION_TIMEOUT_MS,
+                        ),
+                        node_max_runtime: Duration::from_millis(3_600_000),
+                        node_heartbeat_interval: Duration::from_millis(1_000),
+                        node_parent_pid: Some(std::process::id()),
+                        node_shutdown_timeout: Duration::from_millis(5_000),
+                    },
+                    path_run_id,
+                    &manifest_sha256,
+                )
+                .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_start"))?;
+            let initial_validation = wait_for_demo_metrics_artifact(
+                &started.metrics_path,
+                Duration::from_millis(super::super::DASHBOARD_ACTION_TIMEOUT_MS),
+            )
+            .map_err(|()| {
+                product_error(ProductErrorKind::DemoExecutionFailed, "demo_start_metrics")
+            })
+            .and_then(|()| {
+                store
+                    .node_metrics(&runtime.supervisor_node_id)
+                    .map(|_| ())
+                    .map_err(|_| {
+                        product_error(ProductErrorKind::DemoExecutionFailed, "demo_start_metrics")
+                    })
+            });
+            if let Err(error) = initial_validation {
+                cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
+                return Err(error);
+            }
+            if let Err(error) = refresh_product_status_contract(state, &runtime.supervisor_node_id)
+            {
+                cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
+                return Err(error);
+            }
+            match load_demo_run_by_id(state, path_run_id) {
+                Ok(current) if current.lifecycle == RunLifecycle::Running => current,
+                Ok(_) => {
+                    cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
+                    return Err(product_error(
+                        ProductErrorKind::DemoExecutionFailed,
+                        "demo_start_lifecycle",
+                    ));
+                }
+                Err(error) => {
+                    cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
+                    return Err(error);
+                }
+            }
+        }
+        DemoRunAction::Stop
+            if matches!(
+                previous.lifecycle,
+                RunLifecycle::Running | RunLifecycle::Paused
+            ) =>
+        {
+            let stopped = store
+                .stop_node_process_for_run(
+                    &StopNodeRequest {
+                        node_id: runtime.supervisor_node_id.clone(),
+                        stop_timeout: Duration::from_millis(
+                            super::super::DASHBOARD_ACTION_TIMEOUT_MS,
+                        ),
+                    },
+                    path_run_id,
+                    &manifest_sha256,
+                )
+                .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_stop"))?;
+            publish_demo_terminal_state(
+                state,
+                &store,
+                &demo_terminal_identity_from_run(&previous)?,
+                &stopped,
+                &manifest_sha256,
+                RunLifecycle::Stopped,
+                None,
+            )?;
+            refresh_product_status_contract(state, &runtime.supervisor_node_id)?;
+            load_demo_run_by_id(state, path_run_id)?
+        }
+        _ => {
+            return Err(product_error(
+                ProductErrorKind::DemoConflict,
+                "demo_lifecycle",
+            ));
+        }
+    };
+    Ok(DemoRunActionResult {
+        run_id: path_run_id.to_string(),
+        action: request.action,
+        previous_lifecycle: previous.lifecycle,
+        current_run: current,
+    })
+}
+
+fn load_demo_run_by_id(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<ProductRun, ProductError> {
+    load_product_runs_unlocked(state, unix_time_ms())?
+        .into_iter()
+        .find(|run| run.run_id == run_id && run.environment == RunEnvironment::Sandbox)
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_id"))
+}
+
+fn demo_terminal_identity_from_run(run: &ProductRun) -> Result<DemoTerminalIdentity, ProductError> {
+    let runtime = run
+        .runtime
+        .as_ref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_runtime"))?;
+    Ok(DemoTerminalIdentity {
+        run_id: run.run_id.clone(),
+        supervisor_node_id: runtime.supervisor_node_id.clone(),
+        strategy_instance_id: runtime.strategy_instance_id.clone(),
+        created_at_unix_ms: run.created_at_unix_ms,
+        started_at_unix_ms: run.started_at_unix_ms,
+    })
+}
+
+fn demo_terminal_identity_from_config(
+    config: &ProductRunConfig,
+) -> Result<DemoTerminalIdentity, ProductError> {
+    Ok(DemoTerminalIdentity {
+        run_id: config.run_id.clone(),
+        supervisor_node_id: config.demo_supervisor_node_id.clone().ok_or_else(|| {
+            product_error(ProductErrorKind::SourceInvalid, "demo_supervisor_node_id")
+        })?,
+        strategy_instance_id: config.demo_strategy_instance_id.clone().ok_or_else(|| {
+            product_error(ProductErrorKind::SourceInvalid, "demo_strategy_instance_id")
+        })?,
+        created_at_unix_ms: config.created_at_unix_ms,
+        started_at_unix_ms: config.started_at_unix_ms,
+    })
+}
+
+fn cleanup_failed_demo_start(
+    state: &DashboardServerState,
+    store: &SupervisorRegistryStore,
+    run: &ProductRun,
+    manifest_sha256: &str,
+) -> Result<(), ProductError> {
+    let runtime = run
+        .runtime
+        .as_ref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_runtime"))?;
+    let stopped = store
+        .stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: runtime.supervisor_node_id.clone(),
+                stop_timeout: Duration::from_millis(super::super::DASHBOARD_ACTION_TIMEOUT_MS),
+            },
+            &run.run_id,
+            manifest_sha256,
+        )
+        .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_start_cleanup"))?;
+    publish_demo_terminal_state(
+        state,
+        store,
+        &demo_terminal_identity_from_run(run)?,
+        &stopped,
+        manifest_sha256,
+        RunLifecycle::Failed,
+        Some((
+            "demo_start_validation_failed",
+            "Demo 启动后运行时校验失败，节点已停止",
+        )),
+    )
+    .map_err(|_| {
+        product_error(
+            ProductErrorKind::DemoExecutionFailed,
+            "demo_start_cleanup_state",
+        )
+    })?;
+    refresh_product_status_contract(state, &runtime.supervisor_node_id)
+}
+
+fn publish_demo_terminal_state(
+    state: &DashboardServerState,
+    store: &SupervisorRegistryStore,
+    run: &DemoTerminalIdentity,
+    record: &SupervisorNodeRecord,
+    manifest_sha256: &str,
+    lifecycle: RunLifecycle,
+    failure: Option<(&str, &str)>,
+) -> Result<(), ProductError> {
+    let clean_stop = record.process.state == SupervisorProcessState::Stopped
+        && record.last_known_status.lifecycle_state == LifecycleStatus::Stopped;
+    let failed_exit =
+        lifecycle == RunLifecycle::Failed && record.process.state == SupervisorProcessState::Stale;
+    if !is_terminal_demo_lifecycle(lifecycle) || (!clean_stop && !failed_exit) {
+        return Err(product_error(
+            ProductErrorKind::DemoExecutionFailed,
+            "demo_terminal_process",
+        ));
+    }
+    if record.node_id != run.supervisor_node_id {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_terminal_identity",
+        ));
+    }
+    let run_root = canonical_demo_artifact_root(state, false)?.join(&run.run_id);
+    let manifest_raw = read_backtest_result_bytes(&run_root.join("run-manifest.json"))?;
+    if sha256_ref(&manifest_raw) != manifest_sha256 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_terminal_manifest",
+        ));
+    }
+    let directory = open_absolute_directory_nofollow(&run_root)?;
+    let completed_at_unix_ms = snapshot_timestamp(&record.last_known_status.stopped_at)
+        .or_else(|| snapshot_timestamp(&record.updated_at))
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_terminal_time"))?
+        .max(run.created_at_unix_ms);
+    let (error_code, error_summary) = failure.map_or((None, None), |(code, summary)| {
+        (Some(code.to_string()), Some(summary.to_string()))
+    });
+    let terminal = DynamicDemoRunTerminalState {
+        schema_version: DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION.to_string(),
+        source_manifest_sha256: sha256_ref(&manifest_raw),
+        run_id: run.run_id.clone(),
+        lifecycle,
+        runtime: ProductRunRuntime {
+            supervisor_node_id: run.supervisor_node_id.clone(),
+            strategy_instance_id: run.strategy_instance_id.clone(),
+            process_state: record.process.state,
+            lifecycle_state: record.last_known_status.lifecycle_state,
+        },
+        started_at_unix_ms: run.started_at_unix_ms.or_else(|| {
+            snapshot_timestamp(&record.last_known_status.started_at)
+                .map(|started| started.max(run.created_at_unix_ms))
+        }),
+        completed_at_unix_ms,
+        updated_at_unix_ms: completed_at_unix_ms,
+        error_code,
+        error_summary,
+    };
+    let raw = serde_json::to_vec_pretty(&terminal)
+        .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_terminal_state"))?;
+    let published_by_this_call = match publish_new_run_file(&directory, "terminal-state.json", &raw)
+    {
+        Ok(()) => true,
+        Err(error) if error.kind == ProductErrorKind::Conflict => {
+            let existing = read_backtest_result_bytes(&run_root.join("terminal-state.json"))?;
+            if existing != raw {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_terminal_anchor",
+                ));
+            }
+            false
+        }
+        Err(error) => return Err(error),
+    };
+    if store
+        .anchor_run_terminal(
+            &run.supervisor_node_id,
+            &run.run_id,
+            manifest_sha256,
+            SupervisorRunTerminalAnchor {
+                lifecycle: match lifecycle {
+                    RunLifecycle::Stopped => "stopped",
+                    RunLifecycle::Failed => "failed",
+                    _ => unreachable!("terminal lifecycle validated above"),
+                }
+                .to_string(),
+                terminal_state_sha256: sha256_ref(&raw),
+                completed_at_unix_ms,
+            },
+        )
+        .is_err()
+    {
+        if published_by_this_call {
+            directory.remove_file("terminal-state.json").map_err(|_| {
+                product_error(
+                    ProductErrorKind::DemoExecutionFailed,
+                    "demo_terminal_anchor_cleanup",
+                )
+            })?;
+        }
+        return Err(product_error(
+            ProductErrorKind::DemoExecutionFailed,
+            "demo_terminal_anchor",
+        ));
+    }
+    Ok(())
+}
+
+fn demo_run_manifest_sha256(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<String, ProductError> {
+    let run_root = canonical_demo_artifact_root(state, false)?.join(run_id);
+    read_backtest_result_bytes(&run_root.join("run-manifest.json")).map(|raw| sha256_ref(&raw))
+}
+
+pub(crate) fn shutdown_active_demo_run(
+    registry_path: &Path,
+    stop_timeout: Duration,
+) -> anyhow::Result<()> {
+    let state = DashboardServerState {
+        registry_path: registry_path.to_path_buf(),
+        workflow_root: None,
+        ntpro_node_bin: PathBuf::new(),
+        lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
+        backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+    };
+    let _guard = state
+        .lifecycle_action_lock
+        .lock()
+        .map_err(|_| anyhow::anyhow!("Demo lifecycle lock is unavailable during MVP shutdown"))?;
+    let store = SupervisorRegistryStore::new(registry_path);
+    let registry = store.load()?;
+    let Some((node_id, ownership)) = registry.nodes.iter().find_map(|(node_id, record)| {
+        record
+            .run_ownership
+            .values()
+            .find(|ownership| ownership.terminal.is_none())
+            .map(|ownership| (node_id.clone(), ownership.clone()))
+    }) else {
+        return Ok(());
+    };
+    let record = store.refresh_process_state(&node_id)?;
+    let stopped = match record.process.state {
+        SupervisorProcessState::NotStarted => return Ok(()),
+        SupervisorProcessState::Stopped => {
+            finalize_demo_run_ownerships(&state, unix_time_ms()).map_err(|error| {
+                anyhow::anyhow!(
+                    "failed to anchor stopped Demo during MVP shutdown: {:?}:{}",
+                    error.kind,
+                    error.field
+                )
+            })?;
+            return Ok(());
+        }
+        SupervisorProcessState::Stale => {
+            finalize_demo_run_ownerships(&state, unix_time_ms()).map_err(|error| {
+                anyhow::anyhow!(
+                    "failed to anchor failed Demo during MVP shutdown: {:?}:{}",
+                    error.kind,
+                    error.field
+                )
+            })?;
+            return Ok(());
+        }
+        SupervisorProcessState::Unknown => {
+            anyhow::bail!("Demo-owned node '{node_id}' process state is unknown")
+        }
+        SupervisorProcessState::Running => store.stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: node_id.clone(),
+                stop_timeout,
+            },
+            &ownership.run_id,
+            &ownership.manifest_sha256,
+        )?,
+    };
+    let run_root = canonical_demo_artifact_root(&state, false)
+        .map_err(|error| {
+            anyhow::anyhow!(
+                "failed to locate active Demo artifacts during MVP shutdown: {:?}:{}",
+                error.kind,
+                error.field
+            )
+        })?
+        .join(&ownership.run_id);
+    let manifest_raw =
+        read_backtest_result_bytes(&run_root.join("run-manifest.json")).map_err(|error| {
+            anyhow::anyhow!(
+                "failed to load active Demo manifest during MVP shutdown: {:?}:{}",
+                error.kind,
+                error.field
+            )
+        })?;
+    let manifest: DynamicDemoRunManifest = serde_json::from_slice(&manifest_raw)
+        .map_err(|error| anyhow::anyhow!("active Demo manifest is invalid: {error}"))?;
+    if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
+        || manifest.config.run_id != ownership.run_id
+        || manifest.config.environment != RunEnvironment::Sandbox
+        || manifest.config.demo_supervisor_node_id.as_deref() != Some(node_id.as_str())
+        || sha256_ref(&manifest_raw) != ownership.manifest_sha256
+    {
+        anyhow::bail!("active Demo ownership does not match its immutable manifest");
+    }
+    validate_run_config_capabilities(&manifest.config).map_err(|error| {
+        anyhow::anyhow!(
+            "active Demo manifest violates product boundaries: {:?}:{}",
+            error.kind,
+            error.field
+        )
+    })?;
+    let terminal_identity =
+        demo_terminal_identity_from_config(&manifest.config).map_err(|error| {
+            anyhow::anyhow!(
+                "invalid active Demo identity during MVP shutdown: {:?}:{}",
+                error.kind,
+                error.field
+            )
+        })?;
+    publish_demo_terminal_state(
+        &state,
+        &store,
+        &terminal_identity,
+        &stopped,
+        &ownership.manifest_sha256,
+        RunLifecycle::Stopped,
+        None,
+    )
+    .map_err(|error| {
+        anyhow::anyhow!(
+            "failed to anchor stopped Demo during MVP shutdown: {:?}:{}",
+            error.kind,
+            error.field
+        )
+    })
+}
+
+fn wait_for_demo_metrics_artifact(path: &Path, timeout: Duration) -> Result<(), ()> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if path.is_file() {
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            return Err(());
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
 fn create_backtest_run(
     state: &DashboardServerState,
     request: CreateBacktestRunRequest,
@@ -952,6 +1842,12 @@ fn create_backtest_run(
                 automatic_remediation_allowed: false,
                 real_orders_submitted: false,
                 trading_controls_enabled: false,
+                demo_supervisor_node_id: None,
+                demo_strategy_instance_id: None,
+                demo_identity_contract_id: None,
+                demo_supervisor_record_baseline_unix_ms: None,
+                demo_process_state: None,
+                demo_lifecycle_state: None,
             };
             let expected_version_id = strategy_version.strategy_version_id();
             validate_created_backtest_artifacts(
@@ -1018,6 +1914,12 @@ fn create_backtest_run(
                 automatic_remediation_allowed: false,
                 real_orders_submitted: false,
                 trading_controls_enabled: false,
+                demo_supervisor_node_id: None,
+                demo_strategy_instance_id: None,
+                demo_identity_contract_id: None,
+                demo_supervisor_record_baseline_unix_ms: None,
+                demo_process_state: None,
+                demo_lifecycle_state: None,
             };
             write_dynamic_manifest(&run_directory, &request_sha256, &config)?;
             return Err(product_error(
@@ -2898,6 +3800,18 @@ pub(super) fn load_product_runs(
     state: &DashboardServerState,
     now_unix_ms: u64,
 ) -> Result<Vec<ProductRun>, ProductError> {
+    let _guard = state
+        .lifecycle_action_lock
+        .lock()
+        .map_err(|_| product_error(ProductErrorKind::Conflict, "demo_action_lock"))?;
+    load_product_runs_unlocked(state, now_unix_ms)
+}
+
+fn load_product_runs_unlocked(
+    state: &DashboardServerState,
+    now_unix_ms: u64,
+) -> Result<Vec<ProductRun>, ProductError> {
+    finalize_demo_run_ownerships(state, now_unix_ms)?;
     let source = load_product_source(state, now_unix_ms)?;
     let strategy_version = strategy_version::load_product_strategy_version(&source, now_unix_ms)?;
     let configs = load_run_configs(state, &source)?;
@@ -2932,6 +3846,90 @@ pub(super) fn load_product_runs(
             )
         })
         .collect()
+}
+
+fn finalize_demo_run_ownerships(
+    state: &DashboardServerState,
+    now_unix_ms: u64,
+) -> Result<(), ProductError> {
+    let artifact_root = canonical_demo_artifact_root(state, false)?;
+    if !artifact_root.exists() {
+        return Ok(());
+    }
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    let node_ids = store
+        .load()
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "registry"))?
+        .nodes
+        .into_keys()
+        .collect::<Vec<_>>();
+    for node_id in node_ids {
+        let record = store
+            .refresh_process_state(&node_id)
+            .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "registry"))?;
+        let Some(ownership) = record
+            .run_ownership
+            .values()
+            .find(|ownership| ownership.terminal.is_none())
+        else {
+            continue;
+        };
+        let expected_run_root = artifact_root.join(&ownership.run_id);
+        let run_root = canonical_path(&expected_run_root, "demo_root_containment")?;
+        if run_root != expected_run_root || !run_root.starts_with(&artifact_root) {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_root_containment",
+            ));
+        }
+        let manifest_path = run_root.join("run-manifest.json");
+        let manifest_raw = read_backtest_result_bytes(&manifest_path)?;
+        let manifest: DynamicDemoRunManifest = serde_json::from_slice(&manifest_raw)
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_manifest"))?;
+        if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
+            || manifest.config.run_id != ownership.run_id
+            || manifest.config.environment != RunEnvironment::Sandbox
+            || manifest.config.demo_supervisor_node_id.as_deref() != Some(node_id.as_str())
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_run_ownership",
+            ));
+        }
+        validate_run_config_capabilities(&manifest.config)?;
+        if sha256_ref(&manifest_raw) != ownership.manifest_sha256 {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_run_ownership",
+            ));
+        }
+        let terminal_path = run_root.join("terminal-state.json");
+        if fs::symlink_metadata(&terminal_path).is_ok() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_terminal_anchor",
+            ));
+        }
+        let mut config = manifest.config;
+        project_demo_lifecycle(&mut config, &record, now_unix_ms)?;
+        if !is_terminal_demo_lifecycle(config.lifecycle) {
+            continue;
+        }
+        let failure = (config.lifecycle == RunLifecycle::Failed).then_some((
+            "demo_runtime_unavailable",
+            "Demo runtime 进程已退出且状态不可验证",
+        ));
+        publish_demo_terminal_state(
+            state,
+            &store,
+            &demo_terminal_identity_from_config(&config)?,
+            &record,
+            &ownership.manifest_sha256,
+            config.lifecycle,
+            failure,
+        )?;
+    }
+    Ok(())
 }
 
 fn load_run_strategy_version(
@@ -2969,7 +3967,12 @@ fn load_run_strategy_version(
             "run_strategy_version_snapshot_sha256",
         ));
     }
-    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let (artifact_root, source_prefix) =
+        if dynamic_source_ref.is_some_and(|value| value.starts_with("artifact://demo-runs/")) {
+            (canonical_demo_artifact_root(state, false)?, "demo-runs")
+        } else {
+            (canonical_backtest_artifact_root(state)?, "backtests")
+        };
     let run_root = canonical_path(
         &artifact_root.join(&config.run_id),
         "run_strategy_version_snapshot_root",
@@ -2990,8 +3993,8 @@ fn load_run_strategy_version(
     let version = strategy_version::deserialize_strategy_version_snapshot(
         &raw,
         format!(
-            "artifact://backtests/{}/strategy-version.json",
-            config.run_id
+            "artifact://{source_prefix}/{}/strategy-version.json",
+            config.run_id,
         ),
         now_unix_ms,
     )?;
@@ -3021,7 +4024,454 @@ fn load_run_configs(
         .map(|config| (config, None))
         .collect();
     configs.extend(load_dynamic_run_configs(state)?);
+    configs.extend(load_dynamic_demo_run_configs(
+        state,
+        source,
+        unix_time_ms(),
+    )?);
     Ok(configs)
+}
+
+fn load_dynamic_demo_run_configs(
+    state: &DashboardServerState,
+    source: &ValidatedProductSource,
+    now_unix_ms: u64,
+) -> Result<Vec<(ProductRunConfig, Option<String>)>, ProductError> {
+    let artifact_root = canonical_demo_artifact_root(state, false)?;
+    if !artifact_root.exists() {
+        return Ok(Vec::new());
+    }
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    let record = store
+        .refresh_process_state(&source.identity.identities.node_id)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "registry"))?;
+    let mut entries = fs::read_dir(&artifact_root)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "demo_root"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "demo_root"))?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    let mut configs = Vec::new();
+    for entry in entries {
+        let file_type = entry
+            .file_type()
+            .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "demo_root"))?;
+        if file_type.is_symlink() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_root_containment",
+            ));
+        }
+        if !file_type.is_dir() {
+            continue;
+        }
+        let run_id = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "run_id"))?;
+        validate_identifier("run_id", &run_id)?;
+        let manifest_path = entry.path().join("run-manifest.json");
+        if !manifest_path.exists() {
+            continue;
+        }
+        let request_path = entry.path().join("request.json");
+        let version_path = entry.path().join("strategy-version.json");
+        let manifest_raw = read_backtest_result_bytes(&manifest_path)?;
+        let request_raw = read_backtest_result_bytes(&request_path)?;
+        let version_raw = read_backtest_result_bytes(&version_path)?;
+        let manifest: DynamicDemoRunManifest = serde_json::from_slice(&manifest_raw)
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_manifest"))?;
+        if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
+            || manifest.config.run_id != run_id
+            || manifest.config.environment != RunEnvironment::Sandbox
+            || manifest.config.config_ref != format!("artifact://demo-runs/{run_id}/request.json")
+            || manifest.config.risk_ref
+                != format!("artifact://demo-runs/{run_id}/run-manifest.json#risk")
+            || !is_sha256_ref(&manifest.request_sha256)
+            || sha256_ref(&request_raw) != manifest.request_sha256
+            || !is_sha256_ref(&manifest.strategy_version_snapshot_sha256)
+            || sha256_ref(&version_raw) != manifest.strategy_version_snapshot_sha256
+            || manifest.config.strategy_version_snapshot_sha256.as_deref()
+                != Some(manifest.strategy_version_snapshot_sha256.as_str())
+            || manifest.config.demo_supervisor_node_id.as_deref()
+                != Some(source.identity.identities.node_id.as_str())
+            || manifest.config.demo_strategy_instance_id.as_deref()
+                != Some(source.identity.identities.strategy_instance_id.as_str())
+            || manifest.config.demo_identity_contract_id.as_deref()
+                != Some(source.identity.contract_id.as_str())
+            || manifest
+                .config
+                .demo_supervisor_record_baseline_unix_ms
+                .is_none()
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_manifest",
+            ));
+        }
+        validate_run_config_capabilities(&manifest.config)?;
+        let request: CreateDemoRunRequest = serde_json::from_slice(&request_raw)
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_request"))?;
+        let version = strategy_version::deserialize_strategy_version_snapshot(
+            &version_raw,
+            format!("artifact://demo-runs/{run_id}/strategy-version.json"),
+            now_unix_ms,
+        )?;
+        validate_demo_creation_request(&request, source, &version)
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_manifest"))?;
+        if request.supervisor_node_id != record.node_id {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "supervisor_node_id",
+            ));
+        }
+        let manifest_sha256 = sha256_ref(&manifest_raw);
+        let ownership = record
+            .run_ownership
+            .get(&run_id)
+            .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_run_ownership"))?;
+        if ownership.manifest_sha256 != manifest_sha256 {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_run_ownership",
+            ));
+        }
+        let mut config = manifest.config;
+        let terminal_path = entry.path().join("terminal-state.json");
+        if let Some(anchor) = ownership.terminal.as_ref() {
+            let terminal =
+                load_demo_terminal_state(&terminal_path, &manifest_raw, &config, anchor)?;
+            apply_demo_terminal_state(&mut config, terminal)?;
+        } else {
+            if fs::symlink_metadata(&terminal_path).is_ok() {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_terminal_anchor",
+                ));
+            }
+            project_demo_lifecycle(&mut config, &record, now_unix_ms)?;
+            if is_terminal_demo_lifecycle(config.lifecycle) {
+                let failure = (config.lifecycle == RunLifecycle::Failed).then_some((
+                    "demo_runtime_unavailable",
+                    "Demo runtime 进程已退出且状态不可验证",
+                ));
+                publish_demo_terminal_state(
+                    state,
+                    &store,
+                    &demo_terminal_identity_from_config(&config)?,
+                    &record,
+                    &manifest_sha256,
+                    config.lifecycle,
+                    failure,
+                )?;
+                let anchored_record = store
+                    .load()
+                    .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "registry"))?;
+                let anchor = anchored_record
+                    .nodes
+                    .get(&record.node_id)
+                    .and_then(|node| node.run_ownership.get(&run_id))
+                    .and_then(|ownership| ownership.terminal.as_ref())
+                    .ok_or_else(|| {
+                        product_error(ProductErrorKind::SourceInvalid, "demo_terminal_anchor")
+                    })?;
+                let terminal =
+                    load_demo_terminal_state(&terminal_path, &manifest_raw, &config, anchor)?;
+                apply_demo_terminal_state(&mut config, terminal)?;
+            }
+        }
+        configs.push((
+            config,
+            Some(format!("artifact://demo-runs/{run_id}/run-manifest.json")),
+        ));
+    }
+    Ok(configs)
+}
+
+fn load_demo_terminal_state(
+    path: &Path,
+    manifest_raw: &[u8],
+    config: &ProductRunConfig,
+    anchor: &SupervisorRunTerminalAnchor,
+) -> Result<DynamicDemoRunTerminalState, ProductError> {
+    match fs::symlink_metadata(path) {
+        Ok(_) => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            return Err(product_error(
+                ProductErrorKind::SourceUnavailable,
+                "demo_terminal_state",
+            ));
+        }
+        Err(_) => {
+            return Err(product_error(
+                ProductErrorKind::SourceUnavailable,
+                "demo_terminal_state",
+            ));
+        }
+    }
+    let raw = read_backtest_result_bytes(path)?;
+    if sha256_ref(&raw) != anchor.terminal_state_sha256 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_terminal_anchor",
+        ));
+    }
+    let terminal: DynamicDemoRunTerminalState = serde_json::from_slice(&raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_terminal_state"))?;
+    let error_pair_valid = matches!(
+        (&terminal.error_code, &terminal.error_summary),
+        (None, None) | (Some(_), Some(_))
+    );
+    if terminal.schema_version != DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION
+        || terminal.source_manifest_sha256 != sha256_ref(manifest_raw)
+        || terminal.run_id != config.run_id
+        || !is_terminal_demo_lifecycle(terminal.lifecycle)
+        || terminal.runtime.supervisor_node_id
+            != config
+                .demo_supervisor_node_id
+                .as_deref()
+                .unwrap_or_default()
+        || terminal.runtime.strategy_instance_id
+            != config
+                .demo_strategy_instance_id
+                .as_deref()
+                .unwrap_or_default()
+        || terminal.completed_at_unix_ms < config.created_at_unix_ms
+        || terminal.updated_at_unix_ms < terminal.completed_at_unix_ms
+        || terminal
+            .started_at_unix_ms
+            .is_some_and(|started| started > terminal.completed_at_unix_ms)
+        || !error_pair_valid
+        || (terminal.lifecycle == RunLifecycle::Failed) != terminal.error_code.is_some()
+        || anchor.lifecycle
+            != match terminal.lifecycle {
+                RunLifecycle::Stopped => "stopped",
+                RunLifecycle::Failed => "failed",
+                _ => "invalid",
+            }
+        || anchor.completed_at_unix_ms != terminal.completed_at_unix_ms
+        || (terminal.lifecycle == RunLifecycle::Stopped
+            && (terminal.runtime.process_state != SupervisorProcessState::Stopped
+                || terminal.runtime.lifecycle_state != LifecycleStatus::Stopped))
+        || (terminal.lifecycle == RunLifecycle::Failed
+            && !matches!(
+                terminal.runtime.process_state,
+                SupervisorProcessState::Stopped | SupervisorProcessState::Stale
+            ))
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_terminal_state",
+        ));
+    }
+    Ok(terminal)
+}
+
+fn apply_demo_terminal_state(
+    config: &mut ProductRunConfig,
+    terminal: DynamicDemoRunTerminalState,
+) -> Result<(), ProductError> {
+    if let Some(code) = terminal.error_code.as_deref() {
+        validate_identifier("run_error_code", code)?;
+    }
+    if let Some(summary) = terminal.error_summary.as_deref() {
+        validate_text("run_error_summary", summary, 500)?;
+    }
+    config.lifecycle = terminal.lifecycle;
+    config.demo_process_state = Some(terminal.runtime.process_state);
+    config.demo_lifecycle_state = Some(terminal.runtime.lifecycle_state);
+    config.started_at_unix_ms = terminal.started_at_unix_ms;
+    config.completed_at_unix_ms = Some(terminal.completed_at_unix_ms);
+    config.updated_at_unix_ms = terminal.updated_at_unix_ms;
+    config.risk_status = RunRiskStatus::Blocked;
+    config.error_code = terminal.error_code;
+    config.error_summary = terminal.error_summary;
+    if config.lifecycle == RunLifecycle::Failed {
+        config.result_status = RunResultStatus::Unavailable;
+    }
+    Ok(())
+}
+
+fn project_demo_lifecycle(
+    config: &mut ProductRunConfig,
+    record: &SupervisorNodeRecord,
+    now_unix_ms: u64,
+) -> Result<(), ProductError> {
+    config.demo_process_state = Some(record.process.state);
+    config.demo_lifecycle_state = Some(record.last_known_status.lifecycle_state);
+    config.updated_at_unix_ms = now_unix_ms.max(config.created_at_unix_ms);
+    let observed_started = snapshot_timestamp(&record.last_known_status.started_at);
+    let record_updated_at = snapshot_timestamp(&record.updated_at).ok_or_else(|| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "supervisor_record_updated_at",
+        )
+    })?;
+    let record_baseline = config
+        .demo_supervisor_record_baseline_unix_ms
+        .ok_or_else(|| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "supervisor_record_baseline",
+            )
+        })?;
+    let started = observed_started.map(|value| value.max(config.created_at_unix_ms));
+    let observed_stopped = snapshot_timestamp(&record.last_known_status.stopped_at);
+    let stopped =
+        observed_stopped.map(|value| value.max(started.unwrap_or(config.created_at_unix_ms)));
+    if record_updated_at < record_baseline {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_runtime_updated_at",
+        ));
+    }
+    match (
+        record.process.state,
+        record.last_known_status.lifecycle_state,
+    ) {
+        (SupervisorProcessState::NotStarted, LifecycleStatus::Stopped) => {
+            config.lifecycle = RunLifecycle::Created;
+            config.started_at_unix_ms = None;
+            config.completed_at_unix_ms = None;
+            config.risk_status = RunRiskStatus::Pending;
+        }
+        (
+            SupervisorProcessState::Running,
+            LifecycleStatus::Starting | LifecycleStatus::Resuming,
+        ) => {
+            config.lifecycle = RunLifecycle::Queued;
+            config.started_at_unix_ms = None;
+            config.completed_at_unix_ms = None;
+            config.risk_status = RunRiskStatus::Pending;
+        }
+        (SupervisorProcessState::Running, LifecycleStatus::Running) => {
+            config.lifecycle = RunLifecycle::Running;
+            config.started_at_unix_ms = Some(started.ok_or_else(|| {
+                product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
+            })?);
+            config.completed_at_unix_ms = None;
+            config.risk_status = RunRiskStatus::Active;
+        }
+        (SupervisorProcessState::Running, LifecycleStatus::Paused | LifecycleStatus::Pausing) => {
+            config.lifecycle = RunLifecycle::Paused;
+            config.started_at_unix_ms = Some(started.ok_or_else(|| {
+                product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
+            })?);
+            config.completed_at_unix_ms = None;
+            config.risk_status = RunRiskStatus::Active;
+        }
+        (SupervisorProcessState::Running, LifecycleStatus::Stopping) => {
+            config.lifecycle = RunLifecycle::Stopping;
+            config.started_at_unix_ms = Some(started.ok_or_else(|| {
+                product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
+            })?);
+            config.completed_at_unix_ms = None;
+            config.risk_status = RunRiskStatus::Active;
+        }
+        (SupervisorProcessState::Stopped, LifecycleStatus::Stopped) => {
+            if observed_stopped.is_none_or(|value| value <= config.created_at_unix_ms) {
+                config.lifecycle = RunLifecycle::Created;
+                config.started_at_unix_ms = None;
+                config.completed_at_unix_ms = None;
+                config.risk_status = RunRiskStatus::Pending;
+                return Ok(());
+            }
+            let completed = stopped.ok_or_else(|| {
+                product_error(ProductErrorKind::SourceInvalid, "demo_runtime_stopped_at")
+            })?;
+            config.lifecycle = RunLifecycle::Stopped;
+            config.started_at_unix_ms = Some(started.unwrap_or(completed));
+            config.completed_at_unix_ms = Some(completed);
+            config.risk_status = RunRiskStatus::Blocked;
+        }
+        (SupervisorProcessState::Stale | SupervisorProcessState::Unknown, _)
+        | (_, LifecycleStatus::Error | LifecycleStatus::Unknown) => {
+            if record_updated_at <= record_baseline {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_runtime_updated_at",
+                ));
+            }
+            let completed = stopped.unwrap_or(record_updated_at);
+            config.lifecycle = RunLifecycle::Failed;
+            config.started_at_unix_ms = Some(started.unwrap_or(completed));
+            config.completed_at_unix_ms = Some(completed);
+            config.risk_status = RunRiskStatus::Blocked;
+            config.result_status = RunResultStatus::Unavailable;
+            config.error_code = Some("demo_runtime_unavailable".to_string());
+            config.error_summary = Some("Demo runtime 状态不可验证".to_string());
+        }
+        _ => {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_runtime_state",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn snapshot_timestamp(value: &nautilus_live::status::SnapshotValue<String>) -> Option<u64> {
+    value
+        .value
+        .as_deref()
+        .and_then(|raw| raw.parse::<u64>().ok())
+}
+
+fn create_demo_run_directory(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<cap_std::fs::Dir, ProductError> {
+    let artifact_root = canonical_demo_artifact_root(state, true)?;
+    let root = open_absolute_directory_nofollow(&artifact_root)?;
+    root.create_dir(run_id).map_err(|error| {
+        if error.kind() == ErrorKind::AlreadyExists {
+            product_error(ProductErrorKind::Conflict, "run_id")
+        } else {
+            product_error(ProductErrorKind::SourceUnavailable, "demo_root")
+        }
+    })?;
+    root.open_dir_nofollow(run_id)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_root_containment"))
+}
+
+fn canonical_demo_artifact_root(
+    state: &DashboardServerState,
+    create: bool,
+) -> Result<PathBuf, ProductError> {
+    let workspace = mvp_workspace_root(&state.registry_path)?;
+    let canonical_workspace = canonical_path(&workspace, "workspace")?;
+    let artifacts = canonical_path(&workspace.join("artifacts"), "artifact_root")?;
+    if artifacts != canonical_workspace.join("artifacts") {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "artifact_root_containment",
+        ));
+    }
+    let candidate = workspace.join("artifacts/demo-runs");
+    if create && !candidate.exists() {
+        let root = open_absolute_directory_nofollow(&artifacts)?;
+        match root.create_dir("demo-runs") {
+            Ok(()) => {}
+            Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
+            Err(_) => {
+                return Err(product_error(
+                    ProductErrorKind::SourceUnavailable,
+                    "demo_root",
+                ));
+            }
+        }
+    }
+    if !candidate.exists() {
+        return Ok(candidate);
+    }
+    let root = canonical_path(&candidate, "demo_root")?;
+    if root != canonical_workspace.join("artifacts/demo-runs") {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_root_containment",
+        ));
+    }
+    Ok(root)
 }
 
 fn load_dynamic_run_configs(
@@ -3142,6 +4592,28 @@ fn validate_and_project_run(
     if (config.lifecycle == RunLifecycle::Failed) != error.is_some() {
         return Err(product_error(ProductErrorKind::SourceInvalid, "run_error"));
     }
+    let runtime = match (
+        config.demo_supervisor_node_id.as_deref(),
+        config.demo_strategy_instance_id.as_deref(),
+        config.demo_process_state,
+        config.demo_lifecycle_state,
+    ) {
+        (Some(node_id), Some(instance_id), Some(process_state), Some(lifecycle_state)) => {
+            Some(ProductRunRuntime {
+                supervisor_node_id: node_id.to_string(),
+                strategy_instance_id: instance_id.to_string(),
+                process_state,
+                lifecycle_state,
+            })
+        }
+        (None, None, None, None) => None,
+        _ => {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "run_runtime",
+            ));
+        }
+    };
     Ok(ProductRun {
         run_id: config.run_id.clone(),
         strategy_id: config.strategy_id,
@@ -3202,6 +4674,7 @@ fn validate_and_project_run(
             ),
         },
         capabilities,
+        runtime,
     })
 }
 
@@ -3328,10 +4801,18 @@ fn validate_run_references(
     let is_dynamic_backtest = config.environment == RunEnvironment::Backtest
         && config.config_ref == dynamic_config_ref
         && config.risk_ref == dynamic_risk_ref;
+    let dynamic_demo_config_ref = format!("artifact://demo-runs/{}/request.json", config.run_id);
+    let dynamic_demo_risk_ref = format!(
+        "artifact://demo-runs/{}/run-manifest.json#risk",
+        config.run_id
+    );
+    let is_dynamic_demo = config.environment == RunEnvironment::Sandbox
+        && config.config_ref == dynamic_demo_config_ref
+        && config.risk_ref == dynamic_demo_risk_ref;
     let is_static_config = config.config_ref
         == format!("node-config:{}#product_runs", source.config_name)
         && config.risk_ref == format!("node-config:{}#risk", source.config_name);
-    if !is_dynamic_backtest && !is_static_config {
+    if !is_dynamic_backtest && !is_dynamic_demo && !is_static_config {
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
             "run_config_reference",
@@ -3368,7 +4849,27 @@ fn validate_run_references(
                     .any(|venue| config.venue_ref == format!("venue://simulated/{venue}"))
         }
         RunEnvironment::Sandbox => {
-            config.run_id == source.identity.identities.strategy_instance_id
+            let identity_valid = if is_dynamic_demo {
+                config.demo_supervisor_node_id.as_deref()
+                    == Some(source.identity.identities.node_id.as_str())
+                    && config.demo_strategy_instance_id.as_deref()
+                        == Some(source.identity.identities.strategy_instance_id.as_str())
+                    && config.demo_identity_contract_id.as_deref()
+                        == Some(source.identity.contract_id.as_str())
+                    && config.demo_supervisor_record_baseline_unix_ms.is_some()
+                    && config.strategy_version_snapshot_sha256.is_some()
+                    && config.demo_process_state.is_some()
+                    && config.demo_lifecycle_state.is_some()
+            } else {
+                config.run_id == source.identity.identities.strategy_instance_id
+                    && config.demo_supervisor_node_id.is_none()
+                    && config.demo_strategy_instance_id.is_none()
+                    && config.demo_identity_contract_id.is_none()
+                    && config.demo_supervisor_record_baseline_unix_ms.is_none()
+                    && config.demo_process_state.is_none()
+                    && config.demo_lifecycle_state.is_none()
+            };
+            identity_valid
                 && config.account_ref
                     == format!(
                         "account://sandbox/{}",
@@ -3383,7 +4884,13 @@ fn validate_run_references(
                 && config.adapter_ref == "adapter://sandbox/fixture-stream"
         }
         RunEnvironment::Live => {
-            config.data_ref == "market://live/disabled"
+            config.demo_supervisor_node_id.is_none()
+                && config.demo_strategy_instance_id.is_none()
+                && config.demo_identity_contract_id.is_none()
+                && config.demo_supervisor_record_baseline_unix_ms.is_none()
+                && config.demo_process_state.is_none()
+                && config.demo_lifecycle_state.is_none()
+                && config.data_ref == "market://live/disabled"
                 && config.adapter_ref == "adapter://live/disabled"
                 && config.account_ref == "account://live/unconfigured"
                 && config.venue_ref == "venue://live/unconfigured/disabled"
@@ -3444,7 +4951,7 @@ fn validate_run_lifecycle(
                 && config.result_status == RunResultStatus::Pending
                 && config.result_ref.is_none()
         }
-        RunLifecycle::Running | RunLifecycle::Stopping => {
+        RunLifecycle::Running | RunLifecycle::Stopping | RunLifecycle::Paused => {
             config.started_at_unix_ms.is_some()
                 && config.completed_at_unix_ms.is_none()
                 && config.result_status == RunResultStatus::Pending
@@ -3487,7 +4994,9 @@ fn validate_run_lifecycle(
     }
     let expected_risk_status = match config.lifecycle {
         RunLifecycle::Created | RunLifecycle::Queued => RunRiskStatus::Pending,
-        RunLifecycle::Running | RunLifecycle::Stopping => RunRiskStatus::Active,
+        RunLifecycle::Running | RunLifecycle::Stopping | RunLifecycle::Paused => {
+            RunRiskStatus::Active
+        }
         RunLifecycle::Completed => RunRiskStatus::Passed,
         RunLifecycle::Failed | RunLifecycle::Cancelled | RunLifecycle::Stopped => {
             RunRiskStatus::Blocked
@@ -3517,6 +5026,18 @@ fn validate_run_capabilities(value: &ProductRunCapabilities) -> Result<(), Produ
         ));
     }
     Ok(())
+}
+
+fn validate_run_config_capabilities(config: &ProductRunConfig) -> Result<(), ProductError> {
+    validate_run_capabilities(&ProductRunCapabilities {
+        external_venue_connection: config.external_venue_connection,
+        order_submission_allowed: config.order_submission_allowed,
+        order_mutation_allowed: config.order_mutation_allowed,
+        automatic_retry_allowed: config.automatic_retry_allowed,
+        automatic_remediation_allowed: config.automatic_remediation_allowed,
+        real_orders_submitted: config.real_orders_submitted,
+        trading_controls_enabled: config.trading_controls_enabled,
+    })
 }
 
 pub(super) fn project_run_list(
@@ -3649,6 +5170,7 @@ pub(super) fn parse_run_list_query(raw: Option<&str>) -> Result<RunListQuery, Pr
         Some("failed") => Some(RunLifecycle::Failed),
         Some("cancelled") => Some(RunLifecycle::Cancelled),
         Some("stopped") => Some(RunLifecycle::Stopped),
+        Some("paused") => Some(RunLifecycle::Paused),
         Some(_) => return Err(product_error(ProductErrorKind::BadRequest, "lifecycle")),
     };
     Ok(RunListQuery {

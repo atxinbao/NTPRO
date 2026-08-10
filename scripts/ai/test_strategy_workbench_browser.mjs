@@ -81,7 +81,11 @@ server.stdout.on("data", (chunk) => serverLog.push(chunk.toString()));
 server.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
 
 let browser;
+let page;
 let failure;
+const productResponseErrors = [];
+let failurePageUrl;
+let failurePageText;
 const writeEvidence = (result) => {
   fs.writeFileSync(
     path.join(evidenceDir, "mvp-server.log"),
@@ -617,7 +621,7 @@ try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
   });
-  const page = await context.newPage();
+  page = await context.newPage();
   const browserErrors = [];
   const productionAssets = new Set();
   let expectedHttpErrorResponses = 0;
@@ -629,6 +633,9 @@ try {
     const url = new URL(response.url());
     if (url.pathname.startsWith("/strategy-workbench/assets/")) {
       productionAssets.add(url.pathname);
+    }
+    if (url.pathname.startsWith("/api/product/") && response.status() >= 400) {
+      productResponseErrors.push(`${response.status()} ${url.pathname}`);
     }
   });
   let scenario = "valid";
@@ -743,6 +750,31 @@ try {
     fullPage: true,
   });
 
+  await page.getByRole("link", { name: "Demo", exact: true }).click();
+  await page.getByRole("heading", { name: "Sandbox 策略运行" }).waitFor();
+  await page
+    .getByRole("checkbox", { name: /我确认创建 Demo Run/ })
+    .check();
+  await page.getByRole("button", { name: "创建 Demo Run" }).click();
+  await page.waitForURL(/\/strategy-workbench\/runs\/demo-/);
+  const browserDemoRunId = page.url().split("/").at(-1);
+  if (!browserDemoRunId?.startsWith("demo-")) {
+    throw new Error(`browser-created Demo Run ID drifted: ${page.url()}`);
+  }
+  const demoLifecycle = page.getByRole("region", { name: "Demo 生命周期" });
+  const demoRunState = demoLifecycle.getByText("运行状态", {
+    exact: true,
+  }).locator("..");
+  await demoLifecycle.waitFor();
+  await page.getByRole("button", { name: "启动" }).click();
+  await demoRunState.getByText("running", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "停止" }).click();
+  await demoRunState.getByText("stopped", { exact: true }).waitFor();
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-demo-stopped-1440.png"),
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "返回策略总览" }).click();
   await page.getByRole("link", { name: "Backtest", exact: true }).click();
   await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
   await page.screenshot({
@@ -762,9 +794,11 @@ try {
     fullPage: true,
   });
   await page.getByRole("link", { name: "返回策略总览" }).click();
-  await page.getByText("产品资源已验证").waitFor();
-
-  await page.getByRole("link", { name: new RegExp(backtestRunId) }).click();
+  const baselineBacktestLink = page.getByRole("link", {
+    name: new RegExp(backtestRunId),
+  });
+  await baselineBacktestLink.waitFor();
+  await baselineBacktestLink.click();
   await page.getByRole("heading", { name: backtestRunId }).waitFor();
   await page.getByText("真实引擎回测结果").waitFor();
   await page.getByRole("region", { name: "Backtest 指标" }).waitFor();
@@ -776,9 +810,11 @@ try {
     fullPage: true,
   });
   await page.getByRole("link", { name: "返回策略总览" }).click();
-  await page.getByText("产品资源已验证").waitFor();
-
-  await page.getByRole("link", { name: new RegExp(liveRun.run_id) }).click();
+  const liveRunLink = page.getByRole("link", {
+    name: new RegExp(liveRun.run_id),
+  });
+  await liveRunLink.waitFor();
+  await liveRunLink.click();
   await page.getByRole("heading", { name: liveRun.run_id }).waitFor();
   if (!page.url().endsWith(`/strategy-workbench/runs/${liveRun.run_id}`)) {
     throw new Error(`Run deep link drifted: ${page.url()}`);
@@ -917,6 +953,13 @@ try {
   }
 } catch (error) {
   failure = error instanceof Error ? error : new Error(String(error));
+  if (page) {
+    failurePageUrl = page.url();
+    failurePageText = await page.locator("body").innerText().catch(() => undefined);
+    await page
+      .screenshot({ path: path.join(evidenceDir, "failure.png"), fullPage: true })
+      .catch(() => {});
+  }
 } finally {
   if (browser) await browser.close().catch(() => {});
   if (server.exitCode === null) server.kill("SIGINT");
@@ -934,7 +977,13 @@ try {
 }
 
 if (failure) {
-  writeEvidence({ status: "fail", error: redact(failure.message) });
+  writeEvidence({
+    status: "fail",
+    error: redact(failure.message),
+    page_url: failurePageUrl,
+    page_text: failurePageText ? redact(failurePageText) : undefined,
+    product_response_errors: productResponseErrors,
+  });
   throw failure;
 }
 writeEvidence({

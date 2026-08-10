@@ -6,7 +6,7 @@ import { validStatusPayload } from "../test/fixtures";
 describe("parseMvpStatus", () => {
   it("normalizes a valid sandbox status", () => {
     const result = parseMvpStatus(validStatusPayload);
-    expect(result.strategyId).toBe("btc-ema");
+    expect(result.strategyId).toBe("ema-cross");
     expect(result.environment).toBe("sandbox");
     expect(result.axes.tradingReadiness.status).toBe("blocked");
   });

@@ -1,5 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import { ArrowLeft, LockKeyhole, Play, Square } from "lucide-react";
+import { useState } from "react";
 
 import type {
   BacktestAnalysis,
@@ -16,13 +17,18 @@ import {
   resultLabels,
   riskLabels,
 } from "../features/product/presentation";
-import { useRunProductContext } from "../features/product/useProductResources";
+import {
+  useDemoRunAction,
+  useRunProductContext,
+} from "../features/product/useProductResources";
 import { ProductErrorState, ProductLoading } from "./ProductState";
 import styles from "./Pages.module.css";
 
 export function RunDetailPage() {
   const { runId } = useParams({ from: "/runs/$runId" });
   const product = useRunProductContext(runId);
+  const demoAction = useDemoRunAction();
+  const [actionError, setActionError] = useState<string>();
 
   if (product.error) return <ProductErrorState error={product.error} />;
   if (product.isVerifying || !product.isReady || !product.run) {
@@ -52,7 +58,12 @@ export function RunDetailPage() {
           </p>
         </div>
         <span className={styles.readOnlyBadge}>
-          <LockKeyhole aria-hidden="true" /> 只读详情
+          {detail.environment === "sandbox" ? (
+            <Play aria-hidden="true" />
+          ) : (
+            <LockKeyhole aria-hidden="true" />
+          )}
+          {detail.environment === "sandbox" ? "Sandbox 生命周期" : "只读详情"}
         </span>
       </header>
 
@@ -78,6 +89,69 @@ export function RunDetailPage() {
           {detail.source.freshness_status === "fresh" ? "来源新鲜" : "来源阻断"}
         </em>
       </section>
+
+      {detail.environment === "sandbox" && detail.runtime ? (
+        <section className={styles.panel} aria-label="Demo 生命周期">
+          <header>
+            <div>
+              <span className="eyebrow">Supervisor</span>
+              <h2>Demo 节点生命周期</h2>
+            </div>
+            <span>{detail.runtime.supervisor_node_id}</span>
+          </header>
+          <div className={styles.versionSummary}>
+            <KeyValue label="节点进程" value={detail.runtime.process_state} />
+            <KeyValue label="运行状态" value={detail.runtime.lifecycle_state} />
+            <KeyValue
+              label="策略实例"
+              value={detail.runtime.strategy_instance_id}
+              mono
+            />
+            <KeyValue
+              label="策略版本"
+              value={detail.strategy_version_id}
+              mono
+            />
+          </div>
+          {actionError ? (
+            <div className={styles.formError} role="alert">
+              {actionError}
+            </div>
+          ) : null}
+          <div className={styles.runActions}>
+            <span>每次动作都由用户显式触发，客户端不会自动重试。</span>
+            <button
+              type="button"
+              disabled={demoAction.isPending || detail.lifecycle !== "created"}
+              onClick={() => {
+                setActionError(undefined);
+                demoAction.mutate(
+                  { runId: detail.run_id, action: "start" },
+                  { onError: (error) => setActionError(error.message) },
+                );
+              }}
+            >
+              <Play aria-hidden="true" /> 启动
+            </button>
+            <button
+              type="button"
+              disabled={
+                demoAction.isPending ||
+                !["running", "paused"].includes(detail.lifecycle)
+              }
+              onClick={() => {
+                setActionError(undefined);
+                demoAction.mutate(
+                  { runId: detail.run_id, action: "stop" },
+                  { onError: (error) => setActionError(error.message) },
+                );
+              }}
+            >
+              <Square aria-hidden="true" /> 停止
+            </button>
+          </div>
+        </section>
+      ) : null}
 
       <section className={styles.metricGrid} aria-label="Run 摘要">
         <Metric

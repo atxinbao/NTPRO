@@ -38,7 +38,12 @@ interface AppShellProps {
 interface NavigationItem {
   label: string;
   icon: LucideIcon;
-  to?: "/overview" | "/backtests" | "/backtests/compare" | "/system-status";
+  to?:
+    | "/overview"
+    | "/backtests"
+    | "/backtests/compare"
+    | "/demo"
+    | "/system-status";
   disabledReason?: string;
 }
 
@@ -51,7 +56,7 @@ const navigation: NavigationItem[] = [
   },
   { label: "Backtest", icon: FlaskConical, to: "/backtests" },
   { label: "运行对比", icon: GitCompareArrows, to: "/backtests/compare" },
-  { label: "Demo", icon: Radio, disabledReason: "等待 S2 产品化" },
+  { label: "Demo", icon: Radio, to: "/demo" },
   { label: "Live", icon: Activity, disabledReason: "等待 S3 独立准入" },
   { label: "运行", icon: ListTree, disabledReason: "从策略总览进入 Run 详情" },
   { label: "数据", icon: Database, disabledReason: "等待数据产品合同" },

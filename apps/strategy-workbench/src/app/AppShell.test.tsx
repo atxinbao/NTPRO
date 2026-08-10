@@ -13,8 +13,14 @@ import runMetricsFixture from "../test/product-api-fixtures/run-metrics.json";
 import runReportFixture from "../test/product-api-fixtures/run-report.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
-import { createdBacktestResponse, server } from "../test/server";
+import {
+  createdBacktestResponse,
+  createdDemoResponse,
+  demoActionResponse,
+  server,
+} from "../test/server";
 import { createAppRouter } from "./router";
+import type { Run } from "../api/generated/productApi";
 
 function renderWorkbench(path: string) {
   window.history.replaceState({}, "", `/strategy-workbench${path}`);
@@ -31,6 +37,128 @@ function renderWorkbench(path: string) {
 }
 
 describe("strategy workbench product slice", () => {
+  it("creates and explicitly starts a Demo Run from the workbench", async () => {
+    let created = false;
+    let currentDemo: Run = structuredClone(createdDemoResponse.data);
+    let createBody: unknown;
+    let actionBody: unknown;
+    let actionPosts = 0;
+    const demoList = () => {
+      const data: Run[] = runListFixture.data.filter(
+        (run) => run.environment !== "sandbox",
+      ) as Run[];
+      if (created) data.push(currentDemo);
+      return {
+        ...structuredClone(runListFixture),
+        data,
+        page: {
+          ...structuredClone(runListFixture.page),
+          returned_count: data.length,
+        },
+      };
+    };
+    server.use(
+      http.get("/api/product/v1/runs", () => HttpResponse.json(demoList())),
+      http.post("/api/product/v1/demo-runs", async ({ request }) => {
+        createBody = await request.json();
+        created = true;
+        return HttpResponse.json(createdDemoResponse, { status: 201 });
+      }),
+      http.get("/api/product/v1/runs/:runId", () =>
+        HttpResponse.json({
+          ...runDetailFixture,
+          data: currentDemo,
+        }),
+      ),
+      http.post(
+        "/api/product/v1/demo-runs/:runId/actions",
+        async ({ request }) => {
+          actionPosts += 1;
+          actionBody = await request.json();
+          const response = demoActionResponse("start");
+          currentDemo = structuredClone(response.data.current_run);
+          return HttpResponse.json(response);
+        },
+      ),
+    );
+
+    renderWorkbench("/demo");
+    expect(
+      await screen.findByRole("heading", { name: "Sandbox 策略运行" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("checkbox", {
+        name: /我确认创建 Demo Run/,
+      }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "创建 Demo Run" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "demo-created-001" }),
+    ).toBeInTheDocument();
+    expect(createBody).toEqual({
+      strategy_id: "ema-cross",
+      strategy_version_id: "ema-cross@v1",
+      environment: "sandbox",
+      supervisor_node_id: "mvp-node-001",
+      account_ref: "account://sandbox/acct-sandbox-001",
+      venue_ref: "venue://sandbox/BINANCE",
+      user_confirmed: true,
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "启动" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", { name: "Demo 生命周期" }),
+      ).toHaveTextContent("running"),
+    );
+    expect(actionPosts).toBe(1);
+    expect(actionBody).toEqual({
+      run_id: "demo-created-001",
+      action: "start",
+      user_confirmed: true,
+    });
+  });
+
+  it("does not retry a failed Demo mutation", async () => {
+    let createPosts = 0;
+    const data = structuredClone(runListFixture.data).map((run) =>
+      run.environment === "sandbox"
+        ? { ...run, lifecycle: "stopped" as const }
+        : run,
+    );
+    server.use(
+      http.get("/api/product/v1/runs", () =>
+        HttpResponse.json({
+          ...structuredClone(runListFixture),
+          data,
+          page: {
+            ...structuredClone(runListFixture.page),
+            returned_count: data.length,
+          },
+        }),
+      ),
+      http.post("/api/product/v1/demo-runs", () => {
+        createPosts += 1;
+        return HttpResponse.json(errorFixture, { status: 500 });
+      }),
+    );
+
+    renderWorkbench("/demo");
+    await screen.findByRole("heading", { name: "Sandbox 策略运行" });
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: /我确认创建 Demo Run/ }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "创建 Demo Run" }),
+    );
+    await screen.findByRole("alert");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(createPosts).toBe(1);
+  });
+
   it("creates a Backtest Run from the product page and opens its detail", async () => {
     let submittedBody: unknown;
     server.use(

@@ -83,7 +83,8 @@ export type RunLifecycle =
   | "completed"
   | "failed"
   | "cancelled"
-  | "stopped";
+  | "stopped"
+  | "paused";
 
 export type RunResultStatus = "pending" | "available" | "unavailable";
 
@@ -123,6 +124,27 @@ export type RunCapabilities = {
   trading_controls_enabled: false;
 };
 
+export type SupervisorProcessState =
+  "not_started" | "running" | "stopped" | "stale" | "unknown";
+
+export type RuntimeLifecycleState =
+  | "stopped"
+  | "starting"
+  | "running"
+  | "pausing"
+  | "paused"
+  | "resuming"
+  | "stopping"
+  | "error"
+  | "unknown";
+
+export type ProductRunRuntime = {
+  supervisor_node_id: RunId;
+  strategy_instance_id: RunId;
+  process_state: SupervisorProcessState;
+  lifecycle_state: RuntimeLifecycleState;
+};
+
 export type Run = {
   run_id: RunId;
   strategy_id: StrategyId;
@@ -143,6 +165,7 @@ export type Run = {
   updated_at_unix_ms: number;
   source: RunSource;
   capabilities: RunCapabilities;
+  runtime: ProductRunRuntime | null;
 };
 
 export type CreateBacktestRunRequest = {
@@ -182,6 +205,61 @@ export type RunCreateResponse = {
   request_id: RequestId;
   data: Run;
   boundaries: BacktestRunCreationBoundaries;
+};
+
+export type CreateDemoRunRequest = {
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  environment: "sandbox";
+  supervisor_node_id: RunId;
+  account_ref: string;
+  venue_ref: string;
+  user_confirmed: true;
+};
+
+export type DemoRunAction = "start" | "stop";
+
+export type DemoRunActionRequest = {
+  run_id: RunId;
+  action: DemoRunAction;
+  user_confirmed: true;
+};
+
+export type DemoRunBoundaries = {
+  demo_run_creation_allowed: true;
+  demo_start_allowed: true;
+  demo_stop_allowed: true;
+  live_run_creation_allowed: false;
+  external_venue_connection: false;
+  order_submission_allowed: false;
+  order_mutation_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
+export type DemoRunCreateResponse = {
+  schema_version: "ntpro.product_api.demo_run_create.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: Run;
+  boundaries: DemoRunBoundaries;
+};
+
+export type DemoRunActionResult = {
+  run_id: RunId;
+  action: DemoRunAction;
+  previous_lifecycle: RunLifecycle;
+  current_run: Run;
+};
+
+export type DemoRunActionResponse = {
+  schema_version: "ntpro.product_api.demo_run_action.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: DemoRunActionResult;
+  boundaries: DemoRunBoundaries;
 };
 
 export type BacktestParameters = {
@@ -545,6 +623,8 @@ export type ProductError = {
     | "product_method_not_allowed"
     | "backtest_run_conflict"
     | "backtest_execution_failed"
+    | "demo_run_conflict"
+    | "demo_execution_failed"
     | "strategy_not_found"
     | "strategy_version_not_found"
     | "run_not_found"
@@ -864,6 +944,104 @@ export type CreateBacktestRunResponses = {
 
 export type CreateBacktestRunResponse =
   CreateBacktestRunResponses[keyof CreateBacktestRunResponses];
+
+export type CreateDemoRunData = {
+  body: CreateDemoRunRequest;
+  path?: never;
+  query?: never;
+  url: "/demo-runs";
+};
+
+export type CreateDemoRunErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * Run 集合仅允许 GET 与 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type CreateDemoRunError = CreateDemoRunErrors[keyof CreateDemoRunErrors];
+
+export type CreateDemoRunResponses = {
+  /**
+   * Demo Run 已创建，等待用户显式启动
+   */
+  201: DemoRunCreateResponse;
+};
+
+export type CreateDemoRunResponse =
+  CreateDemoRunResponses[keyof CreateDemoRunResponses];
+
+export type ActOnDemoRunData = {
+  body: DemoRunActionRequest;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/demo-runs/{run_id}/actions";
+};
+
+export type ActOnDemoRunErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * Run 集合仅允许 GET 与 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type ActOnDemoRunError = ActOnDemoRunErrors[keyof ActOnDemoRunErrors];
+
+export type ActOnDemoRunResponses = {
+  /**
+   * Demo Run 生命周期动作已完成
+   */
+  200: DemoRunActionResponse;
+};
+
+export type ActOnDemoRunResponse =
+  ActOnDemoRunResponses[keyof ActOnDemoRunResponses];
 
 export type CompareBacktestRunsData = {
   body?: never;
