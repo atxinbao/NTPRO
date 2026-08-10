@@ -139,7 +139,7 @@
   "frozen_source_sha256": {
     "crates/cli/src/mvp.rs": "ae8ceea4ea4f4cdeb069c9846f0d468e0886e8f88a1c125044fdb51aa4c9b46f",
     "crates/cli/src/mvp_contract.rs": "9b36f82c83f49c0b416e6c1b758b7c327fe10144c0c98f24dcacfefa26629f99",
-    "crates/cli/src/supervisor.rs": "4f4fe6a4e3d4ba3610b5abb6b9122e34f51efc5d4f4110b857a8d9ade92a83cc",
+    "crates/cli/src/supervisor.rs": "93b87eaa1a4cd94000a70d07a122d2bb697b9e0884552d786e1aa9bc995195fb",
     "crates/cli/src/dashboard/server.rs": "7c44fe51e47ce8816c0b16e6546f22dbb12514fa23ca8b49a0df4dd794859702",
     "crates/cli/src/dashboard/mvp_status_api.rs": "4b641fe0d9b8410fef602b755c58ceab5e4d4ea53626b1a431548c726ee4f374",
     "crates/cli/src/dashboard/institution_workbench.rs": "eb78932657389976dc1c740a94afa21343e7f5ae3ae752f0e064741b76427cca",
@@ -147,7 +147,7 @@
     "configs/nodes/btc-ema-shadow.toml": "e90d67d88d67d115accdf986e1c4041774d8259394ceaf84d3f93ac115769d2c",
     "examples/rust/backtest/minimal_engine_smoke.toml": "deeb4ecbca128e7ff10241c9b0c2414828899ee79fd6054b1809a912f37c1062",
     "scripts/ai/test_mvp_acceptance.mjs": "3b535313fa66f985594210a984adf5eb5021a31f3af644d006d1389170a43908",
-    "scripts/ai/test_mvp_fault_matrix.mjs": "bce24b89fb813f1a7b4445fb76a3a02e628c0bd8a5521422dc53548beade350c",
+    "scripts/ai/test_mvp_fault_matrix.mjs": "a8c83b7396e005d07050222d4138024dafcadbc97b4870528146a9a0c119286f",
     "scripts/ai/test_institution_workbench_browser.mjs": "7cadce9046608adf2ca97cdbaea0f70c542166f9a0834eaf2f5e0f1dfac1fbc1",
     "scripts/ai/test_control_center_browser.mjs": "474ffb5ecb449973bc3b80eca19d672e11aba722158bfe7d1a58aff316179f7e"
   },

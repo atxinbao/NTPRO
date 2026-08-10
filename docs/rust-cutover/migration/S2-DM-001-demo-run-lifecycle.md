@@ -28,6 +28,11 @@ Executor: Codex
 不能再次启动；用户可以基于同一 StrategyVersion 创建新的 Demo Run。新 Run 复用 node 时不会
 改写旧 Run 的终态。
 
+node 自然停止后，下一次 Demo 创建会先锚定旧 Run 终态，再校验静态运行快照；硬杀产生的
+`stale` 状态继续 fail closed，必须先形成失败终态并由运维人工恢复，不会自动重试或补救。
+新 Run 取得 ownership 时会清空上一运行会话的启动/停止时间；即使上一 Run 在同一毫秒完成，
+新 Run 也保持 `created`，而同一 Run 已有启动证据的快速停止仍投影为 `stopped`。
+
 同一 workspace 重启不会恢复或自动启动旧 node。无运行工件的 NotStarted 准备态、已锚定的
 stopped/failed Run 及其只读策略来源可长期读取；运行中的过期来源、未锚定终态、边界漂移
 或产物篡改仍会 fail closed。

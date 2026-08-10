@@ -1297,6 +1297,8 @@ impl SupervisorRegistryStore {
         record
             .run_ownership
             .insert(ownership.run_id.clone(), ownership);
+        record.last_known_status.started_at = SnapshotValue::unknown();
+        record.last_known_status.stopped_at = SnapshotValue::unknown();
         record.updated_at = SnapshotValue::available(now_millis());
         let updated = record.clone();
         registry.updated_at = SnapshotValue::available(now_millis());

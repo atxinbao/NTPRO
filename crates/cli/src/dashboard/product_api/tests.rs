@@ -2400,6 +2400,78 @@ async fn demo_terminal_publication_is_idempotent_for_get_and_stop_races() {
     }
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_creation_finalizes_a_stopped_owner_before_freshness_validation() {
+    let fixture = Fixture::new("demo-create-after-external-stop");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let start = json!({
+        "run_id": run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let ownership = store.load().unwrap().nodes["mvp-node-001"].run_ownership[&run_id].clone();
+    let stopped = store
+        .stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: "mvp-node-001".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            },
+            &run_id,
+            &ownership.manifest_sha256,
+        )
+        .expect("owner-aware stop should leave terminal publication to the next product request");
+    assert_eq!(stopped.process.state, SupervisorProcessState::Stopped);
+    assert!(stopped.run_ownership[&run_id].terminal.is_none());
+
+    for path in [&stopped.status_path, &stopped.metrics_path] {
+        let mut artifact: Value =
+            serde_json::from_slice(&fs::read(path).expect("runtime artifact should be readable"))
+                .expect("runtime artifact should be valid JSON");
+        artifact["generated_at"]["value"] = json!("1");
+        write_json(path, &artifact);
+    }
+    let mut stale_contract = fixture.read_status_contract();
+    stale_contract.provenance.generated_at_unix_ms = 1;
+    fixture.write_status_contract(&stale_contract);
+
+    let (status, replacement) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{replacement}");
+    assert_ne!(
+        replacement["data"]["run_id"].as_str(),
+        Some(run_id.as_str())
+    );
+    let registry = store.load().expect("registry should remain readable");
+    assert_eq!(
+        registry.nodes["mvp-node-001"].run_ownership[&run_id]
+            .terminal
+            .as_ref()
+            .map(|terminal| terminal.lifecycle.as_str()),
+        Some("stopped")
+    );
+}
+
 #[tokio::test]
 async fn demo_runtime_exit_is_anchored_failed_and_missing_registry_time_fails_closed() {
     let fixture = Fixture::new("demo-runtime-exit");

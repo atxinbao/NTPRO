@@ -1011,6 +1011,7 @@ fn create_demo_run(
         .lock()
         .map_err(|_| product_error(ProductErrorKind::DemoConflict, "demo_action_lock"))?;
     let now = unix_time_ms();
+    finalize_demo_run_ownerships(state, now)?;
     let source = load_product_source(state, now)?;
     let version = strategy_version::load_product_strategy_version(&source, now)?;
     validate_demo_creation_request(&request, &source, &version)?;
@@ -4368,7 +4369,9 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Stopped, LifecycleStatus::Stopped) => {
-            if observed_stopped.is_none_or(|value| value <= config.created_at_unix_ms) {
+            if observed_started.is_none()
+                && observed_stopped.is_none_or(|value| value <= config.created_at_unix_ms)
+            {
                 config.lifecycle = RunLifecycle::Created;
                 config.started_at_unix_ms = None;
                 config.completed_at_unix_ms = None;

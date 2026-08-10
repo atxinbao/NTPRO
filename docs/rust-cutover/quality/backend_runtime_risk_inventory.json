@@ -35,26 +35,26 @@
     "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
     "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
     "summary": {
-      "total_matches": 29817,
+      "total_matches": 29823,
       "matched_files": 1224,
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
         "production": 2702,
-        "test": 15206,
+        "test": 15212,
         "test_inline": 10589
       },
       "by_signal": {
         "TODO": 163,
         "dead_code": 155,
-        "expect": 6237,
+        "expect": 6241,
         "panic": 1529,
         "todo_macro": 18,
         "unsafe": 1922,
         "unused": 96,
-        "unwrap": 19697
+        "unwrap": 19699
       },
-      "canonical_sha256": "bf68552d892ab08e89f6aa0c09d61ffb6e73a3b95ef29d63f78770adbc134416"
+      "canonical_sha256": "a08308951d78f78dba0e9149d0c2325b0122394408725577b62cad761c28efb0"
     },
     "limitations": [
       "Dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",
@@ -267,7 +267,7 @@
       "symbol": "explicit cfg(test) module range ownership",
       "risk": "whole-file ownership inflated production trends, while an over-broad textual downgrade could hide later production code",
       "decision": "structured_inline_module_classification",
-      "result": "10546 signals inside explicit cfg(test) module ranges are test_inline owned; 2702 remaining production signals and ambiguous cfg(test) items stay production-owned; a seven-case fixture verifies boundaries and precedence"
+      "result": "10589 signals inside explicit cfg(test) module ranges are test_inline owned; 2702 remaining production signals and ambiguous cfg(test) items stay production-owned; a seven-case fixture verifies boundaries and precedence"
     }
   ],
   "failure_matrix": [
