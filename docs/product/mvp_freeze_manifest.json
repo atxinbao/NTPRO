@@ -148,8 +148,8 @@
     "examples/rust/backtest/minimal_engine_smoke.toml": "deeb4ecbca128e7ff10241c9b0c2414828899ee79fd6054b1809a912f37c1062",
     "scripts/ai/test_mvp_acceptance.mjs": "3b535313fa66f985594210a984adf5eb5021a31f3af644d006d1389170a43908",
     "scripts/ai/test_mvp_fault_matrix.mjs": "a8c83b7396e005d07050222d4138024dafcadbc97b4870528146a9a0c119286f",
-    "scripts/ai/test_institution_workbench_browser.mjs": "7cadce9046608adf2ca97cdbaea0f70c542166f9a0834eaf2f5e0f1dfac1fbc1",
-    "scripts/ai/test_control_center_browser.mjs": "474ffb5ecb449973bc3b80eca19d672e11aba722158bfe7d1a58aff316179f7e"
+    "scripts/ai/test_institution_workbench_browser.mjs": "b202763332dea143f9b5fe6fa3eaf562fc029dd3fe2c78e3e8f3123726b2073e",
+    "scripts/ai/test_control_center_browser.mjs": "0709087b969910382c53d37b8526f8d16bf570f234d26d105af4c4fb5aee99fd"
   },
   "post_freeze_change_policy": {
     "separate_issue_required": true,
