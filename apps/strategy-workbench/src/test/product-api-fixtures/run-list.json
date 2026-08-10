@@ -57,6 +57,7 @@
       "strategy_id": "ema-cross",
       "strategy_version_id": "ema-cross@v1",
       "updated_at_unix_ms": 1767225660000,
+      "runtime": null,
       "venue_ref": "venue://simulated/BINANCE"
     },
     {
@@ -103,60 +104,15 @@
       "strategy_id": "ema-cross",
       "strategy_version_id": "ema-cross@v1",
       "updated_at_unix_ms": 1785542400000,
+      "runtime": null,
       "venue_ref": "venue://live/unconfigured/disabled"
-    },
-    {
-      "account_ref": "account://sandbox/acct-sandbox-001",
-      "adapter_ref": "adapter://sandbox/fixture-stream",
-      "capabilities": {
-        "automatic_remediation_allowed": false,
-        "automatic_retry_allowed": false,
-        "external_venue_connection": false,
-        "order_mutation_allowed": false,
-        "order_submission_allowed": false,
-        "real_orders_submitted": false,
-        "trading_controls_enabled": false
-      },
-      "completed_at_unix_ms": null,
-      "config_ref": "node-config:node.toml#product_runs",
-      "created_at_unix_ms": 1785542400000,
-      "data_ref": "market://sandbox/BTCUSDT.BINANCE",
-      "environment": "sandbox",
-      "error": null,
-      "lifecycle": "running",
-      "result": {
-        "analysis_ref": null,
-        "report_ref": null,
-        "reproduction_ref": null,
-        "result_ref": null,
-        "status": "pending"
-      },
-      "risk": {
-        "risk_ref": "node-config:node.toml#risk",
-        "status": "active"
-      },
-      "run_id": "mvp-strategy-001",
-      "source": {
-        "freshness_status": "fresh",
-        "source_refs": [
-          "mvp/identity_contract.json",
-          "mvp/status_contract.json",
-          "node-config:node.toml#product_runs:mvp-strategy-001"
-        ],
-        "source_type": "run_manifest"
-      },
-      "started_at_unix_ms": 1785542400000,
-      "strategy_id": "ema-cross",
-      "strategy_version_id": "ema-cross@v1",
-      "updated_at_unix_ms": 1785542400000,
-      "venue_ref": "venue://sandbox/BINANCE"
     }
   ],
   "page": {
     "has_more": false,
     "limit": 20,
     "next_cursor": null,
-    "returned_count": 3
+    "returned_count": 2
   },
   "request_id": "product-0000000000000000-0000000000000000",
   "schema_version": "ntpro.product_api.run_list.response.v1"

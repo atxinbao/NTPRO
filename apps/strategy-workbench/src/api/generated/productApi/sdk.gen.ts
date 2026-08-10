@@ -9,12 +9,18 @@ import type {
 } from "./client";
 import { client } from "./client.gen";
 import type {
+  ActOnDemoRunData,
+  ActOnDemoRunErrors,
+  ActOnDemoRunResponses,
   CompareBacktestRunsData,
   CompareBacktestRunsErrors,
   CompareBacktestRunsResponses,
   CreateBacktestRunData,
   CreateBacktestRunErrors,
   CreateBacktestRunResponses,
+  CreateDemoRunData,
+  CreateDemoRunErrors,
+  CreateDemoRunResponses,
   GetRunAnalysisData,
   GetRunAnalysisErrors,
   GetRunAnalysisResponses,
@@ -234,6 +240,58 @@ export const createBacktestRun = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/runs",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 基于当前策略版本创建 Demo Run
+ */
+export const createDemoRun = <ThrowOnError extends boolean = false>(
+  options: Options<CreateDemoRunData, ThrowOnError>,
+): RequestResult<CreateDemoRunResponses, CreateDemoRunErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateDemoRunResponses,
+    CreateDemoRunErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/demo-runs",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 显式启动或停止 Demo Run
+ */
+export const actOnDemoRun = <ThrowOnError extends boolean = false>(
+  options: Options<ActOnDemoRunData, ThrowOnError>,
+): RequestResult<ActOnDemoRunResponses, ActOnDemoRunErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    ActOnDemoRunResponses,
+    ActOnDemoRunErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/demo-runs/{run_id}/actions",
     ...options,
     headers: {
       "Content-Type": "application/json",

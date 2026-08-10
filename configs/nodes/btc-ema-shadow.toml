@@ -91,31 +91,6 @@ real_orders_submitted = false
 trading_controls_enabled = false
 
 [[product_runs]]
-run_id = "btc-ema-shadow-001"
-strategy_id = "ema_cross_btcusdt_v1"
-strategy_version_id = "ema_cross_btcusdt_v1@v1"
-environment = "sandbox"
-data_ref = "market://sandbox/BTCUSDT.BINANCE"
-config_ref = "node-config:btc-ema-shadow.toml#product_runs"
-adapter_ref = "adapter://sandbox/fixture-stream"
-account_ref = "account://sandbox/SANDBOX-001"
-venue_ref = "venue://sandbox/BINANCE_TESTNET"
-lifecycle = "running"
-result_status = "pending"
-risk_status = "active"
-risk_ref = "node-config:btc-ema-shadow.toml#risk"
-created_at_unix_ms = 1785542400000
-started_at_unix_ms = 1785542400000
-updated_at_unix_ms = 1785542400000
-external_venue_connection = false
-order_submission_allowed = false
-order_mutation_allowed = false
-automatic_retry_allowed = false
-automatic_remediation_allowed = false
-real_orders_submitted = false
-trading_controls_enabled = false
-
-[[product_runs]]
 run_id = "ema-cross-btcusdt-live-v1"
 strategy_id = "ema_cross_btcusdt_v1"
 strategy_version_id = "ema_cross_btcusdt_v1@v1"

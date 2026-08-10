@@ -405,6 +405,77 @@
         }
       }
     },
+    "/demo-runs": {
+      "post": {
+        "operationId": "createDemoRun",
+        "summary": "基于当前策略版本创建 Demo Run",
+        "security": [{ "InstitutionCookie": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateDemoRunRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Demo Run 已创建，等待用户显式启动",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DemoRunCreateResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductRunMethodNotAllowed" },
+          "409": { "$ref": "#/components/responses/ProductError" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/demo-runs/{run_id}/actions": {
+      "post": {
+        "operationId": "actOnDemoRun",
+        "summary": "显式启动或停止 Demo Run",
+        "security": [{ "InstitutionCookie": [] }],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DemoRunActionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Demo Run 生命周期动作已完成",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DemoRunActionResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductRunMethodNotAllowed" },
+          "409": { "$ref": "#/components/responses/ProductError" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
     "/run-comparisons": {
       "get": {
         "operationId": "compareBacktestRuns",
@@ -979,7 +1050,7 @@
       },
       "RunLifecycle": {
         "type": "string",
-        "enum": ["created", "queued", "running", "stopping", "completed", "failed", "cancelled", "stopped"]
+        "enum": ["created", "queued", "running", "stopping", "completed", "failed", "cancelled", "stopped", "paused"]
       },
       "RunResultStatus": {
         "type": "string",
@@ -1071,6 +1142,30 @@
           "trading_controls_enabled": { "const": false }
         }
       },
+      "SupervisorProcessState": {
+        "type": "string",
+        "enum": ["not_started", "running", "stopped", "stale", "unknown"]
+      },
+      "RuntimeLifecycleState": {
+        "type": "string",
+        "enum": ["stopped", "starting", "running", "pausing", "paused", "resuming", "stopping", "error", "unknown"]
+      },
+      "ProductRunRuntime": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "supervisor_node_id",
+          "strategy_instance_id",
+          "process_state",
+          "lifecycle_state"
+        ],
+        "properties": {
+          "supervisor_node_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_instance_id": { "$ref": "#/components/schemas/RunId" },
+          "process_state": { "$ref": "#/components/schemas/SupervisorProcessState" },
+          "lifecycle_state": { "$ref": "#/components/schemas/RuntimeLifecycleState" }
+        }
+      },
       "Run": {
         "type": "object",
         "additionalProperties": false,
@@ -1093,7 +1188,8 @@
           "completed_at_unix_ms",
           "updated_at_unix_ms",
           "source",
-          "capabilities"
+          "capabilities",
+          "runtime"
         ],
         "properties": {
           "run_id": { "$ref": "#/components/schemas/RunId" },
@@ -1119,7 +1215,13 @@
           "completed_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 },
           "updated_at_unix_ms": { "type": "integer", "minimum": 1 },
           "source": { "$ref": "#/components/schemas/RunSource" },
-          "capabilities": { "$ref": "#/components/schemas/RunCapabilities" }
+          "capabilities": { "$ref": "#/components/schemas/RunCapabilities" },
+          "runtime": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/ProductRunRuntime" },
+              { "type": "null" }
+            ]
+          }
         }
       },
       "CreateBacktestRunRequest": {
@@ -1206,6 +1308,107 @@
           "request_id": { "$ref": "#/components/schemas/RequestId" },
           "data": { "$ref": "#/components/schemas/Run" },
           "boundaries": { "$ref": "#/components/schemas/BacktestRunCreationBoundaries" }
+        }
+      },
+      "CreateDemoRunRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "strategy_id",
+          "strategy_version_id",
+          "environment",
+          "supervisor_node_id",
+          "account_ref",
+          "venue_ref",
+          "user_confirmed"
+        ],
+        "properties": {
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "environment": { "type": "string", "const": "sandbox" },
+          "supervisor_node_id": { "$ref": "#/components/schemas/RunId" },
+          "account_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "venue_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "user_confirmed": { "const": true }
+        }
+      },
+      "DemoRunAction": {
+        "type": "string",
+        "enum": ["start", "stop"]
+      },
+      "DemoRunActionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "action", "user_confirmed"],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "action": { "$ref": "#/components/schemas/DemoRunAction" },
+          "user_confirmed": { "const": true }
+        }
+      },
+      "DemoRunBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "demo_run_creation_allowed",
+          "demo_start_allowed",
+          "demo_stop_allowed",
+          "live_run_creation_allowed",
+          "external_venue_connection",
+          "order_submission_allowed",
+          "order_mutation_allowed",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed",
+          "real_orders_submitted",
+          "trading_controls_enabled"
+        ],
+        "properties": {
+          "demo_run_creation_allowed": { "const": true },
+          "demo_start_allowed": { "const": true },
+          "demo_stop_allowed": { "const": true },
+          "live_run_creation_allowed": { "const": false },
+          "external_venue_connection": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "order_mutation_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
+        }
+      },
+      "DemoRunCreateResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.demo_run_create.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/Run" },
+          "boundaries": { "$ref": "#/components/schemas/DemoRunBoundaries" }
+        }
+      },
+      "DemoRunActionResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "action", "previous_lifecycle", "current_run"],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "action": { "$ref": "#/components/schemas/DemoRunAction" },
+          "previous_lifecycle": { "$ref": "#/components/schemas/RunLifecycle" },
+          "current_run": { "$ref": "#/components/schemas/Run" }
+        }
+      },
+      "DemoRunActionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.demo_run_action.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/DemoRunActionResult" },
+          "boundaries": { "$ref": "#/components/schemas/DemoRunBoundaries" }
         }
       },
       "BacktestParameters": {
@@ -2026,6 +2229,8 @@
               "product_method_not_allowed",
               "backtest_run_conflict",
               "backtest_execution_failed",
+              "demo_run_conflict",
+              "demo_execution_failed",
               "strategy_not_found",
               "strategy_version_not_found",
               "run_not_found",

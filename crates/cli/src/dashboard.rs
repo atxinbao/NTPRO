@@ -60,6 +60,8 @@ mod rendering;
 mod server;
 mod trader_terminal_api;
 
+pub(crate) use product_api::shutdown_active_demo_run;
+
 use control_center::{
     CONTROL_CENTER_CSS, CONTROL_CENTER_HTML, CONTROL_CENTER_JS,
     ControlCenterLifecycleActionEnvelope, ControlCenterOperationalSnapshot,
@@ -71,7 +73,7 @@ use institution_workbench::{
 };
 use rendering::{DASHBOARD_CSS, DASHBOARD_HTML, DASHBOARD_JS};
 #[cfg(test)]
-use server::dashboard_router;
+pub(crate) use server::dashboard_router;
 pub(crate) use server::{run_dashboard_command, validate_strategy_workbench_dist};
 
 pub const DASHBOARD_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.dashboard_snapshot.v1";

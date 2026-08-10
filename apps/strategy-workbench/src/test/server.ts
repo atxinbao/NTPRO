@@ -1,6 +1,8 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
+import type { Run } from "../api/generated/productApi";
+
 import { validStatusPayload } from "./fixtures";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
 import runAnalysisFixture from "./product-api-fixtures/run-analysis.json";
@@ -95,6 +97,100 @@ const backtestCreationBoundaries = {
   trading_controls_enabled: false as const,
 };
 
+const demoBoundaries = {
+  demo_run_creation_allowed: true as const,
+  demo_start_allowed: true as const,
+  demo_stop_allowed: true as const,
+  live_run_creation_allowed: false as const,
+  external_venue_connection: false as const,
+  order_submission_allowed: false as const,
+  order_mutation_allowed: false as const,
+  automatic_retry_allowed: false as const,
+  automatic_remediation_allowed: false as const,
+  real_orders_submitted: false as const,
+  trading_controls_enabled: false as const,
+};
+
+export const createdDemo = {
+  ...baselineBacktest,
+  run_id: "demo-created-001",
+  environment: "sandbox" as const,
+  data_ref: "market://sandbox/BTCUSDT.BINANCE",
+  config_ref: "artifact://demo-runs/demo-created-001/request.json",
+  adapter_ref: "adapter://sandbox/fixture-stream",
+  account_ref: "account://sandbox/acct-sandbox-001",
+  venue_ref: "venue://sandbox/BINANCE",
+  lifecycle: "created" as const,
+  result: {
+    status: "pending" as const,
+    result_ref: null,
+    report_ref: null,
+    analysis_ref: null,
+    reproduction_ref: null,
+  },
+  started_at_unix_ms: null,
+  completed_at_unix_ms: null,
+  risk: {
+    status: "pending" as const,
+    risk_ref: "artifact://demo-runs/demo-created-001/run-manifest.json#risk",
+  },
+  runtime: {
+    supervisor_node_id: "mvp-node-001",
+    strategy_instance_id: "mvp-strategy-001",
+    process_state: "not_started" as const,
+    lifecycle_state: "stopped" as const,
+  },
+  source: {
+    ...baselineBacktest.source,
+    source_refs: [
+      "mvp/identity_contract.json",
+      "mvp/status_contract.json",
+      "artifact://demo-runs/demo-created-001/run-manifest.json",
+    ],
+  },
+} as Run;
+
+export const createdDemoResponse = {
+  schema_version: "ntpro.product_api.demo_run_create.response.v1" as const,
+  contract_version: "ntpro.product_api.v1" as const,
+  request_id: "product-0000000000000001-0000000000000010",
+  data: createdDemo,
+  boundaries: demoBoundaries,
+};
+
+export function demoActionResponse(action: "start" | "stop") {
+  const currentRun: Run = {
+    ...createdDemo,
+    lifecycle: action === "start" ? ("running" as const) : ("stopped" as const),
+    started_at_unix_ms: 1_786_400_000_000,
+    completed_at_unix_ms: action === "stop" ? 1_786_400_001_000 : null,
+    risk: {
+      ...createdDemo.risk,
+      status: action === "start" ? ("active" as const) : ("blocked" as const),
+    },
+    runtime: {
+      ...createdDemo.runtime!,
+      process_state:
+        action === "start" ? ("running" as const) : ("stopped" as const),
+      lifecycle_state:
+        action === "start" ? ("running" as const) : ("stopped" as const),
+    },
+  };
+  return {
+    schema_version: "ntpro.product_api.demo_run_action.response.v1" as const,
+    contract_version: "ntpro.product_api.v1" as const,
+    request_id: "product-0000000000000001-0000000000000011",
+    data: {
+      run_id: currentRun.run_id,
+      action,
+      previous_lifecycle:
+        action === "start" ? ("created" as const) : ("running" as const),
+      current_run: currentRun,
+    },
+    boundaries: demoBoundaries,
+  };
+}
+
 function comparisonItem(runId: string) {
   return {
     run_id: runId,
@@ -185,6 +281,13 @@ export const server = setupServer(
   http.post("/api/product/v1/runs", () =>
     HttpResponse.json(createdBacktestResponse, { status: 201 }),
   ),
+  http.post("/api/product/v1/demo-runs", () =>
+    HttpResponse.json(createdDemoResponse, { status: 201 }),
+  ),
+  http.post("/api/product/v1/demo-runs/:runId/actions", async ({ request }) => {
+    const body = (await request.json()) as { action: "start" | "stop" };
+    return HttpResponse.json(demoActionResponse(body.action));
+  }),
   http.get("/api/product/v1/run-comparisons", ({ request }) => {
     const runIds =
       new URL(request.url).searchParams.get("run_ids")?.split(",") ?? [];
@@ -200,9 +303,11 @@ export const server = setupServer(
     const run =
       params.runId === createdBacktest.run_id
         ? createdBacktest
-        : params.runId === reproducedBacktest.run_id
-          ? reproducedBacktest
-          : runListFixture.data.find((item) => item.run_id === params.runId);
+        : params.runId === createdDemo.run_id
+          ? createdDemo
+          : params.runId === reproducedBacktest.run_id
+            ? reproducedBacktest
+            : runListFixture.data.find((item) => item.run_id === params.runId);
     return HttpResponse.json(
       run ? { ...runDetailFixture, data: run } : runDetailFixture,
     );

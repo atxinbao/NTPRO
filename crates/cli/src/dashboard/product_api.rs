@@ -31,12 +31,13 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use nautilus_live::status::{
-    NODE_STATUS_SCHEMA_VERSION, NodeStatus, SnapshotAvailability, SnapshotValue,
+    LifecycleStatus, NODE_STATUS_SCHEMA_VERSION, NodeStatus, SnapshotAvailability, SnapshotValue,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
+    artifacts::atomic_write_json,
     mvp_contract::{
         MVP_IDENTITY_CONTRACT_PATH, MVP_IDENTITY_CONTRACT_SCHEMA_VERSION, MVP_STATUS_CONTRACT_PATH,
         MVP_STATUS_CONTRACT_SCHEMA_VERSION, MvpIdentityContract, MvpStatusContract,
@@ -44,7 +45,7 @@ use crate::{
     supervisor::{
         NODE_METRICS_SCHEMA_VERSION, NodeMetrics, RegistryArtifactState,
         SUPERVISOR_REGISTRY_SCHEMA_VERSION, SupervisorNodeRecord, SupervisorProcessState,
-        SupervisorRegistry,
+        SupervisorRegistry, SupervisorRegistryStore,
     },
 };
 
@@ -55,9 +56,11 @@ mod strategy_version;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use run::shutdown_active_demo_run;
 pub(super) use run::{
-    run_analysis_api, run_comparison_api, run_create_api, run_detail_api, run_list_api,
-    run_metrics_api, run_report_api, run_reproduce_api, run_reproduction_proof_api,
+    demo_run_action_api, demo_run_create_api, run_analysis_api, run_comparison_api, run_create_api,
+    run_detail_api, run_list_api, run_metrics_api, run_report_api, run_reproduce_api,
+    run_reproduction_proof_api,
 };
 pub(super) use strategy_version::{strategy_version_detail_api, strategy_version_list_api};
 
@@ -201,13 +204,16 @@ struct RuntimeArtifactContract<'a> {
     expected_schema_version: &'a str,
     now_unix_ms: u64,
     freshness_max_age_ms: u64,
+    enforce_freshness: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ProductErrorKind {
     BadRequest,
     Conflict,
+    DemoConflict,
     ExecutionFailed,
+    DemoExecutionFailed,
     Forbidden,
     MethodNotAllowed,
     NotFound,
@@ -405,6 +411,7 @@ fn load_product_source(
     let config: ProductConfigProjection = toml::from_str(&raw)
         .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "strategy_config"))?;
     validate_product_config(&config, &identity, now_unix_ms)?;
+    let enforce_runtime_freshness = !runtime_snapshot_is_stationary(record, now_unix_ms)?;
     let freshness_max_age_ms = validate_product_status_contract(
         &workspace,
         &identity_path,
@@ -412,12 +419,14 @@ fn load_product_source(
         record,
         &identity,
         now_unix_ms,
+        enforce_runtime_freshness,
     )?;
     validate_runtime_boundaries(
         record,
         &identity.identities.node_id,
         now_unix_ms,
         freshness_max_age_ms,
+        enforce_runtime_freshness,
     )?;
 
     let config_name = identity_config_path
@@ -506,6 +515,7 @@ fn validate_product_status_contract(
     record: &SupervisorNodeRecord,
     identity: &MvpIdentityContract,
     now_unix_ms: u64,
+    enforce_freshness: bool,
 ) -> Result<u64, ProductError> {
     let status_path = workspace.join(MVP_STATUS_CONTRACT_PATH);
     let status: MvpStatusContract = load_json(&status_path, "status_contract")?;
@@ -554,7 +564,9 @@ fn validate_product_status_contract(
             "status_contract_timestamp",
         ));
     }
-    if now_unix_ms.saturating_sub(generated_at) > status.provenance.freshness_max_age_ms {
+    if enforce_freshness
+        && now_unix_ms.saturating_sub(generated_at) > status.provenance.freshness_max_age_ms
+    {
         return Err(product_error(
             ProductErrorKind::SourceStale,
             "status_contract_timestamp",
@@ -579,6 +591,100 @@ fn validate_product_status_contract(
         ));
     }
     Ok(status.provenance.freshness_max_age_ms)
+}
+
+fn refresh_product_status_contract(
+    state: &DashboardServerState,
+    node_id: &str,
+) -> Result<(), ProductError> {
+    let workspace = mvp_workspace_root(&state.registry_path)?;
+    let identity_path = workspace.join(MVP_IDENTITY_CONTRACT_PATH);
+    let status_path = workspace.join(MVP_STATUS_CONTRACT_PATH);
+    let identity: MvpIdentityContract = load_json(&identity_path, "identity_contract")?;
+    let previous: MvpStatusContract = load_json(&status_path, "status_contract")?;
+    let freshness_max_age_ms = previous.provenance.freshness_max_age_ms;
+    if freshness_max_age_ms == 0 || identity.identities.node_id != node_id {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "status_contract",
+        ));
+    }
+
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    let status_error = store
+        .refresh_status_from_artifact(node_id)
+        .err()
+        .map(|error| error.to_string());
+    let metrics_result = store.node_metrics(node_id);
+    let metrics_error = metrics_result.as_ref().err().map(ToString::to_string);
+    let registry = store
+        .load()
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "registry"))?;
+    let record = registry
+        .nodes
+        .get(node_id)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "node_id"))?;
+    let contract = MvpStatusContract::from_runtime(
+        &identity,
+        &identity_path,
+        &state.registry_path,
+        record,
+        metrics_result.as_ref().ok(),
+        status_error.as_deref(),
+        metrics_error.as_deref(),
+        None,
+        freshness_max_age_ms,
+    );
+    atomic_write_json(&status_path, &contract)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "status_contract"))
+}
+
+fn runtime_snapshot_is_stationary(
+    record: &SupervisorNodeRecord,
+    now_unix_ms: u64,
+) -> Result<bool, ProductError> {
+    let prepared_without_runtime_artifacts = record.process.state
+        == SupervisorProcessState::NotStarted
+        && record.last_known_status.lifecycle_state == LifecycleStatus::Stopped
+        && record.status_artifact == RegistryArtifactState::Missing
+        && record.metrics_artifact == RegistryArtifactState::Missing;
+    let stopped_runtime = record.process.state == SupervisorProcessState::Stopped
+        && record.last_known_status.lifecycle_state == LifecycleStatus::Stopped;
+    if !prepared_without_runtime_artifacts && !stopped_runtime {
+        return Ok(false);
+    }
+
+    let mut terminal_found = false;
+    for (run_id, ownership) in &record.run_ownership {
+        if ownership.run_id != *run_id
+            || ownership.claimed_at_unix_ms == 0
+            || ownership.claimed_at_unix_ms > now_unix_ms.saturating_add(MAX_CLOCK_SKEW_MS)
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_run_ownership",
+            ));
+        }
+        validate_identifier("demo_run_ownership", run_id)?;
+        validate_sha256_hash("demo_run_manifest_sha256", &ownership.manifest_sha256)?;
+        if let Some(terminal) = &ownership.terminal {
+            if !matches!(terminal.lifecycle.as_str(), "stopped" | "failed")
+                || terminal.completed_at_unix_ms < ownership.claimed_at_unix_ms
+                || terminal.completed_at_unix_ms > now_unix_ms.saturating_add(MAX_CLOCK_SKEW_MS)
+            {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_run_terminal",
+                ));
+            }
+            validate_sha256_hash(
+                "demo_run_terminal_state_sha256",
+                &terminal.terminal_state_sha256,
+            )?;
+            terminal_found = true;
+        }
+    }
+    Ok(prepared_without_runtime_artifacts || terminal_found)
 }
 
 fn validate_product_identity(
@@ -685,6 +791,7 @@ fn validate_runtime_boundaries(
     expected_node_id: &str,
     now_unix_ms: u64,
     freshness_max_age_ms: u64,
+    enforce_freshness: bool,
 ) -> Result<(), ProductError> {
     validate_runtime_boundary_values(
         &record.last_known_status.node_id,
@@ -703,6 +810,7 @@ fn validate_runtime_boundaries(
             expected_schema_version: NODE_STATUS_SCHEMA_VERSION,
             now_unix_ms,
             freshness_max_age_ms,
+            enforce_freshness,
         },
         |status| {
             (
@@ -725,6 +833,7 @@ fn validate_runtime_boundaries(
             expected_schema_version: NODE_METRICS_SCHEMA_VERSION,
             now_unix_ms,
             freshness_max_age_ms,
+            enforce_freshness,
         },
         |metrics| {
             (
@@ -800,6 +909,7 @@ where
         contract.now_unix_ms,
         contract.freshness_max_age_ms,
         contract.field,
+        contract.enforce_freshness,
     )?;
     validate_runtime_boundary_values(
         node_id,
@@ -816,6 +926,7 @@ fn validate_runtime_artifact_freshness(
     now_unix_ms: u64,
     freshness_max_age_ms: u64,
     field: &str,
+    enforce_freshness: bool,
 ) -> Result<(), ProductError> {
     if generated_at.availability == SnapshotAvailability::Stale {
         return Err(product_error(ProductErrorKind::SourceStale, field));
@@ -832,7 +943,7 @@ fn validate_runtime_artifact_freshness(
     if timestamp > now_unix_ms.saturating_add(MAX_CLOCK_SKEW_MS) {
         return Err(product_error(ProductErrorKind::SourceInvalid, field));
     }
-    if now_unix_ms.saturating_sub(timestamp) > freshness_max_age_ms {
+    if enforce_freshness && now_unix_ms.saturating_sub(timestamp) > freshness_max_age_ms {
         return Err(product_error(ProductErrorKind::SourceStale, field));
     }
     Ok(())
@@ -1235,10 +1346,22 @@ fn product_error_response(error: &ProductError, request_id: &str) -> (StatusCode
             "回测运行与已有不可变记录冲突",
             false,
         ),
+        ProductErrorKind::DemoConflict => (
+            StatusCode::CONFLICT,
+            "demo_run_conflict",
+            "Demo 运行与当前节点生命周期冲突",
+            false,
+        ),
         ProductErrorKind::ExecutionFailed => (
             StatusCode::INTERNAL_SERVER_ERROR,
             "backtest_execution_failed",
             "回测引擎执行或运行记录处理失败",
+            false,
+        ),
+        ProductErrorKind::DemoExecutionFailed => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "demo_execution_failed",
+            "Demo 节点执行或运行记录处理失败",
             false,
         ),
         ProductErrorKind::Forbidden => (
@@ -1311,6 +1434,19 @@ fn product_error_response(error: &ProductError, request_id: &str) -> (StatusCode
             "boundaries": ProductReadOnlyBoundaries::enforced(),
         })),
     )
+}
+
+fn demo_product_error_response(
+    error: &ProductError,
+    request_id: &str,
+) -> (StatusCode, Json<Value>) {
+    let mut scoped = error.clone();
+    scoped.kind = match scoped.kind {
+        ProductErrorKind::Conflict => ProductErrorKind::DemoConflict,
+        ProductErrorKind::ExecutionFailed => ProductErrorKind::DemoExecutionFailed,
+        kind => kind,
+    };
+    product_error_response(&scoped, request_id)
 }
 
 fn product_request_id() -> String {

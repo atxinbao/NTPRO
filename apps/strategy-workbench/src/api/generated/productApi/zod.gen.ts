@@ -106,6 +106,7 @@ export const zRunLifecycle = z.enum([
   "failed",
   "cancelled",
   "stopped",
+  "paused",
 ]);
 
 export const zRunResultStatus = z.enum(["pending", "available", "unavailable"]);
@@ -151,6 +152,33 @@ export const zRunCapabilities = z.object({
   trading_controls_enabled: z.literal(false),
 });
 
+export const zSupervisorProcessState = z.enum([
+  "not_started",
+  "running",
+  "stopped",
+  "stale",
+  "unknown",
+]);
+
+export const zRuntimeLifecycleState = z.enum([
+  "stopped",
+  "starting",
+  "running",
+  "pausing",
+  "paused",
+  "resuming",
+  "stopping",
+  "error",
+  "unknown",
+]);
+
+export const zProductRunRuntime = z.object({
+  supervisor_node_id: zRunId,
+  strategy_instance_id: zRunId,
+  process_state: zSupervisorProcessState,
+  lifecycle_state: zRuntimeLifecycleState,
+});
+
 export const zRun = z.object({
   run_id: zRunId,
   strategy_id: zStrategyId,
@@ -171,6 +199,7 @@ export const zRun = z.object({
   updated_at_unix_ms: z.int().gte(1),
   source: zRunSource,
   capabilities: zRunCapabilities,
+  runtime: zProductRunRuntime.nullable(),
 });
 
 export const zCreateBacktestRunRequest = z.object({
@@ -217,6 +246,61 @@ export const zRunCreateResponse = z.object({
   request_id: zRequestId,
   data: zRun,
   boundaries: zBacktestRunCreationBoundaries,
+});
+
+export const zCreateDemoRunRequest = z.object({
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  environment: z.literal("sandbox"),
+  supervisor_node_id: zRunId,
+  account_ref: z.string().min(1).max(512),
+  venue_ref: z.string().min(1).max(512),
+  user_confirmed: z.literal(true),
+});
+
+export const zDemoRunAction = z.enum(["start", "stop"]);
+
+export const zDemoRunActionRequest = z.object({
+  run_id: zRunId,
+  action: zDemoRunAction,
+  user_confirmed: z.literal(true),
+});
+
+export const zDemoRunBoundaries = z.object({
+  demo_run_creation_allowed: z.literal(true),
+  demo_start_allowed: z.literal(true),
+  demo_stop_allowed: z.literal(true),
+  live_run_creation_allowed: z.literal(false),
+  external_venue_connection: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  order_mutation_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  real_orders_submitted: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zDemoRunCreateResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.demo_run_create.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zRun,
+  boundaries: zDemoRunBoundaries,
+});
+
+export const zDemoRunActionResult = z.object({
+  run_id: zRunId,
+  action: zDemoRunAction,
+  previous_lifecycle: zRunLifecycle,
+  current_run: zRun,
+});
+
+export const zDemoRunActionResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.demo_run_action.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zDemoRunActionResult,
+  boundaries: zDemoRunBoundaries,
 });
 
 export const zBacktestParameters = z.object({
@@ -582,6 +666,8 @@ export const zProductError = z.object({
     "product_method_not_allowed",
     "backtest_run_conflict",
     "backtest_execution_failed",
+    "demo_run_conflict",
+    "demo_execution_failed",
     "strategy_not_found",
     "strategy_version_not_found",
     "run_not_found",
@@ -684,6 +770,24 @@ export const zCreateBacktestRunBody = zCreateBacktestRunRequest;
  * Backtest 已完成并登记
  */
 export const zCreateBacktestRunResponse = zRunCreateResponse;
+
+export const zCreateDemoRunBody = zCreateDemoRunRequest;
+
+/**
+ * Demo Run 已创建，等待用户显式启动
+ */
+export const zCreateDemoRunResponse = zDemoRunCreateResponse;
+
+export const zActOnDemoRunBody = zDemoRunActionRequest;
+
+export const zActOnDemoRunPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * Demo Run 生命周期动作已完成
+ */
+export const zActOnDemoRunResponse = zDemoRunActionResponse;
 
 export const zCompareBacktestRunsQuery = z.object({
   run_ids: z.string().min(3).max(515),

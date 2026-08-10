@@ -14,6 +14,8 @@ import {
   backtestComparisonResponse,
   backtestReproductionProofResponse,
   backtestReproductionResponse,
+  createdDemoResponse,
+  demoActionResponse,
 } from "../test/server";
 import {
   createProductApiClient,
@@ -32,6 +34,16 @@ const createBacktestBody = {
   trade_size: "0.001000",
   fast_period: 3,
   slow_period: 5,
+};
+
+const createDemoBody = {
+  strategy_id: "ema-cross",
+  strategy_version_id: "ema-cross@v1",
+  environment: "sandbox" as const,
+  supervisor_node_id: "mvp-node-001",
+  account_ref: "account://sandbox/acct-sandbox-001",
+  venue_ref: "venue://sandbox/BINANCE",
+  user_confirmed: true as const,
 };
 
 function createBacktestResponse() {
@@ -230,6 +242,55 @@ describe("product API generated client", () => {
     await expect((request as Request).json()).resolves.toEqual(
       createBacktestBody,
     );
+  });
+
+  it("creates a Demo Run and preserves the Supervisor identity", async () => {
+    const fetch = jsonFetch(createdDemoResponse, 201);
+
+    await expect(
+      createProductApiClient({ fetch }).createDemoRun(createDemoBody),
+    ).resolves.toEqual(createdDemoResponse);
+
+    const request = fetch.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe(
+      `${globalThis.location.origin}/api/product/v1/demo-runs`,
+    );
+    expect(request.method).toBe("POST");
+    await expect(request.json()).resolves.toEqual(createDemoBody);
+  });
+
+  it("starts a Demo Run once without automatic client retry", async () => {
+    const response = demoActionResponse("start");
+    const fetch = jsonFetch(response);
+
+    await expect(
+      createProductApiClient({ fetch }).actOnDemoRun(
+        "demo-created-001",
+        "start",
+      ),
+    ).resolves.toEqual(response);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const request = fetch.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe(
+      `${globalThis.location.origin}/api/product/v1/demo-runs/demo-created-001/actions`,
+    );
+    await expect(request.json()).resolves.toEqual({
+      run_id: "demo-created-001",
+      action: "start",
+      user_confirmed: true,
+    });
+  });
+
+  it("rejects a Demo response that enables real-order capability", async () => {
+    const payload = structuredClone(createdDemoResponse);
+    payload.data.capabilities.order_submission_allowed = true as false;
+
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(payload, 201) }).createDemoRun(
+        createDemoBody,
+      ),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
   });
 
   it("compares two verified Backtest Runs in request order", async () => {

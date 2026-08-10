@@ -4,12 +4,15 @@ use std::{
     time::{Duration, UNIX_EPOCH},
 };
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 use axum::{
     Router,
     body::{Body, to_bytes},
     http::{HeaderMap, Method, Request, StatusCode, header::ALLOW},
 };
-use nautilus_live::status::SnapshotValue;
+use nautilus_live::status::{LifecycleStatus, SnapshotValue};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -19,8 +22,9 @@ use crate::{
         MvpIdentityProvenance, MvpIdentitySet, MvpStatusContract,
     },
     supervisor::{
-        NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegisterNodeRequest,
-        SupervisorRegistryStore,
+        NodeMetricArtifacts, NodeMetricCounts, NodeMetrics, RegisterNodeRequest, StartNodeRequest,
+        StopNodeRequest, SupervisorProcessState, SupervisorRegistryStore, SupervisorRunOwnership,
+        SupervisorRunTerminalAnchor,
     },
 };
 
@@ -29,7 +33,7 @@ type AnalysisMutation = fn(&mut Value);
 use super::run::*;
 use super::strategy_version::*;
 use super::*;
-use crate::dashboard::server::dashboard_router;
+use crate::dashboard::server::{dashboard_router, dashboard_router_with_access};
 
 #[cfg(unix)]
 fn create_file_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
@@ -172,6 +176,29 @@ impl Fixture {
 
     fn write_config(&self, value: &str) {
         fs::write(&self.config_path, value).expect("product config fixture should be written");
+    }
+
+    fn refresh_identity_and_status_provenance(&self) {
+        let mut identity = self.read_identity();
+        identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+        self.write_identity(&identity);
+        let store = SupervisorRegistryStore::new(&self.registry_path);
+        let registry = store.load().expect("fixture registry should load");
+        let record = registry
+            .nodes
+            .get("mvp-node-001")
+            .expect("fixture node should exist");
+        self.write_status_contract(&MvpStatusContract::from_runtime(
+            &identity,
+            &self.identity_path,
+            &self.registry_path,
+            record,
+            None,
+            None,
+            None,
+            None,
+            TEST_FRESHNESS_MAX_AGE_MS,
+        ));
     }
 
     fn activate_strategy_version(&self, version: &str) {
@@ -334,22 +361,20 @@ fn strategy_version_projection_exposes_immutable_product_contract() {
 }
 
 #[test]
-fn run_projection_exposes_three_environments_with_closed_capabilities() {
+fn run_projection_exposes_static_backtest_and_blocked_live_with_closed_capabilities() {
     let fixture = Fixture::new("run-projection");
     let runs = load_product_runs(&fixture.state(), unix_time_ms())
         .expect("valid run manifest should project");
     let value = serde_json::to_value(runs).expect("runs should serialize");
 
-    assert_eq!(value.as_array().map(Vec::len), Some(3));
+    assert_eq!(value.as_array().map(Vec::len), Some(2));
     assert_eq!(value[0]["environment"], "backtest");
     assert_eq!(value[0]["lifecycle"], "completed");
     assert_eq!(value[0]["result"]["status"], "available");
-    assert_eq!(value[1]["environment"], "sandbox");
-    assert_eq!(value[1]["lifecycle"], "running");
-    assert_eq!(value[2]["environment"], "live");
-    assert_eq!(value[2]["lifecycle"], "created");
-    assert_eq!(value[2]["risk"]["status"], "blocked");
-    assert_eq!(value[2]["adapter_ref"], "adapter://live/disabled");
+    assert_eq!(value[1]["environment"], "live");
+    assert_eq!(value[1]["lifecycle"], "created");
+    assert_eq!(value[1]["risk"]["status"], "blocked");
+    assert_eq!(value[1]["adapter_ref"], "adapter://live/disabled");
     for run in value.as_array().expect("runs should be an array") {
         assert_eq!(run["strategy_id"], "ema-cross");
         assert_eq!(run["strategy_version_id"], "ema-cross@v1");
@@ -423,17 +448,6 @@ fn invalid_run_queries_and_manifest_drift_fail_closed() {
 
     for (name, mutate, expected_kind, expected_field) in [
         (
-            "duplicate-id",
-            (|raw: String| {
-                raw.replace(
-                    "run_id = \"mvp-strategy-001\"\nstrategy_id = \"ema-cross\"",
-                    "run_id = \"backtest-001\"\nstrategy_id = \"ema-cross\"",
-                )
-            }) as fn(String) -> String,
-            ProductErrorKind::SourceInvalid,
-            "run_id",
-        ),
-        (
             "ownership",
             (|raw: String| {
                 raw.replace(
@@ -485,32 +499,9 @@ fn invalid_run_queries_and_manifest_drift_fail_closed() {
             "run_expectation",
         ),
         (
-            "sandbox-backtest-expectation",
-            (|raw: String| {
-                raw.replacen(
-                    "result_status = \"pending\"\nrisk_status = \"active\"",
-                    "result_status = \"pending\"\nbacktest_quotes = 120\nrisk_status = \"active\"",
-                    1,
-                )
-            }) as fn(String) -> String,
-            ProductErrorKind::SourceInvalid,
-            "run_expectation",
-        ),
-        (
             "live-reference",
             (|raw: String| raw.replace("adapter://live/disabled", "adapter://live/binance"))
                 as fn(String) -> String,
-            ProductErrorKind::BoundaryViolation,
-            "run_environment_references",
-        ),
-        (
-            "sandbox-account-reference",
-            (|raw: String| {
-                raw.replace(
-                    "account://sandbox/acct-sandbox-001",
-                    "account://sandbox/unknown-account",
-                )
-            }) as fn(String) -> String,
             ProductErrorKind::BoundaryViolation,
             "run_environment_references",
         ),
@@ -553,28 +544,6 @@ fn invalid_run_queries_and_manifest_drift_fail_closed() {
             "backtest-venue-reference",
             (|raw: String| raw.replace("venue://simulated/BINANCE", "venue://simulated/UNKNOWN"))
                 as fn(String) -> String,
-            ProductErrorKind::BoundaryViolation,
-            "run_environment_references",
-        ),
-        (
-            "sandbox-data-reference",
-            (|raw: String| {
-                raw.replace(
-                    "market://sandbox/BTCUSDT.BINANCE",
-                    "market://sandbox/UNKNOWN.BINANCE",
-                )
-            }) as fn(String) -> String,
-            ProductErrorKind::BoundaryViolation,
-            "run_environment_references",
-        ),
-        (
-            "sandbox-adapter-reference",
-            (|raw: String| {
-                raw.replace(
-                    "adapter://sandbox/fixture-stream",
-                    "adapter://sandbox/unknown",
-                )
-            }) as fn(String) -> String,
             ProductErrorKind::BoundaryViolation,
             "run_environment_references",
         ),
@@ -1218,6 +1187,78 @@ fn runtime_freshness_uses_mvp_configured_threshold() {
 }
 
 #[test]
+fn terminal_demo_snapshot_remains_readable_without_weakening_boundaries() {
+    let fixture = Fixture::new("terminal-snapshot-readback");
+    let now = unix_time_ms().saturating_add(TEST_FRESHNESS_MAX_AGE_MS + 2_000);
+    let terminal_at = now.saturating_sub(TEST_FRESHNESS_MAX_AGE_MS + 1_000);
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().expect("fixture registry should load");
+    let record = registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist");
+    record.process.state = SupervisorProcessState::Stopped;
+    record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
+    let mut status = record.last_known_status.clone();
+    status.generated_at = SnapshotValue::available(terminal_at.to_string());
+    write_json(&record.status_path, &status);
+    record.status_artifact = RegistryArtifactState::Available;
+
+    let mut metrics = NodeMetrics::from_status(
+        &status,
+        &NodeMetricArtifacts::from_record(record),
+        NodeMetricCounts {
+            uptime_ms: Some(1),
+            starts_total: 1,
+            stops_total: 1,
+            state_transitions_total: 2,
+        },
+    );
+    metrics.generated_at = SnapshotValue::available(terminal_at.to_string());
+    metrics
+        .kill_switch_dry_run
+        .production_order_submission_allowed = SnapshotValue::available(false);
+    metrics
+        .kill_switch_dry_run
+        .production_order_mutation_allowed = SnapshotValue::available(false);
+    metrics.kill_switch_dry_run.dashboard_order_controls_enabled = SnapshotValue::available(false);
+    metrics.kill_switch_dry_run.real_orders_submitted = SnapshotValue::available(false);
+    metrics.kill_switch_dry_run.production_orders_submitted = SnapshotValue::available(0);
+    write_json(&record.metrics_path, &metrics);
+    let metrics_path = record.metrics_path.clone();
+    record.metrics_artifact = RegistryArtifactState::Available;
+    record.run_ownership.insert(
+        "demo-terminal-001".to_string(),
+        SupervisorRunOwnership {
+            run_id: "demo-terminal-001".to_string(),
+            manifest_sha256: format!("sha256:{}", "a".repeat(64)),
+            claimed_at_unix_ms: terminal_at.saturating_sub(1),
+            terminal: Some(SupervisorRunTerminalAnchor {
+                lifecycle: "stopped".to_string(),
+                terminal_state_sha256: format!("sha256:{}", "b".repeat(64)),
+                completed_at_unix_ms: terminal_at,
+            }),
+        },
+    );
+    store.save(&registry).expect("fixture registry should save");
+    let mut status_contract = fixture.read_status_contract();
+    status_contract.provenance.generated_at_unix_ms = terminal_at;
+    fixture.write_status_contract(&status_contract);
+
+    load_product_strategy(&fixture.state(), now)
+        .expect("an anchored stopped Demo snapshot should remain readable");
+
+    metrics
+        .kill_switch_dry_run
+        .production_order_submission_allowed = SnapshotValue::available(true);
+    write_json(&metrics_path, &metrics);
+    let error = load_product_strategy(&fixture.state(), now)
+        .expect_err("terminal freshness must not bypass runtime boundary validation");
+    assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+    assert_eq!(error.field, "node_metrics");
+}
+
+#[test]
 fn runtime_artifact_registry_state_drift_fails_closed() {
     let fixture = Fixture::new("running-status-missing");
     let store = SupervisorRegistryStore::new(&fixture.registry_path);
@@ -1590,7 +1631,7 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
 
     let (status, created) =
         router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
-    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(status, StatusCode::CREATED, "{created}");
     assert_eq!(
         created["schema_version"],
         "ntpro.product_api.run_create.response.v1"
@@ -1701,6 +1742,1133 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
     assert!(!analysis["data"]["timeline"].as_array().unwrap().is_empty());
     assert_read_only_boundaries(&analysis);
     validate_openapi_instance("RunAnalysisResponse", &analysis);
+}
+
+#[tokio::test]
+async fn institution_creates_one_immutable_demo_run_bound_to_supervisor() {
+    let fixture = Fixture::new("create-demo-run");
+    let router = fixture.router();
+    let request = valid_demo_request();
+
+    let (status, created) =
+        router_json_body(&router, Method::POST, "/api/product/v1/demo-runs", &request).await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    assert_eq!(
+        created["schema_version"],
+        "ntpro.product_api.demo_run_create.response.v1"
+    );
+    assert_eq!(created["data"]["environment"], "sandbox");
+    assert_eq!(created["data"]["lifecycle"], "created");
+    assert_eq!(
+        created["data"]["runtime"]["supervisor_node_id"],
+        "mvp-node-001"
+    );
+    assert_eq!(created["data"]["runtime"]["process_state"], "not_started");
+    assert_eq!(created["data"]["runtime"]["lifecycle_state"], "stopped");
+    assert_eq!(created["boundaries"]["demo_run_creation_allowed"], true);
+    assert_eq!(created["boundaries"]["demo_start_allowed"], true);
+    assert_eq!(created["boundaries"]["demo_stop_allowed"], true);
+    for field in [
+        "live_run_creation_allowed",
+        "external_venue_connection",
+        "order_submission_allowed",
+        "order_mutation_allowed",
+        "automatic_retry_allowed",
+        "automatic_remediation_allowed",
+        "real_orders_submitted",
+        "trading_controls_enabled",
+    ] {
+        assert_eq!(created["boundaries"][field], false, "{field}");
+    }
+    validate_openapi_instance("DemoRunCreateResponse", &created);
+
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Demo Run ID should be a string");
+    let directory = fixture.root.join("artifacts/demo-runs").join(run_id);
+    let request_raw =
+        fs::read(directory.join("request.json")).expect("Demo request artifact should be readable");
+    let manifest_raw =
+        fs::read(directory.join("run-manifest.json")).expect("Demo manifest should be readable");
+    let manifest: Value =
+        serde_json::from_slice(&manifest_raw).expect("Demo manifest should be valid JSON");
+    assert_eq!(manifest["request_sha256"], sha256_bytes_ref(&request_raw));
+    assert!(directory.join("strategy-version.json").is_file());
+
+    let (status, list) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list["data"].as_array().map(Vec::len), Some(3));
+    let demo = list["data"]
+        .as_array()
+        .and_then(|runs| runs.iter().find(|run| run["run_id"] == run_id))
+        .expect("created Demo Run should be listed");
+    assert_eq!(demo["runtime"]["strategy_instance_id"], "mvp-strategy-001");
+    validate_openapi_instance("RunListResponse", &list);
+
+    let (status, conflict) =
+        router_json_body(&router, Method::POST, "/api/product/v1/demo-runs", &request).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{conflict}");
+    assert_eq!(conflict["error"]["field"], "active_demo_run");
+    validate_openapi_instance("ProductErrorResponse", &conflict);
+}
+
+#[tokio::test]
+async fn static_sandbox_run_blocks_dynamic_demo_creation() {
+    let fixture = Fixture::new("static-sandbox-blocks-demo");
+    let static_sandbox = r#"[[product_runs]]
+run_id = "mvp-strategy-001"
+strategy_id = "ema-cross"
+strategy_version_id = "ema-cross@v1"
+environment = "sandbox"
+data_ref = "market://sandbox/BTCUSDT.BINANCE"
+config_ref = "node-config:node.toml#product_runs"
+adapter_ref = "adapter://sandbox/fixture-stream"
+account_ref = "account://sandbox/acct-sandbox-001"
+venue_ref = "venue://sandbox/BINANCE"
+lifecycle = "running"
+result_status = "pending"
+risk_status = "active"
+risk_ref = "node-config:node.toml#risk"
+created_at_unix_ms = 1785542400000
+started_at_unix_ms = 1785542400000
+updated_at_unix_ms = 1785542400000
+external_venue_connection = false
+order_submission_allowed = false
+order_mutation_allowed = false
+automatic_retry_allowed = false
+automatic_remediation_allowed = false
+real_orders_submitted = false
+trading_controls_enabled = false
+
+"#;
+    fixture.write_config(&valid_config().replace(
+        "[[product_runs]]\nrun_id = \"ema-cross-live-001\"",
+        &format!("{static_sandbox}[[product_runs]]\nrun_id = \"ema-cross-live-001\""),
+    ));
+    fixture.refresh_identity_and_status_provenance();
+
+    let (status, error) = router_json_body(
+        &fixture.router(),
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{error}");
+    assert_eq!(error["error"]["field"], "active_demo_run");
+    assert!(!fixture.root.join("artifacts/demo-runs").exists());
+}
+
+#[tokio::test]
+async fn demo_creation_and_artifacts_fail_closed() {
+    for (name, mutate, field) in [
+        (
+            "live-environment",
+            (|request: &mut Value| request["environment"] = json!("live")) as fn(&mut Value),
+            "demo_confirmation",
+        ),
+        (
+            "missing-confirmation",
+            (|request: &mut Value| request["user_confirmed"] = json!(false)) as fn(&mut Value),
+            "demo_confirmation",
+        ),
+        (
+            "wrong-node",
+            (|request: &mut Value| request["supervisor_node_id"] = json!("other-node"))
+                as fn(&mut Value),
+            "demo_identity",
+        ),
+        (
+            "wrong-account",
+            (|request: &mut Value| request["account_ref"] = json!("account://sandbox/other"))
+                as fn(&mut Value),
+            "demo_identity",
+        ),
+    ] {
+        let fixture = Fixture::new(&format!("demo-invalid-{name}"));
+        let mut request = valid_demo_request();
+        mutate(&mut request);
+        let (status, error) = router_json_body(
+            &fixture.router(),
+            Method::POST,
+            "/api/product/v1/demo-runs",
+            &request,
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{name}");
+        assert_eq!(error["error"]["field"], field, "{name}");
+    }
+
+    let fixture = Fixture::new("demo-unknown-field");
+    let mut request = valid_demo_request();
+    request["unexpected"] = json!(true);
+    let (status, error) = router_json_body(
+        &fixture.router(),
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &request,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(error["error"]["field"], "request_body");
+
+    let fixture = Fixture::new("demo-interrupted-publication");
+    let partial = fixture.root.join("artifacts/demo-runs/demo-partial");
+    fs::create_dir_all(&partial).expect("partial Demo directory should be created");
+    fs::write(partial.join("request.json"), b"{}").expect("partial Demo request should be written");
+    let (status, list) = router_json(&fixture.router(), Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list["data"].as_array().map(Vec::len), Some(2));
+
+    let fixture = Fixture::new("demo-artifact-tamper");
+    let (status, created) = router_json_body(
+        &fixture.router(),
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Demo Run ID should exist");
+    fs::write(
+        fixture
+            .root
+            .join("artifacts/demo-runs")
+            .join(run_id)
+            .join("request.json"),
+        b"{}",
+    )
+    .expect("Demo request should be tampered");
+    let (status, error) = router_json(&fixture.router(), Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(error["error"]["code"], "product_source_invalid");
+    assert_eq!(error["error"]["field"], "demo_manifest");
+}
+
+#[tokio::test]
+async fn demo_resigned_artifacts_and_forbidden_capabilities_fail_closed() {
+    let fixture = Fixture::new("demo-resigned-request");
+    let router = fixture.router();
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap();
+    let directory = fixture.root.join("artifacts/demo-runs").join(run_id);
+    let request_path = directory.join("request.json");
+    let manifest_path = directory.join("run-manifest.json");
+    let mut request: Value = serde_json::from_slice(&fs::read(&request_path).unwrap()).unwrap();
+    request["account_ref"] = json!("account://sandbox/attacker");
+    let request_raw = serde_json::to_vec_pretty(&request).unwrap();
+    fs::write(&request_path, &request_raw).unwrap();
+    let mut manifest: Value = serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["request_sha256"] = json!(sha256_bytes_ref(&request_raw));
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
+    let (status, error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(error["error"]["code"], "product_source_invalid");
+    assert_eq!(error["error"]["field"], "demo_run_ownership");
+
+    let fixture = Fixture::new("demo-resigned-version");
+    let router = fixture.router();
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap();
+    let directory = fixture.root.join("artifacts/demo-runs").join(run_id);
+    let version_path = directory.join("strategy-version.json");
+    let manifest_path = directory.join("run-manifest.json");
+    let mut version: Value = serde_json::from_slice(&fs::read(&version_path).unwrap()).unwrap();
+    version["version"] = json!("attacker");
+    let version_raw = serde_json::to_vec_pretty(&version).unwrap();
+    fs::write(&version_path, &version_raw).unwrap();
+    let mut manifest: Value = serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    let version_sha = sha256_bytes_ref(&version_raw);
+    manifest["strategy_version_snapshot_sha256"] = json!(version_sha.clone());
+    manifest["config"]["strategy_version_snapshot_sha256"] = json!(version_sha);
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
+    let (status, error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(error["error"]["code"], "product_source_invalid");
+
+    let fixture = Fixture::new("demo-capability-true");
+    let router = fixture.router();
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap();
+    let manifest_path = fixture
+        .root
+        .join("artifacts/demo-runs")
+        .join(run_id)
+        .join("run-manifest.json");
+    let mut manifest: Value = serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+    manifest["config"]["order_submission_allowed"] = json!(true);
+    fs::write(
+        &manifest_path,
+        serde_json::to_vec_pretty(&manifest).unwrap(),
+    )
+    .unwrap();
+    let (status, error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(error["error"]["code"], "product_boundary_violation");
+    assert_eq!(error["error"]["field"], "run_capabilities");
+}
+
+#[cfg(any(unix, windows))]
+#[tokio::test]
+async fn demo_artifact_file_and_directory_symlinks_fail_closed() {
+    let fixture = Fixture::new("demo-file-symlink");
+    let router = fixture.router();
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap();
+    let directory = fixture.root.join("artifacts/demo-runs").join(run_id);
+    let request_path = directory.join("request.json");
+    let escaped = fixture.root.join("escaped-demo-request.json");
+    fs::rename(&request_path, &escaped).unwrap();
+    create_file_symlink(&escaped, &request_path).unwrap();
+    let (status, error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(error["error"]["code"], "product_source_invalid");
+
+    let fixture = Fixture::new("demo-directory-symlink");
+    let router = fixture.router();
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap();
+    let directory = fixture.root.join("artifacts/demo-runs").join(run_id);
+    let escaped = fixture.root.join("escaped-demo-run");
+    fs::rename(&directory, &escaped).unwrap();
+    create_directory_symlink(&escaped, &directory).unwrap();
+    let (status, error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(error["error"]["code"], "product_source_invalid");
+    assert_eq!(error["error"]["field"], "demo_root_containment");
+}
+
+#[tokio::test]
+async fn demo_mutations_require_the_institution_role() {
+    let fixture = Fixture::new("demo-role-matrix");
+    let router = dashboard_router_with_access(
+        fixture.registry_path.clone(),
+        PathBuf::from("missing-ntpro-node"),
+        "institution-token",
+        "operator-token",
+    );
+
+    let (status, denied) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(denied["error"]["code"], "product_access_denied");
+
+    let (status, denied) = router_json_body_with_cookie(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+        "ntpro_mvp_operator_access=operator-token",
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(denied["error"]["code"], "product_access_denied");
+
+    let (status, created) = router_json_body_with_cookie(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+        "ntpro_mvp_institution_access=institution-token",
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    validate_openapi_instance("DemoRunCreateResponse", &created);
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Demo Run ID should exist");
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    for action in ["start", "stop"] {
+        let body = json!({
+            "run_id": run_id,
+            "action": action,
+            "user_confirmed": true
+        });
+        let (status, denied) = router_json_body(&router, Method::POST, &action_path, &body).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "unauthenticated {action}");
+        assert_eq!(denied["error"]["code"], "product_access_denied");
+        let (status, denied) = router_json_body_with_cookie(
+            &router,
+            Method::POST,
+            &action_path,
+            &body,
+            "ntpro_mvp_operator_access=operator-token",
+        )
+        .await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "operator {action}");
+        assert_eq!(denied["error"]["code"], "product_access_denied");
+    }
+
+    let (status, list) = router_json_with_cookie(
+        &router,
+        Method::GET,
+        "/api/product/v1/runs",
+        "ntpro_mvp_operator_access=operator-token",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(list["data"].as_array().map(Vec::len), Some(3));
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
+    let fixture = Fixture::new("demo-supervisor-lifecycle");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node.clone());
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Demo Run ID should exist");
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let bypass_start = store
+        .start_node_process(&StartNodeRequest {
+            node_id: "mvp-node-001".to_string(),
+            ntpro_node_bin: node,
+            startup_timeout: Duration::from_secs(3),
+            node_max_runtime: Duration::from_secs(60),
+            node_heartbeat_interval: Duration::from_millis(100),
+            node_parent_pid: Some(std::process::id()),
+            node_shutdown_timeout: Duration::from_secs(3),
+        })
+        .expect_err("generic Supervisor start must not bypass active Demo ownership");
+    assert!(bypass_start.to_string().contains("owned by active Run"));
+
+    let start = json!({
+        "run_id": run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+    assert_eq!(started["data"]["previous_lifecycle"], "created");
+    assert_eq!(started["data"]["current_run"]["lifecycle"], "running");
+    assert_eq!(
+        started["data"]["current_run"]["runtime"]["process_state"],
+        "running"
+    );
+    validate_openapi_instance("DemoRunActionResponse", &started);
+
+    let mut stale_contract = fixture.read_status_contract();
+    stale_contract.provenance.generated_at_unix_ms = 1;
+    fixture.write_status_contract(&stale_contract);
+    let (status, stale_running) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{stale_running}");
+    assert_eq!(stale_running["error"]["code"], "product_source_stale");
+    assert_eq!(stale_running["error"]["field"], "status_contract_timestamp");
+    refresh_product_status_contract(&fixture.state(), "mvp-node-001")
+        .expect("running Demo action should be able to refresh the status contract");
+
+    let bypass_stop = store
+        .stop_node_process(&StopNodeRequest {
+            node_id: "mvp-node-001".to_string(),
+            stop_timeout: Duration::from_secs(3),
+        })
+        .expect_err("generic Supervisor stop must not bypass active Demo ownership");
+    assert!(bypass_stop.to_string().contains("owned by active Run"));
+
+    let (status, duplicate) = router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(duplicate["error"]["field"], "demo_lifecycle");
+
+    let stop = json!({
+        "run_id": run_id,
+        "action": "stop",
+        "user_confirmed": true
+    });
+    let (status, stopped) = router_json_body(&router, Method::POST, &action_path, &stop).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(stopped["data"]["previous_lifecycle"], "running");
+    assert_eq!(stopped["data"]["current_run"]["lifecycle"], "stopped");
+    assert_eq!(
+        stopped["data"]["current_run"]["runtime"]["process_state"],
+        "stopped"
+    );
+    validate_openapi_instance("DemoRunActionResponse", &stopped);
+
+    let (status, terminal_restart) =
+        router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(terminal_restart["error"]["code"], "demo_run_conflict");
+    assert_eq!(terminal_restart["error"]["field"], "demo_lifecycle");
+
+    let (status, second) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{second}");
+    let second_run_id = second["data"]["run_id"]
+        .as_str()
+        .expect("second Demo Run ID should exist");
+    assert_ne!(second_run_id, run_id);
+    let second_action_path = format!("/api/product/v1/demo-runs/{second_run_id}/actions");
+    let second_start = json!({
+        "run_id": second_run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, second_started) =
+        router_json_body(&router, Method::POST, &second_action_path, &second_start).await;
+    assert_eq!(status, StatusCode::OK, "{second_started}");
+    let (status, old_detail) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{old_detail}");
+    assert_eq!(old_detail["data"]["lifecycle"], "stopped");
+    assert_eq!(old_detail["data"]["runtime"]["process_state"], "stopped");
+    let second_stop = json!({
+        "run_id": second_run_id,
+        "action": "stop",
+        "user_confirmed": true
+    });
+    let (status, second_stopped) =
+        router_json_body(&router, Method::POST, &second_action_path, &second_stop).await;
+    assert_eq!(status, StatusCode::OK, "{second_stopped}");
+    let terminal_path = fixture
+        .root
+        .join("artifacts/demo-runs")
+        .join(second_run_id)
+        .join("terminal-state.json");
+    let mut terminal: Value = serde_json::from_slice(&fs::read(&terminal_path).unwrap()).unwrap();
+    let resigned_completed = terminal["completed_at_unix_ms"].as_u64().unwrap() + 1;
+    terminal["completed_at_unix_ms"] = json!(resigned_completed);
+    terminal["updated_at_unix_ms"] = json!(resigned_completed);
+    fs::write(
+        &terminal_path,
+        serde_json::to_vec_pretty(&terminal).unwrap(),
+    )
+    .unwrap();
+    let (status, terminal_error) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(terminal_error["error"]["code"], "product_source_invalid");
+    assert_eq!(terminal_error["error"]["field"], "demo_terminal_anchor");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_terminal_publication_is_idempotent_for_get_and_stop_races() {
+    let fixture = Fixture::new("demo-terminal-races");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let start = json!({
+        "run_id": run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let ownership = store.load().unwrap().nodes["mvp-node-001"].run_ownership[&run_id].clone();
+    store
+        .stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: "mvp-node-001".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            },
+            &run_id,
+            &ownership.manifest_sha256,
+        )
+        .expect("owner-aware stop should leave terminal publication to concurrent readers");
+    let detail_path = format!("/api/product/v1/runs/{run_id}");
+    let (first, second) = tokio::join!(
+        router_json(&router, Method::GET, &detail_path),
+        router_json(&router, Method::GET, &detail_path)
+    );
+    for (status, detail) in [first, second] {
+        assert_eq!(status, StatusCode::OK, "{detail}");
+        assert_eq!(detail["data"]["lifecycle"], "stopped");
+    }
+
+    for attempt in 0..8 {
+        let (status, created) = router_json_body(
+            &router,
+            Method::POST,
+            "/api/product/v1/demo-runs",
+            &valid_demo_request(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "attempt={attempt} {created}");
+        let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+        let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+        let start = json!({
+            "run_id": run_id,
+            "action": "start",
+            "user_confirmed": true
+        });
+        let (status, started) = router_json_body(&router, Method::POST, &action_path, &start).await;
+        assert_eq!(status, StatusCode::OK, "attempt={attempt} {started}");
+        let stop = json!({
+            "run_id": run_id,
+            "action": "stop",
+            "user_confirmed": true
+        });
+        let detail_path = format!("/api/product/v1/runs/{run_id}");
+        let (stopped, concurrent_read) = tokio::join!(
+            router_json_body(&router, Method::POST, &action_path, &stop),
+            router_json(&router, Method::GET, &detail_path)
+        );
+        assert_eq!(stopped.0, StatusCode::OK, "attempt={attempt} {}", stopped.1);
+        assert_eq!(
+            concurrent_read.0,
+            StatusCode::OK,
+            "attempt={attempt} {}",
+            concurrent_read.1
+        );
+        let (status, final_detail) = router_json(&router, Method::GET, &detail_path).await;
+        assert_eq!(status, StatusCode::OK, "attempt={attempt} {final_detail}");
+        assert_eq!(final_detail["data"]["lifecycle"], "stopped");
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_creation_finalizes_a_stopped_owner_before_freshness_validation() {
+    let fixture = Fixture::new("demo-create-after-external-stop");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let start = json!({
+        "run_id": run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let ownership = store.load().unwrap().nodes["mvp-node-001"].run_ownership[&run_id].clone();
+    let stopped = store
+        .stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: "mvp-node-001".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            },
+            &run_id,
+            &ownership.manifest_sha256,
+        )
+        .expect("owner-aware stop should leave terminal publication to the next product request");
+    assert_eq!(stopped.process.state, SupervisorProcessState::Stopped);
+    assert!(stopped.run_ownership[&run_id].terminal.is_none());
+
+    for path in [&stopped.status_path, &stopped.metrics_path] {
+        let mut artifact: Value =
+            serde_json::from_slice(&fs::read(path).expect("runtime artifact should be readable"))
+                .expect("runtime artifact should be valid JSON");
+        artifact["generated_at"]["value"] = json!("1");
+        write_json(path, &artifact);
+    }
+    let mut stale_contract = fixture.read_status_contract();
+    stale_contract.provenance.generated_at_unix_ms = 1;
+    fixture.write_status_contract(&stale_contract);
+
+    let (status, replacement) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{replacement}");
+    assert_ne!(
+        replacement["data"]["run_id"].as_str(),
+        Some(run_id.as_str())
+    );
+    let registry = store.load().expect("registry should remain readable");
+    assert_eq!(
+        registry.nodes["mvp-node-001"].run_ownership[&run_id]
+            .terminal
+            .as_ref()
+            .map(|terminal| terminal.lifecycle.as_str()),
+        Some("stopped")
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal_history() {
+    let fixture = Fixture::new("demo-new-ownership-time-baseline");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let old_run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let old_action_path = format!("/api/product/v1/demo-runs/{old_run_id}/actions");
+    let start = json!({
+        "run_id": old_run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &old_action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+    let stop = json!({
+        "run_id": old_run_id,
+        "action": "stop",
+        "user_confirmed": true
+    });
+    let (status, stopped) = router_json_body(&router, Method::POST, &old_action_path, &stop).await;
+    assert_eq!(status, StatusCode::OK, "{stopped}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let old_registry = store.load().expect("stopped registry should be readable");
+    let old_record = &old_registry.nodes["mvp-node-001"];
+    assert!(old_record.last_known_status.started_at.value.is_some());
+    assert!(old_record.last_known_status.stopped_at.value.is_some());
+    let old_terminal = old_record.run_ownership[&old_run_id]
+        .terminal
+        .clone()
+        .expect("old Run should have a terminal ownership anchor");
+
+    let (status, replacement) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{replacement}");
+    let new_run_id = replacement["data"]["run_id"].as_str().unwrap();
+    assert_ne!(new_run_id, old_run_id);
+
+    let registry = store
+        .load()
+        .expect("replacement registry should be readable");
+    let record = &registry.nodes["mvp-node-001"];
+    assert!(record.last_known_status.started_at.value.is_none());
+    assert!(record.last_known_status.stopped_at.value.is_none());
+    assert_eq!(
+        record.run_ownership[&old_run_id].terminal.as_ref(),
+        Some(&old_terminal)
+    );
+    assert!(record.run_ownership[new_run_id].terminal.is_none());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_same_millisecond_start_and_stop_projects_a_terminal_run() {
+    let fixture = Fixture::new("demo-same-millisecond-terminal");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let created_at = created["data"]["created_at_unix_ms"]
+        .as_u64()
+        .expect("Demo created_at should be an integer");
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let start = json!({
+        "run_id": run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let ownership = store.load().unwrap().nodes["mvp-node-001"].run_ownership[&run_id].clone();
+    store
+        .stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: "mvp-node-001".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            },
+            &run_id,
+            &ownership.manifest_sha256,
+        )
+        .expect("owner-aware stop should succeed");
+    let mut registry = store.load().expect("stopped registry should be readable");
+    let record = registry.nodes.get_mut("mvp-node-001").unwrap();
+    record.last_known_status.started_at = SnapshotValue::available(created_at.to_string());
+    record.last_known_status.stopped_at = SnapshotValue::available(created_at.to_string());
+    store
+        .save(&registry)
+        .expect("same-millisecond fixture should be saved");
+
+    let (status, detail) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(detail["data"]["lifecycle"], "stopped");
+    assert_eq!(detail["data"]["started_at_unix_ms"], created_at);
+    assert_eq!(detail["data"]["completed_at_unix_ms"], created_at);
+    let registry = store.load().expect("terminal registry should be readable");
+    assert_eq!(
+        registry.nodes["mvp-node-001"].run_ownership[&run_id]
+            .terminal
+            .as_ref()
+            .map(|terminal| terminal.lifecycle.as_str()),
+        Some("stopped")
+    );
+}
+
+#[tokio::test]
+async fn demo_runtime_exit_is_anchored_failed_and_missing_registry_time_fails_closed() {
+    let fixture = Fixture::new("demo-runtime-exit");
+    let router = fixture.router();
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().unwrap();
+    let record = registry.nodes.get_mut("mvp-node-001").unwrap();
+    let failed_at = unix_time_ms().saturating_add(1_000);
+    record.process.state = SupervisorProcessState::Stale;
+    record.process.pid = SnapshotValue::not_configured();
+    record.last_known_status.lifecycle_state = LifecycleStatus::Error;
+    record.last_known_status.started_at = SnapshotValue::available(failed_at.to_string());
+    record.updated_at = SnapshotValue::available(failed_at.to_string());
+    store.save(&registry).unwrap();
+
+    let (status, unavailable) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{unavailable}");
+    assert_eq!(unavailable["error"]["code"], "product_source_stale");
+    let registry = store.load().unwrap();
+    let ownership = registry.nodes["mvp-node-001"].run_ownership[&run_id]
+        .terminal
+        .as_ref()
+        .expect("failed runtime must publish a Supervisor terminal anchor");
+    assert_eq!(ownership.lifecycle, "failed");
+
+    let mut registry = store.load().unwrap();
+    let record = registry.nodes.get_mut("mvp-node-001").unwrap();
+    record.process.state = SupervisorProcessState::Stopped;
+    record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
+    record.last_known_status.stopped_at = SnapshotValue::available(failed_at.to_string());
+    record.updated_at = SnapshotValue::available(failed_at.saturating_add(1).to_string());
+    store.save(&registry).unwrap();
+    let (status, failed) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{failed}");
+    assert_eq!(failed["data"]["lifecycle"], "failed");
+    assert_eq!(failed["data"]["runtime"]["process_state"], "stale");
+    let (status, second) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{second}");
+    assert_ne!(second["data"]["run_id"], run_id);
+
+    let mut registry = store.load().unwrap();
+    registry.nodes.get_mut("mvp-node-001").unwrap().updated_at = SnapshotValue::unknown();
+    store.save(&registry).unwrap();
+    let (status, invalid) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(invalid["error"]["code"], "product_source_invalid");
+    assert_eq!(invalid["error"]["field"], "supervisor_record_updated_at");
+}
+
+#[tokio::test]
+async fn demo_execution_failures_use_demo_specific_error_contract() {
+    let fixture = Fixture::new("demo-error-contract");
+    let router = fixture.router();
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"].as_str().unwrap();
+    let (status, error) = router_json_body(
+        &router,
+        Method::POST,
+        &format!("/api/product/v1/demo-runs/{run_id}/actions"),
+        &json!({
+            "run_id": run_id,
+            "action": "start",
+            "user_confirmed": true
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(error["error"]["code"], "demo_execution_failed");
+    assert_eq!(error["error"]["field"], "demo_start");
+    validate_openapi_instance("ProductErrorResponse", &error);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn invalid_runtime_after_demo_start_is_stopped_and_terminalized() {
+    let fixture = Fixture::new("demo-start-runtime-invalid");
+    let node = write_demo_fixture_node_with_forbidden_metrics(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Demo Run ID should exist");
+    let (status, error) = router_json_body(
+        &router,
+        Method::POST,
+        &format!("/api/product/v1/demo-runs/{run_id}/actions"),
+        &json!({
+            "run_id": run_id,
+            "action": "start",
+            "user_confirmed": true
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{error}");
+    assert_eq!(error["error"]["code"], "product_boundary_violation");
+    assert_eq!(error["error"]["field"], "node_metrics");
+
+    let registry = SupervisorRegistryStore::new(&fixture.registry_path)
+        .load()
+        .expect("registry should remain readable after failed Demo start");
+    let record = registry
+        .nodes
+        .get("mvp-node-001")
+        .expect("Demo node should remain registered");
+    assert_eq!(record.process.state, SupervisorProcessState::Stopped);
+    assert_eq!(
+        record.last_known_status.lifecycle_state,
+        nautilus_live::status::LifecycleStatus::Stopped
+    );
+    let terminal: Value = serde_json::from_slice(
+        &fs::read(
+            fixture
+                .root
+                .join("artifacts/demo-runs")
+                .join(run_id)
+                .join("terminal-state.json"),
+        )
+        .expect("failed Demo start should publish terminal state"),
+    )
+    .expect("terminal state should be valid JSON");
+    assert_eq!(terminal["lifecycle"], "failed");
+    assert_eq!(terminal["runtime"]["process_state"], "stopped");
+    assert_eq!(terminal["runtime"]["lifecycle_state"], "stopped");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn mvp_shutdown_stops_owned_demo_before_manifest_validation() {
+    let fixture = Fixture::new("demo-shutdown-corrupt-manifest");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let (status, started) = router_json_body(
+        &router,
+        Method::POST,
+        &action_path,
+        &json!({
+            "run_id": run_id,
+            "action": "start",
+            "user_confirmed": true
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+
+    let manifest_path = fixture
+        .root
+        .join("artifacts/demo-runs")
+        .join(&run_id)
+        .join("run-manifest.json");
+    fs::write(&manifest_path, "{}\n").expect("Demo manifest should be corrupted");
+    let error = shutdown_active_demo_run(&fixture.registry_path, Duration::from_secs(3))
+        .expect_err("corrupt manifest should prevent terminal publication after shutdown");
+    let message = format!("{error:#}");
+    assert!(message.contains("active Demo manifest"), "{message}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let record = store
+        .refresh_process_state("mvp-node-001")
+        .expect("Supervisor state should remain readable");
+    assert_eq!(record.process.state, SupervisorProcessState::Stopped);
+    assert_eq!(
+        record.last_known_status.lifecycle_state,
+        LifecycleStatus::Stopped
+    );
+    assert!(
+        record.run_ownership[&run_id].terminal.is_none(),
+        "invalid manifest must not receive a terminal hash anchor"
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn concurrent_demo_starts_are_serialized_and_spawn_one_process() {
+    let fixture = Fixture::new("demo-concurrent-start");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED);
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Demo Run ID should exist");
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let start = json!({
+        "run_id": run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+
+    let (first, second) = tokio::join!(
+        router_json_body(&router, Method::POST, &action_path, &start),
+        router_json_body(&router, Method::POST, &action_path, &start),
+    );
+    let mut statuses = [first.0, second.0];
+    statuses.sort();
+    assert_eq!(statuses, [StatusCode::OK, StatusCode::CONFLICT]);
+    let conflict = if first.0 == StatusCode::CONFLICT {
+        &first.1
+    } else {
+        &second.1
+    };
+    assert_eq!(conflict["error"]["field"], "demo_lifecycle");
+
+    let stop = json!({
+        "run_id": run_id,
+        "action": "stop",
+        "user_confirmed": true
+    });
+    let (status, stopped) = router_json_body(&router, Method::POST, &action_path, &stop).await;
+    assert_eq!(status, StatusCode::OK, "{stopped}");
+    assert_eq!(stopped["data"]["current_run"]["lifecycle"], "stopped");
 }
 
 #[tokio::test]
@@ -2257,7 +3425,7 @@ async fn interrupted_manifest_temp_file_does_not_publish_or_poison_run_listing()
 
     let (status, list) = router_json(&fixture.router(), Method::GET, "/api/product/v1/runs").await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(list["data"].as_array().map(Vec::len), Some(3));
+    assert_eq!(list["data"].as_array().map(Vec::len), Some(2));
     assert!(
         list["data"]
             .as_array()
@@ -2355,7 +3523,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
         list["schema_version"],
         "ntpro.product_api.run_list.response.v1"
     );
-    assert_eq!(list["data"].as_array().map(Vec::len), Some(3));
+    assert_eq!(list["data"].as_array().map(Vec::len), Some(2));
     assert_read_only_boundaries(&list);
     validate_openapi_instance("RunListResponse", &list);
 
@@ -2419,7 +3587,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     let (status, unavailable) = router_json(
         &router,
         Method::GET,
-        "/api/product/v1/runs/mvp-strategy-001/metrics",
+        "/api/product/v1/runs/ema-cross-live-001/metrics",
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -2433,7 +3601,7 @@ async fn run_routes_are_read_only_and_schema_compatible() {
     )
     .await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(filtered["data"][0]["run_id"], "mvp-strategy-001");
+    assert_eq!(filtered["data"].as_array().map(Vec::len), Some(0));
     validate_openapi_instance("RunListResponse", &filtered);
 
     let (status, missing) = router_json(&router, Method::GET, "/api/product/v1/runs/missing").await;
@@ -3157,6 +4325,8 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
     assert_eq!(
         paths.keys().map(String::as_str).collect::<Vec<_>>(),
         [
+            "/demo-runs",
+            "/demo-runs/{run_id}/actions",
             "/run-comparisons",
             "/runs",
             "/runs/{run_id}",
@@ -3172,38 +4342,50 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
     );
     for (path_name, path) in paths {
         let methods = path.as_object().expect("path item must be an object");
-        let expected_methods = if path_name == "/runs" || path_name == "/runs/{run_id}/reproduction"
-        {
-            vec!["get", "post"]
-        } else {
-            vec!["get"]
-        };
+        let expected_methods =
+            if matches!(path_name.as_str(), "/runs" | "/runs/{run_id}/reproduction") {
+                vec!["get", "post"]
+            } else if matches!(
+                path_name.as_str(),
+                "/demo-runs" | "/demo-runs/{run_id}/actions"
+            ) {
+                vec!["post"]
+            } else {
+                vec!["get"]
+            };
         assert_eq!(
             methods.keys().map(String::as_str).collect::<Vec<_>>(),
             expected_methods
         );
-        let operation = &path["get"];
-        assert_eq!(
-            operation["security"],
-            json!([{"InstitutionCookie": []}, {"OperatorCookie": []}])
-        );
-        assert_eq!(
-            operation["responses"]["403"]["$ref"],
-            "#/components/responses/ProductError"
-        );
-        let method_response = if path_name == "/runs" || path_name == "/runs/{run_id}/reproduction"
-        {
-            "#/components/responses/ProductRunMethodNotAllowed"
-        } else {
-            "#/components/responses/ProductMethodNotAllowed"
-        };
-        assert_eq!(operation["responses"]["405"]["$ref"], method_response);
+        if let Some(operation) = path.get("get") {
+            assert_eq!(
+                operation["security"],
+                json!([{"InstitutionCookie": []}, {"OperatorCookie": []}])
+            );
+            assert_eq!(
+                operation["responses"]["403"]["$ref"],
+                "#/components/responses/ProductError"
+            );
+            let method_response =
+                if matches!(path_name.as_str(), "/runs" | "/runs/{run_id}/reproduction") {
+                    "#/components/responses/ProductRunMethodNotAllowed"
+                } else {
+                    "#/components/responses/ProductMethodNotAllowed"
+                };
+            assert_eq!(operation["responses"]["405"]["$ref"], method_response);
+        }
         if path_name == "/runs" {
             assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
             assert_eq!(path["post"]["operationId"], "createBacktestRun");
         } else if path_name == "/runs/{run_id}/reproduction" {
             assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
             assert_eq!(path["post"]["operationId"], "reproduceBacktestRun");
+        } else if path_name == "/demo-runs" {
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "createDemoRun");
+        } else if path_name == "/demo-runs/{run_id}/actions" {
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "actOnDemoRun");
         }
     }
 
@@ -3355,31 +4537,6 @@ real_orders_submitted = false
 trading_controls_enabled = false
 
 [[product_runs]]
-run_id = "mvp-strategy-001"
-strategy_id = "ema-cross"
-strategy_version_id = "ema-cross@v1"
-environment = "sandbox"
-data_ref = "market://sandbox/BTCUSDT.BINANCE"
-config_ref = "node-config:node.toml#product_runs"
-adapter_ref = "adapter://sandbox/fixture-stream"
-account_ref = "account://sandbox/acct-sandbox-001"
-venue_ref = "venue://sandbox/BINANCE"
-lifecycle = "running"
-result_status = "pending"
-risk_status = "active"
-risk_ref = "node-config:node.toml#risk"
-created_at_unix_ms = 1785542400000
-started_at_unix_ms = 1785542400000
-updated_at_unix_ms = 1785542400000
-external_venue_connection = false
-order_submission_allowed = false
-order_mutation_allowed = false
-automatic_retry_allowed = false
-automatic_remediation_allowed = false
-real_orders_submitted = false
-trading_controls_enabled = false
-
-[[product_runs]]
 run_id = "ema-cross-live-001"
 strategy_id = "ema-cross"
 strategy_version_id = "ema-cross@v1"
@@ -3404,6 +4561,174 @@ real_orders_submitted = false
 trading_controls_enabled = false
 "#,
     )
+}
+
+fn valid_demo_request() -> Value {
+    json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "sandbox",
+        "supervisor_node_id": "mvp-node-001",
+        "account_ref": "account://sandbox/acct-sandbox-001",
+        "venue_ref": "venue://sandbox/BINANCE",
+        "user_confirmed": true
+    })
+}
+
+#[cfg(unix)]
+fn write_demo_fixture_node(root: &Path) -> PathBuf {
+    let path = root.join("fixture-ntpro-node.sh");
+    fs::write(
+        &path,
+        r#"#!/bin/sh
+set -eu
+node_id=""
+output=""
+stop_file=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --run-id) node_id="$2"; shift 2 ;;
+    --output) output="$2"; shift 2 ;;
+    --stop-file) stop_file="$2"; shift 2 ;;
+    --max-runtime-ms|--heartbeat-interval-ms|--parent-pid|--shutdown-timeout-ms) shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$output/logs"
+touch "$output/logs/stdout.log" "$output/logs/stderr.log" "$output/logs/events.log"
+write_artifacts() {
+  lifecycle="$1"
+  previous="$2"
+  stops="$3"
+  now_ms="$(($(date +%s) * 1000))"
+  stopped='{"availability":"unknown"}'
+  if [ "$lifecycle" = "stopped" ]; then
+    stopped="{\"availability\":\"available\",\"value\":\"$now_ms\"}"
+  fi
+  cat > "$output/status.json.tmp" <<EOF
+{
+  "schema_version":"ntpro.node_status.v1",
+  "node_id":"$node_id",
+  "process_mode":"spawned_process",
+  "config_path":{"availability":"available","value":"fixture.toml"},
+  "artifact_root":{"availability":"available","value":"$output"},
+  "lifecycle_state":"$lifecycle",
+  "previous_lifecycle_state":"$previous",
+  "data_connection":"not_configured",
+  "execution_connection":"disconnected",
+  "execution":{
+    "gateway_id":{"availability":"available","value":"SANDBOX"},
+    "connection":"disconnected",
+    "started":{"availability":"available","value":false},
+    "account_ref":{"availability":"available","value":"account://sandbox/acct-sandbox-001"},
+    "orders_open":{"availability":"available","value":0},
+    "orders_inflight":{"availability":"available","value":0},
+    "orders_closed":{"availability":"available","value":0},
+    "last_report_at":{"availability":"unknown"},
+    "last_reconciliation_at":{"availability":"unknown"},
+    "last_error":null
+  },
+  "risk":{
+    "trading_state":"unknown",
+    "health":"unknown",
+    "command_count":{"availability":"available","value":0},
+    "event_count":{"availability":"available","value":0},
+    "rejections_total":{"availability":"available","value":0},
+    "last_rejection":null,
+    "last_error":null
+  },
+  "generated_at":{"availability":"available","value":"$now_ms"},
+  "started_at":{"availability":"available","value":"$now_ms"},
+  "stopped_at":$stopped,
+  "last_transition_at":{"availability":"available","value":"$now_ms"},
+  "last_error":null,
+  "external_venue_connection":false,
+  "real_orders_submitted":false
+}
+EOF
+  mv "$output/status.json.tmp" "$output/status.json"
+  cat > "$output/metrics.json.tmp" <<EOF
+{
+  "schema_version":"ntpro.node_metrics.v1",
+  "node_id":"$node_id",
+  "lifecycle_state":"$lifecycle",
+  "previous_lifecycle_state":"$previous",
+  "process_mode":"spawned_process",
+  "uptime_ms":{"availability":"available","value":1},
+  "starts_total":1,
+  "stops_total":$stops,
+  "state_transitions_total":2,
+  "connection_counts":{
+    "data_connected":0,
+    "data_disconnected":0,
+    "data_not_configured":1,
+    "execution_connected":0,
+    "execution_disconnected":1,
+    "execution_not_configured":0
+  },
+  "last_error_summary":null,
+  "generated_at":{"availability":"available","value":"$now_ms"},
+  "started_at":{"availability":"available","value":"$now_ms"},
+  "stopped_at":$stopped,
+  "status_artifact_path":{"availability":"available","value":"$output/status.json"},
+  "stdout_log_path":{"availability":"available","value":"$output/logs/stdout.log"},
+  "stderr_log_path":{"availability":"available","value":"$output/logs/stderr.log"},
+  "events_log_path":{"availability":"available","value":"$output/logs/events.log"},
+  "strategy_signal_count":{"availability":"available","value":0},
+  "strategy_rejection_count":{"availability":"available","value":0},
+  "kill_switch_dry_run":{
+    "artifact_path":{"availability":"available","value":"$output/kill-switch.json"},
+    "artifact_status":{"availability":"available","value":"verified"},
+    "kill_switch_active":{"availability":"available","value":false},
+    "kill_switch_dry_run":{"availability":"available","value":true},
+    "manual_approval_recorded":{"availability":"available","value":false},
+    "approval_state":{"availability":"available","value":"not_approved"},
+    "production_order_submission_allowed":{"availability":"available","value":false},
+    "production_order_mutation_allowed":{"availability":"available","value":false},
+    "production_order_state_reads_allowed":{"availability":"available","value":false},
+    "listen_key_lifecycle_allowed":{"availability":"available","value":false},
+    "production_order_submissions_attempted":{"availability":"available","value":0},
+    "production_orders_submitted":{"availability":"available","value":0},
+    "production_order_mutations_attempted":{"availability":"available","value":0},
+    "production_order_state_reads_attempted":{"availability":"available","value":0},
+    "dashboard_order_controls_enabled":{"availability":"available","value":false},
+    "real_orders_submitted":{"availability":"available","value":false},
+    "network_attempted":{"availability":"available","value":false},
+    "values_are_exchange_truth":{"availability":"available","value":false}
+  },
+  "external_venue_connection":false,
+  "real_orders_submitted":false
+}
+EOF
+  mv "$output/metrics.json.tmp" "$output/metrics.json"
+}
+write_artifacts running starting 0
+while [ ! -f "$stop_file" ]; do sleep 0.05; done
+write_artifacts stopped running 1
+"#,
+    )
+    .expect("Demo fixture node should be written");
+    let mut permissions = fs::metadata(&path)
+        .expect("Demo fixture node metadata should exist")
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&path, permissions).expect("Demo fixture node should become executable");
+    path
+}
+
+#[cfg(unix)]
+fn write_demo_fixture_node_with_forbidden_metrics(root: &Path) -> PathBuf {
+    let path = write_demo_fixture_node(root);
+    let raw = fs::read_to_string(&path).expect("Demo fixture node should be readable");
+    fs::write(
+        &path,
+        raw.replace(
+            "\"production_order_submission_allowed\":{\"availability\":\"available\",\"value\":false}",
+            "\"production_order_submission_allowed\":{\"availability\":\"available\",\"value\":true}",
+        ),
+    )
+    .expect("forbidden Demo metrics fixture should be written");
+    path
 }
 
 fn legacy_config_without_strategy_version() -> &'static str {
@@ -3869,6 +5194,62 @@ async fn router_json_body(
                 .body(Body::from(
                     serde_json::to_vec(body).expect("request body should serialize"),
                 ))
+                .expect("request should build"),
+        )
+        .await
+        .expect("router request should complete");
+    let status = response.status();
+    let raw = to_bytes(response.into_body(), 2 * 1024 * 1024)
+        .await
+        .expect("response body should be readable");
+    let value = serde_json::from_slice(&raw).expect("response should be valid JSON");
+    (status, value)
+}
+
+async fn router_json_body_with_cookie(
+    router: &Router,
+    method: Method,
+    path: &str,
+    body: &Value,
+    cookie: &str,
+) -> (StatusCode, Value) {
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .header("content-type", "application/json")
+                .header("cookie", cookie)
+                .body(Body::from(
+                    serde_json::to_vec(body).expect("request body should serialize"),
+                ))
+                .expect("request should build"),
+        )
+        .await
+        .expect("router request should complete");
+    let status = response.status();
+    let raw = to_bytes(response.into_body(), 2 * 1024 * 1024)
+        .await
+        .expect("response body should be readable");
+    let value = serde_json::from_slice(&raw).expect("response should be valid JSON");
+    (status, value)
+}
+
+async fn router_json_with_cookie(
+    router: &Router,
+    method: Method,
+    path: &str,
+    cookie: &str,
+) -> (StatusCode, Value) {
+    let response = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .header("cookie", cookie)
+                .body(Body::empty())
                 .expect("request should build"),
         )
         .await

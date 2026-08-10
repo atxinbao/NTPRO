@@ -12,6 +12,9 @@ const nodeConfig = path.resolve(process.env.NTPRO_MVP_CONFIG || "configs/nodes/b
 const backtestConfigArg = process.env.NTPRO_MVP_BACKTEST_CONFIG
   || "examples/rust/backtest/minimal_engine_smoke.toml";
 const backtestConfig = path.resolve(backtestConfigArg);
+const productBacktestConfig = path.resolve(
+  "configs/backtests/ema-cross-btcusdt-product.toml",
+);
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "ntpro-mvp-011-acceptance-"));
 const evidenceDir = path.resolve(
   process.env.NTPRO_MVP_ACCEPTANCE_EVIDENCE_DIR
@@ -20,6 +23,12 @@ const evidenceDir = path.resolve(
 const workspace = path.join(root, "workspace");
 const backtestA = path.join(root, "backtest-a");
 const backtestB = path.join(root, "backtest-b");
+const productBacktestOutput = path.join(
+  workspace,
+  "artifacts",
+  "backtests",
+  "ema-cross-btcusdt-baseline-v1",
+);
 const resultPath = path.join(evidenceDir, "result.json");
 const serverLogPath = path.join(evidenceDir, "mvp-server.log");
 const identityFalseFields = [
@@ -64,16 +73,6 @@ const operationalFalseFields = [
   "automatic_retry_allowed",
   "automatic_remediation_allowed",
   "raw_errors_exposed",
-];
-const actionFalseFields = [
-  "external_venue_connection",
-  "production_venue_connection",
-  "external_network_attempted",
-  "order_submission_allowed",
-  "order_mutation_allowed",
-  "automatic_retry_allowed",
-  "automatic_remediation_allowed",
-  "real_orders_submitted",
 ];
 const expectedStrategyResultSha256 = "5d1e0903a1060f75b28b30241d2f086c6d2dec1faf171ddf0fb40bf09d369e1c";
 
@@ -246,24 +245,6 @@ const assertOperationalSnapshot = (body, expectedLifecycle) => {
   assert(body.boundaries?.supervisor_actions_exposed === true, "lifecycle actions must be explicit");
   assertFalseBoundaries(body.boundaries, "control_center", operationalFalseFields);
 };
-const assertAction = (body, action, previousState, currentState) => {
-  assert(
-    body.schema_version === "ntpro.mvp_control_center_lifecycle_action.response.v1",
-    `${action} schema mismatch`,
-  );
-  assert(
-    body.contract_version === "ntpro.mvp_control_center_lifecycle_action.v1",
-    `${action} contract mismatch`,
-  );
-  assert(body.target_node_id === "mvp-node-001", `${action} target mismatch`);
-  assert(body.action_name === action, `${action} name mismatch`);
-  assert(body.result?.status === "succeeded", `${action} did not succeed`);
-  assert(body.result?.previous_state === previousState, `${action} previous state mismatch`);
-  assert(body.result?.current_state === currentState, `${action} current state mismatch`);
-  assert(body.boundaries?.supervisor_lifecycle_action === true, `${action} lifecycle boundary missing`);
-  assertFalseBoundaries(body.boundaries, action, actionFalseFields);
-};
-
 let server;
 let serverLog = "";
 let failure;
@@ -274,6 +255,7 @@ try {
   requireFile(nodeBin, "ntpro-node binary");
   requireFile(nodeConfig, "MVP node config");
   requireFile(backtestConfig, "deterministic backtest config");
+  requireFile(productBacktestConfig, "product backtest config");
   assert(!fs.existsSync(workspace), "MVP workspace must not exist before acceptance starts");
 
   const runId = "mvp-011-deterministic-engine-smoke";
@@ -303,6 +285,11 @@ try {
     strategyResultSha256 === expectedStrategyResultSha256,
     `strategy golden digest drifted: expected ${expectedStrategyResultSha256}, got ${strategyResultSha256}`,
   );
+  run([
+    "backtest", "run",
+    "--config", productBacktestConfig,
+    "--output", productBacktestOutput,
+  ]);
 
   const port = await new Promise((resolve, reject) => {
     const listener = net.createServer();
@@ -349,18 +336,18 @@ try {
     "ntpro_mvp_operator_access",
   );
 
-  const sharedRunning = await fetchJson(`${baseUrl}/api/mvp/v1/status`, institutionCookie);
-  assert(sharedRunning.status === 200, `institution shared status expected 200, got ${sharedRunning.status}`);
-  assertSharedStatus(sharedRunning.body, "running");
+  const sharedPrepared = await fetchJson(`${baseUrl}/api/mvp/v1/status`, institutionCookie);
+  assert(sharedPrepared.status === 200, `institution shared status expected 200, got ${sharedPrepared.status}`);
+  assertSharedStatus(sharedPrepared.body, "stopped");
   const correlation = await fetchJson(`${baseUrl}/api/mvp/v1/event-correlation`, institutionCookie);
   assert(correlation.status === 200, `institution event correlation expected 200, got ${correlation.status}`);
   assert(correlation.body.event?.node_id === "mvp-node-001", "event node identity mismatch");
   assert(correlation.body.boundaries?.read_only === true, "event correlation must remain read-only");
   assertFalseBoundaries(correlation.body.boundaries, "event", eventFalseFields);
 
-  const operationalRunning = await fetchJson(`${baseUrl}/api/mvp/v1/control-center`, operatorCookie);
-  assert(operationalRunning.status === 200, `operator snapshot expected 200, got ${operationalRunning.status}`);
-  assertOperationalSnapshot(operationalRunning.body, "running");
+  const operationalPrepared = await fetchJson(`${baseUrl}/api/mvp/v1/control-center`, operatorCookie);
+  assert(operationalPrepared.status === 200, `operator snapshot expected 200, got ${operationalPrepared.status}`);
+  assertOperationalSnapshot(operationalPrepared.body, "stopped");
 
   const actionBase = `${baseUrl}/api/mvp/v1/control-center/nodes/mvp-node-001/actions`;
   const unauthorized = await fetch(`${actionBase}/stop`, {
@@ -383,20 +370,45 @@ try {
   });
   assert(lifecycleGet.status === 405, `lifecycle GET expected 405, got ${lifecycleGet.status}`);
 
-  const stop = await fetchJson(`${actionBase}/stop`, operatorCookie, { method: "POST" });
-  assert(stop.status === 200, `operator stop expected 200, got ${stop.status}`);
-  assertAction(stop.body, "stop", "running", "stopped");
-  await waitFor("stopped operational projection", 10_000, async () => {
-    const snapshot = await fetchJson(`${baseUrl}/api/mvp/v1/control-center`, operatorCookie);
-    if (snapshot.status !== 200 || snapshot.body.node?.lifecycle_state !== "stopped") return undefined;
-    assertOperationalSnapshot(snapshot.body, "stopped");
-    return true;
-  });
+  const createDemo = async () => fetchJson(
+    `${baseUrl}/api/product/v1/demo-runs`,
+    institutionCookie,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        strategy_id: "ema_cross_btcusdt_v1",
+        strategy_version_id: "ema_cross_btcusdt_v1@v1",
+        environment: "sandbox",
+        supervisor_node_id: "mvp-node-001",
+        account_ref: "account://sandbox/SANDBOX-001",
+        venue_ref: "venue://sandbox/BINANCE_TESTNET",
+        user_confirmed: true,
+      }),
+    },
+  );
+  const actOnDemo = async (runId, action) => fetchJson(
+    `${baseUrl}/api/product/v1/demo-runs/${runId}/actions`,
+    institutionCookie,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ run_id: runId, action, user_confirmed: true }),
+    },
+  );
 
-  const start = await fetchJson(`${actionBase}/start`, operatorCookie, { method: "POST" });
-  assert(start.status === 200, `operator start expected 200, got ${start.status}`);
-  assertAction(start.body, "start", "stopped", "running");
-  await waitFor("restarted shared and operational projections", 10_000, async () => {
+  const firstCreated = await createDemo();
+  assert(firstCreated.status === 201, `Demo create expected 201, got ${firstCreated.status}`);
+  const firstRunId = firstCreated.body.data?.run_id;
+  assert(firstRunId, "Demo create omitted run_id");
+  assert(firstCreated.body.data?.lifecycle === "created", "Demo must start as created");
+  const firstStarted = await actOnDemo(firstRunId, "start");
+  assert(firstStarted.status === 200, `Demo start expected 200, got ${firstStarted.status}`);
+  assert(
+    firstStarted.body.data?.current_run?.lifecycle === "running",
+    "Demo start did not project running",
+  );
+  await waitFor("running shared and operational projections", 10_000, async () => {
     const [shared, snapshot] = await Promise.all([
       fetchJson(`${baseUrl}/api/mvp/v1/status`, institutionCookie),
       fetchJson(`${baseUrl}/api/mvp/v1/control-center`, operatorCookie),
@@ -412,6 +424,50 @@ try {
     return true;
   });
 
+  const bypassStop = await fetchJson(`${actionBase}/stop`, operatorCookie, { method: "POST" });
+  assert(bypassStop.status === 500, `operator bypass stop expected 500, got ${bypassStop.status}`);
+  assert(bypassStop.body.result?.status === "failed", "operator bypass stop must fail");
+  const firstStopped = await actOnDemo(firstRunId, "stop");
+  assert(firstStopped.status === 200, `Demo stop expected 200, got ${firstStopped.status}`);
+  assert(
+    firstStopped.body.data?.current_run?.lifecycle === "stopped",
+    "Demo stop did not publish stopped terminal state",
+  );
+  await waitFor("stopped operational projection", 10_000, async () => {
+    const snapshot = await fetchJson(`${baseUrl}/api/mvp/v1/control-center`, operatorCookie);
+    if (snapshot.status !== 200 || snapshot.body.node?.lifecycle_state !== "stopped") return undefined;
+    assertOperationalSnapshot(snapshot.body, "stopped");
+    return true;
+  });
+
+  const secondCreated = await createDemo();
+  assert(secondCreated.status === 201, `second Demo create expected 201, got ${secondCreated.status}`);
+  const secondRunId = secondCreated.body.data?.run_id;
+  assert(secondRunId && secondRunId !== firstRunId, "second Demo run_id must be unique");
+  const secondStarted = await actOnDemo(secondRunId, "start");
+  assert(secondStarted.status === 200, `second Demo start expected 200, got ${secondStarted.status}`);
+  await waitFor("restarted shared and operational projections", 10_000, async () => {
+    const [shared, snapshot] = await Promise.all([
+      fetchJson(`${baseUrl}/api/mvp/v1/status`, institutionCookie),
+      fetchJson(`${baseUrl}/api/mvp/v1/control-center`, operatorCookie),
+    ]);
+    if (
+      shared.status !== 200
+      || snapshot.status !== 200
+      || shared.body.status?.runtime?.status !== "running"
+      || snapshot.body.node?.lifecycle_state !== "running"
+    ) return undefined;
+    assertSharedStatus(shared.body, "running");
+    assertOperationalSnapshot(snapshot.body, "running");
+    return true;
+  });
+  const firstHistory = await fetchJson(
+    `${baseUrl}/api/product/v1/runs/${firstRunId}`,
+    institutionCookie,
+  );
+  assert(firstHistory.status === 200, "first Demo history should remain readable");
+  assert(firstHistory.body.data?.lifecycle === "stopped", "first Demo history drifted");
+
   server.kill("SIGINT");
   assert(await waitForServerExit(server, 10_000), "MVP server did not stop after SIGINT");
   assert(server.exitCode === 0, `MVP server exited with code ${server.exitCode}`);
@@ -424,6 +480,10 @@ try {
   assert(finalNode?.last_known_status?.lifecycle_state === "stopped", "final registry lifecycle is not stopped");
   assert(finalNode?.last_known_status?.external_venue_connection === false, "final registry opened external venue");
   assert(finalNode?.last_known_status?.real_orders_submitted === false, "final registry submitted real orders");
+  assert(
+    finalNode?.run_ownership?.[secondRunId]?.terminal?.lifecycle === "stopped",
+    "MVP shutdown did not anchor the active Demo terminal state",
+  );
   const finalStatus = JSON.parse(fs.readFileSync(path.join(workspace, "mvp/status_contract.json"), "utf8"));
   assert(finalStatus.runtime?.status === "stopped", "final MVP status contract is not stopped");
   assert(finalStatus.trading_readiness?.status === "blocked", "final trading readiness is not blocked");
@@ -452,14 +512,16 @@ try {
       node_count: 1,
       node_id: "mvp-node-001",
       environment: "sandbox",
-      transitions: ["running", "stopped", "running", "stopped"],
+      transitions: ["stopped", "running", "stopped", "running", "stopped"],
+      demo_runs: 2,
     },
     access: {
       institution_read_only: true,
       institution_lifecycle_action_status: 403,
       unauthenticated_lifecycle_action_status: 403,
       lifecycle_get_status: 405,
-      operator_stop_start: true,
+      operator_demo_bypass_status: 500,
+      institution_demo_lifecycle: true,
       bootstrap_url_clean: true,
       boundary_validator_negative_cases: 2,
       diagnostic_redaction_selftest: true,
@@ -510,6 +572,6 @@ if (failure) {
   process.exitCode = 1;
 } else {
   console.log(
-    `mvp_acceptance=pass deterministic_runs=2 summary_sha256=${passResult.deterministic_backtest.summary_sha256} node_count=1 transitions=running,stopped,running,stopped role_boundary=pass graceful_shutdown=pass`,
+    `mvp_acceptance=pass deterministic_runs=2 summary_sha256=${passResult.deterministic_backtest.summary_sha256} node_count=1 transitions=stopped,running,stopped,running,stopped demo_lifecycle=pass role_boundary=pass graceful_shutdown=pass`,
   );
 }

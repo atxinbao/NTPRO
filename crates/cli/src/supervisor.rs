@@ -94,7 +94,25 @@ pub struct SupervisorNodeRecord {
     pub status_artifact: RegistryArtifactState,
     #[serde(default)]
     pub metrics_artifact: RegistryArtifactState,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub run_ownership: BTreeMap<String, SupervisorRunOwnership>,
     pub updated_at: SnapshotValue<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SupervisorRunOwnership {
+    pub run_id: String,
+    pub manifest_sha256: String,
+    pub claimed_at_unix_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal: Option<SupervisorRunTerminalAnchor>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SupervisorRunTerminalAnchor {
+    pub lifecycle: String,
+    pub terminal_state_sha256: String,
+    pub completed_at_unix_ms: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -1231,6 +1249,130 @@ impl SupervisorRegistryStore {
         Ok(())
     }
 
+    /// Claims exclusive node ownership for one immutable product Run.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the node is not stopped, another Run is active,
+    /// the ownership identity is invalid, or the registry cannot be saved.
+    pub fn claim_run_ownership(
+        &self,
+        node_id: &str,
+        ownership: SupervisorRunOwnership,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_node_id(node_id)?;
+        validate_run_ownership_identity(&ownership.run_id, &ownership.manifest_sha256)?;
+        ensure!(
+            ownership.terminal.is_none(),
+            "new Run ownership must be active"
+        );
+        ensure!(
+            ownership.claimed_at_unix_ms > 0,
+            "Run ownership claim timestamp must be positive"
+        );
+        let _lock = self.acquire_registry_lock()?;
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(node_id)
+            .with_context(|| format!("node '{node_id}' is not registered"))?;
+        ensure!(
+            record.process.state == SupervisorProcessState::Stopped
+                || record.process.state == SupervisorProcessState::NotStarted,
+            "node '{node_id}' is not stopped"
+        );
+        ensure!(
+            record.last_known_status.lifecycle_state == LifecycleStatus::Stopped,
+            "node '{node_id}' lifecycle is not stopped"
+        );
+        ensure!(
+            active_run_ownership(record).is_none(),
+            "node '{node_id}' already has active Run ownership"
+        );
+        ensure!(
+            !record.run_ownership.contains_key(&ownership.run_id),
+            "Run '{}' already owns node '{node_id}'",
+            ownership.run_id
+        );
+        record
+            .run_ownership
+            .insert(ownership.run_id.clone(), ownership);
+        record.last_known_status.started_at = SnapshotValue::unknown();
+        record.last_known_status.stopped_at = SnapshotValue::unknown();
+        record.updated_at = SnapshotValue::available(now_millis());
+        let updated = record.clone();
+        registry.updated_at = SnapshotValue::available(now_millis());
+        self.save(&registry)?;
+        Ok(updated)
+    }
+
+    /// Anchors an immutable terminal artifact in the Supervisor registry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when ownership does not match, the process may still
+    /// be alive, a terminal anchor already exists, or the registry cannot be
+    /// saved.
+    pub fn anchor_run_terminal(
+        &self,
+        node_id: &str,
+        run_id: &str,
+        manifest_sha256: &str,
+        terminal: SupervisorRunTerminalAnchor,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_node_id(node_id)?;
+        validate_run_ownership_identity(run_id, manifest_sha256)?;
+        validate_sha256_ref(&terminal.terminal_state_sha256)?;
+        ensure!(
+            matches!(terminal.lifecycle.as_str(), "stopped" | "failed"),
+            "unsupported terminal Run lifecycle '{}'",
+            terminal.lifecycle
+        );
+        ensure!(
+            terminal.completed_at_unix_ms > 0,
+            "terminal Run timestamp must be positive"
+        );
+        self.refresh_process_state(node_id)?;
+        let _lock = self.acquire_registry_lock()?;
+        let mut registry = self.load()?;
+        let record = registry
+            .nodes
+            .get_mut(node_id)
+            .with_context(|| format!("node '{node_id}' is not registered"))?;
+        let process_confirmed_exited = match record.process.state {
+            SupervisorProcessState::Stopped => {
+                record.last_known_status.lifecycle_state == LifecycleStatus::Stopped
+            }
+            SupervisorProcessState::Stale => !pid_artifact_matches_live_identity(record)?,
+            _ => false,
+        };
+        ensure!(
+            process_confirmed_exited,
+            "node '{node_id}' process exit is not confirmed"
+        );
+        let ownership = record
+            .run_ownership
+            .get_mut(run_id)
+            .with_context(|| format!("Run '{run_id}' does not own node '{node_id}'"))?;
+        ensure!(
+            ownership.manifest_sha256 == manifest_sha256,
+            "Run '{run_id}' manifest ownership mismatch"
+        );
+        if let Some(existing) = ownership.terminal.as_ref() {
+            ensure!(
+                existing == &terminal,
+                "Run '{run_id}' terminal ownership anchor mismatch"
+            );
+            return Ok(record.clone());
+        }
+        ownership.terminal = Some(terminal);
+        record.updated_at = SnapshotValue::available(now_millis());
+        let updated = record.clone();
+        registry.updated_at = SnapshotValue::available(now_millis());
+        self.save(&registry)?;
+        Ok(updated)
+    }
+
     fn acquire_registry_lock(&self) -> anyhow::Result<RegistryFileLock> {
         self.acquire_registry_lock_with_timeout(REGISTRY_LOCK_TIMEOUT)
     }
@@ -1341,21 +1483,29 @@ impl SupervisorRegistryStore {
 
         let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
-        if let Some(existing) = registry.nodes.get(&request.node_id)
-            && existing.process.state == SupervisorProcessState::Running
-        {
-            anyhow::bail!(
+        let preserved_run_ownership = if let Some(existing) = registry.nodes.get(&request.node_id) {
+            ensure!(
+                existing.process.state != SupervisorProcessState::Running,
                 "node '{}' is running and cannot be replaced",
                 request.node_id
             );
-        }
+            ensure!(
+                active_run_ownership(existing).is_none(),
+                "node '{}' has active Run ownership and cannot be replaced",
+                request.node_id
+            );
+            existing.run_ownership.clone()
+        } else {
+            BTreeMap::new()
+        };
 
         let artifact_root = request
             .artifact_root
             .unwrap_or_else(|| self.default_node_artifact_root(&request.node_id));
         create_node_dirs(&artifact_root)?;
-        let record =
+        let mut record =
             SupervisorNodeRecord::new(request.node_id.clone(), request.config_path, artifact_root);
+        record.run_ownership = preserved_run_ownership;
         registry.nodes.insert(request.node_id, record.clone());
         registry.updated_at = SnapshotValue::available(now_millis());
         self.save(&registry)?;
@@ -1522,6 +1672,12 @@ impl SupervisorRegistryStore {
     pub fn remove_node(&self, node_id: &str) -> anyhow::Result<Option<SupervisorNodeRecord>> {
         let _lock = self.acquire_registry_lock()?;
         let mut registry = self.load()?;
+        if let Some(record) = registry.nodes.get(node_id) {
+            ensure!(
+                record.run_ownership.is_empty(),
+                "node '{node_id}' has immutable Run ownership history and cannot be removed"
+            );
+        }
         let removed = registry.nodes.remove(node_id);
         if removed.is_some() {
             registry.updated_at = SnapshotValue::available(now_millis());
@@ -1538,6 +1694,30 @@ impl SupervisorRegistryStore {
     pub fn start_node_process(
         &self,
         request: &StartNodeRequest,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        self.start_node_process_authorized(request, None)
+    }
+
+    /// Starts a node only when the supplied immutable Run owns it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::start_node_process`] and rejects a
+    /// missing or mismatched active Run ownership record.
+    pub fn start_node_process_for_run(
+        &self,
+        request: &StartNodeRequest,
+        run_id: &str,
+        manifest_sha256: &str,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_run_ownership_identity(run_id, manifest_sha256)?;
+        self.start_node_process_authorized(request, Some((run_id, manifest_sha256)))
+    }
+
+    fn start_node_process_authorized(
+        &self,
+        request: &StartNodeRequest,
+        ownership: Option<(&str, &str)>,
     ) -> anyhow::Result<SupervisorNodeRecord> {
         validate_node_id(&request.node_id)?;
         ensure!(
@@ -1566,6 +1746,7 @@ impl SupervisorRegistryStore {
                 .nodes
                 .get_mut(&request.node_id)
                 .with_context(|| format!("node '{}' is not registered", request.node_id))?;
+            ensure_run_action_authorized(record, ownership)?;
             ensure!(
                 record.process.state != SupervisorProcessState::Running,
                 "node '{}' is already running",
@@ -1682,6 +1863,30 @@ impl SupervisorRegistryStore {
         &self,
         request: &StopNodeRequest,
     ) -> anyhow::Result<SupervisorNodeRecord> {
+        self.stop_node_process_authorized(request, None)
+    }
+
+    /// Stops a node only when the supplied immutable Run owns it.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Self::stop_node_process`] and rejects a
+    /// missing or mismatched active Run ownership record.
+    pub fn stop_node_process_for_run(
+        &self,
+        request: &StopNodeRequest,
+        run_id: &str,
+        manifest_sha256: &str,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
+        validate_run_ownership_identity(run_id, manifest_sha256)?;
+        self.stop_node_process_authorized(request, Some((run_id, manifest_sha256)))
+    }
+
+    fn stop_node_process_authorized(
+        &self,
+        request: &StopNodeRequest,
+        ownership: Option<(&str, &str)>,
+    ) -> anyhow::Result<SupervisorNodeRecord> {
         validate_node_id(&request.node_id)?;
         self.refresh_process_state(&request.node_id)?;
         let pid = {
@@ -1691,6 +1896,7 @@ impl SupervisorRegistryStore {
                 .nodes
                 .get_mut(&request.node_id)
                 .with_context(|| format!("node '{}' is not registered", request.node_id))?;
+            ensure_run_action_authorized(record, ownership)?;
             ensure!(
                 record.process.state == SupervisorProcessState::Running,
                 "node '{}' is not running",
@@ -1821,6 +2027,10 @@ impl SupervisorRegistryStore {
             .get_mut(node_id)
             .with_context(|| format!("node '{node_id}' is not registered"))?;
         ensure!(
+            active_run_ownership(record).is_none(),
+            "node '{node_id}' has active Run ownership; lifecycle actions must use its product API"
+        );
+        ensure!(
             record.process.state == SupervisorProcessState::Running,
             "node '{node_id}' process is not running"
         );
@@ -1884,6 +2094,10 @@ impl SupervisorRegistryStore {
             .nodes
             .get_mut(node_id)
             .with_context(|| format!("node '{node_id}' is not registered"))?;
+        ensure!(
+            active_run_ownership(record).is_none(),
+            "node '{node_id}' has active Run ownership; control actions must use its product API"
+        );
         ensure!(
             record.process.state == SupervisorProcessState::Running,
             "node '{node_id}' process is not running"
@@ -2087,6 +2301,10 @@ impl SupervisorRegistryStore {
             .get_mut(node_id)
             .with_context(|| format!("node '{node_id}' is not registered"))?;
         ensure!(
+            active_run_ownership(record).is_none(),
+            "node '{node_id}' has active Run ownership; lifecycle actions must use its product API"
+        );
+        ensure!(
             record.process.state == SupervisorProcessState::Running,
             "node '{node_id}' process is not running"
         );
@@ -2251,6 +2469,7 @@ impl SupervisorNodeRecord {
             last_known_status: initial_status(&node_id, &config_path, &artifact_root),
             status_artifact: RegistryArtifactState::Missing,
             metrics_artifact: RegistryArtifactState::Missing,
+            run_ownership: BTreeMap::new(),
             process: SupervisorProcessRecord::default(),
             updated_at: SnapshotValue::available(now_millis()),
             node_id,
@@ -2719,6 +2938,62 @@ fn validate_node_id(node_id: &str) -> anyhow::Result<()> {
         "node_id contains unsupported characters"
     );
     Ok(())
+}
+
+fn validate_run_ownership_identity(run_id: &str, manifest_sha256: &str) -> anyhow::Result<()> {
+    ensure!(!run_id.is_empty(), "run_id must not be empty");
+    ensure!(
+        run_id.len() <= 128,
+        "run_id must be 128 characters or fewer"
+    );
+    ensure!(
+        run_id.chars().all(|ch| {
+            ch.is_ascii_lowercase() || ch.is_ascii_digit() || matches!(ch, '.' | '_' | '-')
+        }),
+        "run_id contains unsupported characters"
+    );
+    validate_sha256_ref(manifest_sha256)
+}
+
+fn validate_sha256_ref(value: &str) -> anyhow::Result<()> {
+    let digest = value
+        .strip_prefix("sha256:")
+        .context("hash must use the sha256: prefix")?;
+    ensure!(
+        digest.len() == 64 && digest.chars().all(|ch| ch.is_ascii_hexdigit()),
+        "hash must contain exactly 64 hexadecimal characters"
+    );
+    Ok(())
+}
+
+fn active_run_ownership(record: &SupervisorNodeRecord) -> Option<&SupervisorRunOwnership> {
+    record
+        .run_ownership
+        .values()
+        .find(|ownership| ownership.terminal.is_none())
+}
+
+fn ensure_run_action_authorized(
+    record: &SupervisorNodeRecord,
+    requested: Option<(&str, &str)>,
+) -> anyhow::Result<()> {
+    match (active_run_ownership(record), requested) {
+        (None, None) => Ok(()),
+        (Some(active), Some((run_id, manifest_sha256)))
+            if active.run_id == run_id && active.manifest_sha256 == manifest_sha256 =>
+        {
+            Ok(())
+        }
+        (Some(active), _) => anyhow::bail!(
+            "node '{}' is owned by active Run '{}'",
+            record.node_id,
+            active.run_id
+        ),
+        (None, Some((run_id, _))) => anyhow::bail!(
+            "Run '{run_id}' does not have active ownership of node '{}'",
+            record.node_id
+        ),
+    }
 }
 
 fn now_millis() -> String {
