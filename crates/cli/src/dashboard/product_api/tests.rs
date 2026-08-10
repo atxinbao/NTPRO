@@ -2472,6 +2472,138 @@ async fn demo_creation_finalizes_a_stopped_owner_before_freshness_validation() {
     );
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal_history() {
+    let fixture = Fixture::new("demo-new-ownership-time-baseline");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let old_run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let old_action_path = format!("/api/product/v1/demo-runs/{old_run_id}/actions");
+    let start = json!({
+        "run_id": old_run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &old_action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+    let stop = json!({
+        "run_id": old_run_id,
+        "action": "stop",
+        "user_confirmed": true
+    });
+    let (status, stopped) = router_json_body(&router, Method::POST, &old_action_path, &stop).await;
+    assert_eq!(status, StatusCode::OK, "{stopped}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let old_registry = store.load().expect("stopped registry should be readable");
+    let old_record = &old_registry.nodes["mvp-node-001"];
+    assert!(old_record.last_known_status.started_at.value.is_some());
+    assert!(old_record.last_known_status.stopped_at.value.is_some());
+    let old_terminal = old_record.run_ownership[&old_run_id]
+        .terminal
+        .clone()
+        .expect("old Run should have a terminal ownership anchor");
+
+    let (status, replacement) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{replacement}");
+    let new_run_id = replacement["data"]["run_id"].as_str().unwrap();
+    assert_ne!(new_run_id, old_run_id);
+
+    let registry = store
+        .load()
+        .expect("replacement registry should be readable");
+    let record = &registry.nodes["mvp-node-001"];
+    assert!(record.last_known_status.started_at.value.is_none());
+    assert!(record.last_known_status.stopped_at.value.is_none());
+    assert_eq!(
+        record.run_ownership[&old_run_id].terminal.as_ref(),
+        Some(&old_terminal)
+    );
+    assert!(record.run_ownership[new_run_id].terminal.is_none());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn demo_same_millisecond_start_and_stop_projects_a_terminal_run() {
+    let fixture = Fixture::new("demo-same-millisecond-terminal");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let created_at = created["data"]["created_at_unix_ms"]
+        .as_u64()
+        .expect("Demo created_at should be an integer");
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let start = json!({
+        "run_id": run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let ownership = store.load().unwrap().nodes["mvp-node-001"].run_ownership[&run_id].clone();
+    store
+        .stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: "mvp-node-001".to_string(),
+                stop_timeout: Duration::from_secs(3),
+            },
+            &run_id,
+            &ownership.manifest_sha256,
+        )
+        .expect("owner-aware stop should succeed");
+    let mut registry = store.load().expect("stopped registry should be readable");
+    let record = registry.nodes.get_mut("mvp-node-001").unwrap();
+    record.last_known_status.started_at = SnapshotValue::available(created_at.to_string());
+    record.last_known_status.stopped_at = SnapshotValue::available(created_at.to_string());
+    store
+        .save(&registry)
+        .expect("same-millisecond fixture should be saved");
+
+    let (status, detail) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(detail["data"]["lifecycle"], "stopped");
+    assert_eq!(detail["data"]["started_at_unix_ms"], created_at);
+    assert_eq!(detail["data"]["completed_at_unix_ms"], created_at);
+    let registry = store.load().expect("terminal registry should be readable");
+    assert_eq!(
+        registry.nodes["mvp-node-001"].run_ownership[&run_id]
+            .terminal
+            .as_ref()
+            .map(|terminal| terminal.lifecycle.as_str()),
+        Some("stopped")
+    );
+}
+
 #[tokio::test]
 async fn demo_runtime_exit_is_anchored_failed_and_missing_registry_time_fails_closed() {
     let fixture = Fixture::new("demo-runtime-exit");
