@@ -1,7 +1,7 @@
 use std::{
     fs::{self, FileTimes, OpenOptions},
     path::{Path, PathBuf},
-    time::{Duration, UNIX_EPOCH},
+    time::{Duration, Instant, UNIX_EPOCH},
 };
 
 #[cfg(unix)]
@@ -3524,15 +3524,20 @@ fn run_manifest_publication_is_atomic_for_concurrent_readers() {
     let reader_barrier = barrier.clone();
     let reader = std::thread::spawn(move || {
         reader_barrier.wait();
-        for _ in 0..100_000 {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
             match fs::read(&manifest_path) {
                 Ok(observed) => {
                     assert_eq!(observed, expected, "published manifest must be complete");
                     return;
                 }
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                    std::thread::yield_now();
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::NotFound
+                        && Instant::now() < deadline =>
+                {
+                    std::thread::sleep(Duration::from_millis(1));
                 }
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
                 Err(error) => panic!("manifest read failed unexpectedly: {error}"),
             }
         }
