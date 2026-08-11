@@ -305,6 +305,64 @@
         }
       }
     },
+    "/strategies/{strategy_id}/versions/{version_id}/live-admission": {
+      "get": {
+        "operationId": "getLiveAdmission",
+        "summary": "读取 Live 独立准入状态",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyId"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyVersionId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live 独立准入、凭证存在性和订单生命周期边界",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveAdmissionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "405": {
+            "$ref": "#/components/responses/ProductMethodNotAllowed"
+          },
+          "500": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductError"
+          }
+        }
+      }
+    },
     "/runs": {
       "get": {
         "operationId": "listRuns",
@@ -2511,6 +2569,217 @@
           "boundaries": {
             "$ref": "#/components/schemas/ReadOnlyBoundaries"
           }
+        }
+      },
+      "LiveAdmissionResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ntpro.product_api.live_admission.response.v1"
+          },
+          "contract_version": {
+            "const": "ntpro.product_api.v1"
+          },
+          "request_id": {
+            "$ref": "#/components/schemas/RequestId"
+          },
+          "data": {
+            "$ref": "#/components/schemas/LiveAdmission"
+          },
+          "boundaries": {
+            "$ref": "#/components/schemas/LiveAdmissionBoundaries"
+          }
+        }
+      },
+      "LiveAdmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "strategy_id",
+          "strategy_version_id",
+          "environment",
+          "admission_status",
+          "evaluated_at_unix_ms",
+          "venue",
+          "account",
+          "credentials",
+          "order_lifecycle",
+          "blockers",
+          "source_refs"
+        ],
+        "properties": {
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": {
+            "$ref": "#/components/schemas/StrategyVersionId"
+          },
+          "environment": { "const": "live" },
+          "admission_status": { "const": "blocked" },
+          "evaluated_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "venue": { "$ref": "#/components/schemas/LiveVenueAdmission" },
+          "account": { "$ref": "#/components/schemas/LiveAccountAdmission" },
+          "credentials": {
+            "$ref": "#/components/schemas/LiveCredentialAdmission"
+          },
+          "order_lifecycle": {
+            "$ref": "#/components/schemas/LiveOrderLifecycleAdmission"
+          },
+          "blockers": {
+            "type": "array",
+            "minItems": 6,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "independent_owner_approval_missing",
+                "production_network_not_authorized",
+                "authenticated_account_read_not_authorized",
+                "live_run_creation_not_authorized",
+                "order_lifecycle_not_authorized",
+                "automatic_recovery_not_authorized",
+                "api_key_missing",
+                "api_secret_missing"
+              ]
+            }
+          },
+          "source_refs": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      "LiveVenueAdmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "venue_id",
+          "product_type",
+          "environment",
+          "production_http_base_url",
+          "production_websocket_base_url",
+          "market_data_adapter_ref",
+          "execution_adapter_ref",
+          "connection_state"
+        ],
+        "properties": {
+          "venue_id": { "const": "BINANCE" },
+          "product_type": { "const": "spot" },
+          "environment": { "const": "production" },
+          "production_http_base_url": { "const": "https://api.binance.com" },
+          "production_websocket_base_url": {
+            "const": "wss://stream.binance.com:9443/ws"
+          },
+          "market_data_adapter_ref": {
+            "const": "adapter://binance/spot/production-market-data"
+          },
+          "execution_adapter_ref": {
+            "const": "adapter://binance/spot/production-execution"
+          },
+          "connection_state": { "const": "not_attempted" }
+        }
+      },
+      "LiveAccountAdmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["account_ref", "binding_status", "authenticated_read_state"],
+        "properties": {
+          "account_ref": { "const": "account://live/binance/primary" },
+          "binding_status": { "const": "configured_not_authorized" },
+          "authenticated_read_state": { "const": "blocked" }
+        }
+      },
+      "LiveCredentialAdmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "api_key_ref",
+          "api_secret_ref",
+          "api_key_presence",
+          "api_secret_presence",
+          "secret_values_exposed"
+        ],
+        "properties": {
+          "provider": { "const": "environment" },
+          "api_key_ref": { "const": "env://NTPRO_BINANCE_LIVE_API_KEY" },
+          "api_secret_ref": { "const": "env://NTPRO_BINANCE_LIVE_API_SECRET" },
+          "api_key_presence": { "type": "string", "enum": ["missing", "present"] },
+          "api_secret_presence": {
+            "type": "string",
+            "enum": ["missing", "present"]
+          },
+          "secret_values_exposed": { "const": false }
+        }
+      },
+      "LiveOrderLifecycleAdmission": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["submit", "cancel", "replace", "fill_reconciliation", "manual_stop_required"],
+        "properties": {
+          "submit": { "const": "blocked" },
+          "cancel": { "const": "blocked" },
+          "replace": { "const": "blocked" },
+          "fill_reconciliation": { "const": "blocked" },
+          "manual_stop_required": { "const": true }
+        }
+      },
+      "LiveAdmissionBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "read_only",
+          "independent_live_admission_required",
+          "owner_approval_granted",
+          "inherited_from_backtest",
+          "inherited_from_demo",
+          "external_venue_connection",
+          "production_venue_connection",
+          "production_network_allowed",
+          "external_network_attempted",
+          "authenticated_account_read_allowed",
+          "live_run_creation_allowed",
+          "order_submission_allowed",
+          "cancel_order_allowed",
+          "replace_order_allowed",
+          "order_mutation_allowed",
+          "fill_reconciliation_allowed",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed",
+          "automatic_recovery_allowed",
+          "real_orders_submitted",
+          "trading_controls_enabled"
+        ],
+        "properties": {
+          "read_only": { "const": true },
+          "independent_live_admission_required": { "const": true },
+          "owner_approval_granted": { "const": false },
+          "inherited_from_backtest": { "const": false },
+          "inherited_from_demo": { "const": false },
+          "external_venue_connection": { "const": false },
+          "production_venue_connection": { "const": false },
+          "production_network_allowed": { "const": false },
+          "external_network_attempted": { "const": false },
+          "authenticated_account_read_allowed": { "const": false },
+          "live_run_creation_allowed": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "cancel_order_allowed": { "const": false },
+          "replace_order_allowed": { "const": false },
+          "order_mutation_allowed": { "const": false },
+          "fill_reconciliation_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "automatic_recovery_allowed": { "const": false },
+          "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
         }
       },
       "RunListResponse": {

@@ -30,6 +30,7 @@ use crate::{
 
 type AnalysisMutation = fn(&mut Value);
 
+use super::live_admission::*;
 use super::run::*;
 use super::strategy_version::*;
 use super::*;
@@ -551,8 +552,8 @@ fn invalid_run_queries_and_manifest_drift_fail_closed() {
             "capability",
             (|raw: String| {
                 raw.replacen(
-                    "order_submission_allowed = false",
-                    "order_submission_allowed = true",
+                    "updated_at_unix_ms = 1767225660000\nexternal_venue_connection = false\norder_submission_allowed = false",
+                    "updated_at_unix_ms = 1767225660000\nexternal_venue_connection = false\norder_submission_allowed = true",
                     1,
                 )
             }) as fn(String) -> String,
@@ -1609,6 +1610,241 @@ async fn strategy_version_routes_are_read_only_and_schema_compatible() {
                 assert_eq!(body["error"]["code"], "product_method_not_allowed");
             }
         }
+    }
+}
+
+#[tokio::test]
+async fn live_admission_route_is_read_only_blocked_and_schema_compatible() {
+    let fixture = Fixture::new("live-admission-route");
+    let router = fixture.router();
+    let path = "/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/live-admission";
+
+    let (status, body) = router_json(&router, Method::GET, path).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["schema_version"],
+        "ntpro.product_api.live_admission.response.v1"
+    );
+    assert_eq!(body["data"]["strategy_id"], "ema-cross");
+    assert_eq!(body["data"]["strategy_version_id"], "ema-cross@v1");
+    assert_eq!(body["data"]["admission_status"], "blocked");
+    assert_eq!(body["data"]["venue"]["venue_id"], "BINANCE");
+    assert_eq!(body["data"]["venue"]["connection_state"], "not_attempted");
+    assert_eq!(body["data"]["credentials"]["secret_values_exposed"], false);
+    assert_eq!(body["data"]["order_lifecycle"]["submit"], "blocked");
+    assert_eq!(body["boundaries"]["owner_approval_granted"], false);
+    assert_eq!(body["boundaries"]["inherited_from_backtest"], false);
+    assert_eq!(body["boundaries"]["inherited_from_demo"], false);
+    assert_eq!(body["boundaries"]["production_network_allowed"], false);
+    assert_eq!(body["boundaries"]["external_network_attempted"], false);
+    assert_eq!(body["boundaries"]["order_submission_allowed"], false);
+    assert_eq!(body["boundaries"]["automatic_recovery_allowed"], false);
+    validate_openapi_instance("LiveAdmissionResponse", &body);
+
+    for method in [
+        Method::HEAD,
+        Method::POST,
+        Method::PUT,
+        Method::PATCH,
+        Method::DELETE,
+        Method::OPTIONS,
+        Method::CONNECT,
+        Method::TRACE,
+    ] {
+        let (status, headers, body) = router_json_with_headers(&router, method.clone(), path).await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method} {path}");
+        assert_eq!(
+            headers.get(ALLOW).and_then(|value| value.to_str().ok()),
+            Some("GET")
+        );
+        if method != Method::HEAD {
+            assert_eq!(body["error"]["code"], "product_method_not_allowed");
+        }
+    }
+
+    let (status, body) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/other/versions/ema-cross%40v1/live-admission",
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"]["field"], "strategy_id");
+
+    let (status, body) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross%40v2/live-admission",
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"]["field"], "version_id");
+
+    for malformed_path in [
+        "/api/product/v1/strategies/%FF/versions/ema-cross%40v1/live-admission",
+        "/api/product/v1/strategies/ema-cross/versions/%FF/live-admission",
+    ] {
+        let (status, body) = router_json(&router, Method::GET, malformed_path).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{malformed_path}");
+        assert_eq!(body["error"]["code"], "product_query_invalid");
+        validate_openapi_instance("ProductErrorResponse", &body);
+    }
+}
+
+#[test]
+fn live_admission_credentials_expose_presence_only_and_never_grant_authority() {
+    let fixture = Fixture::new("live-admission-credentials");
+    let source = load_product_source(&fixture.state(), unix_time_ms())
+        .expect("valid product source should load");
+    let response = project_live_admission(
+        &source,
+        "ema-cross",
+        "ema-cross@v1",
+        unix_time_ms(),
+        "product-test-live-credentials".to_string(),
+        |name| {
+            matches!(
+                name,
+                "NTPRO_BINANCE_LIVE_API_KEY" | "NTPRO_BINANCE_LIVE_API_SECRET"
+            )
+        },
+    )
+    .expect("credential presence must remain a blocked read-only projection");
+    let body = serde_json::to_string(&response).expect("response should serialize");
+    assert!(body.contains("\"api_key_presence\":\"present\""));
+    assert!(body.contains("\"api_secret_presence\":\"present\""));
+    assert!(body.contains("\"admission_status\":\"blocked\""));
+    assert!(body.contains("\"order_submission_allowed\":false"));
+    assert!(!body.contains("synthetic-secret-value"));
+}
+
+#[test]
+fn live_admission_config_and_permission_drift_fail_closed() {
+    for (name, before, after, expected_kind, expected_field) in [
+        (
+            "endpoint",
+            "production_http_base_url = \"https://api.binance.com\"",
+            "production_http_base_url = \"https://example.com\"",
+            ProductErrorKind::SourceInvalid,
+            "live_admission_venue",
+        ),
+        (
+            "credential-ref",
+            "api_key_env = \"NTPRO_BINANCE_LIVE_API_KEY\"",
+            "api_key_env = \"UNSCOPED_API_KEY\"",
+            ProductErrorKind::SourceInvalid,
+            "live_admission_credentials",
+        ),
+        (
+            "owner-approval",
+            "owner_approval = false",
+            "owner_approval = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "network-authority",
+            "production_network_allowed = false",
+            "production_network_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "authenticated-read-authority",
+            "authenticated_account_read_allowed = false",
+            "authenticated_account_read_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "live-run-authority",
+            "live_run_creation_allowed = false",
+            "live_run_creation_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "submit-authority",
+            "order_submission_allowed = false",
+            "order_submission_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "cancel-authority",
+            "cancel_order_allowed = false",
+            "cancel_order_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "replace-authority",
+            "replace_order_allowed = false",
+            "replace_order_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "fill-reconciliation-authority",
+            "fill_reconciliation_allowed = false",
+            "fill_reconciliation_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "automatic-retry-authority",
+            "automatic_retry_allowed = false",
+            "automatic_retry_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "automatic-remediation-authority",
+            "automatic_remediation_allowed = false",
+            "automatic_remediation_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "automatic-recovery-authority",
+            "automatic_recovery_allowed = false",
+            "automatic_recovery_allowed = true",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "manual-stop",
+            "manual_stop_required = true",
+            "manual_stop_required = false",
+            ProductErrorKind::BoundaryViolation,
+            "live_admission_boundaries",
+        ),
+        (
+            "unknown-field",
+            "manual_stop_required = true",
+            "manual_stop_required = true\nunexpected_authority = false",
+            ProductErrorKind::SourceInvalid,
+            "live_admission_config",
+        ),
+    ] {
+        let fixture = Fixture::new(&format!("live-admission-drift-{name}"));
+        fixture.write_config(&valid_config().replacen(before, after, 1));
+        let mut identity = fixture.identity.clone();
+        identity.provenance.generated_at_unix_ms = unix_time_ms().saturating_add(1_000);
+        fixture.write_identity(&identity);
+        let source = load_product_source(&fixture.state(), unix_time_ms())
+            .expect("base product source should remain valid");
+        let error = project_live_admission(
+            &source,
+            "ema-cross",
+            "ema-cross@v1",
+            unix_time_ms(),
+            "product-test-live-drift".to_string(),
+            |_| false,
+        )
+        .expect_err("invalid Live admission config must fail closed");
+        assert_eq!(error.kind, expected_kind, "{name}");
+        assert_eq!(error.field, expected_field, "{name}");
     }
 }
 
@@ -4522,6 +4758,12 @@ async fn tracked_frontend_fixtures_match_real_rust_routes() {
             "StrategyVersionDetailResponse",
         ),
         (
+            "live-admission.json",
+            StatusCode::OK,
+            "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/live-admission",
+            "LiveAdmissionResponse",
+        ),
+        (
             "run-list.json",
             StatusCode::OK,
             "/api/product/v1/runs",
@@ -4563,6 +4805,9 @@ async fn tracked_frontend_fixtures_match_real_rust_routes() {
         let (status, mut value) = router_json(&router, Method::GET, path).await;
         assert_eq!(status, expected_status, "{path}");
         value["request_id"] = json!("product-0000000000000000-0000000000000000");
+        if name == "live-admission.json" {
+            value["data"]["evaluated_at_unix_ms"] = json!(1786406400000_u64);
+        }
         validate_openapi_instance(schema, &value);
         assert_tracked_frontend_fixture(name, &value);
     }
@@ -4661,7 +4906,8 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/strategies",
             "/strategies/{strategy_id}",
             "/strategies/{strategy_id}/versions",
-            "/strategies/{strategy_id}/versions/{version_id}"
+            "/strategies/{strategy_id}/versions/{version_id}",
+            "/strategies/{strategy_id}/versions/{version_id}/live-admission"
         ]
     );
     for (path_name, path) in paths {
@@ -4816,6 +5062,32 @@ venue = "BINANCE"
 
 [execution]
 venue = "BINANCE"
+
+[live_admission]
+schema_version = "ntpro.live_admission.config.v1"
+strategy_version_id = "ema-cross@v1"
+venue_id = "BINANCE"
+product_type = "spot"
+production_http_base_url = "https://api.binance.com"
+production_websocket_base_url = "wss://stream.binance.com:9443/ws"
+market_data_adapter_ref = "adapter://binance/spot/production-market-data"
+execution_adapter_ref = "adapter://binance/spot/production-execution"
+account_ref = "account://live/binance/primary"
+credential_provider = "environment"
+api_key_env = "NTPRO_BINANCE_LIVE_API_KEY"
+api_secret_env = "NTPRO_BINANCE_LIVE_API_SECRET"
+owner_approval = false
+production_network_allowed = false
+authenticated_account_read_allowed = false
+live_run_creation_allowed = false
+order_submission_allowed = false
+cancel_order_allowed = false
+replace_order_allowed = false
+fill_reconciliation_allowed = false
+automatic_retry_allowed = false
+automatic_remediation_allowed = false
+automatic_recovery_allowed = false
+manual_stop_required = true
 
 [mvp]
 strategy_version = "v1"

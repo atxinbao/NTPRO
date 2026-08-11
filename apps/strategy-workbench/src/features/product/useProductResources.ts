@@ -35,6 +35,15 @@ export const productQueryKeys = {
     ["product", "run-comparison", ...runIds] as const,
   runReproduction: (runId: string) =>
     ["product", "runs", runId, "reproduction"] as const,
+  liveAdmission: (strategyId: string, versionId: string) =>
+    [
+      "product",
+      "strategies",
+      strategyId,
+      "versions",
+      versionId,
+      "live-admission",
+    ] as const,
 };
 
 export function useCreateBacktestRun() {
@@ -56,8 +65,8 @@ export function useCreateDemoRun() {
     mutationFn: (request: CreateDemoRunRequest) =>
       productApi.createDemoRun(request),
     retry: false,
-    onSuccess: async (response) => {
-      await Promise.all([
+    onSuccess: (response) => {
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: productQueryKeys.allRuns }),
         queryClient.invalidateQueries({
           queryKey: productQueryKeys.demoSnapshot(response.data.run_id),
@@ -170,6 +179,19 @@ export function useStrategyVersion(strategyId?: string, versionId?: string) {
     queryKey: productQueryKeys.version(strategyId ?? "", versionId ?? ""),
     queryFn: ({ signal }) =>
       productApi.getStrategyVersion(
+        { strategy_id: strategyId!, version_id: versionId! },
+        signal,
+      ),
+    enabled: Boolean(strategyId && versionId),
+  });
+}
+
+export function useLiveAdmission(strategyId?: string, versionId?: string) {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.liveAdmission(strategyId ?? "", versionId ?? ""),
+    queryFn: ({ signal }) =>
+      productApi.getLiveAdmission(
         { strategy_id: strategyId!, version_id: versionId! },
         signal,
       ),

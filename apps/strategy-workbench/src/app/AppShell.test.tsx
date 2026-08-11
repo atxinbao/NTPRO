@@ -389,11 +389,10 @@ describe("strategy workbench product slice", () => {
     expect(
       screen.getByRole("link", { name: /ema-cross-live-001/ }),
     ).toHaveAttribute("href", "/strategy-workbench/runs/ema-cross-live-001");
-    expect(
-      screen
-        .getAllByRole("button", { name: /Live/ })
-        .every((button) => button.hasAttribute("disabled")),
-    ).toBe(true);
+    expect(screen.getByRole("link", { name: "Live" })).toHaveAttribute(
+      "href",
+      "/strategy-workbench/live",
+    );
     expect(
       screen.queryByRole("button", { name: /下单|撤单|改单|平仓/ }),
     ).not.toBeInTheDocument();
@@ -406,6 +405,22 @@ describe("strategy workbench product slice", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("当前 Run 禁止能力")).toBeInTheDocument();
     expect(screen.getAllByText("关闭")).toHaveLength(7);
+  });
+
+  it("renders the blocked Live admission without trading controls", async () => {
+    renderWorkbench("/live");
+
+    expect(
+      await screen.findByRole("heading", { name: "真实交易独立准入" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("未准入")).toBeInTheDocument();
+    expect(screen.getByText("尚未获得 Live 独立审批")).toBeInTheDocument();
+    expect(screen.getByText("自动恢复尚未授权")).toBeInTheDocument();
+    expect(screen.getByText("生产 API Key 尚未配置")).toBeInTheDocument();
+    expect(screen.getByText("生产 API Secret 尚未配置")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders real Backtest metrics only for an available Backtest Run", async () => {

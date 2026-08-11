@@ -5,6 +5,7 @@ import {
   createBacktestRun,
   createDemoRun,
   getDemoRunSnapshot,
+  getLiveAdmission,
   getRunReproductionProof,
   getRunAnalysis,
   getRun,
@@ -24,6 +25,7 @@ import {
   type DemoRunCreateResponse,
   type DemoRunSnapshotResponse,
   type GetDemoRunSnapshotData,
+  type GetLiveAdmissionData,
   type GetRunData,
   type GetRunAnalysisData,
   type GetRunMetricsData,
@@ -34,6 +36,7 @@ import {
   type ListRunsData,
   type ListStrategiesData,
   type ListStrategyVersionsData,
+  type LiveAdmissionResponse,
   type ProductErrorResponse,
   type ReproduceBacktestRunRequest,
   type RunComparisonResponse,
@@ -54,6 +57,7 @@ import {
   zDemoRunActionResponse,
   zDemoRunCreateResponse,
   zDemoRunSnapshotResponse,
+  zLiveAdmissionResponse,
   zProductErrorResponse,
   zRunCreateResponse,
   zRunAnalysisResponse,
@@ -80,6 +84,7 @@ type StrategyVersionPath = GetStrategyVersionData["path"];
 type ListRunsQuery = NonNullable<ListRunsData["query"]>;
 type RunPath = GetRunData["path"];
 type DemoRunSnapshotPath = GetDemoRunSnapshotData["path"];
+type LiveAdmissionPath = GetLiveAdmissionData["path"];
 type RunAnalysisPath = GetRunAnalysisData["path"];
 type RunMetricsPath = GetRunMetricsData["path"];
 type RunReportPath = GetRunReportData["path"];
@@ -691,6 +696,77 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         payload.data.strategy_version_id === path.version_id,
         "strategy_version_detail.path.version_id",
+      );
+      return payload;
+    },
+
+    async getLiveAdmission(
+      path: LiveAdmissionPath,
+      signal?: AbortSignal,
+    ): Promise<LiveAdmissionResponse> {
+      const payload = await resolveResponse(
+        getLiveAdmission({ client, path, signal }),
+        zLiveAdmissionResponse,
+        "live_admission",
+      );
+      assertIdentity(
+        payload.data.strategy_id === path.strategy_id &&
+          payload.data.strategy_version_id === path.version_id &&
+          payload.data.environment === "live" &&
+          payload.data.admission_status === "blocked",
+        "live_admission.path_identity",
+      );
+      const blockers = new Set(payload.data.blockers);
+      const requiredBlockers = [
+        "independent_owner_approval_missing",
+        "production_network_not_authorized",
+        "authenticated_account_read_not_authorized",
+        "live_run_creation_not_authorized",
+        "order_lifecycle_not_authorized",
+        "automatic_recovery_not_authorized",
+      ] as const;
+      assertIdentity(
+        blockers.size === payload.data.blockers.length &&
+          requiredBlockers.every((blocker) => blockers.has(blocker)) &&
+          (payload.data.credentials.api_key_presence === "missing") ===
+            blockers.has("api_key_missing") &&
+          (payload.data.credentials.api_secret_presence === "missing") ===
+            blockers.has("api_secret_missing") &&
+          !payload.data.credentials.secret_values_exposed,
+        "live_admission.credentials",
+      );
+      assertIdentity(
+        payload.data.order_lifecycle.submit === "blocked" &&
+          payload.data.order_lifecycle.cancel === "blocked" &&
+          payload.data.order_lifecycle.replace === "blocked" &&
+          payload.data.order_lifecycle.fill_reconciliation === "blocked" &&
+          payload.data.order_lifecycle.manual_stop_required,
+        "live_admission.order_lifecycle",
+      );
+      const boundary = payload.boundaries;
+      assertIdentity(
+        boundary.read_only &&
+          boundary.independent_live_admission_required &&
+          !boundary.owner_approval_granted &&
+          !boundary.inherited_from_backtest &&
+          !boundary.inherited_from_demo &&
+          !boundary.external_venue_connection &&
+          !boundary.production_venue_connection &&
+          !boundary.production_network_allowed &&
+          !boundary.external_network_attempted &&
+          !boundary.authenticated_account_read_allowed &&
+          !boundary.live_run_creation_allowed &&
+          !boundary.order_submission_allowed &&
+          !boundary.cancel_order_allowed &&
+          !boundary.replace_order_allowed &&
+          !boundary.order_mutation_allowed &&
+          !boundary.fill_reconciliation_allowed &&
+          !boundary.automatic_retry_allowed &&
+          !boundary.automatic_remediation_allowed &&
+          !boundary.automatic_recovery_allowed &&
+          !boundary.real_orders_submitted &&
+          !boundary.trading_controls_enabled,
+        "live_admission.boundaries",
       );
       return payload;
     },

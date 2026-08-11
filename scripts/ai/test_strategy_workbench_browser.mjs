@@ -330,6 +330,36 @@ try {
     );
   }
 
+  const liveAdmissionResponse = await fetch(
+    `${baseUrl}/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v1/live-admission`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const liveAdmission = await liveAdmissionResponse.json();
+  if (
+    liveAdmissionResponse.status !== 200 ||
+    liveAdmission.schema_version !==
+      "ntpro.product_api.live_admission.response.v1" ||
+    liveAdmission.data?.strategy_version_id !==
+      productVersion.strategy_version_id ||
+    liveAdmission.data?.admission_status !== "blocked" ||
+    liveAdmission.data?.venue?.venue_id !== "BINANCE" ||
+    liveAdmission.data?.venue?.connection_state !== "not_attempted" ||
+    liveAdmission.data?.credentials?.secret_values_exposed !== false ||
+    !liveAdmission.data?.blockers?.includes(
+      "automatic_recovery_not_authorized",
+    ) ||
+    liveAdmission.boundaries?.owner_approval_granted !== false ||
+    liveAdmission.boundaries?.production_network_allowed !== false ||
+    liveAdmission.boundaries?.external_network_attempted !== false ||
+    liveAdmission.boundaries?.order_submission_allowed !== false ||
+    liveAdmission.boundaries?.automatic_recovery_allowed !== false ||
+    liveAdmission.boundaries?.real_orders_submitted !== false
+  ) {
+    throw new Error(
+      `Live admission contract drift: status=${liveAdmissionResponse.status} body=${JSON.stringify(liveAdmission)}`,
+    );
+  }
+
   const missingProductVersion = await fetch(
     `${baseUrl}/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v2`,
     { headers: { cookie: institutionCookie } },
@@ -586,6 +616,12 @@ try {
       405,
       "GET",
     ],
+    [
+      "POST",
+      "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v1/live-admission",
+      405,
+      "GET",
+    ],
   ]) {
     const response = await fetch(`${baseUrl}${url}`, {
       method,
@@ -653,7 +689,9 @@ try {
     });
   });
 
-  await page.goto(strategyAccessUrl.toString(), { waitUntil: "networkidle" });
+  await page.goto(strategyAccessUrl.toString(), {
+    waitUntil: "domcontentloaded",
+  });
   if (new URL(page.url()).searchParams.has("access_token")) {
     throw new Error("bootstrap token remained in browser URL");
   }
@@ -699,12 +737,11 @@ try {
   ) {
     throw new Error("Product API strategy identity did not render");
   }
-  for (const liveButton of await page
-    .getByRole("button", { name: /Live/ })
-    .all()) {
-    if (!(await liveButton.isDisabled())) {
-      throw new Error("Live mode must remain disabled");
-    }
+  const liveLink = page.getByRole("link", { name: "Live", exact: true });
+  if ((await liveLink.getAttribute("href")) !== "/strategy-workbench/live") {
+    throw new Error(
+      "Live admission route is not available from the product shell",
+    );
   }
   if (await page.getByRole("button", { name: /下单|撤单|改单|平仓/ }).count()) {
     throw new Error("trading control appeared in strategy shell");
@@ -745,12 +782,57 @@ try {
     fullPage: true,
   });
 
+  await liveLink.click();
+  await page.getByRole("heading", { name: "真实交易独立准入" }).waitFor();
+  await page.getByText("尚未获得 Live 独立审批").waitFor();
+  if (
+    await page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }).count()
+  ) {
+    throw new Error("trading control appeared on blocked Live admission page");
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-live-admission-1440.png"),
+    fullPage: true,
+  });
+
   await page.getByRole("link", { name: "Demo", exact: true }).click();
   await page.getByRole("heading", { name: "Sandbox 策略运行" }).waitFor();
   await page.getByRole("checkbox", { name: /我确认创建 Demo Run/ }).check();
+  const demoCreateResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      response.request().method() === "POST" &&
+      url.pathname === "/api/product/v1/demo-runs"
+    );
+  });
   await page.getByRole("button", { name: "创建 Demo Run" }).click();
-  await page.waitForURL(/\/strategy-workbench\/runs\/demo-/);
-  const browserDemoRunId = page.url().split("/").at(-1);
+  const demoCreateResponse = await demoCreateResponsePromise;
+  const demoCreateBody = await demoCreateResponse.json();
+  if (
+    demoCreateResponse.status() !== 201 ||
+    !demoCreateBody.data?.run_id?.startsWith("demo-")
+  ) {
+    throw new Error(
+      `browser Demo creation failed: status=${demoCreateResponse.status()} body=${JSON.stringify(demoCreateBody)}`,
+    );
+  }
+  const browserDemoRunId = demoCreateBody.data.run_id;
+  const demoReadbackResponse = await fetch(
+    `${baseUrl}/api/product/v1/runs/${browserDemoRunId}`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const demoReadbackBody = await demoReadbackResponse.json();
+  if (
+    demoReadbackResponse.status !== 200 ||
+    demoReadbackBody.data?.run_id !== browserDemoRunId
+  ) {
+    throw new Error(
+      `browser Demo readback failed: status=${demoReadbackResponse.status} body=${JSON.stringify(demoReadbackBody)}`,
+    );
+  }
+  await page.waitForURL(
+    (url) => url.pathname === `/strategy-workbench/runs/${browserDemoRunId}`,
+  );
   if (!browserDemoRunId?.startsWith("demo-")) {
     throw new Error(`browser-created Demo Run ID drifted: ${page.url()}`);
   }
@@ -781,9 +863,11 @@ try {
   if (
     (await demoTrades.locator("tbody tr").count()) === 0 ||
     (await demoPositions.locator("tbody tr").count()) === 0 ||
-    !(await demoEquity.getByRole("img", {
-      name: "账户权益随回测时间变化",
-    }).isVisible())
+    !(await demoEquity
+      .getByRole("img", {
+        name: "账户权益随回测时间变化",
+      })
+      .isVisible())
   ) {
     throw new Error("Demo simulation result panels are incomplete");
   }
@@ -1086,7 +1170,7 @@ writeEvidence({
   http_error: 1,
   dock: 1,
   drawer: 1,
-  live_disabled: 1,
+  live_admission: 1,
   bootstrap_url_clean: 1,
 });
 console.log(`strategy_workbench_browser=pass evidence=${evidenceDir}`);

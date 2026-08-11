@@ -1,0 +1,79 @@
+{
+  "schema_version": "ntpro.product_api.live_admission.response.v1",
+  "contract_version": "ntpro.product_api.v1",
+  "request_id": "product-0000000000000000-0000000000000000",
+  "data": {
+    "strategy_id": "ema-cross",
+    "strategy_version_id": "ema-cross@v1",
+    "environment": "live",
+    "admission_status": "blocked",
+    "evaluated_at_unix_ms": 1786406400000,
+    "venue": {
+      "venue_id": "BINANCE",
+      "product_type": "spot",
+      "environment": "production",
+      "production_http_base_url": "https://api.binance.com",
+      "production_websocket_base_url": "wss://stream.binance.com:9443/ws",
+      "market_data_adapter_ref": "adapter://binance/spot/production-market-data",
+      "execution_adapter_ref": "adapter://binance/spot/production-execution",
+      "connection_state": "not_attempted"
+    },
+    "account": {
+      "account_ref": "account://live/binance/primary",
+      "binding_status": "configured_not_authorized",
+      "authenticated_read_state": "blocked"
+    },
+    "credentials": {
+      "provider": "environment",
+      "api_key_ref": "env://NTPRO_BINANCE_LIVE_API_KEY",
+      "api_secret_ref": "env://NTPRO_BINANCE_LIVE_API_SECRET",
+      "api_key_presence": "missing",
+      "api_secret_presence": "missing",
+      "secret_values_exposed": false
+    },
+    "order_lifecycle": {
+      "submit": "blocked",
+      "cancel": "blocked",
+      "replace": "blocked",
+      "fill_reconciliation": "blocked",
+      "manual_stop_required": true
+    },
+    "blockers": [
+      "independent_owner_approval_missing",
+      "production_network_not_authorized",
+      "authenticated_account_read_not_authorized",
+      "live_run_creation_not_authorized",
+      "order_lifecycle_not_authorized",
+      "automatic_recovery_not_authorized",
+      "api_key_missing",
+      "api_secret_missing"
+    ],
+    "source_refs": [
+      "node-config:node.toml#live_admission",
+      "sha256:950d09dddab99e9beb225eb1b54f867d5068bc2b6051635b07e612ccce3f101c"
+    ]
+  },
+  "boundaries": {
+    "read_only": true,
+    "independent_live_admission_required": true,
+    "owner_approval_granted": false,
+    "inherited_from_backtest": false,
+    "inherited_from_demo": false,
+    "external_venue_connection": false,
+    "production_venue_connection": false,
+    "production_network_allowed": false,
+    "external_network_attempted": false,
+    "authenticated_account_read_allowed": false,
+    "live_run_creation_allowed": false,
+    "order_submission_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "order_mutation_allowed": false,
+    "fill_reconciliation_allowed": false,
+    "automatic_retry_allowed": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "real_orders_submitted": false,
+    "trading_controls_enabled": false
+  }
+}

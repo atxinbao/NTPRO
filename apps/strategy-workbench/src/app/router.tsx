@@ -11,6 +11,7 @@ import { OverviewPage } from "../pages/OverviewPage";
 import { BacktestPage } from "../pages/BacktestPage";
 import { BacktestComparePage } from "../pages/BacktestComparePage";
 import { DemoPage } from "../pages/DemoPage";
+import { LivePage } from "../pages/LivePage";
 import { RunDetailPage } from "../pages/RunDetailPage";
 import { SystemStatusPage } from "../pages/SystemStatusPage";
 
@@ -55,6 +56,12 @@ const demoRoute = createRoute({
   component: DemoPage,
 });
 
+const liveRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/live",
+  component: LivePage,
+});
+
 const systemStatusRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/system-status",
@@ -73,6 +80,7 @@ const routeTree = rootRoute.addChildren([
   backtestRoute,
   backtestCompareRoute,
   demoRoute,
+  liveRoute,
   runDetailRoute,
   systemStatusRoute,
 ]);

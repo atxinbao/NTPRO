@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import liveAdmissionFixture from "../test/product-api-fixtures/live-admission.json";
 import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import runListFixture from "../test/product-api-fixtures/run-list.json";
@@ -139,6 +140,16 @@ describe("product API generated client", () => {
         }),
     },
     {
+      name: "live admission",
+      fixture: liveAdmissionFixture,
+      path: "/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/live-admission",
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).getLiveAdmission({
+          strategy_id: "ema-cross",
+          version_id: "ema-cross@v1",
+        }),
+    },
+    {
       name: "run list",
       fixture: sandboxRunListFixture,
       path: "/api/product/v1/runs?environment=sandbox",
@@ -198,6 +209,98 @@ describe("product API generated client", () => {
     expect((request as Request).credentials).toBe("same-origin");
     expect((request as Request).headers.get("Accept")).toBe("application/json");
     expect((request as Request).method).toBe("GET");
+  });
+
+  const liveAdmissionPath = {
+    strategy_id: "ema-cross",
+    version_id: "ema-cross@v1",
+  };
+
+  it.each([
+    [
+      "unknown field",
+      (payload: Record<string, any>) => {
+        payload.data.unexpected_authority = false;
+      },
+    ],
+    [
+      "mismatched identity",
+      (payload: Record<string, any>) => {
+        payload.data.strategy_version_id = "ema-cross@v2";
+      },
+    ],
+    [
+      "secret exposure",
+      (payload: Record<string, any>) => {
+        payload.data.credentials.secret_values_exposed = true;
+      },
+    ],
+    [
+      "order lifecycle drift",
+      (payload: Record<string, any>) => {
+        payload.data.order_lifecycle.cancel = "allowed";
+      },
+    ],
+    [
+      "duplicate blocker",
+      (payload: Record<string, any>) => {
+        payload.data.blockers.push(payload.data.blockers[0]);
+      },
+    ],
+    [
+      "missing required blocker",
+      (payload: Record<string, any>) => {
+        payload.data.blockers = payload.data.blockers.filter(
+          (blocker: string) => blocker !== "production_network_not_authorized",
+        );
+      },
+    ],
+  ] as const)("fails closed for Live admission %s", async (_, mutate) => {
+    const payload = structuredClone(liveAdmissionFixture) as Record<
+      string,
+      any
+    >;
+    mutate(payload);
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(payload) }).getLiveAdmission(
+        liveAdmissionPath,
+      ),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
+  });
+
+  it.each([
+    ["read_only", false],
+    ["independent_live_admission_required", false],
+    ["owner_approval_granted", true],
+    ["inherited_from_backtest", true],
+    ["inherited_from_demo", true],
+    ["external_venue_connection", true],
+    ["production_venue_connection", true],
+    ["production_network_allowed", true],
+    ["external_network_attempted", true],
+    ["authenticated_account_read_allowed", true],
+    ["live_run_creation_allowed", true],
+    ["order_submission_allowed", true],
+    ["cancel_order_allowed", true],
+    ["replace_order_allowed", true],
+    ["order_mutation_allowed", true],
+    ["fill_reconciliation_allowed", true],
+    ["automatic_retry_allowed", true],
+    ["automatic_remediation_allowed", true],
+    ["automatic_recovery_allowed", true],
+    ["real_orders_submitted", true],
+    ["trading_controls_enabled", true],
+  ] as const)("rejects Live boundary drift for %s", async (field, value) => {
+    const payload = structuredClone(liveAdmissionFixture) as Record<
+      string,
+      any
+    >;
+    payload.boundaries[field] = value;
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(payload) }).getLiveAdmission(
+        liveAdmissionPath,
+      ),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
   });
 
   it.each([
