@@ -251,7 +251,7 @@ export function useRunComparison(runIds: string[]) {
   return useQuery({
     ...productQueryPolicy,
     queryKey: productQueryKeys.runComparison(runIds),
-    queryFn: ({ signal }) => productApi.compareBacktestRuns(runIds, signal),
+    queryFn: ({ signal }) => productApi.compareRuns(runIds, signal),
     enabled:
       runIds.length >= 2 &&
       runIds.length <= 4 &&

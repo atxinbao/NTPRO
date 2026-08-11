@@ -12,9 +12,9 @@ import type {
   ActOnDemoRunData,
   ActOnDemoRunErrors,
   ActOnDemoRunResponses,
-  CompareBacktestRunsData,
-  CompareBacktestRunsErrors,
-  CompareBacktestRunsResponses,
+  CompareRunsData,
+  CompareRunsErrors,
+  CompareRunsResponses,
   CreateBacktestRunData,
   CreateBacktestRunErrors,
   CreateBacktestRunResponses,
@@ -303,18 +303,14 @@ export const actOnDemoRun = <ThrowOnError extends boolean = false>(
   });
 
 /**
- * 比较 2 至 4 个已完成 Backtest Run
+ * 比较 2 至 4 个已冻结 Backtest 或 Demo Run
  */
-export const compareBacktestRuns = <ThrowOnError extends boolean = false>(
-  options: Options<CompareBacktestRunsData, ThrowOnError>,
-): RequestResult<
-  CompareBacktestRunsResponses,
-  CompareBacktestRunsErrors,
-  ThrowOnError
-> =>
+export const compareRuns = <ThrowOnError extends boolean = false>(
+  options: Options<CompareRunsData, ThrowOnError>,
+): RequestResult<CompareRunsResponses, CompareRunsErrors, ThrowOnError> =>
   (options.client ?? client).get<
-    CompareBacktestRunsResponses,
-    CompareBacktestRunsErrors,
+    CompareRunsResponses,
+    CompareRunsErrors,
     ThrowOnError
   >({
     security: [

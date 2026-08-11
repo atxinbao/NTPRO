@@ -54,8 +54,9 @@
   gap: 14px;
   margin-bottom: 10px;
   padding: 7px 10px;
-  border: 1px solid #665336;
-  border-left: 3px solid var(--amber);
+  border-width: 1px 1px 1px 3px;
+  border-style: solid;
+  border-color: #665336 #665336 #665336 var(--amber);
   background: #171d19;
 }
 
@@ -922,8 +923,9 @@
   gap: 9px;
   margin-bottom: 10px;
   padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--amber);
+  border-width: 1px 1px 1px 3px;
+  border-style: solid;
+  border-color: var(--line) var(--line) var(--line) var(--amber);
   background: #1d1d16;
 }
 

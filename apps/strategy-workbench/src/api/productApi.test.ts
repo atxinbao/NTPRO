@@ -373,7 +373,7 @@ describe("product API generated client", () => {
     const fetch = jsonFetch(payload);
 
     await expect(
-      createProductApiClient({ fetch }).compareBacktestRuns(runIds),
+      createProductApiClient({ fetch }).compareRuns(runIds),
     ).resolves.toEqual(payload);
 
     const request = fetch.mock.calls[0]?.[0] as Request;
@@ -415,7 +415,7 @@ describe("product API generated client", () => {
         return value;
       },
       invoke: (fetch: typeof globalThis.fetch) =>
-        createProductApiClient({ fetch }).compareBacktestRuns([
+        createProductApiClient({ fetch }).compareRuns([
           "backtest-001",
           "backtest-created-001",
         ]),
@@ -429,7 +429,7 @@ describe("product API generated client", () => {
         return value;
       },
       invoke: (fetch: typeof globalThis.fetch) =>
-        createProductApiClient({ fetch }).compareBacktestRuns([
+        createProductApiClient({ fetch }).compareRuns([
           "backtest-001",
           "backtest-created-001",
         ]),

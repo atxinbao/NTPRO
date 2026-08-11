@@ -766,6 +766,27 @@ try {
   const demoResult = page.getByRole("region", { name: "Demo 运行结果" });
   await demoResult.waitFor();
   await demoResult.getByRole("heading", { name: "实时策略快照" }).waitFor();
+  const demoTrades = page.getByRole("region", {
+    name: "Demo 模拟 成交明细",
+  });
+  const demoPositions = page.getByRole("region", {
+    name: "Demo 模拟 持仓明细",
+  });
+  const demoEquity = page.getByRole("region", {
+    name: "Demo 模拟 资金曲线",
+  });
+  await demoTrades.waitFor();
+  await demoPositions.waitFor();
+  await demoEquity.waitFor();
+  if (
+    (await demoTrades.locator("tbody tr").count()) === 0 ||
+    (await demoPositions.locator("tbody tr").count()) === 0 ||
+    !(await demoEquity.getByRole("img", {
+      name: "账户权益随回测时间变化",
+    }).isVisible())
+  ) {
+    throw new Error("Demo simulation result panels are incomplete");
+  }
   const runningResultHash = demoResult.getByText("结果哈希").locator("..");
   await runningResultHash.getByText("运行中", { exact: true }).waitFor();
   await page.screenshot({
@@ -785,7 +806,31 @@ try {
     path: path.join(evidenceDir, "strategy-workbench-demo-stopped-1440.png"),
     fullPage: true,
   });
-  await page.getByRole("link", { name: "返回策略总览" }).click();
+  await page.getByRole("link", { name: "运行对比" }).click();
+  await page
+    .getByRole("heading", { name: "Backtest 与 Demo 行为对比" })
+    .waitFor();
+  const demoComparisonOption = page.getByRole("checkbox", {
+    name: new RegExp(browserDemoRunId),
+  });
+  if (!(await demoComparisonOption.isChecked())) {
+    await demoComparisonOption.check();
+  }
+  await page
+    .getByRole("region", { name: "Run 比较结果" })
+    .getByText(browserDemoRunId, { exact: true })
+    .waitFor();
+  if (
+    !(await page
+      .getByRole("button", { name: new RegExp(browserDemoRunId) })
+      .isDisabled())
+  ) {
+    throw new Error("Demo comparison unexpectedly enabled reproduction");
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-demo-comparison-1440.png"),
+    fullPage: true,
+  });
   await page.getByRole("link", { name: "Backtest", exact: true }).click();
   await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
   await page.screenshot({
@@ -1032,6 +1077,8 @@ writeEvidence({
   product_run_deep_link: 1,
   demo_snapshot_running: 1,
   demo_snapshot_frozen: 1,
+  demo_simulation_results: 1,
+  demo_backtest_comparison: 1,
   asset_404: 1,
   method_405: 1,
   valid: 1,

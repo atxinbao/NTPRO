@@ -178,12 +178,113 @@ function demoSnapshotFixture(run: Record<string, unknown>) {
   const hasRuntimeData = status !== "not_started";
   const frozen = status === "frozen";
   const runtime = run.runtime as Record<string, unknown>;
+  const simulation = hasRuntimeData
+    ? {
+        summary: {
+          schema_version: "ntpro.demo_simulation_summary.v1",
+          session_id: run.run_id,
+          strategy_id: run.strategy_id,
+          instrument_id: "BTCUSDT.BINANCE",
+          engine: "nautilus_backtest::engine::BacktestEngine",
+          execution_mode: "simulated",
+          data_sha256:
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          parameters: {
+            trade_size: "1.000000",
+            fast_period: 3,
+            slow_period: 5,
+          },
+          fill_count: 1,
+          position_count: 1,
+          equity_point_count: 2,
+          boundaries: {
+            simulation_only: true,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+          },
+        },
+        fills: [
+          {
+            schema_version: "ntpro.demo_simulated_fill.v1",
+            session_id: run.run_id,
+            strategy_id: run.strategy_id,
+            simulation_only: true,
+            trade_id: "trade-demo-browser-001",
+            client_order_id: "order-demo-browser-001",
+            venue_order_id: "simulated-browser-001",
+            position_id: "position-demo-browser-001",
+            side: "SELL",
+            order_type: "MARKET",
+            quantity: "1.000000",
+            price: "100.50",
+            currency: "USDT",
+            liquidity_side: "TAKER",
+            commission: "0.10050000 USDT",
+            ts_event: "1786400000400000000",
+          },
+        ],
+        positions: [
+          {
+            schema_version: "ntpro.demo_simulated_position.v1",
+            session_id: run.run_id,
+            strategy_id: run.strategy_id,
+            simulation_only: true,
+            position_id: "position-demo-browser-001",
+            account_id: "BINANCE-001",
+            side: "SHORT",
+            entry_side: "SELL",
+            peak_quantity: "1.000000",
+            buy_quantity: "0.000000",
+            sell_quantity: "1.000000",
+            avg_price_open: "100.5",
+            avg_price_close: null,
+            realized_return: "0",
+            realized_pnl: null,
+            trade_count: 1,
+            ts_opened: "1786400000400000000",
+            ts_closed: null,
+            duration_ns: "0",
+          },
+        ],
+        equity_curve: [
+          {
+            schema_version: "ntpro.demo_equity_point.v1",
+            session_id: run.run_id,
+            strategy_id: run.strategy_id,
+            simulation_only: true,
+            account_id: "BINANCE-001",
+            currency: "USDT",
+            total: "1000000.00000000 USDT",
+            free: "1000000.00000000 USDT",
+            locked: "0.00000000 USDT",
+            ts_event: "1786400000000000000",
+          },
+          {
+            schema_version: "ntpro.demo_equity_point.v1",
+            session_id: run.run_id,
+            strategy_id: run.strategy_id,
+            simulation_only: true,
+            account_id: "BINANCE-001",
+            currency: "USDT",
+            total: "999999.89950000 USDT",
+            free: "999999.89950000 USDT",
+            locked: "0.00000000 USDT",
+            ts_event: "1786400000400000000",
+          },
+        ],
+      }
+    : null;
   return {
-    schema_version: "ntpro.product_api.demo_run_snapshot.response.v1",
+    schema_version: "ntpro.product_api.demo_run_snapshot.response.v2",
     contract_version: "ntpro.product_api.v1",
     request_id: "product-0000000000000001-0000000000000013",
     data: {
-      schema_version: "ntpro.product_api.demo_run_result.v1",
+      schema_version: "ntpro.product_api.demo_run_result.v2",
       run_id: run.run_id,
       strategy_id: run.strategy_id,
       strategy_version_id: run.strategy_version_id,
@@ -205,7 +306,7 @@ function demoSnapshotFixture(run: Record<string, unknown>) {
             connection: "connected",
             state: frozen ? "stopped" : "exhausted",
             source: "fixture_stream",
-            event_count: 8,
+            event_count: 12,
             last_event_at_unix_ms: 1_786_400_000_400,
             updated_at_unix_ms: 1_786_400_000_500,
             latest_event: {
@@ -224,7 +325,7 @@ function demoSnapshotFixture(run: Record<string, unknown>) {
             state: frozen ? "stopped" : "running",
             reason: frozen ? "user_stop" : "fixture_completed",
             event_count: 5,
-            market_event_count: 8,
+            market_event_count: 12,
             signal_count: 3,
             intent_count: 3,
             risk_decision_count: 3,
@@ -274,6 +375,7 @@ function demoSnapshotFixture(run: Record<string, unknown>) {
             evaluated_at_unix_ms: 1_786_400_000_470,
           }
         : null,
+      simulation,
       technical_health: {
         status: hasRuntimeData ? "healthy" : "blocked",
         diagnostics: hasRuntimeData ? [] : ["demo_not_started"],
@@ -309,6 +411,8 @@ function demoSnapshotFixture(run: Record<string, unknown>) {
 
 const comparisonItem = (runId: string) => ({
   run_id: runId,
+  environment: "backtest",
+  strategy_id: (runMetricsFixture.data as Record<string, unknown>).strategy_id,
   strategy_version_id: (runMetricsFixture.data as Record<string, unknown>)
     .strategy_version_id,
   data_ref: (runMetricsFixture.data as Record<string, unknown>).data_ref,
@@ -318,14 +422,91 @@ const comparisonItem = (runId: string) => ({
   instrument_id: (runMetricsFixture.data as Record<string, unknown>)
     .instrument_id,
   parameters: (runMetricsFixture.data as Record<string, unknown>).parameters,
-  metrics: (runMetricsFixture.data as Record<string, unknown>).metrics,
-  risk: (runAnalysisFixture.data as Record<string, unknown>).risk,
-  provenance: (runAnalysisFixture.data as Record<string, unknown>).provenance,
+  metrics: {
+    market_event_count: (
+      (runMetricsFixture.data as Record<string, unknown>).metrics as Record<
+        string,
+        unknown
+      >
+    ).quotes,
+    fill_count: (
+      (runReportFixture.data as Record<string, unknown>)
+        .trades as Array<unknown>
+    ).length,
+    position_count: (
+      (runReportFixture.data as Record<string, unknown>)
+        .positions as Array<unknown>
+    ).length,
+  },
+  risk: {
+    currency: (
+      (runAnalysisFixture.data as Record<string, unknown>).risk as Record<
+        string,
+        unknown
+      >
+    ).currency,
+    starting_equity: (
+      (runAnalysisFixture.data as Record<string, unknown>).risk as Record<
+        string,
+        unknown
+      >
+    ).starting_equity,
+    ending_equity: (
+      (runAnalysisFixture.data as Record<string, unknown>).risk as Record<
+        string,
+        unknown
+      >
+    ).ending_equity,
+    max_drawdown_rate: (
+      (runAnalysisFixture.data as Record<string, unknown>).risk as Record<
+        string,
+        unknown
+      >
+    ).max_drawdown_rate,
+    open_positions: (
+      (runAnalysisFixture.data as Record<string, unknown>).risk as Record<
+        string,
+        unknown
+      >
+    ).open_positions,
+    closed_positions: (
+      (runAnalysisFixture.data as Record<string, unknown>).risk as Record<
+        string,
+        unknown
+      >
+    ).closed_positions,
+  },
+  provenance: {
+    engine: (
+      (runAnalysisFixture.data as Record<string, unknown>).provenance as Record<
+        string,
+        unknown
+      >
+    ).generator,
+    data_ref: (
+      (runAnalysisFixture.data as Record<string, unknown>).provenance as Record<
+        string,
+        unknown
+      >
+    ).data_ref,
+    data_sha256: (
+      (runAnalysisFixture.data as Record<string, unknown>).provenance as Record<
+        string,
+        unknown
+      >
+    ).data_sha256,
+    source_refs: [
+      (
+        (runAnalysisFixture.data as Record<string, unknown>)
+          .provenance as Record<string, unknown>
+      ).summary_ref,
+    ],
+  },
   reproduction_ref: null,
 });
 
 const comparisonResponse = {
-  schema_version: "ntpro.product_api.run_comparison.response.v1",
+  schema_version: "ntpro.product_api.run_comparison.response.v2",
   contract_version: "ntpro.product_api.v1",
   request_id: "product-0000000000000001-0000000000000002",
   data: {
@@ -341,6 +522,8 @@ const comparisonResponse = {
       same_data: true,
       same_instrument: true,
       same_currency: true,
+      same_environment: true,
+      behaviorally_comparable: true,
       directly_comparable: true,
     },
   },
@@ -696,6 +879,15 @@ test("Demo page creates a Run and explicitly controls Supervisor lifecycle", asy
   await expect(
     page.getByRole("region", { name: "Demo 运行结果" }),
   ).toContainText("sell");
+  await expect(
+    page.getByRole("region", { name: "Demo 模拟 成交明细" }),
+  ).toContainText("trade-demo-browser-001");
+  await expect(
+    page.getByRole("region", { name: "Demo 模拟 持仓明细" }),
+  ).toContainText("position-demo-browser-001");
+  await expect(
+    page.getByRole("region", { name: "Demo 模拟 资金曲线" }),
+  ).toContainText("999999.89950000 USDT");
   const requestsBeforePolling = demoSnapshotRequests;
   await expect
     .poll(() => demoSnapshotRequests, { timeout: 3_500 })
@@ -736,13 +928,13 @@ test("Backtest comparison reproduces a Run only after explicit confirmation", as
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("backtests/compare");
   await expect(
-    page.getByRole("heading", { name: "多 Run 对比与确定性复现" }),
+    page.getByRole("heading", { name: "Backtest 与 Demo 行为对比" }),
   ).toBeVisible();
   await expect(page.getByRole("region", { name: "比较兼容性" })).toContainText(
     "结果可直接比较",
   );
   await expect(
-    page.getByRole("region", { name: "Backtest 比较结果" }),
+    page.getByRole("region", { name: "Run 比较结果" }),
   ).toContainText("backtest-browser-001");
   await page.screenshot({
     path: testInfo.outputPath("strategy-workbench-backtest-compare-1440.png"),
@@ -865,12 +1057,12 @@ test("Backtest Run deep link renders immutable engine metrics", async ({
   await expect(
     page.getByRole("img", { name: "账户权益随回测时间变化" }),
   ).toBeVisible();
-  await expect(page.getByRole("region", { name: "交易明细" })).toContainText(
-    "T-1",
-  );
-  await expect(page.getByRole("region", { name: "持仓明细" })).toContainText(
-    "P-1",
-  );
+  await expect(
+    page.getByRole("region", { name: "Backtest 成交明细" }),
+  ).toContainText("T-1");
+  await expect(
+    page.getByRole("region", { name: "Backtest 持仓明细" }),
+  ).toContainText("P-1");
   await expect(
     page.getByRole("img", { name: "账户权益回撤随回测时间变化" }),
   ).toBeVisible();

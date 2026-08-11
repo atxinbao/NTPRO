@@ -367,6 +367,99 @@ export type DemoRiskDecisionSnapshot = {
   evaluated_at_unix_ms: number;
 };
 
+export type DemoSimulationParameters = {
+  trade_size: string;
+  fast_period: 3;
+  slow_period: 5;
+};
+
+export type DemoSimulationArtifactBoundaries = {
+  simulation_only: true;
+  external_venue_connection: false;
+  order_submission_allowed: false;
+  order_mutation_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
+export type DemoSimulationSummary = {
+  schema_version: "ntpro.demo_simulation_summary.v1";
+  session_id: RunId;
+  strategy_id: StrategyId;
+  instrument_id: "BTCUSDT.BINANCE";
+  engine: "nautilus_backtest::engine::BacktestEngine";
+  execution_mode: "simulated";
+  data_sha256: ContentHash;
+  parameters: DemoSimulationParameters;
+  fill_count: number;
+  position_count: number;
+  equity_point_count: number;
+  boundaries: DemoSimulationArtifactBoundaries;
+};
+
+export type DemoSimulatedFill = {
+  schema_version: "ntpro.demo_simulated_fill.v1";
+  session_id: RunId;
+  strategy_id: StrategyId;
+  simulation_only: true;
+  trade_id: string;
+  client_order_id: string;
+  venue_order_id: string;
+  position_id: string | null;
+  side: string;
+  order_type: string;
+  quantity: string;
+  price: string;
+  currency: string;
+  liquidity_side: string;
+  commission: string | null;
+  ts_event: string;
+};
+
+export type DemoSimulatedPosition = {
+  schema_version: "ntpro.demo_simulated_position.v1";
+  session_id: RunId;
+  strategy_id: StrategyId;
+  simulation_only: true;
+  position_id: string;
+  account_id: string;
+  side: string;
+  entry_side: string;
+  peak_quantity: string;
+  buy_quantity: string;
+  sell_quantity: string;
+  avg_price_open: string;
+  avg_price_close: string | null;
+  realized_return: string;
+  realized_pnl: string | null;
+  trade_count: number;
+  ts_opened: string;
+  ts_closed: string | null;
+  duration_ns: string;
+};
+
+export type DemoEquityPoint = {
+  schema_version: "ntpro.demo_equity_point.v1";
+  session_id: RunId;
+  strategy_id: StrategyId;
+  simulation_only: true;
+  account_id: string;
+  currency: string;
+  total: string;
+  free: string;
+  locked: string;
+  ts_event: string;
+};
+
+export type DemoSimulation = {
+  summary: DemoSimulationSummary;
+  fills: Array<DemoSimulatedFill>;
+  positions: Array<DemoSimulatedPosition>;
+  equity_curve: Array<DemoEquityPoint>;
+};
+
 export type DemoTechnicalHealth = {
   status: "healthy" | "blocked";
   diagnostics: Array<string>;
@@ -380,7 +473,7 @@ export type DemoSnapshotProvenance = {
 };
 
 export type DemoRunSnapshot = {
-  schema_version: "ntpro.product_api.demo_run_result.v1";
+  schema_version: "ntpro.product_api.demo_run_result.v2";
   run_id: RunId;
   strategy_id: StrategyId;
   strategy_version_id: StrategyVersionId;
@@ -393,12 +486,13 @@ export type DemoRunSnapshot = {
   latest_signal: DemoSignalSnapshot | null;
   latest_order_intent: DemoOrderIntentSnapshot | null;
   latest_risk_decision: DemoRiskDecisionSnapshot | null;
+  simulation: DemoSimulation | null;
   technical_health: DemoTechnicalHealth;
   provenance: DemoSnapshotProvenance;
 };
 
 export type DemoRunSnapshotResponse = {
-  schema_version: "ntpro.product_api.demo_run_snapshot.response.v1";
+  schema_version: "ntpro.product_api.demo_run_snapshot.response.v2";
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
   data: DemoRunSnapshot;
@@ -588,34 +682,60 @@ export type BacktestAnalysis = {
   boundaries: BacktestResultBoundaries;
 };
 
-export type BacktestComparisonItem = {
+export type RunComparisonMetrics = {
+  market_event_count: number;
+  fill_count: number;
+  position_count: number;
+};
+
+export type RunComparisonRisk = {
+  currency: string;
+  starting_equity: string;
+  ending_equity: string;
+  max_drawdown_rate: string;
+  open_positions: number;
+  closed_positions: number;
+};
+
+export type RunComparisonProvenance = {
+  engine: string;
+  data_ref: string;
+  data_sha256: ContentHash;
+  source_refs: Array<string>;
+};
+
+export type RunComparisonItem = {
   run_id: RunId;
+  environment: "backtest" | "sandbox";
+  strategy_id: StrategyId;
   strategy_version_id: StrategyVersionId;
   data_ref: string;
   data_sha256: ContentHash;
   config_sha256: ContentHash;
   instrument_id: string;
   parameters: BacktestParameters;
-  metrics: BacktestMetrics;
-  risk: BacktestRiskSummary;
-  provenance: BacktestAnalysisProvenance;
+  metrics: RunComparisonMetrics;
+  risk: RunComparisonRisk;
+  provenance: RunComparisonProvenance;
   reproduction_ref: string | null;
 };
 
-export type BacktestComparisonCompatibility = {
-  same_strategy: true;
+export type RunComparisonCompatibility = {
+  same_strategy: boolean;
   same_strategy_version: boolean;
   same_data: boolean;
   same_instrument: boolean;
   same_currency: boolean;
+  same_environment: boolean;
+  behaviorally_comparable: boolean;
   directly_comparable: boolean;
 };
 
-export type BacktestComparison = {
+export type RunComparison = {
   baseline_run_id: RunId;
   run_ids: Array<RunId>;
-  items: Array<BacktestComparisonItem>;
-  compatibility: BacktestComparisonCompatibility;
+  items: Array<RunComparisonItem>;
+  compatibility: RunComparisonCompatibility;
 };
 
 export type BacktestReproductionProof = {
@@ -736,10 +856,10 @@ export type RunAnalysisResponse = {
 };
 
 export type RunComparisonResponse = {
-  schema_version: "ntpro.product_api.run_comparison.response.v1";
+  schema_version: "ntpro.product_api.run_comparison.response.v2";
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
-  data: BacktestComparison;
+  data: RunComparison;
   boundaries: ReadOnlyBoundaries;
 };
 
@@ -1186,7 +1306,7 @@ export type ActOnDemoRunResponses = {
 export type ActOnDemoRunResponse =
   ActOnDemoRunResponses[keyof ActOnDemoRunResponses];
 
-export type CompareBacktestRunsData = {
+export type CompareRunsData = {
   body?: never;
   path?: never;
   query: {
@@ -1198,7 +1318,7 @@ export type CompareBacktestRunsData = {
   url: "/run-comparisons";
 };
 
-export type CompareBacktestRunsErrors = {
+export type CompareRunsErrors = {
   /**
    * 产品 API 稳定错误
    */
@@ -1225,18 +1345,17 @@ export type CompareBacktestRunsErrors = {
   503: ProductErrorResponse;
 };
 
-export type CompareBacktestRunsError =
-  CompareBacktestRunsErrors[keyof CompareBacktestRunsErrors];
+export type CompareRunsError = CompareRunsErrors[keyof CompareRunsErrors];
 
-export type CompareBacktestRunsResponses = {
+export type CompareRunsResponses = {
   /**
-   * 可信 Backtest 比较结果
+   * 可信跨环境 Run 比较结果
    */
   200: RunComparisonResponse;
 };
 
-export type CompareBacktestRunsResponse =
-  CompareBacktestRunsResponses[keyof CompareBacktestRunsResponses];
+export type CompareRunsResponse =
+  CompareRunsResponses[keyof CompareRunsResponses];
 
 export type GetRunData = {
   body?: never;

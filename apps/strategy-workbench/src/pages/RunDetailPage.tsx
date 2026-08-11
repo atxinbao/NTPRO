@@ -5,9 +5,7 @@ import { useState } from "react";
 import type {
   BacktestAnalysis,
   BacktestEquityPoint,
-  BacktestPosition,
   BacktestReproductionProof,
-  BacktestTrade,
 } from "../api/generated/productApi";
 
 import {
@@ -202,6 +200,21 @@ export function RunDetailPage() {
               }
               warning={Boolean(product.demoSnapshot.session?.rejection_count)}
             />
+            <Metric
+              label="模拟成交"
+              value={String(product.demoSnapshot.simulation?.fills.length ?? 0)}
+              note="仅限 Sandbox，不会发送真实订单"
+            />
+            <Metric
+              label="模拟持仓"
+              value={String(
+                product.demoSnapshot.simulation?.positions.length ?? 0,
+              )}
+              note={
+                product.demoSnapshot.simulation?.summary.instrument_id ??
+                "等待启动"
+              }
+            />
           </div>
           <div className={styles.versionSummary}>
             <KeyValue
@@ -243,6 +256,15 @@ export function RunDetailPage() {
             />
           </div>
         </section>
+      ) : null}
+
+      {product.demoSnapshot?.simulation ? (
+        <BacktestReport
+          mode="Demo 模拟"
+          trades={product.demoSnapshot.simulation.fills}
+          positions={product.demoSnapshot.simulation.positions}
+          equity={product.demoSnapshot.simulation.equity_curve}
+        />
       ) : null}
 
       <section className={styles.metricGrid} aria-label="Run 摘要">
@@ -518,7 +540,10 @@ function ReproductionProof({ proof }: { proof: BacktestReproductionProof }) {
 function BacktestAnalysisPanel({ analysis }: { analysis: BacktestAnalysis }) {
   return (
     <div className={styles.reportGrid} aria-label="Backtest 风险与运行记录">
-      <section className={`${styles.panel} ${styles.reportWide}`}>
+      <section
+        className={`${styles.panel} ${styles.reportWide}`}
+        aria-label="Backtest 资金曲线"
+      >
         <header>
           <div>
             <span className="eyebrow">风险与回撤</span>
@@ -693,31 +718,36 @@ function eventTypeLabel(value: string): string {
 }
 
 function BacktestReport({
+  mode = "Backtest",
   trades,
   positions,
   equity,
 }: {
-  trades: BacktestTrade[];
-  positions: BacktestPosition[];
-  equity: BacktestEquityPoint[];
+  mode?: string;
+  trades: ReportTrade[];
+  positions: ReportPosition[];
+  equity: ReportEquityPoint[];
 }) {
   return (
-    <div className={styles.reportGrid} aria-label="Backtest 结果明细">
-      <section className={`${styles.panel} ${styles.reportWide}`}>
+    <div className={styles.reportGrid} aria-label={`${mode} 结果明细`}>
+      <section
+        className={`${styles.panel} ${styles.reportWide}`}
+        aria-label={`${mode} 资金曲线`}
+      >
         <header>
           <div>
-            <span className="eyebrow">账户权益</span>
-            <h2>已实现收益曲线</h2>
+            <span className="eyebrow">{mode} 账户权益</span>
+            <h2>资金曲线</h2>
           </div>
           <span>{equity[0]?.currency ?? "--"}</span>
         </header>
         <EquityCurve points={equity} />
       </section>
 
-      <section className={styles.panel} aria-label="交易明细">
+      <section className={styles.panel} aria-label={`${mode} 成交明细`}>
         <header>
           <div>
-            <span className="eyebrow">成交记录</span>
+            <span className="eyebrow">{mode} 成交记录</span>
             <h2>交易明细</h2>
           </div>
           <span>{trades.length} 笔</span>
@@ -750,10 +780,10 @@ function BacktestReport({
         </div>
       </section>
 
-      <section className={styles.panel} aria-label="持仓明细">
+      <section className={styles.panel} aria-label={`${mode} 持仓明细`}>
         <header>
           <div>
-            <span className="eyebrow">持仓周期</span>
+            <span className="eyebrow">{mode} 持仓周期</span>
             <h2>持仓明细</h2>
           </div>
           <span>{positions.length} 个</span>
@@ -789,7 +819,26 @@ function BacktestReport({
   );
 }
 
-function EquityCurve({ points }: { points: BacktestEquityPoint[] }) {
+type ReportTrade = {
+  trade_id: string;
+  ts_event: string;
+  side: string;
+  quantity: string;
+  price: string;
+  commission: string | null;
+};
+
+type ReportPosition = {
+  position_id: string;
+  entry_side: string;
+  avg_price_open: string;
+  avg_price_close: string | null;
+  realized_pnl: string | null;
+};
+
+type ReportEquityPoint = BacktestEquityPoint;
+
+function EquityCurve({ points }: { points: ReportEquityPoint[] }) {
   const totals = points.map((point) => moneyValue(point.total));
   const minimum = Math.min(...totals);
   const maximum = Math.max(...totals);

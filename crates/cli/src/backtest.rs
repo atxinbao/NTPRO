@@ -326,6 +326,96 @@ pub(crate) struct ProductBacktestArtifacts {
     pub(crate) analysis: Vec<u8>,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(crate) struct DemoSimulationInput {
+    pub(crate) price: f64,
+    pub(crate) observed_at_unix_ms: u64,
+}
+
+#[derive(Debug)]
+pub(crate) struct ProductDemoSimulationArtifacts {
+    pub(crate) summary: Vec<u8>,
+    pub(crate) fills: Vec<u8>,
+    pub(crate) positions: Vec<u8>,
+    pub(crate) equity_curve: Vec<u8>,
+    pub(crate) fill_count: usize,
+    pub(crate) position_count: usize,
+    pub(crate) equity_point_count: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoSimulationSummaryArtifact {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    instrument_id: String,
+    engine: String,
+    execution_mode: String,
+    data_sha256: String,
+    parameters: BacktestParameters,
+    fill_count: usize,
+    position_count: usize,
+    equity_point_count: usize,
+    boundaries: DemoSimulationBoundaries,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoSimulationBoundaries {
+    simulation_only: bool,
+    external_venue_connection: bool,
+    order_submission_allowed: bool,
+    order_mutation_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    real_orders_submitted: bool,
+    trading_controls_enabled: bool,
+}
+
+impl DemoSimulationBoundaries {
+    const fn enforced() -> Self {
+        Self {
+            simulation_only: true,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoSimulatedFillArtifact {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    simulation_only: bool,
+    #[serde(flatten)]
+    fill: BacktestTrade,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoSimulatedPositionArtifact {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    simulation_only: bool,
+    #[serde(flatten)]
+    position: BacktestPosition,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoEquityPointArtifact {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    simulation_only: bool,
+    #[serde(flatten)]
+    equity: BacktestEquityPoint,
+}
+
 pub(crate) fn run_backtest_command(opt: BacktestOpt) -> anyhow::Result<()> {
     match opt.command {
         BacktestCommand::Validate(validate) => run_backtest_validate(&validate),
@@ -665,6 +755,133 @@ fn run_ema_cross_engine(
         data_sha256,
         result,
         details,
+    })
+}
+
+pub(crate) fn execute_product_demo_simulation(
+    session_id: &str,
+    strategy_id: &str,
+    input: &[DemoSimulationInput],
+) -> anyhow::Result<ProductDemoSimulationArtifacts> {
+    validate_non_empty("session_id", session_id)?;
+    validate_non_empty("strategy_id", strategy_id)?;
+    if input.len() < 5 {
+        anyhow::bail!("demo simulation requires at least five market points");
+    }
+    if input.iter().any(|point| {
+        !point.price.is_finite() || point.price <= 0.0 || point.observed_at_unix_ms == 0
+    }) || input
+        .windows(2)
+        .any(|pair| pair[0].observed_at_unix_ms >= pair[1].observed_at_unix_ms)
+    {
+        anyhow::bail!(
+            "demo simulation input must contain positive prices and increasing timestamps"
+        );
+    }
+
+    let venue = Venue::from("BINANCE");
+    let instrument = InstrumentAny::CurrencyPair(currency_pair_btcusdt());
+    let instrument_id = instrument.id();
+    let mut engine = BacktestEngine::new(BacktestEngineConfig::default())?;
+    engine.add_venue(
+        SimulatedVenueConfig::builder()
+            .venue(venue)
+            .oms_type(OmsType::Hedging)
+            .account_type(AccountType::Margin)
+            .book_type(BookType::L1_MBP)
+            .starting_balances(vec![Money::from("1_000_000 USDT")])
+            .build(),
+    )?;
+    engine.add_instrument(&instrument)?;
+    engine.add_strategy(EmaCross::new(
+        instrument_id,
+        Quantity::from("1.000000"),
+        3,
+        5,
+    ))?;
+
+    let quotes = input
+        .iter()
+        .map(|point| {
+            let bid = format!("{:.2}", point.price);
+            let ask = format!("{:.2}", point.price + 0.01);
+            let timestamp_ns = point
+                .observed_at_unix_ms
+                .checked_mul(1_000_000)
+                .context("demo simulation timestamp overflow")?;
+            Ok(quote(instrument_id, &bid, &ask, timestamp_ns))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let data_sha256 = sha256_ref(
+        &serde_json::to_vec(input).context("failed to serialize demo simulation input")?,
+    );
+    engine.add_data(quotes, None, true, true)?;
+    engine.run(None, None, None, false)?;
+    let details = collect_engine_details(&engine, venue)?;
+
+    let fills = details
+        .trades
+        .into_iter()
+        .map(|fill| DemoSimulatedFillArtifact {
+            schema_version: "ntpro.demo_simulated_fill.v1".to_string(),
+            session_id: session_id.to_string(),
+            strategy_id: strategy_id.to_string(),
+            simulation_only: true,
+            fill,
+        })
+        .collect::<Vec<_>>();
+    let positions = details
+        .positions
+        .into_iter()
+        .map(|position| DemoSimulatedPositionArtifact {
+            schema_version: "ntpro.demo_simulated_position.v1".to_string(),
+            session_id: session_id.to_string(),
+            strategy_id: strategy_id.to_string(),
+            simulation_only: true,
+            position,
+        })
+        .collect::<Vec<_>>();
+    let equity_curve = details
+        .equity_curve
+        .into_iter()
+        .map(|equity| DemoEquityPointArtifact {
+            schema_version: "ntpro.demo_equity_point.v1".to_string(),
+            session_id: session_id.to_string(),
+            strategy_id: strategy_id.to_string(),
+            simulation_only: true,
+            equity,
+        })
+        .collect::<Vec<_>>();
+    if fills.is_empty() || positions.is_empty() || equity_curve.is_empty() {
+        anyhow::bail!("demo simulation must produce fills, positions, and account equity");
+    }
+    let summary = DemoSimulationSummaryArtifact {
+        schema_version: "ntpro.demo_simulation_summary.v1".to_string(),
+        session_id: session_id.to_string(),
+        strategy_id: strategy_id.to_string(),
+        instrument_id: BTCUSDT_BINANCE_INSTRUMENT_ID.to_string(),
+        engine: "nautilus_backtest::engine::BacktestEngine".to_string(),
+        execution_mode: "simulated".to_string(),
+        data_sha256,
+        parameters: BacktestParameters {
+            trade_size: "1.000000".to_string(),
+            fast_period: 3,
+            slow_period: 5,
+        },
+        fill_count: fills.len(),
+        position_count: positions.len(),
+        equity_point_count: equity_curve.len(),
+        boundaries: DemoSimulationBoundaries::enforced(),
+    };
+
+    Ok(ProductDemoSimulationArtifacts {
+        summary: serialized_artifact(&summary)?,
+        fills: serialized_jsonl(&fills)?,
+        positions: serialized_jsonl(&positions)?,
+        equity_curve: serialized_jsonl(&equity_curve)?,
+        fill_count: fills.len(),
+        position_count: positions.len(),
+        equity_point_count: equity_curve.len(),
     })
 }
 
@@ -1190,6 +1407,18 @@ where
     Ok(format!("{}\n", serde_json::to_string_pretty(artifact)?).into_bytes())
 }
 
+fn serialized_jsonl<T>(records: &[T]) -> anyhow::Result<Vec<u8>>
+where
+    T: Serialize,
+{
+    let mut raw = Vec::new();
+    for record in records {
+        serde_json::to_writer(&mut raw, record)?;
+        raw.push(b'\n');
+    }
+    Ok(raw)
+}
+
 fn write_immutable_artifact<T>(path: &Path, artifact: &T) -> anyhow::Result<()>
 where
     T: DeserializeOwned + PartialEq + Serialize,
@@ -1484,6 +1713,70 @@ mod tests {
     use serde_json::{Value, json};
 
     const MVP_EMA_CASE_ID: &str = "mvp.ema_cross_deterministic.001";
+
+    #[test]
+    fn golden_trace_demo_simulation_replays_engine_outputs() {
+        let trace_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join("tests/golden/demo_simulation_schema.jsonl");
+        let raw = fs::read_to_string(&trace_path).expect("Demo simulation golden trace must exist");
+        let case: Value =
+            serde_json::from_str(raw.trim()).expect("golden trace must be valid JSON");
+        assert_eq!(case["case_id"], "s2.demo_simulation.001");
+        let input = &case["input"];
+        let prices = input["prices"]
+            .as_array()
+            .expect("golden prices must be an array");
+        let base = input["base_timestamp_unix_ms"]
+            .as_u64()
+            .expect("golden base timestamp must be a u64");
+        let interval = input["interval_ms"]
+            .as_u64()
+            .expect("golden interval must be a u64");
+        let points = prices
+            .iter()
+            .enumerate()
+            .map(|(index, value)| DemoSimulationInput {
+                price: value.as_f64().expect("golden price must be numeric"),
+                observed_at_unix_ms: base + u64::try_from(index).unwrap() * interval,
+            })
+            .collect::<Vec<_>>();
+        let artifacts = execute_product_demo_simulation(
+            input["session_id"].as_str().unwrap(),
+            input["strategy_id"].as_str().unwrap(),
+            &points,
+        )
+        .expect("golden Demo simulation must execute");
+        let summary: Value = serde_json::from_slice(&artifacts.summary).unwrap();
+        let expected = &case["expected"];
+        assert_eq!(summary["engine"], expected["engine"]);
+        assert_eq!(summary["execution_mode"], expected["execution_mode"]);
+        assert_eq!(summary["fill_count"], expected["fill_count"]);
+        assert_eq!(summary["position_count"], expected["position_count"]);
+        assert_eq!(
+            summary["equity_point_count"],
+            expected["equity_point_count"]
+        );
+        assert_eq!(
+            summary["boundaries"]["simulation_only"],
+            expected["simulation_only"]
+        );
+        assert_eq!(
+            summary["boundaries"]["external_venue_connection"],
+            expected["external_venue_connection"]
+        );
+        assert_eq!(
+            summary["boundaries"]["order_submission_allowed"],
+            expected["order_submission_allowed"]
+        );
+        assert_eq!(
+            summary["boundaries"]["real_orders_submitted"],
+            expected["real_orders_submitted"]
+        );
+        assert_eq!(artifacts.fill_count, 2);
+        assert_eq!(artifacts.position_count, 2);
+        assert_eq!(artifacts.equity_point_count, 3);
+    }
 
     #[cfg(unix)]
     fn create_file_symlink(original: &Path, link: &Path) -> std::io::Result<()> {

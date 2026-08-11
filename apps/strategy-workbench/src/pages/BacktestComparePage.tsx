@@ -2,7 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { GitCompareArrows, RefreshCw, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import type { BacktestComparisonItem, Run } from "../api/generated/productApi";
+import type { Run, RunComparisonItem } from "../api/generated/productApi";
 import {
   useOverviewProductContext,
   useReproduceBacktestRun,
@@ -23,7 +23,7 @@ export function BacktestComparePage() {
   const [reproductionConfirmed, setReproductionConfirmed] = useState(false);
 
   const availableRuns = useMemo(
-    () => (product.runs?.data ?? []).filter(isComparableBacktest).slice(0, 20),
+    () => (product.runs?.data ?? []).filter(isComparableRun).slice(0, 20),
     [product.runs?.data],
   );
 
@@ -40,7 +40,7 @@ export function BacktestComparePage() {
 
   if (product.error) return <ProductErrorState error={product.error} />;
   if (product.isVerifying || !product.isReady) {
-    return <ProductLoading label="正在验证 Backtest Run 列表" />;
+    return <ProductLoading label="正在验证 Run 列表" />;
   }
 
   const toggleRun = (runId: string) => {
@@ -70,16 +70,16 @@ export function BacktestComparePage() {
     <>
       <header className={styles.pageHeading}>
         <div>
-          <span className="eyebrow">Backtest 比较</span>
-          <h1>多 Run 对比与确定性复现</h1>
-          <p>选择 2 至 4 个已完成 Run；第一项作为比较基准。</p>
+          <span className="eyebrow">Run 比较</span>
+          <h1>Backtest 与 Demo 行为对比</h1>
+          <p>选择 2 至 4 个已冻结 Run；第一项作为比较基准。</p>
         </div>
         <span className={styles.readOnlyBadge}>
           <GitCompareArrows aria-hidden="true" /> 结果只读
         </span>
       </header>
 
-      <section className={styles.comparePicker} aria-label="选择 Backtest Run">
+      <section className={styles.comparePicker} aria-label="选择可比较 Run">
         <header>
           <div>
             <span className="eyebrow">Run 范围</span>
@@ -90,7 +90,7 @@ export function BacktestComparePage() {
           <Link to="/backtests">创建新回测</Link>
         </header>
         {availableRuns.length === 0 ? (
-          <p>当前没有具备完整结果、明细和分析产物的 Backtest Run。</p>
+          <p>当前没有具备可信结果产物的 Backtest 或 Demo Run。</p>
         ) : (
           <div className={styles.runSelectorGrid}>
             {availableRuns.map((run) => {
@@ -108,12 +108,14 @@ export function BacktestComparePage() {
                   />
                   <span>
                     <strong>{run.run_id}</strong>
-                    <small>{run.strategy_version_id}</small>
+                    <small>
+                      {run.strategy_version_id} · {environmentLabel(run)}
+                    </small>
                   </span>
                   <em>
                     {selected && selectedRunIds[0] === run.run_id
                       ? "基准"
-                      : "Backtest"}
+                      : environmentLabel(run)}
                   </em>
                 </label>
               );
@@ -201,6 +203,7 @@ export function BacktestComparePage() {
               (candidate) => candidate.run_id === item.run_id,
             );
             const canReproduce =
+              item.environment === "backtest" &&
               run?.config_ref.startsWith("artifact://backtests/") === true;
             return (
               <button
@@ -227,15 +230,21 @@ export function BacktestComparePage() {
   );
 }
 
-function isComparableBacktest(run: Run): boolean {
-  return (
-    run.environment === "backtest" &&
-    run.lifecycle === "completed" &&
-    run.result.status === "available" &&
-    run.result.result_ref !== null &&
-    run.result.report_ref !== null &&
-    run.result.analysis_ref !== null
-  );
+function isComparableRun(run: Run): boolean {
+  if (run.environment === "backtest") {
+    return (
+      run.lifecycle === "completed" &&
+      run.result.status === "available" &&
+      run.result.result_ref !== null &&
+      run.result.report_ref !== null &&
+      run.result.analysis_ref !== null
+    );
+  }
+  return run.environment === "sandbox" && run.lifecycle === "stopped";
+}
+
+function environmentLabel(run: Pick<Run, "environment">): string {
+  return run.environment === "backtest" ? "Backtest" : "Demo";
 }
 
 function CompatibilityBand({
@@ -246,6 +255,8 @@ function CompatibilityBand({
     same_data: boolean;
     same_instrument: boolean;
     same_currency: boolean;
+    same_environment: boolean;
+    behaviorally_comparable: boolean;
     directly_comparable: boolean;
   };
 }) {
@@ -263,22 +274,25 @@ function CompatibilityBand({
         <strong>
           {compatibility.directly_comparable
             ? "结果可直接比较"
-            : "结果仅可并列查看"}
+            : compatibility.behaviorally_comparable
+              ? "策略行为可比较，数据范围不同"
+              : "结果仅可并列查看"}
         </strong>
         <span>
           版本 {yesNo(compatibility.same_strategy_version)} · 数据{" "}
           {yesNo(compatibility.same_data)}
           {" · "}标的 {yesNo(compatibility.same_instrument)} · 币种{" "}
-          {yesNo(compatibility.same_currency)}
+          {yesNo(compatibility.same_currency)} · 环境{" "}
+          {yesNo(compatibility.same_environment)}
         </span>
       </div>
     </section>
   );
 }
 
-function ComparisonTable({ items }: { items: BacktestComparisonItem[] }) {
+function ComparisonTable({ items }: { items: RunComparisonItem[] }) {
   return (
-    <section className={styles.panel} aria-label="Backtest 比较结果">
+    <section className={styles.panel} aria-label="Run 比较结果">
       <header>
         <div>
           <span className="eyebrow">比较矩阵</span>
@@ -302,6 +316,13 @@ function ComparisonTable({ items }: { items: BacktestComparisonItem[] }) {
           </thead>
           <tbody>
             <CompareRow
+              label="环境"
+              items={items}
+              value={(item) =>
+                item.environment === "backtest" ? "Backtest" : "Demo"
+              }
+            />
+            <CompareRow
               label="策略版本"
               items={items}
               value={(item) => item.strategy_version_id}
@@ -324,29 +345,25 @@ function ComparisonTable({ items }: { items: BacktestComparisonItem[] }) {
               }
             />
             <CompareRow
-              label="总损益"
+              label="起始权益"
               items={items}
-              value={(item) => firstStat(item.metrics.pnl_stats, "PnL (total)")}
+              value={(item) => item.risk.starting_equity}
             />
             <CompareRow
-              label="累计收益率"
+              label="结束权益"
               items={items}
-              value={(item) =>
-                firstStat(item.metrics.pnl_stats, "PnL% (total)")
-              }
+              value={(item) => item.risk.ending_equity}
             />
             <CompareRow
               label="最大回撤"
               items={items}
-              value={(item) =>
-                `${formatRate(item.risk.max_drawdown_rate)} · ${item.risk.max_drawdown_amount}`
-              }
+              value={(item) => formatRate(item.risk.max_drawdown_rate)}
             />
             <CompareRow
-              label="订单 / 持仓"
+              label="行情 / 成交 / 持仓"
               items={items}
               value={(item) =>
-                `${item.metrics.total_orders} / ${item.metrics.total_positions}`
+                `${item.metrics.market_event_count} / ${item.metrics.fill_count} / ${item.metrics.position_count}`
               }
             />
             <CompareRow
@@ -375,8 +392,8 @@ function CompareRow({
   mono = false,
 }: {
   label: string;
-  items: BacktestComparisonItem[];
-  value: (item: BacktestComparisonItem) => string;
+  items: RunComparisonItem[];
+  value: (item: RunComparisonItem) => string;
   mono?: boolean;
 }) {
   return (
@@ -389,16 +406,6 @@ function CompareRow({
       ))}
     </tr>
   );
-}
-
-function firstStat(
-  stats: Record<string, Record<string, string>>,
-  key: string,
-): string {
-  const currency = Object.keys(stats).sort()[0];
-  return currency
-    ? `${stats[currency]?.[key] ?? "不可计算"} ${currency}`
-    : "不可计算";
 }
 
 function formatRate(value: string): string {

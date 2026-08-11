@@ -1,7 +1,7 @@
 import { createClient } from "./generated/productApi/client";
 import {
   actOnDemoRun,
-  compareBacktestRuns,
+  compareRuns,
   createBacktestRun,
   createDemoRun,
   getDemoRunSnapshot,
@@ -16,7 +16,7 @@ import {
   listStrategies,
   listStrategyVersions,
   reproduceBacktestRun,
-  type CompareBacktestRunsData,
+  type CompareRunsData,
   type CreateBacktestRunRequest,
   type CreateDemoRunRequest,
   type DemoRunAction,
@@ -440,7 +440,7 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       return payload;
     },
 
-    async compareBacktestRuns(
+    async compareRuns(
       runIds: string[],
       signal?: AbortSignal,
     ): Promise<RunComparisonResponse> {
@@ -450,11 +450,11 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           new Set(runIds).size === runIds.length,
         "run_comparison.request.run_ids",
       );
-      const query: CompareBacktestRunsData["query"] = {
+      const query: CompareRunsData["query"] = {
         run_ids: runIds.join(","),
       };
       const payload = await resolveResponse(
-        compareBacktestRuns({ client, query, signal }),
+        compareRuns({ client, query, signal }),
         zRunComparisonResponse,
         "run_comparison",
       );
@@ -718,7 +718,19 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
         snapshot.session === null &&
         snapshot.latest_signal === null &&
         snapshot.latest_order_intent === null &&
-        snapshot.latest_risk_decision === null;
+        snapshot.latest_risk_decision === null &&
+        snapshot.simulation === null;
+      const hasSimulation =
+        snapshot.simulation !== null &&
+        snapshot.simulation.fills.length > 0 &&
+        snapshot.simulation.positions.length > 0 &&
+        snapshot.simulation.equity_curve.length > 0 &&
+        snapshot.simulation.summary.fill_count ===
+          snapshot.simulation.fills.length &&
+        snapshot.simulation.summary.position_count ===
+          snapshot.simulation.positions.length &&
+        snapshot.simulation.summary.equity_point_count ===
+          snapshot.simulation.equity_curve.length;
       assertIdentity(
         (snapshot.snapshot_status === "not_started" &&
           snapshot.lifecycle === "created" &&
@@ -728,11 +740,13 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           (snapshot.snapshot_status === "running" &&
             ["running", "paused", "stopping"].includes(snapshot.lifecycle) &&
             hasRuntimeData &&
+            hasSimulation &&
             snapshot.technical_health.status === "healthy" &&
             snapshot.provenance.result_ref === null &&
             snapshot.provenance.result_sha256 === null) ||
           (snapshot.snapshot_status === "frozen" &&
             ["stopped", "failed"].includes(snapshot.lifecycle) &&
+            (snapshot.lifecycle === "failed" || hasSimulation) &&
             snapshot.provenance.result_ref !== null &&
             snapshot.provenance.result_sha256 !== null),
         "demo_run_snapshot.data.state",
@@ -740,7 +754,17 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         (snapshot.session?.actual_submission_count ?? 0) === 0 &&
           !snapshot.latest_order_intent?.submission_allowed &&
-          !snapshot.latest_risk_decision?.actual_submission,
+          !snapshot.latest_risk_decision?.actual_submission &&
+          (snapshot.simulation === null ||
+            snapshot.simulation.summary.boundaries.simulation_only) &&
+          !snapshot.simulation?.summary.boundaries.external_venue_connection &&
+          !snapshot.simulation?.summary.boundaries.order_submission_allowed &&
+          !snapshot.simulation?.summary.boundaries.order_mutation_allowed &&
+          !snapshot.simulation?.summary.boundaries.automatic_retry_allowed &&
+          !snapshot.simulation?.summary.boundaries
+            .automatic_remediation_allowed &&
+          !snapshot.simulation?.summary.boundaries.real_orders_submitted &&
+          !snapshot.simulation?.summary.boundaries.trading_controls_enabled,
         "demo_run_snapshot.data.submission",
       );
       return payload;
