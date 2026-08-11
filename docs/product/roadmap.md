@@ -2,7 +2,7 @@
 
 Canonical repository path: `docs/product/roadmap.md`.
 
-Date: 2026-08-11
+Date: 2026-08-12
 Executor: Codex
 
 ## 当前正确北极星
@@ -74,10 +74,11 @@ S2-DM-001 已交付 Demo Run 创建、不可变 StrategyVersion 绑定和 Superv
 独立审查、hosted checks 与手动合并。S2 产品退出条件已满足并收口；下一阶段进入 S3 Live
 产品能力，且不得从 Demo 自动继承真实交易权限。
 
-S3-LV-001 已交付首个 Live 独立准入合同。S3-LV-002 在同一 StrategyVersion 上新增用户显式
-触发的 Binance Spot 生产账户只读检查：只有源能力、五项运行门禁和环境凭证全部满足时才
-访问一次 `/api/v3/account`，默认环境返回 blocked 且不触网。响应只保留状态码、延迟和
-结构摘要；Live Run、订单 endpoint、下单、撤改、自动重试和恢复仍保持关闭。
+S3-LV-001 已交付首个 Live 独立准入合同，S3-LV-002 已交付用户显式触发的 Binance Spot
+生产账户只读检查。S3-LV-003 正在把通过验证的账户类型、交易所权限和非零资产余额投影为
+稳定产品结果：余额保持各资产原生单位，不做无价格依据的跨币种估值。只有源能力、五项
+运行门禁和环境凭证全部满足时才访问一次 `/api/v3/account`；默认环境 blocked 且不触网。
+Live Run、订单 endpoint、下单、撤改、自动重试和恢复仍保持关闭。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -96,7 +97,8 @@ FEA-001 前端架构文档
   -> S2-DM-002 Demo 实时状态与运行结果（DONE）
   -> S2-DM-003 Demo 模拟执行结果与跨环境比较（DONE）
   -> S3-LV-001 Live Venue、账户凭证与独立准入合同（DONE）
-  -> S3-LV-002 生产网络连接与认证账户只读接入（REVIEW_APPROVED）
+  -> S3-LV-002 生产网络连接与认证账户只读接入（DONE）
+  -> S3-LV-003 Live 账户、资金与资产结果产品化（REVIEW_APPROVED）
   -> S1-S4 三模式产品闭环
 ```
 

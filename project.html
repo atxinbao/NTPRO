@@ -2665,7 +2665,7 @@
                   <li>建立 Live 独立准入、最小权限、幂等、审计、恢复和回滚证据。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 已完成独立准入合同；S3-LV-002 已实现用户显式触发的 Binance Spot 生产账户只读检查，默认缺少运行门禁与凭证时不触网。Live Run、订单接口与真实订单仍保持阻断。</div>
+              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 已完成独立准入合同，S3-LV-002 已完成显式生产账户只读检查；S3-LV-003 正在交付账户类型、交易所权限和非零资产余额。余额保持原生单位，不做无价格依据的跨币种估值；Live Run、订单接口与真实订单仍保持阻断。</div>
               <div class="exit-gate"><strong>退出条件</strong>真实账户和 Venue 在独立授权下完成受控端到端交易；异常、断连、重复回报和恢复场景 fail closed，并证明不会由 Demo 自动继承权限。</div>
             </article>
 
@@ -2686,7 +2686,7 @@
           </div>
 
           <div class="decision-grid">
-            <div class="decision"><h3>当前先做 S0</h3><p>先固定策略、版本和 Run 合同，后续页面、API 和三种引擎接入才不会重复建模。</p></div>
+            <div class="decision"><h3>当前推进 S3</h3><p>S0-S2 已完成；当前先把真实账户只读结果做成稳定产品面，再单独建设 Live Run 与订单生命周期。</p></div>
             <div class="decision"><h3>Live 不是 Sandbox 开关</h3><p>策略代码相同，但真实数据、执行、账户、风控、授权和故障处置必须单独建设。</p></div>
             <div class="decision"><h3>平台化后置</h3><p>多机构、多节点、集中运维和复杂角色治理在策略三模式闭环完成后再独立规划。</p></div>
           </div>
@@ -2918,7 +2918,7 @@
           </ul>
           </details>
 
-          <p class="footer-note">项目说明版本：第十六版 · 更新日期：2026-08-11 · 执行者：Codex · 当前北极星为同一策略的 Backtest / Demo / Live 三模式闭环 · Demo 单节点 MVP M0-M4 已冻结 · Live 账户只读检查已实现，真实订单尚未开放 · 正式发布基线：v0.33.0</p>
+          <p class="footer-note">项目说明版本：第十七版 · 更新日期：2026-08-12 · 执行者：Codex · 当前北极星为同一策略的 Backtest / Demo / Live 三模式闭环 · Demo 单节点 MVP M0-M4 已冻结 · Live 账户与原生资产只读结果正在产品化，真实订单尚未开放 · 正式发布基线：v0.33.0</p>
         </section>
       </div>
     </main>

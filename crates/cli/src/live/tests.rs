@@ -4216,6 +4216,127 @@ fn production_account_snapshot_read_does_not_follow_cross_origin_redirects() {
 }
 
 #[test]
+fn production_account_snapshot_read_projects_only_allowlisted_account_results() {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        thread,
+        time::Duration,
+    };
+
+    let listener = TcpListener::bind("127.0.0.1:0").expect("fixture listener should bind");
+    let address = listener.local_addr().expect("fixture address should exist");
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().expect("fixture request should arrive");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .expect("fixture timeout should configure");
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 1024];
+        loop {
+            let read = stream
+                .read(&mut chunk)
+                .expect("fixture request should read");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        let body = serde_json::json!({
+            "makerCommission": 17,
+            "uid": "uid-secret-not-for-product",
+            "updateTime": 1_718_400_000_000_u64,
+            "accountType": "SPOT",
+            "canTrade": true,
+            "canWithdraw": false,
+            "canDeposit": true,
+            "permissions": ["SPOT"],
+            "balances": [
+                {"asset": "USDT", "free": "100.25", "locked": "4.75"},
+                {"asset": "ETH", "free": "0", "locked": "0"},
+                {"asset": "BTC", "free": "0.12345678", "locked": "0.00000002"}
+            ]
+        })
+        .to_string();
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("fixture response should write");
+    });
+
+    let signed_url = format!(
+        "http://{address}/api/v3/account?timestamp=1718400000000&signature=signed-query-secret"
+    );
+    let result = execute_production_account_snapshot_read_on_thread(
+        &signed_url,
+        "X-MBX-APIKEY",
+        "api-key-secret",
+    );
+    server.join().expect("fixture server should finish");
+
+    assert_eq!(result.http_status, Some(200));
+    assert_eq!(result.error_code, "none");
+    let snapshot = result
+        .product_snapshot
+        .as_ref()
+        .expect("valid response should include product projection");
+    assert_eq!(snapshot.account_type, "SPOT");
+    assert_eq!(snapshot.source_balance_entry_count, 3);
+    assert_eq!(snapshot.zero_balance_entry_count, 1);
+    assert_eq!(snapshot.assets.len(), 2);
+    assert_eq!(snapshot.assets[0].asset, "BTC");
+    assert_eq!(snapshot.assets[0].total, "0.1234568");
+    assert_eq!(snapshot.assets[1].asset, "USDT");
+    assert_eq!(snapshot.assets[1].total, "105");
+
+    let debug_body = format!("{result:?}");
+    for forbidden in [
+        "api-key-secret",
+        "signed-query-secret",
+        "uid-secret-not-for-product",
+        "makerCommission",
+        "updateTime",
+    ] {
+        assert!(!debug_body.contains(forbidden), "leaked {forbidden}");
+    }
+}
+
+#[test]
+fn product_live_account_response_body_rejects_declared_and_streamed_oversize() {
+    use std::io::Cursor;
+
+    assert_eq!(
+        read_product_live_account_response_body(
+            Cursor::new(Vec::<u8>::new()),
+            Some(PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES as u64 + 1),
+        ),
+        Err("account_result_limit_exceeded")
+    );
+    assert_eq!(
+        read_product_live_account_response_body(
+            Cursor::new(vec![b'x'; PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES + 1]),
+            None,
+        ),
+        Err("account_result_limit_exceeded")
+    );
+    assert_eq!(
+        read_product_live_account_response_body(
+            Cursor::new(vec![b'x'; PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES]),
+            None,
+        )
+        .expect("response at the byte limit should be accepted")
+        .len(),
+        PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES
+    );
+}
+
+#[test]
 fn product_live_account_read_rechecks_every_runtime_gate_before_http() {
     use std::cell::Cell;
 
@@ -4302,7 +4423,7 @@ fn product_live_account_read_rechecks_each_credential_before_http() {
 }
 
 #[test]
-fn product_live_account_read_returns_only_redacted_shape_metadata() {
+fn product_live_account_read_returns_normalized_account_results_without_secrets() {
     let observation = execute_product_live_account_read_with_env_and_http(
         "NTPRO_TEST_LIVE_API_KEY",
         "NTPRO_TEST_LIVE_API_SECRET",
@@ -4330,10 +4451,180 @@ fn product_live_account_read_returns_only_redacted_shape_metadata() {
     assert_eq!(observation.balance_entry_count, Some(1));
     assert_eq!(observation.permission_entry_count, Some(1));
     assert_eq!(observation.error_code, "none");
+    let snapshot = observation
+        .account_snapshot
+        .as_ref()
+        .expect("connected observation should include account results");
+    assert_eq!(snapshot.account_type, "SPOT");
+    assert!(snapshot.can_trade);
+    assert!(!snapshot.can_withdraw);
+    assert!(snapshot.can_deposit);
+    assert_eq!(snapshot.source_balance_entry_count, 1);
+    assert_eq!(snapshot.zero_balance_entry_count, 0);
+    assert_eq!(snapshot.assets.len(), 1);
+    assert_eq!(snapshot.assets[0].asset, "BTC");
+    assert_eq!(snapshot.assets[0].total, "0.125");
 
     let debug_body = format!("{observation:?}");
     assert!(!debug_body.contains("synthetic_api_key"));
     assert!(!debug_body.contains("synthetic_api_secret"));
+}
+
+#[test]
+fn product_live_account_snapshot_projects_non_zero_assets_with_decimal_precision() {
+    let body = serde_json::json!({
+        "accountType": "SPOT",
+        "canTrade": true,
+        "canWithdraw": false,
+        "canDeposit": true,
+        "permissions": ["SPOT"],
+        "balances": [
+            {"asset": "USDT", "free": "100.25000000", "locked": "4.75000000"},
+            {"asset": "ETH", "free": "0.00000000", "locked": "0.00000000"},
+            {"asset": "BTC", "free": "0.12345678", "locked": "0.00000002"}
+        ]
+    });
+
+    let snapshot = project_product_live_account_snapshot(&body)
+        .expect("valid account response should project");
+    assert_eq!(snapshot.account_type, "SPOT");
+    assert_eq!(snapshot.source_balance_entry_count, 3);
+    assert_eq!(snapshot.zero_balance_entry_count, 1);
+    assert_eq!(snapshot.assets.len(), 2);
+    assert_eq!(snapshot.assets[0].asset, "BTC");
+    assert_eq!(snapshot.assets[0].free, "0.12345678");
+    assert_eq!(snapshot.assets[0].locked, "0.00000002");
+    assert_eq!(snapshot.assets[0].total, "0.1234568");
+    assert_eq!(snapshot.assets[1].asset, "USDT");
+    assert_eq!(snapshot.assets[1].free, "100.25");
+    assert_eq!(snapshot.assets[1].locked, "4.75");
+    assert_eq!(snapshot.assets[1].total, "105");
+}
+
+#[test]
+fn product_live_account_snapshot_rejects_ambiguous_or_unsafe_balances() {
+    let base = serde_json::json!({
+        "accountType": "SPOT",
+        "canTrade": true,
+        "canWithdraw": false,
+        "canDeposit": true,
+        "permissions": ["SPOT"],
+        "balances": []
+    });
+    for (name, balances, expected_error) in [
+        (
+            "duplicate",
+            serde_json::json!([
+                {"asset": "BTC", "free": "1", "locked": "0"},
+                {"asset": "BTC", "free": "0", "locked": "1"}
+            ]),
+            "account_result_duplicate_asset",
+        ),
+        (
+            "negative",
+            serde_json::json!([{"asset": "BTC", "free": "-1", "locked": "0"}]),
+            "account_result_invalid",
+        ),
+        (
+            "invalid_decimal",
+            serde_json::json!([{"asset": "BTC", "free": "NaN", "locked": "0"}]),
+            "account_result_invalid",
+        ),
+        (
+            "noncanonical_decimal_whitespace",
+            serde_json::json!([{"asset": "BTC", "free": " 1 ", "locked": "0"}]),
+            "account_result_invalid",
+        ),
+        (
+            "noncanonical_decimal_leading_zero",
+            serde_json::json!([{"asset": "BTC", "free": "01", "locked": "0"}]),
+            "account_result_invalid",
+        ),
+        (
+            "noncanonical_decimal_missing_fraction",
+            serde_json::json!([{"asset": "BTC", "free": "1.", "locked": "0"}]),
+            "account_result_invalid",
+        ),
+        (
+            "noncanonical_decimal_missing_integer",
+            serde_json::json!([{"asset": "BTC", "free": ".1", "locked": "0"}]),
+            "account_result_invalid",
+        ),
+        (
+            "decimal_precision_exceeds_contract",
+            serde_json::json!([{
+                "asset": "BTC",
+                "free": "0.12345678901234567890123456789",
+                "locked": "0"
+            }]),
+            "account_result_invalid",
+        ),
+        (
+            "non_zero_decimal_must_not_round_to_zero",
+            serde_json::json!([{
+                "asset": "BTC",
+                "free": "0.00000000000000000000000000001",
+                "locked": "0"
+            }]),
+            "account_result_invalid",
+        ),
+        (
+            "decimal_addition_overflow",
+            serde_json::json!([{
+                "asset": "BTC",
+                "free": "79228162514264337593543950335",
+                "locked": "1"
+            }]),
+            "account_result_invalid",
+        ),
+        (
+            "invalid_asset",
+            serde_json::json!([{"asset": "btc secret", "free": "1", "locked": "0"}]),
+            "account_result_invalid",
+        ),
+    ] {
+        let mut body = base.clone();
+        body["balances"] = balances;
+        assert_eq!(
+            project_product_live_account_snapshot(&body),
+            Err(expected_error),
+            "{name}"
+        );
+    }
+
+    let mut body = base.clone();
+    body["accountType"] = serde_json::json!("spot");
+    assert_eq!(
+        project_product_live_account_snapshot(&body),
+        Err("account_result_invalid")
+    );
+
+    let mut body = base.clone();
+    body["balances"] = serde_json::Value::Array(vec![
+        serde_json::json!({"asset": "BTC", "free": "0", "locked": "0"});
+        PRODUCT_LIVE_ACCOUNT_MAX_SOURCE_BALANCES + 1
+    ]);
+    assert_eq!(
+        project_product_live_account_snapshot(&body),
+        Err("account_result_limit_exceeded")
+    );
+
+    let mut body = base;
+    body["balances"] = serde_json::Value::Array(
+        (0..=PRODUCT_LIVE_ACCOUNT_MAX_NON_ZERO_ASSETS)
+            .map(|index| {
+                serde_json::json!({
+                    "asset": format!("A{index}"),
+                    "free": "1",
+                    "locked": "0"
+                })
+            })
+            .collect(),
+    );
+    assert_eq!(
+        project_product_live_account_snapshot(&body),
+        Err("account_result_limit_exceeded")
+    );
 }
 
 #[test]

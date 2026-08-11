@@ -2860,7 +2860,7 @@
         ],
         "properties": {
           "schema_version": {
-            "const": "ntpro.product_api.live_account_refresh.response.v1"
+            "const": "ntpro.product_api.live_account_refresh.response.v2"
           },
           "contract_version": { "const": "ntpro.product_api.v1" },
           "request_id": { "$ref": "#/components/schemas/RequestId" },
@@ -2894,6 +2894,9 @@
           "response_shape",
           "response_shape_validated",
           "shape_summary",
+          "account_result",
+          "funds_summary",
+          "asset_balances",
           "error_code",
           "source_refs"
         ],
@@ -2947,6 +2950,20 @@
           "shape_summary": {
             "$ref": "#/components/schemas/LiveAccountShapeSummary"
           },
+          "account_result": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/LiveAccountResult" },
+              { "type": "null" }
+            ]
+          },
+          "funds_summary": {
+            "$ref": "#/components/schemas/LiveFundsSummary"
+          },
+          "asset_balances": {
+            "type": "array",
+            "maxItems": 256,
+            "items": { "$ref": "#/components/schemas/LiveAssetBalance" }
+          },
           "error_code": {
             "type": "string",
             "enum": [
@@ -2965,6 +2982,10 @@
               "decode_error",
               "request_error",
               "body_error",
+              "account_result_missing",
+              "account_result_invalid",
+              "account_result_duplicate_asset",
+              "account_result_limit_exceeded",
               "unknown_http_error"
             ]
           },
@@ -3026,6 +3047,94 @@
           "raw_permissions_exposed": { "const": false }
         }
       },
+      "LiveAccountResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "account_type",
+          "can_trade",
+          "can_withdraw",
+          "can_deposit"
+        ],
+        "properties": {
+          "account_type": {
+            "type": "string",
+            "pattern": "^[A-Z_]{1,32}$"
+          },
+          "can_trade": { "type": "boolean" },
+          "can_withdraw": { "type": "boolean" },
+          "can_deposit": { "type": "boolean" }
+        }
+      },
+      "LiveFundsSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_balance_entry_count",
+          "non_zero_asset_count",
+          "zero_balance_entry_count",
+          "native_asset_units",
+          "valuation_status",
+          "valuation_currency",
+          "portfolio_value"
+        ],
+        "properties": {
+          "source_balance_entry_count": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 2048
+          },
+          "non_zero_asset_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 256
+          },
+          "zero_balance_entry_count": {
+            "type": ["integer", "null"],
+            "minimum": 0,
+            "maximum": 2048
+          },
+          "native_asset_units": { "const": true },
+          "valuation_status": {
+            "type": "string",
+            "enum": [
+              "not_evaluated",
+              "unavailable_without_price_conversion"
+            ]
+          },
+          "valuation_currency": { "type": "null" },
+          "portfolio_value": { "type": "null" }
+        }
+      },
+      "LiveAssetBalance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["asset", "free", "locked", "total"],
+        "properties": {
+          "asset": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{1,32}$"
+          },
+          "free": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+          },
+          "locked": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+          },
+          "total": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]+)?$"
+          }
+        }
+      },
       "LiveAccountRefreshBoundaries": {
         "type": "object",
         "additionalProperties": false,
@@ -3046,6 +3155,8 @@
           "automatic_recovery_allowed",
           "secret_values_exposed",
           "raw_account_response_exposed",
+          "normalized_account_results_exposed",
+          "account_results_persisted",
           "trading_controls_enabled"
         ],
         "properties": {
@@ -3065,6 +3176,8 @@
           "automatic_recovery_allowed": { "const": false },
           "secret_values_exposed": { "const": false },
           "raw_account_response_exposed": { "const": false },
+          "normalized_account_results_exposed": { "type": "boolean" },
+          "account_results_persisted": { "const": false },
           "trading_controls_enabled": { "const": false }
         }
       },

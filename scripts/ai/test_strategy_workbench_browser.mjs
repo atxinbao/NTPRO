@@ -377,7 +377,7 @@ try {
   if (
     liveAccountRefreshResponse.status !== 200 ||
     liveAccountRefresh.schema_version !==
-      "ntpro.product_api.live_account_refresh.response.v1" ||
+      "ntpro.product_api.live_account_refresh.response.v2" ||
     liveAccountRefresh.data?.connection_status !== "blocked" ||
     liveAccountRefresh.data?.error_code !== "credentials_missing" ||
     liveAccountRefresh.data?.network_attempted !== false ||
@@ -386,6 +386,15 @@ try {
     liveAccountRefresh.data?.shape_summary?.raw_account_response_exposed !==
       false ||
     liveAccountRefresh.data?.shape_summary?.raw_balances_exposed !== false ||
+    liveAccountRefresh.data?.account_result !== null ||
+    liveAccountRefresh.data?.asset_balances?.length !== 0 ||
+    liveAccountRefresh.data?.funds_summary?.non_zero_asset_count !== 0 ||
+    liveAccountRefresh.data?.funds_summary?.source_balance_entry_count !==
+      null ||
+    liveAccountRefresh.data?.funds_summary?.zero_balance_entry_count !== null ||
+    liveAccountRefresh.data?.funds_summary?.valuation_status !==
+      "not_evaluated" ||
+    liveAccountRefresh.data?.funds_summary?.portfolio_value !== null ||
     liveAccountRefresh.boundaries?.external_network_attempted !== false ||
     liveAccountRefresh.boundaries?.account_mutation_allowed !== false ||
     liveAccountRefresh.boundaries?.order_endpoint_access_allowed !== false ||
@@ -395,6 +404,9 @@ try {
     liveAccountRefresh.boundaries?.automatic_recovery_allowed !== false ||
     liveAccountRefresh.boundaries?.secret_values_exposed !== false ||
     liveAccountRefresh.boundaries?.raw_account_response_exposed !== false ||
+    liveAccountRefresh.boundaries?.normalized_account_results_exposed !==
+      false ||
+    liveAccountRefresh.boundaries?.account_results_persisted !== false ||
     liveAccountRefresh.boundaries?.trading_controls_enabled !== false
   ) {
     throw new Error(

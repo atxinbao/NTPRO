@@ -909,7 +909,7 @@ export type LiveAccountRefreshRequest = {
 };
 
 export type LiveAccountRefreshResponse = {
-  schema_version: "ntpro.product_api.live_account_refresh.response.v1";
+  schema_version: "ntpro.product_api.live_account_refresh.response.v2";
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
   data: LiveAccountRefresh;
@@ -937,6 +937,9 @@ export type LiveAccountRefresh = {
   response_shape: "binance_account_snapshot_v1";
   response_shape_validated: boolean;
   shape_summary: LiveAccountShapeSummary;
+  account_result: LiveAccountResult | null;
+  funds_summary: LiveFundsSummary;
+  asset_balances: Array<LiveAssetBalance>;
   error_code:
     | "none"
     | "credentials_missing"
@@ -953,6 +956,10 @@ export type LiveAccountRefresh = {
     | "decode_error"
     | "request_error"
     | "body_error"
+    | "account_result_missing"
+    | "account_result_invalid"
+    | "account_result_duplicate_asset"
+    | "account_result_limit_exceeded"
     | "unknown_http_error";
   source_refs: [string, string];
 };
@@ -977,6 +984,30 @@ export type LiveAccountShapeSummary = {
   raw_permissions_exposed: false;
 };
 
+export type LiveAccountResult = {
+  account_type: string;
+  can_trade: boolean;
+  can_withdraw: boolean;
+  can_deposit: boolean;
+};
+
+export type LiveFundsSummary = {
+  source_balance_entry_count: number | null;
+  non_zero_asset_count: number;
+  zero_balance_entry_count: number | null;
+  native_asset_units: true;
+  valuation_status: "not_evaluated" | "unavailable_without_price_conversion";
+  valuation_currency: null;
+  portfolio_value: null;
+};
+
+export type LiveAssetBalance = {
+  asset: string;
+  free: string;
+  locked: string;
+  total: string;
+};
+
 export type LiveAccountRefreshBoundaries = {
   read_only: true;
   independent_live_admission_required: true;
@@ -994,6 +1025,8 @@ export type LiveAccountRefreshBoundaries = {
   automatic_recovery_allowed: false;
   secret_values_exposed: false;
   raw_account_response_exposed: false;
+  normalized_account_results_exposed: boolean;
+  account_results_persisted: false;
   trading_controls_enabled: false;
 };
 

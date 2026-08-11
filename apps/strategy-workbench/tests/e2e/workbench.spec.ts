@@ -16,7 +16,9 @@ function readProductFixture(name: string): Record<string, unknown> {
 }
 
 const errorFixture = readProductFixture("error");
-const liveAccountRefreshFixture = readProductFixture("live-account-refresh");
+const liveAccountRefreshFixture = readProductFixture(
+  "live-account-refresh-connected",
+);
 const liveAdmissionFixture = readProductFixture("live-admission");
 const runDetailFixture = readProductFixture("run-detail");
 const runAnalysisFixture = readProductFixture("run-analysis");
@@ -896,12 +898,22 @@ test("Live page exposes independent admission and no trading actions", async ({
     name: "生产账户只读连接",
   });
   await expect(
-    accountConnection.getByText("已阻断", { exact: true }),
+    accountConnection.getByText("已连接", { exact: true }),
   ).toBeVisible();
-  await expect(accountConnection.getByText("0/5")).toBeVisible();
+  await expect(accountConnection.getByText("5/5")).toBeVisible();
   await expect(
-    accountConnection.getByText("未尝试", { exact: true }),
+    accountConnection.getByText("已尝试", { exact: true }),
   ).toBeVisible();
+  const accountSummary = accountConnection.getByLabel("Live 账户摘要");
+  const assetBalances = accountConnection.getByTestId("live-asset-balances");
+  await expect(accountSummary.getByText("SPOT", { exact: true })).toBeVisible();
+  await expect(assetBalances.getByText("BTC", { exact: true })).toBeVisible();
+  await expect(
+    assetBalances.getByText("0.1234568", { exact: true }),
+  ).toBeVisible();
+  await expect(assetBalances.getByText("USDT", { exact: true })).toBeVisible();
+  await expect(assetBalances.getByText("105", { exact: true })).toBeVisible();
+  await expect(accountConnection.getByText(/未做跨币种估值/)).toBeVisible();
   expect(liveAccountRefreshRequests).toBe(1);
   await expect(
     page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
