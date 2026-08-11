@@ -167,6 +167,146 @@ const demoBoundaries = {
   trading_controls_enabled: false,
 };
 
+function demoSnapshotFixture(run: Record<string, unknown>) {
+  const lifecycle = String(run.lifecycle);
+  const status =
+    lifecycle === "created"
+      ? "not_started"
+      : lifecycle === "stopped" || lifecycle === "failed"
+        ? "frozen"
+        : "running";
+  const hasRuntimeData = status !== "not_started";
+  const frozen = status === "frozen";
+  const runtime = run.runtime as Record<string, unknown>;
+  return {
+    schema_version: "ntpro.product_api.demo_run_snapshot.response.v1",
+    contract_version: "ntpro.product_api.v1",
+    request_id: "product-0000000000000001-0000000000000013",
+    data: {
+      schema_version: "ntpro.product_api.demo_run_result.v1",
+      run_id: run.run_id,
+      strategy_id: run.strategy_id,
+      strategy_version_id: run.strategy_version_id,
+      observed_at_unix_ms: 1_786_400_001_000,
+      lifecycle,
+      snapshot_status: status,
+      runtime: {
+        supervisor_node_id: runtime.supervisor_node_id,
+        strategy_instance_id: runtime.strategy_instance_id,
+        process_state: runtime.process_state,
+        lifecycle_state: runtime.lifecycle_state,
+        data_connection: hasRuntimeData ? "connected" : "not_configured",
+        execution_connection: "not_configured",
+        uptime_ms: hasRuntimeData ? 1_000 : null,
+        generated_at_unix_ms: hasRuntimeData ? 1_786_400_000_500 : null,
+      },
+      market: hasRuntimeData
+        ? {
+            connection: "connected",
+            state: frozen ? "stopped" : "exhausted",
+            source: "fixture_stream",
+            event_count: 8,
+            last_event_at_unix_ms: 1_786_400_000_400,
+            updated_at_unix_ms: 1_786_400_000_500,
+            latest_event: {
+              event_type: "fixture_bar",
+              source: "fixture_stream",
+              seq: 7,
+              symbol: "BTCUSDT.BINANCE",
+              price: 100.5,
+              event_at_unix_ms: 1_786_400_000_400,
+              recorded_at_unix_ms: 1_786_400_000_500,
+            },
+          }
+        : null,
+      session: hasRuntimeData
+        ? {
+            state: frozen ? "stopped" : "running",
+            reason: frozen ? "user_stop" : "fixture_completed",
+            event_count: 5,
+            market_event_count: 8,
+            signal_count: 3,
+            intent_count: 3,
+            risk_decision_count: 3,
+            rejection_count: 3,
+            actual_submission_count: 0,
+            updated_at_unix_ms: 1_786_400_000_500,
+          }
+        : null,
+      latest_signal: hasRuntimeData
+        ? {
+            symbol: "BTCUSDT.BINANCE",
+            signal: "sell",
+            confidence: 0.72,
+            market_event_seq: 7,
+            generated_at_unix_ms: 1_786_400_000_450,
+          }
+        : null,
+      latest_order_intent: hasRuntimeData
+        ? {
+            intent_id: "intent-demo-001",
+            symbol: "BTCUSDT.BINANCE",
+            side: "sell",
+            order_type: "market",
+            quantity: 1,
+            source_signal: "sell",
+            confidence: 0.72,
+            market_event_seq: 7,
+            created_at_unix_ms: 1_786_400_000_460,
+            submission_allowed: false,
+            submission_status: "blocked",
+          }
+        : null,
+      latest_risk_decision: hasRuntimeData
+        ? {
+            decision_id: "decision-demo-001",
+            intent_id: "intent-demo-001",
+            symbol: "BTCUSDT.BINANCE",
+            decision: "rejected",
+            reasons: ["order_submission_disabled"],
+            mode: "sandbox",
+            order_submission: "disabled",
+            kill_switch_enabled: true,
+            kill_switch_active: false,
+            account_state: "sandbox",
+            market_state: "fresh",
+            actual_submission: false,
+            evaluated_at_unix_ms: 1_786_400_000_470,
+          }
+        : null,
+      technical_health: {
+        status: hasRuntimeData ? "healthy" : "blocked",
+        diagnostics: hasRuntimeData ? [] : ["demo_not_started"],
+      },
+      provenance: {
+        source_refs: [
+          `artifact://demo-runs/${String(run.run_id)}/run-manifest.json`,
+        ],
+        manifest_sha256:
+          "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        result_ref: frozen
+          ? `artifact://demo-runs/${String(run.run_id)}/demo-result.json`
+          : null,
+        result_sha256: frozen
+          ? "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          : null,
+      },
+    },
+    boundaries: {
+      read_only: true,
+      sandbox_only: true,
+      live_run_creation_allowed: false,
+      external_venue_connection: false,
+      order_submission_allowed: false,
+      order_mutation_allowed: false,
+      automatic_retry_allowed: false,
+      automatic_remediation_allowed: false,
+      real_orders_submitted: false,
+      trading_controls_enabled: false,
+    },
+  };
+}
+
 const comparisonItem = (runId: string) => ({
   run_id: runId,
   strategy_version_id: (runMetricsFixture.data as Record<string, unknown>)
@@ -486,6 +626,18 @@ test.beforeEach(async ({ page }) => {
     }
     if (
       route.request().method() === "GET" &&
+      path === "/api/product/v1/runs/demo-browser-001/demo-snapshot" &&
+      currentDemo
+    ) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(demoSnapshotFixture(currentDemo)),
+      });
+      return;
+    }
+    if (
+      route.request().method() === "GET" &&
       path === "/api/product/v1/runs/demo-browser-001" &&
       currentDemo
     ) {
@@ -528,10 +680,22 @@ test("Demo page creates a Run and explicitly controls Supervisor lifecycle", asy
   await expect(
     page.getByRole("region", { name: "Demo 生命周期" }),
   ).toContainText("running");
+  await expect(
+    page.getByRole("region", { name: "Demo 运行结果" }),
+  ).toContainText("实时策略快照");
+  await expect(
+    page.getByRole("region", { name: "Demo 运行结果" }),
+  ).toContainText("sell");
   await page.getByRole("button", { name: "停止" }).click();
   await expect(
     page.getByRole("region", { name: "Demo 生命周期" }),
   ).toContainText("stopped");
+  await expect(
+    page.getByRole("region", { name: "Demo 运行结果" }),
+  ).toContainText("终态冻结快照");
+  await expect(
+    page.getByRole("region", { name: "Demo 运行结果" }),
+  ).toContainText("sha256:2222");
   await expect(
     page.getByRole("button", { name: /下单|撤单|改单|平仓/ }),
   ).toHaveCount(0);

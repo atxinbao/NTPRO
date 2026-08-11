@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
-import type { Run } from "../api/generated/productApi";
+import type { DemoRunSnapshotResponse, Run } from "../api/generated/productApi";
 
 import { validStatusPayload } from "./fixtures";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
@@ -191,6 +191,142 @@ export function demoActionResponse(action: "start" | "stop") {
   };
 }
 
+export function demoSnapshotResponse(run: Run): DemoRunSnapshotResponse {
+  const snapshotStatus =
+    run.lifecycle === "created"
+      ? ("not_started" as const)
+      : run.lifecycle === "stopped" || run.lifecycle === "failed"
+        ? ("frozen" as const)
+        : ("running" as const);
+  const hasRuntimeData = snapshotStatus !== "not_started";
+  const frozen = snapshotStatus === "frozen";
+  return {
+    schema_version: "ntpro.product_api.demo_run_snapshot.response.v1",
+    contract_version: "ntpro.product_api.v1",
+    request_id: "product-0000000000000001-0000000000000013",
+    data: {
+      schema_version: "ntpro.product_api.demo_run_result.v1",
+      run_id: run.run_id,
+      strategy_id: run.strategy_id,
+      strategy_version_id: run.strategy_version_id,
+      observed_at_unix_ms: 1_786_400_001_000,
+      lifecycle: run.lifecycle,
+      snapshot_status: snapshotStatus,
+      runtime: {
+        supervisor_node_id: run.runtime!.supervisor_node_id,
+        strategy_instance_id: run.runtime!.strategy_instance_id,
+        process_state: run.runtime!.process_state,
+        lifecycle_state: run.runtime!.lifecycle_state,
+        data_connection: hasRuntimeData ? "connected" : "not_configured",
+        execution_connection: "not_configured",
+        uptime_ms: hasRuntimeData ? 1_000 : null,
+        generated_at_unix_ms: hasRuntimeData ? 1_786_400_000_500 : null,
+      },
+      market: hasRuntimeData
+        ? {
+            connection: "connected",
+            state: frozen ? "stopped" : "exhausted",
+            source: "fixture_stream",
+            event_count: 8,
+            last_event_at_unix_ms: 1_786_400_000_400,
+            updated_at_unix_ms: 1_786_400_000_500,
+            latest_event: {
+              event_type: "fixture_bar",
+              source: "fixture_stream",
+              seq: 7,
+              symbol: "BTCUSDT.BINANCE",
+              price: 100.5,
+              event_at_unix_ms: 1_786_400_000_400,
+              recorded_at_unix_ms: 1_786_400_000_500,
+            },
+          }
+        : null,
+      session: hasRuntimeData
+        ? {
+            state: frozen ? "stopped" : "running",
+            reason: frozen ? "user_stop" : "fixture_completed",
+            event_count: 5,
+            market_event_count: 8,
+            signal_count: 3,
+            intent_count: 3,
+            risk_decision_count: 3,
+            rejection_count: 3,
+            actual_submission_count: 0,
+            updated_at_unix_ms: 1_786_400_000_500,
+          }
+        : null,
+      latest_signal: hasRuntimeData
+        ? {
+            symbol: "BTCUSDT.BINANCE",
+            signal: "sell",
+            confidence: 0.72,
+            market_event_seq: 7,
+            generated_at_unix_ms: 1_786_400_000_450,
+          }
+        : null,
+      latest_order_intent: hasRuntimeData
+        ? {
+            intent_id: "intent-demo-001",
+            symbol: "BTCUSDT.BINANCE",
+            side: "sell",
+            order_type: "market",
+            quantity: 1,
+            source_signal: "sell",
+            confidence: 0.72,
+            market_event_seq: 7,
+            created_at_unix_ms: 1_786_400_000_460,
+            submission_allowed: false,
+            submission_status: "blocked",
+          }
+        : null,
+      latest_risk_decision: hasRuntimeData
+        ? {
+            decision_id: "decision-demo-001",
+            intent_id: "intent-demo-001",
+            symbol: "BTCUSDT.BINANCE",
+            decision: "rejected",
+            reasons: ["order_submission_disabled"],
+            mode: "sandbox",
+            order_submission: "disabled",
+            kill_switch_enabled: true,
+            kill_switch_active: false,
+            account_state: "sandbox",
+            market_state: "fresh",
+            actual_submission: false,
+            evaluated_at_unix_ms: 1_786_400_000_470,
+          }
+        : null,
+      technical_health: {
+        status: hasRuntimeData ? "healthy" : "blocked",
+        diagnostics: hasRuntimeData ? [] : ["demo_not_started"],
+      },
+      provenance: {
+        source_refs: [`artifact://demo-runs/${run.run_id}/run-manifest.json`],
+        manifest_sha256:
+          "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        result_ref: frozen
+          ? `artifact://demo-runs/${run.run_id}/demo-result.json`
+          : null,
+        result_sha256: frozen
+          ? "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+          : null,
+      },
+    },
+    boundaries: {
+      read_only: true,
+      sandbox_only: true,
+      live_run_creation_allowed: false,
+      external_venue_connection: false,
+      order_submission_allowed: false,
+      order_mutation_allowed: false,
+      automatic_retry_allowed: false,
+      automatic_remediation_allowed: false,
+      real_orders_submitted: false,
+      trading_controls_enabled: false,
+    },
+  };
+}
+
 function comparisonItem(runId: string) {
   return {
     run_id: runId,
@@ -312,6 +448,9 @@ export const server = setupServer(
       run ? { ...runDetailFixture, data: run } : runDetailFixture,
     );
   }),
+  http.get("/api/product/v1/runs/:runId/demo-snapshot", () =>
+    HttpResponse.json(demoSnapshotResponse(createdDemo)),
+  ),
   http.get("/api/product/v1/runs/:runId/metrics", ({ params }) =>
     HttpResponse.json(
       params.runId === createdBacktest.run_id ||

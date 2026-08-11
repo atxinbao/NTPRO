@@ -1785,6 +1785,27 @@ async fn institution_creates_one_immutable_demo_run_bound_to_supervisor() {
     let run_id = created["data"]["run_id"]
         .as_str()
         .expect("created Demo Run ID should be a string");
+    let (status, snapshot) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}/demo-snapshot"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{snapshot}");
+    assert_eq!(
+        snapshot["schema_version"],
+        "ntpro.product_api.demo_run_snapshot.response.v1"
+    );
+    assert_eq!(snapshot["data"]["run_id"], run_id);
+    assert_eq!(snapshot["data"]["lifecycle"], "created");
+    assert_eq!(snapshot["data"]["snapshot_status"], "not_started");
+    assert_eq!(snapshot["data"]["market"], Value::Null);
+    assert_eq!(snapshot["data"]["session"], Value::Null);
+    assert_eq!(snapshot["data"]["technical_health"]["status"], "blocked");
+    assert_eq!(snapshot["boundaries"]["read_only"], true);
+    assert_eq!(snapshot["boundaries"]["sandbox_only"], true);
+    assert_eq!(snapshot["boundaries"]["order_submission_allowed"], false);
+    validate_openapi_instance("DemoRunSnapshotResponse", &snapshot);
     let directory = fixture.root.join("artifacts/demo-runs").join(run_id);
     let request_raw =
         fs::read(directory.join("request.json")).expect("Demo request artifact should be readable");
@@ -2207,6 +2228,33 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
     );
     validate_openapi_instance("DemoRunActionResponse", &started);
 
+    let snapshot_path = format!("/api/product/v1/runs/{run_id}/demo-snapshot");
+    let (status, running_snapshot) = router_json(&router, Method::GET, &snapshot_path).await;
+    assert_eq!(status, StatusCode::OK, "{running_snapshot}");
+    assert_eq!(running_snapshot["data"]["run_id"], run_id);
+    assert_eq!(running_snapshot["data"]["lifecycle"], "running");
+    assert_eq!(running_snapshot["data"]["snapshot_status"], "running");
+    assert_eq!(running_snapshot["data"]["market"]["event_count"], 1);
+    assert_eq!(running_snapshot["data"]["session"]["signal_count"], 1);
+    assert_eq!(running_snapshot["data"]["session"]["intent_count"], 1);
+    assert_eq!(
+        running_snapshot["data"]["session"]["actual_submission_count"],
+        0
+    );
+    assert_eq!(
+        running_snapshot["data"]["latest_order_intent"]["submission_allowed"],
+        false
+    );
+    assert_eq!(
+        running_snapshot["data"]["latest_risk_decision"]["actual_submission"],
+        false
+    );
+    assert_eq!(
+        running_snapshot["data"]["provenance"]["result_sha256"],
+        Value::Null
+    );
+    validate_openapi_instance("DemoRunSnapshotResponse", &running_snapshot);
+
     let mut stale_contract = fixture.read_status_contract();
     stale_contract.provenance.generated_at_unix_ms = 1;
     fixture.write_status_contract(&stale_contract);
@@ -2248,6 +2296,36 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
         "stopped"
     );
     validate_openapi_instance("DemoRunActionResponse", &stopped);
+
+    let (status, frozen_snapshot) = router_json(&router, Method::GET, &snapshot_path).await;
+    assert_eq!(status, StatusCode::OK, "{frozen_snapshot}");
+    assert_eq!(frozen_snapshot["data"]["run_id"], run_id);
+    assert_eq!(frozen_snapshot["data"]["lifecycle"], "stopped");
+    assert_eq!(frozen_snapshot["data"]["snapshot_status"], "frozen");
+    assert_eq!(frozen_snapshot["data"]["session"]["state"], "stopped");
+    assert_eq!(
+        frozen_snapshot["data"]["provenance"]["result_ref"],
+        format!("artifact://demo-runs/{run_id}/demo-result.json")
+    );
+    let result_sha256 = frozen_snapshot["data"]["provenance"]["result_sha256"]
+        .as_str()
+        .expect("frozen Demo result must expose its digest");
+    assert!(result_sha256.starts_with("sha256:"));
+    let run_directory = fixture.root.join("artifacts/demo-runs").join(run_id);
+    let terminal: Value = serde_json::from_slice(
+        &fs::read(run_directory.join("terminal-state.json"))
+            .expect("terminal state should be readable"),
+    )
+    .expect("terminal state should be valid JSON");
+    assert_eq!(terminal["demo_result_sha256"], result_sha256);
+    assert_eq!(
+        sha256_bytes_ref(
+            &fs::read(run_directory.join("demo-result.json"))
+                .expect("frozen Demo result should be readable")
+        ),
+        result_sha256
+    );
+    validate_openapi_instance("DemoRunSnapshotResponse", &frozen_snapshot);
 
     let (status, terminal_restart) =
         router_json_body(&router, Method::POST, &action_path, &start).await;
@@ -2311,6 +2389,62 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(terminal_error["error"]["code"], "product_source_invalid");
     assert_eq!(terminal_error["error"]["field"], "demo_terminal_anchor");
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn frozen_demo_result_tampering_fails_closed() {
+    let fixture = Fixture::new("demo-result-tampering");
+    let node = write_demo_fixture_node(&fixture.root);
+    let router = dashboard_router(fixture.registry_path.clone(), node);
+    let (status, created) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Demo Run ID should exist");
+    let action_path = format!("/api/product/v1/demo-runs/{run_id}/actions");
+    let (status, started) = router_json_body(
+        &router,
+        Method::POST,
+        &action_path,
+        &json!({"run_id": run_id, "action": "start", "user_confirmed": true}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+    let (status, stopped) = router_json_body(
+        &router,
+        Method::POST,
+        &action_path,
+        &json!({"run_id": run_id, "action": "stop", "user_confirmed": true}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{stopped}");
+
+    let result_path = fixture
+        .root
+        .join("artifacts/demo-runs")
+        .join(run_id)
+        .join("demo-result.json");
+    let mut result = fs::read(&result_path).expect("frozen Demo result should be readable");
+    result.push(b' ');
+    fs::write(&result_path, result).expect("tampered Demo result should be written");
+
+    let (status, error) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}/demo-snapshot"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{error}");
+    assert_eq!(error["error"]["code"], "product_source_invalid");
+    assert_eq!(error["error"]["field"], "demo_terminal_state");
+    validate_openapi_instance("ProductErrorResponse", &error);
 }
 
 #[cfg(unix)]
@@ -4331,6 +4465,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/runs",
             "/runs/{run_id}",
             "/runs/{run_id}/analysis",
+            "/runs/{run_id}/demo-snapshot",
             "/runs/{run_id}/metrics",
             "/runs/{run_id}/report",
             "/runs/{run_id}/reproduction",
@@ -4596,6 +4731,63 @@ while [ "$#" -gt 0 ]; do
 done
 mkdir -p "$output/logs"
 touch "$output/logs/stdout.log" "$output/logs/stderr.log" "$output/logs/events.log"
+checksum() {
+  if command -v shasum >/dev/null 2>&1; then
+    digest="$(shasum -a 256 "$1" | awk '{print $1}')"
+  else
+    digest="$(sha256sum "$1" | awk '{print $1}')"
+  fi
+  printf 'sha256:%s' "$digest"
+}
+byte_len() { wc -c < "$1" | tr -d ' '; }
+write_strategy_artifacts() {
+  lifecycle="$1"
+  now_ms="$2"
+  artifact_now_ms=$((now_ms + 1))
+  mkdir -p "$output/strategy"
+  market_state="exhausted"
+  reason="fixture_completed"
+  if [ "$lifecycle" = "stopped" ]; then
+    market_state="stopped"
+    reason="user_stop"
+  fi
+  cat > "$output/strategy/session_status.json" <<EOF
+{"schema_version":"ntpro.v09_strategy_session_status.v1","session_id":"$node_id","strategy_id":"ema-cross","state":"$lifecycle","reason":"$reason","updated_at_unix_ms":$now_ms,"artifacts":{"session_status":"$output/strategy/session_status.json","events":"$output/strategy/events.jsonl","market_status":"$output/strategy/market_status.json","market_events":"$output/strategy/market_events.jsonl","signal":"$output/strategy/signal.jsonl","order_intent":"$output/strategy/order_intent.jsonl","risk_decision":"$output/strategy/risk_decision.jsonl","summary":"$output/strategy/summary.json","manifest":"$output/strategy/manifest.json"}}
+EOF
+  cat > "$output/strategy/events.jsonl" <<EOF
+{"schema_version":"ntpro.v09_strategy_session_event.v1","event_type":"fixture","session_id":"$node_id","strategy_id":"ema-cross","previous_state":null,"state":"$lifecycle","reason":"$reason","occurred_at_unix_ms":$now_ms}
+EOF
+  cat > "$output/strategy/market_status.json" <<EOF
+{"schema_version":"ntpro.v09_market_stream_status.v1","session_id":"$node_id","strategy_id":"ema-cross","connection":"connected","state":"$market_state","source":"fixture_stream","event_count":1,"last_event_at_unix_ms":$now_ms,"updated_at_unix_ms":$artifact_now_ms}
+EOF
+  cat > "$output/strategy/market_events.jsonl" <<EOF
+{"schema_version":"ntpro.v09_market_stream_event.v1","session_id":"$node_id","strategy_id":"ema-cross","event_type":"fixture_bar","source":"fixture_stream","seq":1,"symbol":"BTCUSDT.BINANCE","price":100.5,"event_at_unix_ms":$now_ms,"recorded_at_unix_ms":$now_ms}
+EOF
+  cat > "$output/strategy/signal.jsonl" <<EOF
+{"schema_version":"ntpro.v09_strategy_signal.v1","session_id":"$node_id","strategy_id":"ema-cross","symbol":"BTCUSDT.BINANCE","signal":"sell","confidence":0.72,"market_event_seq":1,"generated_at":"$now_ms","generated_at_unix_ms":$now_ms}
+EOF
+  cat > "$output/strategy/order_intent.jsonl" <<EOF
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"$node_id","strategy_id":"ema-cross","intent_id":"intent-demo-001","symbol":"BTCUSDT.BINANCE","side":"sell","order_type":"market","quantity":1.0,"source_signal":"sell","confidence":0.72,"market_event_seq":1,"signal_generated_at":"$now_ms","created_at":"$now_ms","created_at_unix_ms":$now_ms,"submission_allowed":false,"submission_status":"blocked"}
+EOF
+  cat > "$output/strategy/risk_decision.jsonl" <<EOF
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"$node_id","strategy_id":"ema-cross","decision_id":"decision-demo-001","intent_id":"intent-demo-001","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["order_submission_disabled"],"mode":"sandbox","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"sandbox","market_state":"fresh","actual_submission":false,"evaluated_at":"$now_ms","evaluated_at_unix_ms":$now_ms}
+EOF
+  cat > "$output/strategy/summary.json" <<EOF
+{"schema_version":"ntpro.v09_strategy_session_summary.v1","session_id":"$node_id","strategy_id":"ema-cross","state":"$lifecycle","event_count":1,"market_event_count":1,"signal_count":1,"intent_count":1,"risk_decision_count":1,"rejection_count":1,"actual_submission_count":0,"updated_at_unix_ms":$artifact_now_ms}
+EOF
+  cat > "$output/strategy/manifest.json.tmp" <<EOF
+{"schema_version":"ntpro.v091_strategy_session_manifest.v1","session_id":"$node_id","strategy_id":"ema-cross","state":"$lifecycle","created_at_unix_ms":$now_ms,"updated_at_unix_ms":$now_ms,"artifacts":[
+{"name":"session_status","path":"$output/strategy/session_status.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/session_status.json"),"checksum":"$(checksum "$output/strategy/session_status.json")"},
+{"name":"events","path":"$output/strategy/events.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/events.jsonl"),"checksum":"$(checksum "$output/strategy/events.jsonl")"},
+{"name":"market_status","path":"$output/strategy/market_status.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/market_status.json"),"checksum":"$(checksum "$output/strategy/market_status.json")"},
+{"name":"market_events","path":"$output/strategy/market_events.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/market_events.jsonl"),"checksum":"$(checksum "$output/strategy/market_events.jsonl")"},
+{"name":"signal","path":"$output/strategy/signal.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/signal.jsonl"),"checksum":"$(checksum "$output/strategy/signal.jsonl")"},
+{"name":"order_intent","path":"$output/strategy/order_intent.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/order_intent.jsonl"),"checksum":"$(checksum "$output/strategy/order_intent.jsonl")"},
+{"name":"risk_decision","path":"$output/strategy/risk_decision.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/risk_decision.jsonl"),"checksum":"$(checksum "$output/strategy/risk_decision.jsonl")"},
+{"name":"summary","path":"$output/strategy/summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/summary.json"),"checksum":"$(checksum "$output/strategy/summary.json")"}]}
+EOF
+  mv "$output/strategy/manifest.json.tmp" "$output/strategy/manifest.json"
+}
 write_artifacts() {
   lifecycle="$1"
   previous="$2"
@@ -4605,6 +4797,7 @@ write_artifacts() {
   if [ "$lifecycle" = "stopped" ]; then
     stopped="{\"availability\":\"available\",\"value\":\"$now_ms\"}"
   fi
+  write_strategy_artifacts "$lifecycle" "$now_ms"
   cat > "$output/status.json.tmp" <<EOF
 {
   "schema_version":"ntpro.node_status.v1",

@@ -1878,16 +1878,63 @@ set -eu
 node_id=""
 output=""
 stop_file=""
+config=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --run-id) node_id="$2"; shift 2 ;;
     --output) output="$2"; shift 2 ;;
     --stop-file) stop_file="$2"; shift 2 ;;
+    --config) config="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
 mkdir -p "$output/logs"
 touch "$output/logs/stdout.log" "$output/logs/stderr.log" "$output/logs/events.log"
+checksum() {
+  if command -v shasum >/dev/null 2>&1; then
+    digest="$(shasum -a 256 "$1" | awk '{print $1}')"
+  else
+    digest="$(sha256sum "$1" | awk '{print $1}')"
+  fi
+  printf 'sha256:%s' "$digest"
+}
+byte_len() { wc -c < "$1" | tr -d ' '; }
+write_strategy_artifacts() {
+  state="$1"
+  now_ms="$2"
+  artifact_now_ms=$((now_ms + 1))
+  strategy_id="$(awk -F'"' '/^strategy_id[[:space:]]*=/{print $2; exit}' "$config")"
+  test -n "$strategy_id"
+  mkdir -p "$output/strategy"
+  : > "$output/strategy/market_events.jsonl"
+  : > "$output/strategy/signal.jsonl"
+  : > "$output/strategy/order_intent.jsonl"
+  : > "$output/strategy/risk_decision.jsonl"
+  cat > "$output/strategy/session_status.json" <<EOF
+{"schema_version":"ntpro.v09_strategy_session_status.v1","session_id":"$node_id","strategy_id":"$strategy_id","state":"$state","reason":"fixture_runtime","updated_at_unix_ms":$now_ms,"artifacts":{"session_status":"$output/strategy/session_status.json","events":"$output/strategy/events.jsonl","market_status":"$output/strategy/market_status.json","market_events":"$output/strategy/market_events.jsonl","signal":"$output/strategy/signal.jsonl","order_intent":"$output/strategy/order_intent.jsonl","risk_decision":"$output/strategy/risk_decision.jsonl","summary":"$output/strategy/summary.json","manifest":"$output/strategy/manifest.json"}}
+EOF
+  cat > "$output/strategy/events.jsonl" <<EOF
+{"schema_version":"ntpro.v09_strategy_session_event.v1","event_type":"fixture","session_id":"$node_id","strategy_id":"$strategy_id","previous_state":null,"state":"$state","reason":"fixture_runtime","occurred_at_unix_ms":$now_ms}
+EOF
+  cat > "$output/strategy/market_status.json" <<EOF
+{"schema_version":"ntpro.v09_market_stream_status.v1","session_id":"$node_id","strategy_id":"$strategy_id","connection":"not_configured","state":"$state","source":"fixture_stream","event_count":0,"last_event_at_unix_ms":null,"updated_at_unix_ms":$artifact_now_ms}
+EOF
+  cat > "$output/strategy/summary.json" <<EOF
+{"schema_version":"ntpro.v09_strategy_session_summary.v1","session_id":"$node_id","strategy_id":"$strategy_id","state":"$state","event_count":1,"market_event_count":0,"signal_count":0,"intent_count":0,"risk_decision_count":0,"rejection_count":0,"actual_submission_count":0,"updated_at_unix_ms":$artifact_now_ms}
+EOF
+  cat > "$output/strategy/manifest.json.tmp" <<EOF
+{"schema_version":"ntpro.v091_strategy_session_manifest.v1","session_id":"$node_id","strategy_id":"$strategy_id","state":"$state","created_at_unix_ms":$now_ms,"updated_at_unix_ms":$now_ms,"artifacts":[
+{"name":"session_status","path":"$output/strategy/session_status.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/session_status.json"),"checksum":"$(checksum "$output/strategy/session_status.json")"},
+{"name":"events","path":"$output/strategy/events.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/events.jsonl"),"checksum":"$(checksum "$output/strategy/events.jsonl")"},
+{"name":"market_status","path":"$output/strategy/market_status.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/market_status.json"),"checksum":"$(checksum "$output/strategy/market_status.json")"},
+{"name":"market_events","path":"$output/strategy/market_events.jsonl","format":"jsonl","present":true,"record_count":0,"byte_len":$(byte_len "$output/strategy/market_events.jsonl"),"checksum":"$(checksum "$output/strategy/market_events.jsonl")"},
+{"name":"signal","path":"$output/strategy/signal.jsonl","format":"jsonl","present":true,"record_count":0,"byte_len":$(byte_len "$output/strategy/signal.jsonl"),"checksum":"$(checksum "$output/strategy/signal.jsonl")"},
+{"name":"order_intent","path":"$output/strategy/order_intent.jsonl","format":"jsonl","present":true,"record_count":0,"byte_len":$(byte_len "$output/strategy/order_intent.jsonl"),"checksum":"$(checksum "$output/strategy/order_intent.jsonl")"},
+{"name":"risk_decision","path":"$output/strategy/risk_decision.jsonl","format":"jsonl","present":true,"record_count":0,"byte_len":$(byte_len "$output/strategy/risk_decision.jsonl"),"checksum":"$(checksum "$output/strategy/risk_decision.jsonl")"},
+{"name":"summary","path":"$output/strategy/summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/summary.json"),"checksum":"$(checksum "$output/strategy/summary.json")"}]}
+EOF
+  mv "$output/strategy/manifest.json.tmp" "$output/strategy/manifest.json"
+}
 write_status() {
   state="$1"
   previous="$2"
@@ -1897,6 +1944,7 @@ write_status() {
   if [ "$state" = "stopped" ]; then
     stopped="{\"availability\":\"available\",\"value\":\"$now_ms\"}"
   fi
+  write_strategy_artifacts "$state" "$now_ms"
   cat > "$output/status.json.tmp" <<EOF
 {"schema_version":"ntpro.node_status.v1","node_id":"$node_id","process_mode":"spawned_process","config_path":{"availability":"available","value":"fixture.toml"},"artifact_root":{"availability":"available","value":"$output"},"lifecycle_state":"$state","previous_lifecycle_state":"$previous","data_connection":"not_configured","execution_connection":"disconnected","execution":{"gateway_id":{"availability":"available","value":"SANDBOX"},"connection":"disconnected","started":{"availability":"available","value":false},"account_ref":{"availability":"available","value":"account://sandbox/SANDBOX-001"},"orders_open":{"availability":"available","value":0},"orders_inflight":{"availability":"available","value":0},"orders_closed":{"availability":"available","value":0},"last_report_at":{"availability":"unknown"},"last_reconciliation_at":{"availability":"unknown"},"last_error":null},"risk":{"trading_state":"unknown","health":"unknown","command_count":{"availability":"available","value":0},"event_count":{"availability":"available","value":0},"rejections_total":{"availability":"available","value":0},"last_rejection":null,"last_error":null},"generated_at":{"availability":"available","value":"$now_ms"},"started_at":{"availability":"available","value":"$now_ms"},"stopped_at":$stopped,"last_transition_at":{"availability":"available","value":"$now_ms"},"last_error":null,"external_venue_connection":false,"real_orders_submitted":false}
 EOF

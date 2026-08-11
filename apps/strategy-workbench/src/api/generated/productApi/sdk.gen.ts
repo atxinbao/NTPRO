@@ -21,6 +21,9 @@ import type {
   CreateDemoRunData,
   CreateDemoRunErrors,
   CreateDemoRunResponses,
+  GetDemoRunSnapshotData,
+  GetDemoRunSnapshotErrors,
+  GetDemoRunSnapshotResponses,
   GetRunAnalysisData,
   GetRunAnalysisErrors,
   GetRunAnalysisResponses,
@@ -350,6 +353,37 @@ export const getRun = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/runs/{run_id}",
+    ...options,
+  });
+
+/**
+ * 读取 Demo Run 实时或终态冻结快照
+ */
+export const getDemoRunSnapshot = <ThrowOnError extends boolean = false>(
+  options: Options<GetDemoRunSnapshotData, ThrowOnError>,
+): RequestResult<
+  GetDemoRunSnapshotResponses,
+  GetDemoRunSnapshotErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetDemoRunSnapshotResponses,
+    GetDemoRunSnapshotErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/runs/{run_id}/demo-snapshot",
     ...options,
   });
 

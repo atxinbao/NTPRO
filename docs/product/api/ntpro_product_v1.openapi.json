@@ -549,6 +549,40 @@
         }
       }
     },
+    "/runs/{run_id}/demo-snapshot": {
+      "get": {
+        "operationId": "getDemoRunSnapshot",
+        "summary": "读取 Demo Run 实时或终态冻结快照",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Demo Run 严格只读快照",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DemoRunSnapshotResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
     "/runs/{run_id}/metrics": {
       "get": {
         "operationId": "getRunMetrics",
@@ -1409,6 +1443,222 @@
           "request_id": { "$ref": "#/components/schemas/RequestId" },
           "data": { "$ref": "#/components/schemas/DemoRunActionResult" },
           "boundaries": { "$ref": "#/components/schemas/DemoRunBoundaries" }
+        }
+      },
+      "DemoSnapshotBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "read_only",
+          "sandbox_only",
+          "live_run_creation_allowed",
+          "external_venue_connection",
+          "order_submission_allowed",
+          "order_mutation_allowed",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed",
+          "real_orders_submitted",
+          "trading_controls_enabled"
+        ],
+        "properties": {
+          "read_only": { "const": true },
+          "sandbox_only": { "const": true },
+          "live_run_creation_allowed": { "const": false },
+          "external_venue_connection": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "order_mutation_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
+        }
+      },
+      "DemoSnapshotRuntime": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "supervisor_node_id",
+          "strategy_instance_id",
+          "process_state",
+          "lifecycle_state",
+          "data_connection",
+          "execution_connection",
+          "uptime_ms",
+          "generated_at_unix_ms"
+        ],
+        "properties": {
+          "supervisor_node_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_instance_id": { "$ref": "#/components/schemas/RunId" },
+          "process_state": { "$ref": "#/components/schemas/SupervisorProcessState" },
+          "lifecycle_state": { "$ref": "#/components/schemas/RuntimeLifecycleState" },
+          "data_connection": { "type": "string", "enum": ["connected", "disconnected", "not_configured", "unknown"] },
+          "execution_connection": { "type": "string", "enum": ["connected", "disconnected", "not_configured", "unknown"] },
+          "uptime_ms": { "type": ["integer", "null"], "minimum": 0 },
+          "generated_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 }
+        }
+      },
+      "DemoMarketEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["event_type", "source", "seq", "symbol", "price", "event_at_unix_ms", "recorded_at_unix_ms"],
+        "properties": {
+          "event_type": { "type": "string", "enum": ["fixture_bar", "mock_bar", "mock_tick"] },
+          "source": { "type": "string", "minLength": 1 },
+          "seq": { "type": "integer", "minimum": 0 },
+          "symbol": { "type": "string", "minLength": 1 },
+          "price": { "type": "number" },
+          "event_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "recorded_at_unix_ms": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "DemoMarketSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["connection", "state", "source", "event_count", "last_event_at_unix_ms", "updated_at_unix_ms", "latest_event"],
+        "properties": {
+          "connection": { "type": "string", "minLength": 1 },
+          "state": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "event_count": { "type": "integer", "minimum": 0 },
+          "last_event_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 },
+          "updated_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "latest_event": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/DemoMarketEvent" },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "DemoSessionSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state", "reason", "event_count", "market_event_count", "signal_count", "intent_count", "risk_decision_count", "rejection_count", "actual_submission_count", "updated_at_unix_ms"],
+        "properties": {
+          "state": { "type": "string", "enum": ["created", "validated", "starting", "running", "paused", "risk_halted", "stopping", "stopped", "failed"] },
+          "reason": { "type": "string", "minLength": 1 },
+          "event_count": { "type": "integer", "minimum": 0 },
+          "market_event_count": { "type": "integer", "minimum": 0 },
+          "signal_count": { "type": "integer", "minimum": 0 },
+          "intent_count": { "type": "integer", "minimum": 0 },
+          "risk_decision_count": { "type": "integer", "minimum": 0 },
+          "rejection_count": { "type": "integer", "minimum": 0 },
+          "actual_submission_count": { "const": 0 },
+          "updated_at_unix_ms": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "DemoSignalSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["symbol", "signal", "confidence", "market_event_seq", "generated_at_unix_ms"],
+        "properties": {
+          "symbol": { "type": "string", "minLength": 1 },
+          "signal": { "type": "string", "minLength": 1 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "market_event_seq": { "type": "integer", "minimum": 0 },
+          "generated_at_unix_ms": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "DemoOrderIntentSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["intent_id", "symbol", "side", "order_type", "quantity", "source_signal", "confidence", "market_event_seq", "created_at_unix_ms", "submission_allowed", "submission_status"],
+        "properties": {
+          "intent_id": { "$ref": "#/components/schemas/RunId" },
+          "symbol": { "type": "string", "minLength": 1 },
+          "side": { "type": "string", "minLength": 1 },
+          "order_type": { "type": "string", "minLength": 1 },
+          "quantity": { "type": "number", "exclusiveMinimum": 0 },
+          "source_signal": { "type": "string", "minLength": 1 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "market_event_seq": { "type": "integer", "minimum": 0 },
+          "created_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "submission_allowed": { "const": false },
+          "submission_status": { "type": "string", "minLength": 1 }
+        }
+      },
+      "DemoRiskDecisionSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["decision_id", "intent_id", "symbol", "decision", "reasons", "mode", "order_submission", "kill_switch_enabled", "kill_switch_active", "account_state", "market_state", "actual_submission", "evaluated_at_unix_ms"],
+        "properties": {
+          "decision_id": { "$ref": "#/components/schemas/RunId" },
+          "intent_id": { "$ref": "#/components/schemas/RunId" },
+          "symbol": { "type": "string", "minLength": 1 },
+          "decision": { "type": "string", "minLength": 1 },
+          "reasons": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "mode": { "type": "string", "minLength": 1 },
+          "order_submission": { "type": "string", "minLength": 1 },
+          "kill_switch_enabled": { "type": "boolean" },
+          "kill_switch_active": { "type": "boolean" },
+          "account_state": { "type": "string", "minLength": 1 },
+          "market_state": { "type": "string", "minLength": 1 },
+          "actual_submission": { "const": false },
+          "evaluated_at_unix_ms": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "DemoTechnicalHealth": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "diagnostics"],
+        "properties": {
+          "status": { "type": "string", "enum": ["healthy", "blocked"] },
+          "diagnostics": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        }
+      },
+      "DemoSnapshotProvenance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_refs", "manifest_sha256", "result_ref", "result_sha256"],
+        "properties": {
+          "source_refs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+          "manifest_sha256": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/ContentHash" },
+              { "type": "null" }
+            ]
+          },
+          "result_ref": { "type": ["string", "null"], "minLength": 1 },
+          "result_sha256": {
+            "oneOf": [
+              { "$ref": "#/components/schemas/ContentHash" },
+              { "type": "null" }
+            ]
+          }
+        }
+      },
+      "DemoRunSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "run_id", "strategy_id", "strategy_version_id", "observed_at_unix_ms", "lifecycle", "snapshot_status", "runtime", "market", "session", "latest_signal", "latest_order_intent", "latest_risk_decision", "technical_health", "provenance"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.demo_run_result.v1" },
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "observed_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "lifecycle": { "$ref": "#/components/schemas/RunLifecycle" },
+          "snapshot_status": { "type": "string", "enum": ["not_started", "running", "frozen"] },
+          "runtime": { "$ref": "#/components/schemas/DemoSnapshotRuntime" },
+          "market": { "oneOf": [{ "$ref": "#/components/schemas/DemoMarketSnapshot" }, { "type": "null" }] },
+          "session": { "oneOf": [{ "$ref": "#/components/schemas/DemoSessionSnapshot" }, { "type": "null" }] },
+          "latest_signal": { "oneOf": [{ "$ref": "#/components/schemas/DemoSignalSnapshot" }, { "type": "null" }] },
+          "latest_order_intent": { "oneOf": [{ "$ref": "#/components/schemas/DemoOrderIntentSnapshot" }, { "type": "null" }] },
+          "latest_risk_decision": { "oneOf": [{ "$ref": "#/components/schemas/DemoRiskDecisionSnapshot" }, { "type": "null" }] },
+          "technical_health": { "$ref": "#/components/schemas/DemoTechnicalHealth" },
+          "provenance": { "$ref": "#/components/schemas/DemoSnapshotProvenance" }
+        }
+      },
+      "DemoRunSnapshotResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.demo_run_snapshot.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/DemoRunSnapshot" },
+          "boundaries": { "$ref": "#/components/schemas/DemoSnapshotBoundaries" }
         }
       },
       "BacktestParameters": {

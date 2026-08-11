@@ -262,6 +262,149 @@ export type DemoRunActionResponse = {
   boundaries: DemoRunBoundaries;
 };
 
+export type DemoSnapshotBoundaries = {
+  read_only: true;
+  sandbox_only: true;
+  live_run_creation_allowed: false;
+  external_venue_connection: false;
+  order_submission_allowed: false;
+  order_mutation_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
+export type DemoSnapshotRuntime = {
+  supervisor_node_id: RunId;
+  strategy_instance_id: RunId;
+  process_state: SupervisorProcessState;
+  lifecycle_state: RuntimeLifecycleState;
+  data_connection: "connected" | "disconnected" | "not_configured" | "unknown";
+  execution_connection:
+    "connected" | "disconnected" | "not_configured" | "unknown";
+  uptime_ms: number | null;
+  generated_at_unix_ms: number | null;
+};
+
+export type DemoMarketEvent = {
+  event_type: "fixture_bar" | "mock_bar" | "mock_tick";
+  source: string;
+  seq: number;
+  symbol: string;
+  price: number;
+  event_at_unix_ms: number;
+  recorded_at_unix_ms: number;
+};
+
+export type DemoMarketSnapshot = {
+  connection: string;
+  state: string;
+  source: string;
+  event_count: number;
+  last_event_at_unix_ms: number | null;
+  updated_at_unix_ms: number;
+  latest_event: DemoMarketEvent | null;
+};
+
+export type DemoSessionSnapshot = {
+  state:
+    | "created"
+    | "validated"
+    | "starting"
+    | "running"
+    | "paused"
+    | "risk_halted"
+    | "stopping"
+    | "stopped"
+    | "failed";
+  reason: string;
+  event_count: number;
+  market_event_count: number;
+  signal_count: number;
+  intent_count: number;
+  risk_decision_count: number;
+  rejection_count: number;
+  actual_submission_count: 0;
+  updated_at_unix_ms: number;
+};
+
+export type DemoSignalSnapshot = {
+  symbol: string;
+  signal: string;
+  confidence: number;
+  market_event_seq: number;
+  generated_at_unix_ms: number;
+};
+
+export type DemoOrderIntentSnapshot = {
+  intent_id: RunId;
+  symbol: string;
+  side: string;
+  order_type: string;
+  quantity: number;
+  source_signal: string;
+  confidence: number;
+  market_event_seq: number;
+  created_at_unix_ms: number;
+  submission_allowed: false;
+  submission_status: string;
+};
+
+export type DemoRiskDecisionSnapshot = {
+  decision_id: RunId;
+  intent_id: RunId;
+  symbol: string;
+  decision: string;
+  reasons: Array<string>;
+  mode: string;
+  order_submission: string;
+  kill_switch_enabled: boolean;
+  kill_switch_active: boolean;
+  account_state: string;
+  market_state: string;
+  actual_submission: false;
+  evaluated_at_unix_ms: number;
+};
+
+export type DemoTechnicalHealth = {
+  status: "healthy" | "blocked";
+  diagnostics: Array<string>;
+};
+
+export type DemoSnapshotProvenance = {
+  source_refs: Array<string>;
+  manifest_sha256: ContentHash | null;
+  result_ref: string | null;
+  result_sha256: ContentHash | null;
+};
+
+export type DemoRunSnapshot = {
+  schema_version: "ntpro.product_api.demo_run_result.v1";
+  run_id: RunId;
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  observed_at_unix_ms: number;
+  lifecycle: RunLifecycle;
+  snapshot_status: "not_started" | "running" | "frozen";
+  runtime: DemoSnapshotRuntime;
+  market: DemoMarketSnapshot | null;
+  session: DemoSessionSnapshot | null;
+  latest_signal: DemoSignalSnapshot | null;
+  latest_order_intent: DemoOrderIntentSnapshot | null;
+  latest_risk_decision: DemoRiskDecisionSnapshot | null;
+  technical_health: DemoTechnicalHealth;
+  provenance: DemoSnapshotProvenance;
+};
+
+export type DemoRunSnapshotResponse = {
+  schema_version: "ntpro.product_api.demo_run_snapshot.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: DemoRunSnapshot;
+  boundaries: DemoSnapshotBoundaries;
+};
+
 export type BacktestParameters = {
   trade_size: string;
   fast_period: number;
@@ -1141,6 +1284,55 @@ export type GetRunResponses = {
 };
 
 export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type GetDemoRunSnapshotData = {
+  body?: never;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/runs/{run_id}/demo-snapshot";
+};
+
+export type GetDemoRunSnapshotErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type GetDemoRunSnapshotError =
+  GetDemoRunSnapshotErrors[keyof GetDemoRunSnapshotErrors];
+
+export type GetDemoRunSnapshotResponses = {
+  /**
+   * Demo Run 严格只读快照
+   */
+  200: DemoRunSnapshotResponse;
+};
+
+export type GetDemoRunSnapshotResponse =
+  GetDemoRunSnapshotResponses[keyof GetDemoRunSnapshotResponses];
 
 export type GetRunMetricsData = {
   body?: never;
