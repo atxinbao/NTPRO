@@ -16,6 +16,7 @@ function readProductFixture(name: string): Record<string, unknown> {
 }
 
 const errorFixture = readProductFixture("error");
+const liveAccountRefreshFixture = readProductFixture("live-account-refresh");
 const liveAdmissionFixture = readProductFixture("live-admission");
 const runDetailFixture = readProductFixture("run-detail");
 const runAnalysisFixture = readProductFixture("run-analysis");
@@ -569,6 +570,12 @@ function productFixtureForPath(path: string): Record<string, unknown> {
   ) {
     return liveAdmissionFixture;
   }
+  if (
+    path ===
+    "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/live-account/actions/refresh"
+  ) {
+    return liveAccountRefreshFixture;
+  }
   if (path === "/api/product/v1/runs") {
     return {
       ...runListFixture,
@@ -716,6 +723,19 @@ test.beforeEach(async ({ page }) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname);
     if (
       route.request().method() === "POST" &&
+      path ===
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/live-account/actions/refresh"
+    ) {
+      expect(route.request().postDataJSON()).toEqual({ action: "refresh" });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(liveAccountRefreshFixture),
+      });
+      return;
+    }
+    if (
+      route.request().method() === "POST" &&
       path === "/api/product/v1/demo-runs"
     ) {
       currentDemo = structuredClone(createdDemo);
@@ -850,15 +870,39 @@ test.beforeEach(async ({ page }) => {
 test("Live page exposes independent admission and no trading actions", async ({
   page,
 }, testInfo) => {
+  let liveAccountRefreshRequests = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      decodeURIComponent(new URL(request.url()).pathname).endsWith(
+        "/live-account/actions/refresh",
+      )
+    ) {
+      liveAccountRefreshRequests += 1;
+    }
+  });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("live");
   await expect(
-    page.getByRole("heading", { name: "真实交易独立准入" }),
+    page.getByRole("heading", { name: "Live 连接与独立准入" }),
   ).toBeVisible();
   await expect(page.getByText("尚未获得 Live 独立审批")).toBeVisible();
   await expect(page.getByText("自动恢复尚未授权")).toBeVisible();
   await expect(page.getByText("生产 API Key 尚未配置")).toBeVisible();
   await expect(page.getByText("生产 API Secret 尚未配置")).toBeVisible();
+  expect(liveAccountRefreshRequests).toBe(0);
+  await page.getByRole("button", { name: "检查账户连接" }).click();
+  const accountConnection = page.getByRole("region", {
+    name: "生产账户只读连接",
+  });
+  await expect(
+    accountConnection.getByText("已阻断", { exact: true }),
+  ).toBeVisible();
+  await expect(accountConnection.getByText("0/5")).toBeVisible();
+  await expect(
+    accountConnection.getByText("未尝试", { exact: true }),
+  ).toBeVisible();
+  expect(liveAccountRefreshRequests).toBe(1);
   await expect(
     page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
   ).toHaveCount(0);

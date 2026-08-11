@@ -131,14 +131,15 @@ const PRODUCTION_ACCOUNT_SNAPSHOT_SCHEMA_VERSION: &str =
     "ntpro.v110_authenticated_account_snapshot_contract.v1";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ONLINE_SCHEMA_VERSION: &str =
     "ntpro.v120_authenticated_account_snapshot_online_read.v1";
-const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW: &str = "NTPRO_ALLOW_PRODUCTION_AUTHENTICATED_READ";
-const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED: &str =
+pub(crate) const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW: &str =
+    "NTPRO_ALLOW_PRODUCTION_AUTHENTICATED_READ";
+pub(crate) const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED: &str =
     "NTPRO_OWNER_APPROVED_PRODUCTION_READ_ONLY";
-const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION: &str =
+pub(crate) const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION: &str =
     "NTPRO_CONFIRM_PRODUCTION_ACCOUNT_NO_ORDER_MUTATION";
-const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE: &str =
+pub(crate) const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE: &str =
     "NTPRO_CONFIRM_NO_SECRET_PERSISTENCE";
-const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE: &str = "NTPRO_V12_MANUAL_ONLINE";
+pub(crate) const PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE: &str = "NTPRO_V12_MANUAL_ONLINE";
 const PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT: &str = "/api/v3/account";
 const PRODUCTION_ACCOUNT_SNAPSHOT_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
 const PRODUCTION_ORDER_STATE_READONLY_SCHEMA_VERSION: &str =
@@ -1227,6 +1228,48 @@ struct ProductionAccountSnapshotShapeSummary {
     raw_permissions_recorded: bool,
     shape_validated: bool,
     rejection_reason: String,
+}
+
+/// 产品 API 可消费的生产账户只读观察结果。
+///
+/// 该类型只包含连接元数据和响应形状摘要，不携带凭证、签名、原始响应、资产名称或余额。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ProductLiveAccountReadObservation {
+    pub status: String,
+    pub network_attempted: bool,
+    pub account_read_attempted: bool,
+    pub response_status_code: Option<u16>,
+    pub latency_ms: Option<u64>,
+    pub response_shape: String,
+    pub response_shape_validated: bool,
+    pub account_type_present: bool,
+    pub balance_entry_count: Option<usize>,
+    pub permission_entry_count: Option<usize>,
+    pub can_trade_present: bool,
+    pub can_withdraw_present: bool,
+    pub can_deposit_present: bool,
+    pub error_code: String,
+}
+
+impl ProductLiveAccountReadObservation {
+    pub(crate) fn blocked(error_code: &str) -> Self {
+        Self {
+            status: "blocked".to_string(),
+            network_attempted: false,
+            account_read_attempted: false,
+            response_status_code: None,
+            latency_ms: None,
+            response_shape: production_account_snapshot_response_shape().to_string(),
+            response_shape_validated: false,
+            account_type_present: false,
+            balance_entry_count: None,
+            permission_entry_count: None,
+            can_trade_present: false,
+            can_withdraw_present: false,
+            can_deposit_present: false,
+            error_code: error_code.to_string(),
+        }
+    }
 }
 
 impl ProductionAccountSnapshotShapeSummary {
@@ -6215,6 +6258,77 @@ fn execute_production_account_snapshot_read(
     }
 }
 
+pub(crate) fn execute_product_live_account_read(
+    api_key_env: &str,
+    api_secret_env: &str,
+    recv_window_ms: u64,
+) -> ProductLiveAccountReadObservation {
+    execute_product_live_account_read_with_env_and_http(
+        api_key_env,
+        api_secret_env,
+        recv_window_ms,
+        |name| std::env::var(name).ok(),
+        execute_production_account_snapshot_read,
+    )
+}
+
+fn execute_product_live_account_read_with_env_and_http<F, H>(
+    api_key_env: &str,
+    api_secret_env: &str,
+    recv_window_ms: u64,
+    mut read_env: F,
+    mut execute_http: H,
+) -> ProductLiveAccountReadObservation
+where
+    F: FnMut(&str) -> Option<String>,
+    H: FnMut(&EnvOnlyProductionReadCredentials, u64) -> ProductionAccountSnapshotHttpResult,
+{
+    let runtime_gates_open = [
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE,
+    ]
+    .into_iter()
+    .all(|name| read_env(name).as_deref() == Some("1"));
+    if !runtime_gates_open {
+        return ProductLiveAccountReadObservation::blocked("runtime_gate_changed");
+    }
+
+    let credentials = EnvOnlyProductionReadCredentials::from_values(
+        api_key_env.to_string(),
+        read_env(api_key_env),
+        api_secret_env.to_string(),
+        read_env(api_secret_env),
+    );
+    if !credentials.api_key_present() || !credentials.api_secret_present() {
+        return ProductLiveAccountReadObservation::blocked("credential_state_changed");
+    }
+
+    let result = execute_http(&credentials, recv_window_ms);
+    ProductLiveAccountReadObservation {
+        status: if result.response_shape_validated {
+            "connected".to_string()
+        } else {
+            "failed".to_string()
+        },
+        network_attempted: result.network_attempted,
+        account_read_attempted: result.network_attempted,
+        response_status_code: result.http_status,
+        latency_ms: result.latency_ms,
+        response_shape: result.response_shape,
+        response_shape_validated: result.response_shape_validated,
+        account_type_present: result.response_shape_summary.account_type_present,
+        balance_entry_count: result.response_shape_summary.balance_entry_count,
+        permission_entry_count: result.response_shape_summary.permission_entry_count,
+        can_trade_present: result.response_shape_summary.can_trade_present,
+        can_withdraw_present: result.response_shape_summary.can_withdraw_present,
+        can_deposit_present: result.response_shape_summary.can_deposit_present,
+        error_code: result.error_code,
+    }
+}
+
 fn execute_production_account_snapshot_read_on_thread(
     signed_url: &str,
     api_key_header_name: &str,
@@ -6223,6 +6337,7 @@ fn execute_production_account_snapshot_read_on_thread(
     let started = Instant::now();
     let client = match reqwest::blocking::Client::builder()
         .timeout(PRODUCTION_ACCOUNT_SNAPSHOT_PROBE_TIMEOUT)
+        .redirect(reqwest::redirect::Policy::none())
         .user_agent("NTPRO-v120-production-account-snapshot-readonly-probe")
         .build()
     {

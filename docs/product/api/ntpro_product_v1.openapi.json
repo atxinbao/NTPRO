@@ -363,6 +363,55 @@
         }
       }
     },
+    "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh": {
+      "post": {
+        "operationId": "refreshLiveAccount",
+        "summary": "显式刷新生产认证账户只读连接",
+        "security": [{ "InstitutionCookie": [] }],
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/StrategyId" }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/StrategyVersionId" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveAccountRefreshRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "生产账户只读刷新结果；阻断和连接失败也返回脱敏状态",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveAccountRefreshResponse"
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
     "/runs": {
       "get": {
         "operationId": "listRuns",
@@ -2621,7 +2670,10 @@
             "$ref": "#/components/schemas/StrategyVersionId"
           },
           "environment": { "const": "live" },
-          "admission_status": { "const": "blocked" },
+          "admission_status": {
+            "type": "string",
+            "enum": ["blocked", "read_only_ready"]
+          },
           "evaluated_at_unix_ms": { "type": "integer", "minimum": 1 },
           "venue": { "$ref": "#/components/schemas/LiveVenueAdmission" },
           "account": { "$ref": "#/components/schemas/LiveAccountAdmission" },
@@ -2633,7 +2685,7 @@
           },
           "blockers": {
             "type": "array",
-            "minItems": 6,
+            "minItems": 3,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -2693,8 +2745,14 @@
         "required": ["account_ref", "binding_status", "authenticated_read_state"],
         "properties": {
           "account_ref": { "const": "account://live/binance/primary" },
-          "binding_status": { "const": "configured_not_authorized" },
-          "authenticated_read_state": { "const": "blocked" }
+          "binding_status": {
+            "type": "string",
+            "enum": ["configured_not_authorized", "authorized_read_only"]
+          },
+          "authenticated_read_state": {
+            "type": "string",
+            "enum": ["blocked", "ready"]
+          }
         }
       },
       "LiveCredentialAdmission": {
@@ -2761,14 +2819,14 @@
         "properties": {
           "read_only": { "const": true },
           "independent_live_admission_required": { "const": true },
-          "owner_approval_granted": { "const": false },
+          "owner_approval_granted": { "type": "boolean" },
           "inherited_from_backtest": { "const": false },
           "inherited_from_demo": { "const": false },
           "external_venue_connection": { "const": false },
           "production_venue_connection": { "const": false },
-          "production_network_allowed": { "const": false },
+          "production_network_allowed": { "type": "boolean" },
           "external_network_attempted": { "const": false },
-          "authenticated_account_read_allowed": { "const": false },
+          "authenticated_account_read_allowed": { "type": "boolean" },
           "live_run_creation_allowed": { "const": false },
           "order_submission_allowed": { "const": false },
           "cancel_order_allowed": { "const": false },
@@ -2779,6 +2837,234 @@
           "automatic_remediation_allowed": { "const": false },
           "automatic_recovery_allowed": { "const": false },
           "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
+        }
+      },
+      "LiveAccountRefreshRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action"],
+        "properties": {
+          "action": { "const": "refresh" }
+        }
+      },
+      "LiveAccountRefreshResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema_version",
+          "contract_version",
+          "request_id",
+          "data",
+          "boundaries"
+        ],
+        "properties": {
+          "schema_version": {
+            "const": "ntpro.product_api.live_account_refresh.response.v1"
+          },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/LiveAccountRefresh" },
+          "boundaries": {
+            "$ref": "#/components/schemas/LiveAccountRefreshBoundaries"
+          }
+        }
+      },
+      "LiveAccountRefresh": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "strategy_id",
+          "strategy_version_id",
+          "environment",
+          "venue_id",
+          "account_ref",
+          "connection_status",
+          "evaluated_at_unix_ms",
+          "endpoint_method",
+          "endpoint_url_redacted",
+          "runtime_gates",
+          "missing_runtime_gate_refs",
+          "api_key_presence",
+          "api_secret_presence",
+          "network_attempted",
+          "account_read_attempted",
+          "response_status_code",
+          "latency_ms",
+          "response_shape",
+          "response_shape_validated",
+          "shape_summary",
+          "error_code",
+          "source_refs"
+        ],
+        "properties": {
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": {
+            "$ref": "#/components/schemas/StrategyVersionId"
+          },
+          "environment": { "const": "live" },
+          "venue_id": { "const": "BINANCE" },
+          "account_ref": { "const": "account://live/binance/primary" },
+          "connection_status": {
+            "type": "string",
+            "enum": ["blocked", "connected", "failed"]
+          },
+          "evaluated_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "endpoint_method": { "const": "GET" },
+          "endpoint_url_redacted": {
+            "const": "https://api.binance.com/api/v3/account"
+          },
+          "runtime_gates": {
+            "$ref": "#/components/schemas/LiveRuntimeGateState"
+          },
+          "missing_runtime_gate_refs": {
+            "type": "array",
+            "maxItems": 5,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 7 }
+          },
+          "api_key_presence": {
+            "type": "string",
+            "enum": ["missing", "present"]
+          },
+          "api_secret_presence": {
+            "type": "string",
+            "enum": ["missing", "present"]
+          },
+          "network_attempted": { "type": "boolean" },
+          "account_read_attempted": { "type": "boolean" },
+          "response_status_code": {
+            "type": ["integer", "null"],
+            "minimum": 100,
+            "maximum": 599
+          },
+          "latency_ms": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "response_shape": { "const": "binance_account_snapshot_v1" },
+          "response_shape_validated": { "type": "boolean" },
+          "shape_summary": {
+            "$ref": "#/components/schemas/LiveAccountShapeSummary"
+          },
+          "error_code": {
+            "type": "string",
+            "enum": [
+              "none",
+              "credentials_missing",
+              "runtime_gates_missing",
+              "runtime_gate_changed",
+              "credential_state_changed",
+              "http_probe_thread_panicked",
+              "signed_request_builder_failed",
+              "http_client_build_failed",
+              "response_shape_invalid",
+              "http_status_not_success",
+              "timeout",
+              "connect_error",
+              "decode_error",
+              "request_error",
+              "body_error",
+              "unknown_http_error"
+            ]
+          },
+          "source_refs": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      "LiveRuntimeGateState": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "production_authenticated_read",
+          "owner_approved_read_only",
+          "no_order_mutation",
+          "no_secret_persistence",
+          "manual_online"
+        ],
+        "properties": {
+          "production_authenticated_read": { "type": "boolean" },
+          "owner_approved_read_only": { "type": "boolean" },
+          "no_order_mutation": { "type": "boolean" },
+          "no_secret_persistence": { "type": "boolean" },
+          "manual_online": { "type": "boolean" }
+        }
+      },
+      "LiveAccountShapeSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "account_type_present",
+          "balance_entry_count",
+          "permission_entry_count",
+          "can_trade_present",
+          "can_withdraw_present",
+          "can_deposit_present",
+          "raw_account_response_exposed",
+          "raw_balances_exposed",
+          "raw_permissions_exposed"
+        ],
+        "properties": {
+          "account_type_present": { "type": "boolean" },
+          "balance_entry_count": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "permission_entry_count": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "can_trade_present": { "type": "boolean" },
+          "can_withdraw_present": { "type": "boolean" },
+          "can_deposit_present": { "type": "boolean" },
+          "raw_account_response_exposed": { "const": false },
+          "raw_balances_exposed": { "const": false },
+          "raw_permissions_exposed": { "const": false }
+        }
+      },
+      "LiveAccountRefreshBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "read_only",
+          "independent_live_admission_required",
+          "owner_approval_granted",
+          "production_network_allowed",
+          "authenticated_account_read_allowed",
+          "external_network_attempted",
+          "account_mutation_allowed",
+          "order_endpoint_access_allowed",
+          "order_submission_allowed",
+          "cancel_order_allowed",
+          "replace_order_allowed",
+          "automatic_retry_allowed",
+          "automatic_remediation_allowed",
+          "automatic_recovery_allowed",
+          "secret_values_exposed",
+          "raw_account_response_exposed",
+          "trading_controls_enabled"
+        ],
+        "properties": {
+          "read_only": { "const": true },
+          "independent_live_admission_required": { "const": true },
+          "owner_approval_granted": { "type": "boolean" },
+          "production_network_allowed": { "type": "boolean" },
+          "authenticated_account_read_allowed": { "type": "boolean" },
+          "external_network_attempted": { "type": "boolean" },
+          "account_mutation_allowed": { "const": false },
+          "order_endpoint_access_allowed": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "cancel_order_allowed": { "const": false },
+          "replace_order_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "automatic_recovery_allowed": { "const": false },
+          "secret_values_exposed": { "const": false },
+          "raw_account_response_exposed": { "const": false },
           "trading_controls_enabled": { "const": false }
         }
       },

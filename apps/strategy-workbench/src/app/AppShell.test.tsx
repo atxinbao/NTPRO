@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -411,13 +411,22 @@ describe("strategy workbench product slice", () => {
     renderWorkbench("/live");
 
     expect(
-      await screen.findByRole("heading", { name: "真实交易独立准入" }),
+      await screen.findByRole("heading", { name: "Live 连接与独立准入" }),
     ).toBeInTheDocument();
     expect(screen.getByText("未准入")).toBeInTheDocument();
     expect(screen.getByText("尚未获得 Live 独立审批")).toBeInTheDocument();
     expect(screen.getByText("自动恢复尚未授权")).toBeInTheDocument();
     expect(screen.getByText("生产 API Key 尚未配置")).toBeInTheDocument();
     expect(screen.getByText("生产 API Secret 尚未配置")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "检查账户连接" }));
+    const accountConnection = screen.getByRole("region", {
+      name: "生产账户只读连接",
+    });
+    expect(
+      await within(accountConnection).findByText("已阻断"),
+    ).toBeInTheDocument();
+    expect(within(accountConnection).getByText("0/5")).toBeInTheDocument();
+    expect(within(accountConnection).getByText("未尝试")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
     ).not.toBeInTheDocument();

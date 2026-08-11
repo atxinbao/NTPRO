@@ -40,11 +40,11 @@
     },
     "blockers": [
       "independent_owner_approval_missing",
-      "production_network_not_authorized",
-      "authenticated_account_read_not_authorized",
       "live_run_creation_not_authorized",
       "order_lifecycle_not_authorized",
       "automatic_recovery_not_authorized",
+      "production_network_not_authorized",
+      "authenticated_account_read_not_authorized",
       "api_key_missing",
       "api_secret_missing"
     ],

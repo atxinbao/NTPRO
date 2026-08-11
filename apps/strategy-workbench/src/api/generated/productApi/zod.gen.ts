@@ -886,8 +886,8 @@ export const zLiveVenueAdmission = z.object({
 
 export const zLiveAccountAdmission = z.object({
   account_ref: z.literal("account://live/binance/primary"),
-  binding_status: z.literal("configured_not_authorized"),
-  authenticated_read_state: z.literal("blocked"),
+  binding_status: z.enum(["configured_not_authorized", "authorized_read_only"]),
+  authenticated_read_state: z.enum(["blocked", "ready"]),
 });
 
 export const zLiveCredentialAdmission = z.object({
@@ -911,7 +911,7 @@ export const zLiveAdmission = z.object({
   strategy_id: zStrategyId,
   strategy_version_id: zStrategyVersionId,
   environment: z.literal("live"),
-  admission_status: z.literal("blocked"),
+  admission_status: z.enum(["blocked", "read_only_ready"]),
   evaluated_at_unix_ms: z.int().gte(1),
   venue: zLiveVenueAdmission,
   account: zLiveAccountAdmission,
@@ -930,21 +930,21 @@ export const zLiveAdmission = z.object({
         "api_secret_missing",
       ]),
     )
-    .min(6),
+    .min(3),
   source_refs: z.tuple([z.string().min(1), z.string().min(1)]),
 });
 
 export const zLiveAdmissionBoundaries = z.object({
   read_only: z.literal(true),
   independent_live_admission_required: z.literal(true),
-  owner_approval_granted: z.literal(false),
+  owner_approval_granted: z.boolean(),
   inherited_from_backtest: z.literal(false),
   inherited_from_demo: z.literal(false),
   external_venue_connection: z.literal(false),
   production_venue_connection: z.literal(false),
-  production_network_allowed: z.literal(false),
+  production_network_allowed: z.boolean(),
   external_network_attempted: z.literal(false),
-  authenticated_account_read_allowed: z.literal(false),
+  authenticated_account_read_allowed: z.boolean(),
   live_run_creation_allowed: z.literal(false),
   order_submission_allowed: z.literal(false),
   cancel_order_allowed: z.literal(false),
@@ -964,6 +964,102 @@ export const zLiveAdmissionResponse = z.object({
   request_id: zRequestId,
   data: zLiveAdmission,
   boundaries: zLiveAdmissionBoundaries,
+});
+
+export const zLiveAccountRefreshRequest = z.object({
+  action: z.literal("refresh"),
+});
+
+export const zLiveRuntimeGateState = z.object({
+  production_authenticated_read: z.boolean(),
+  owner_approved_read_only: z.boolean(),
+  no_order_mutation: z.boolean(),
+  no_secret_persistence: z.boolean(),
+  manual_online: z.boolean(),
+});
+
+export const zLiveAccountShapeSummary = z.object({
+  account_type_present: z.boolean(),
+  balance_entry_count: z.int().gte(0).nullable(),
+  permission_entry_count: z.int().gte(0).nullable(),
+  can_trade_present: z.boolean(),
+  can_withdraw_present: z.boolean(),
+  can_deposit_present: z.boolean(),
+  raw_account_response_exposed: z.literal(false),
+  raw_balances_exposed: z.literal(false),
+  raw_permissions_exposed: z.literal(false),
+});
+
+export const zLiveAccountRefresh = z.object({
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  environment: z.literal("live"),
+  venue_id: z.literal("BINANCE"),
+  account_ref: z.literal("account://live/binance/primary"),
+  connection_status: z.enum(["blocked", "connected", "failed"]),
+  evaluated_at_unix_ms: z.int().gte(1),
+  endpoint_method: z.literal("GET"),
+  endpoint_url_redacted: z.literal("https://api.binance.com/api/v3/account"),
+  runtime_gates: zLiveRuntimeGateState,
+  missing_runtime_gate_refs: z.array(z.string().min(7)).max(5),
+  api_key_presence: z.enum(["missing", "present"]),
+  api_secret_presence: z.enum(["missing", "present"]),
+  network_attempted: z.boolean(),
+  account_read_attempted: z.boolean(),
+  response_status_code: z.int().gte(100).lte(599).nullable(),
+  latency_ms: z.int().gte(0).nullable(),
+  response_shape: z.literal("binance_account_snapshot_v1"),
+  response_shape_validated: z.boolean(),
+  shape_summary: zLiveAccountShapeSummary,
+  error_code: z.enum([
+    "none",
+    "credentials_missing",
+    "runtime_gates_missing",
+    "runtime_gate_changed",
+    "credential_state_changed",
+    "http_probe_thread_panicked",
+    "signed_request_builder_failed",
+    "http_client_build_failed",
+    "response_shape_invalid",
+    "http_status_not_success",
+    "timeout",
+    "connect_error",
+    "decode_error",
+    "request_error",
+    "body_error",
+    "unknown_http_error",
+  ]),
+  source_refs: z.tuple([z.string().min(1), z.string().min(1)]),
+});
+
+export const zLiveAccountRefreshBoundaries = z.object({
+  read_only: z.literal(true),
+  independent_live_admission_required: z.literal(true),
+  owner_approval_granted: z.boolean(),
+  production_network_allowed: z.boolean(),
+  authenticated_account_read_allowed: z.boolean(),
+  external_network_attempted: z.boolean(),
+  account_mutation_allowed: z.literal(false),
+  order_endpoint_access_allowed: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  cancel_order_allowed: z.literal(false),
+  replace_order_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  automatic_recovery_allowed: z.literal(false),
+  secret_values_exposed: z.literal(false),
+  raw_account_response_exposed: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zLiveAccountRefreshResponse = z.object({
+  schema_version: z.literal(
+    "ntpro.product_api.live_account_refresh.response.v1",
+  ),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zLiveAccountRefresh,
+  boundaries: zLiveAccountRefreshBoundaries,
 });
 
 export const zRunListResponse = z.object({
@@ -1128,6 +1224,18 @@ export const zGetLiveAdmissionPath = z.object({
  * Live 独立准入、凭证存在性和订单生命周期边界
  */
 export const zGetLiveAdmissionResponse = zLiveAdmissionResponse;
+
+export const zRefreshLiveAccountBody = zLiveAccountRefreshRequest;
+
+export const zRefreshLiveAccountPath = z.object({
+  strategy_id: zStrategyId,
+  version_id: zStrategyVersionId,
+});
+
+/**
+ * 生产账户只读刷新结果；阻断和连接失败也返回脱敏状态
+ */
+export const zRefreshLiveAccountResponse = zLiveAccountRefreshResponse;
 
 export const zListRunsQuery = z.object({
   limit: z.int().gte(1).lte(100).optional().default(20),

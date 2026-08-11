@@ -199,6 +199,23 @@ export function useLiveAdmission(strategyId?: string, versionId?: string) {
   });
 }
 
+export function useRefreshLiveAccount() {
+  return useMutation({
+    mutationFn: ({
+      strategyId,
+      versionId,
+    }: {
+      strategyId: string;
+      versionId: string;
+    }) =>
+      productApi.refreshLiveAccount({
+        strategy_id: strategyId,
+        version_id: versionId,
+      }),
+    retry: false,
+  });
+}
+
 export function useRuns(strategyId?: string, versionId?: string) {
   return useQuery({
     ...productQueryPolicy,

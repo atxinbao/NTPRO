@@ -4127,6 +4127,216 @@ fn production_account_snapshot_signed_request_redacts_secret_values() {
 }
 
 #[test]
+fn production_account_snapshot_read_does_not_follow_cross_origin_redirects() {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        sync::mpsc,
+        thread,
+        time::Duration,
+    };
+
+    let redirect_target = TcpListener::bind("127.0.0.1:0").expect("target listener should bind");
+    redirect_target
+        .set_nonblocking(true)
+        .expect("target listener should become nonblocking");
+    let target_port = redirect_target
+        .local_addr()
+        .expect("target address should exist")
+        .port();
+    let source = TcpListener::bind("127.0.0.1:0").expect("source listener should bind");
+    let source_addr = source.local_addr().expect("source address should exist");
+    let (request_tx, request_rx) = mpsc::channel();
+    let source_thread = thread::spawn(move || {
+        let (mut stream, _) = source.accept().expect("source request should arrive");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(1)))
+            .expect("source read timeout should configure");
+        let mut request = Vec::new();
+        let mut chunk = [0_u8; 1024];
+        loop {
+            let read = stream.read(&mut chunk).expect("source request should read");
+            if read == 0 {
+                break;
+            }
+            request.extend_from_slice(&chunk[..read]);
+            if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                break;
+            }
+        }
+        request_tx
+            .send(String::from_utf8_lossy(&request).into_owned())
+            .expect("source request should be captured");
+        let response = format!(
+            "HTTP/1.1 302 Found\r\nLocation: http://localhost:{target_port}/redirected\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        );
+        stream
+            .write_all(response.as_bytes())
+            .expect("redirect response should write");
+    });
+
+    let signed_url = format!(
+        "http://{source_addr}/api/v3/account?timestamp=1718400000000&signature=redirect-secret-signature"
+    );
+    let result = execute_production_account_snapshot_read_on_thread(
+        &signed_url,
+        "X-MBX-APIKEY",
+        "redirect-secret-api-key",
+    );
+    source_thread.join().expect("source server should finish");
+
+    assert_eq!(result.http_status, Some(302));
+    assert_eq!(result.error_code, "http_status_not_success");
+    assert!(result.network_attempted);
+    let source_request = request_rx
+        .recv_timeout(Duration::from_secs(1))
+        .expect("source request should be available");
+    assert!(
+        source_request
+            .to_ascii_lowercase()
+            .contains("x-mbx-apikey: redirect-secret-api-key")
+    );
+    assert!(source_request.contains("signature=redirect-secret-signature"));
+
+    thread::sleep(Duration::from_millis(50));
+    match redirect_target.accept() {
+        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {}
+        Ok((mut stream, _)) => {
+            let mut leaked = String::new();
+            stream.read_to_string(&mut leaked).ok();
+            panic!("redirect target received a second request: {leaked}");
+        }
+        Err(error) => panic!("redirect target accept failed: {error}"),
+    }
+
+    let debug_body = format!("{result:?}");
+    assert!(!debug_body.contains("redirect-secret-api-key"));
+    assert!(!debug_body.contains("redirect-secret-signature"));
+    assert!(!debug_body.contains(&signed_url));
+}
+
+#[test]
+fn product_live_account_read_rechecks_every_runtime_gate_before_http() {
+    use std::cell::Cell;
+
+    for missing_gate in [
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE,
+        PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE,
+    ] {
+        let http_called = Cell::new(false);
+        let observation = execute_product_live_account_read_with_env_and_http(
+            "NTPRO_TEST_LIVE_API_KEY",
+            "NTPRO_TEST_LIVE_API_SECRET",
+            5_000,
+            |name| {
+                if name == missing_gate {
+                    None
+                } else if name == "NTPRO_TEST_LIVE_API_KEY" {
+                    Some("synthetic_api_key".to_string())
+                } else if name == "NTPRO_TEST_LIVE_API_SECRET" {
+                    Some("synthetic_api_secret".to_string())
+                } else {
+                    Some("1".to_string())
+                }
+            },
+            |_credentials, _recv_window_ms| {
+                http_called.set(true);
+                ProductionAccountSnapshotHttpResult::success(1, 200)
+            },
+        );
+
+        assert_eq!(observation.status, "blocked", "missing {missing_gate}");
+        assert_eq!(observation.error_code, "runtime_gate_changed");
+        assert!(!observation.network_attempted);
+        assert!(!observation.account_read_attempted);
+        assert!(
+            !http_called.get(),
+            "HTTP was called with missing {missing_gate}"
+        );
+    }
+}
+
+#[test]
+fn product_live_account_read_rechecks_each_credential_before_http() {
+    use std::cell::Cell;
+
+    for missing_credential in ["NTPRO_TEST_LIVE_API_KEY", "NTPRO_TEST_LIVE_API_SECRET"] {
+        let http_called = Cell::new(false);
+        let observation = execute_product_live_account_read_with_env_and_http(
+            "NTPRO_TEST_LIVE_API_KEY",
+            "NTPRO_TEST_LIVE_API_SECRET",
+            5_000,
+            |name| {
+                if name == missing_credential {
+                    None
+                } else if matches!(
+                    name,
+                    "NTPRO_TEST_LIVE_API_KEY" | "NTPRO_TEST_LIVE_API_SECRET"
+                ) {
+                    Some("synthetic_credential".to_string())
+                } else {
+                    Some("1".to_string())
+                }
+            },
+            |_credentials, _recv_window_ms| {
+                http_called.set(true);
+                ProductionAccountSnapshotHttpResult::success(1, 200)
+            },
+        );
+
+        assert_eq!(
+            observation.status, "blocked",
+            "missing {missing_credential}"
+        );
+        assert_eq!(observation.error_code, "credential_state_changed");
+        assert!(!observation.network_attempted);
+        assert!(!observation.account_read_attempted);
+        assert!(
+            !http_called.get(),
+            "HTTP was called with missing {missing_credential}"
+        );
+    }
+}
+
+#[test]
+fn product_live_account_read_returns_only_redacted_shape_metadata() {
+    let observation = execute_product_live_account_read_with_env_and_http(
+        "NTPRO_TEST_LIVE_API_KEY",
+        "NTPRO_TEST_LIVE_API_SECRET",
+        5_000,
+        |name| match name {
+            "NTPRO_TEST_LIVE_API_KEY" => Some("synthetic_api_key".to_string()),
+            "NTPRO_TEST_LIVE_API_SECRET" => Some("synthetic_api_secret".to_string()),
+            _ => Some("1".to_string()),
+        },
+        |credentials, recv_window_ms| {
+            assert!(credentials.api_key_present());
+            assert!(credentials.api_secret_present());
+            assert_eq!(recv_window_ms, 5_000);
+            ProductionAccountSnapshotHttpResult::success(7, 200)
+        },
+    );
+
+    assert_eq!(observation.status, "connected");
+    assert!(observation.network_attempted);
+    assert!(observation.account_read_attempted);
+    assert_eq!(observation.response_status_code, Some(200));
+    assert_eq!(observation.latency_ms, Some(7));
+    assert_eq!(observation.response_shape, "binance_account_snapshot_v1");
+    assert!(observation.response_shape_validated);
+    assert_eq!(observation.balance_entry_count, Some(1));
+    assert_eq!(observation.permission_entry_count, Some(1));
+    assert_eq!(observation.error_code, "none");
+
+    let debug_body = format!("{observation:?}");
+    assert!(!debug_body.contains("synthetic_api_key"));
+    assert!(!debug_body.contains("synthetic_api_secret"));
+}
+
+#[test]
 fn production_account_snapshot_shape_summary_accepts_expected_shape() {
     let body = serde_json::json!({
         "accountType": "SPOT",

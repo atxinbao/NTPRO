@@ -1,8 +1,15 @@
-import { Activity, KeyRound, ShieldAlert, Unplug } from "lucide-react";
+import {
+  Activity,
+  KeyRound,
+  RefreshCw,
+  ShieldAlert,
+  Unplug,
+} from "lucide-react";
 
 import {
   useLiveAdmission,
   useOverviewProductContext,
+  useRefreshLiveAccount,
 } from "../features/product/useProductResources";
 import { ProductErrorState, ProductLoading } from "./ProductState";
 import styles from "./Pages.module.css";
@@ -27,6 +34,7 @@ export function LivePage() {
     ? product.version?.strategy_version_id
     : undefined;
   const admission = useLiveAdmission(strategyId, versionId);
+  const accountRefresh = useRefreshLiveAccount();
   const error = product.error ?? admission.error;
 
   if (error) return <ProductErrorState error={error} />;
@@ -39,17 +47,25 @@ export function LivePage() {
 
   const data = admission.data.data;
   const boundaries = admission.data.boundaries;
+  const account = accountRefresh.data?.data;
+  const connectionLabel = account
+    ? account.connection_status === "connected"
+      ? "已连接"
+      : account.connection_status === "failed"
+        ? "连接失败"
+        : "已阻断"
+    : "未检查";
 
   return (
     <>
       <header className={styles.pageHeading}>
         <div>
           <span className="eyebrow">Live</span>
-          <h1>真实交易独立准入</h1>
-          <p>先核对生产 Venue、账户、凭证和订单边界，再进入后续连接验收。</p>
+          <h1>Live 连接与独立准入</h1>
+          <p>生产账户只读连接独立授权，真实订单生命周期继续关闭。</p>
         </div>
         <span className={styles.readOnlyBadge}>
-          <ShieldAlert aria-hidden="true" /> 当前阻断
+          <ShieldAlert aria-hidden="true" /> 只读边界
         </span>
       </header>
 
@@ -57,7 +73,9 @@ export function LivePage() {
         <article>
           <span>准入状态</span>
           <strong>
-            {data.admission_status === "blocked" ? "未准入" : "未知"}
+            {data.admission_status === "read_only_ready"
+              ? "只读就绪"
+              : "未准入"}
           </strong>
           <small>不继承 Backtest 或 Demo 权限</small>
         </article>
@@ -68,8 +86,12 @@ export function LivePage() {
         </article>
         <article>
           <span>连接状态</span>
-          <strong>未尝试</strong>
-          <small>本任务未发起外部网络请求</small>
+          <strong>{connectionLabel}</strong>
+          <small>
+            {account?.latency_ms === null || account?.latency_ms === undefined
+              ? "等待显式检查"
+              : `${account.latency_ms} ms`}
+          </small>
         </article>
         <article>
           <span>真实订单</span>
@@ -89,7 +111,14 @@ export function LivePage() {
           </header>
           <div className={styles.versionSummary}>
             <Detail label="账户引用" value={data.account.account_ref} />
-            <Detail label="账户状态" value="已登记，未授权" />
+            <Detail
+              label="账户状态"
+              value={
+                data.account.authenticated_read_state === "ready"
+                  ? "只读授权就绪"
+                  : "已登记，未授权"
+              }
+            />
             <Detail
               label="市场数据适配器"
               value={data.venue.market_data_adapter_ref}
@@ -122,13 +151,81 @@ export function LivePage() {
             label="API Secret"
             value={presenceLabel(data.credentials.api_secret_presence)}
           />
-          <Boundary label="账户只读" value="关闭" />
+          <Boundary
+            label="账户只读"
+            value={
+              boundaries.authenticated_account_read_allowed ? "就绪" : "关闭"
+            }
+            enabled={boundaries.authenticated_account_read_allowed}
+          />
           <Boundary label="Live Run 创建" value="关闭" />
           <Boundary label="订单提交" value="关闭" />
           <Boundary label="撤单与改单" value="关闭" />
           <Boundary label="自动恢复" value="关闭" />
           <Boundary label="人工停机" value="必须" enabled />
         </aside>
+      </section>
+
+      <section className={styles.panel} aria-label="生产账户只读连接">
+        <header>
+          <div>
+            <span className="eyebrow">账户连接</span>
+            <h2>Binance Spot 生产只读检查</h2>
+          </div>
+          <button
+            className={styles.liveRefreshButton}
+            type="button"
+            disabled={accountRefresh.isPending || !strategyId || !versionId}
+            onClick={() =>
+              accountRefresh.mutate({
+                strategyId: strategyId!,
+                versionId: versionId!,
+              })
+            }
+          >
+            <RefreshCw aria-hidden="true" />
+            {accountRefresh.isPending ? "检查中" : "检查账户连接"}
+          </button>
+        </header>
+        {accountRefresh.error ? (
+          <p className={styles.formError}>{accountRefresh.error.message}</p>
+        ) : null}
+        <div className={styles.detailGrid} aria-live="polite">
+          <Detail label="连接结果" value={connectionLabel} />
+          <Detail
+            label="运行授权"
+            value={
+              account
+                ? `${5 - account.missing_runtime_gate_refs.length}/5`
+                : "未检查"
+            }
+          />
+          <Detail
+            label="网络请求"
+            value={account?.network_attempted ? "已尝试" : "未尝试"}
+          />
+          <Detail
+            label="响应验证"
+            value={account?.response_shape_validated ? "通过" : "未通过"}
+          />
+          <Detail
+            label="余额条目"
+            value={
+              account?.shape_summary.balance_entry_count?.toString() ?? "未返回"
+            }
+          />
+          <Detail
+            label="权限条目"
+            value={
+              account?.shape_summary.permission_entry_count?.toString() ??
+              "未返回"
+            }
+          />
+        </div>
+        <p>
+          账户读取：{account?.account_read_attempted ? "已执行" : "未执行"}；
+          原始账户响应：不暴露；订单接口：关闭；自动重试：关闭。
+        </p>
       </section>
 
       <section className={styles.panel} aria-label="当前阻断原因">

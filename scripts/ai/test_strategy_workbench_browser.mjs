@@ -360,6 +360,48 @@ try {
     );
   }
 
+  const liveAccountRefreshPath =
+    "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v1/live-account/actions/refresh";
+  const liveAccountRefreshResponse = await fetch(
+    `${baseUrl}${liveAccountRefreshPath}`,
+    {
+      method: "POST",
+      headers: {
+        cookie: institutionCookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ action: "refresh" }),
+    },
+  );
+  const liveAccountRefresh = await liveAccountRefreshResponse.json();
+  if (
+    liveAccountRefreshResponse.status !== 200 ||
+    liveAccountRefresh.schema_version !==
+      "ntpro.product_api.live_account_refresh.response.v1" ||
+    liveAccountRefresh.data?.connection_status !== "blocked" ||
+    liveAccountRefresh.data?.error_code !== "credentials_missing" ||
+    liveAccountRefresh.data?.network_attempted !== false ||
+    liveAccountRefresh.data?.account_read_attempted !== false ||
+    liveAccountRefresh.data?.missing_runtime_gate_refs?.length !== 5 ||
+    liveAccountRefresh.data?.shape_summary?.raw_account_response_exposed !==
+      false ||
+    liveAccountRefresh.data?.shape_summary?.raw_balances_exposed !== false ||
+    liveAccountRefresh.boundaries?.external_network_attempted !== false ||
+    liveAccountRefresh.boundaries?.account_mutation_allowed !== false ||
+    liveAccountRefresh.boundaries?.order_endpoint_access_allowed !== false ||
+    liveAccountRefresh.boundaries?.order_submission_allowed !== false ||
+    liveAccountRefresh.boundaries?.automatic_retry_allowed !== false ||
+    liveAccountRefresh.boundaries?.automatic_remediation_allowed !== false ||
+    liveAccountRefresh.boundaries?.automatic_recovery_allowed !== false ||
+    liveAccountRefresh.boundaries?.secret_values_exposed !== false ||
+    liveAccountRefresh.boundaries?.raw_account_response_exposed !== false ||
+    liveAccountRefresh.boundaries?.trading_controls_enabled !== false
+  ) {
+    throw new Error(
+      `Live account refresh did not fail closed without runtime gates: status=${liveAccountRefreshResponse.status} body=${JSON.stringify(liveAccountRefresh)}`,
+    );
+  }
+
   const missingProductVersion = await fetch(
     `${baseUrl}/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v2`,
     { headers: { cookie: institutionCookie } },
@@ -622,6 +664,7 @@ try {
       405,
       "GET",
     ],
+    ["GET", liveAccountRefreshPath, 405, "POST"],
   ]) {
     const response = await fetch(`${baseUrl}${url}`, {
       method,
@@ -656,6 +699,7 @@ try {
   const browserErrors = [];
   const productionAssets = new Set();
   let expectedHttpErrorResponses = 0;
+  let liveAccountRefreshBrowserRequests = 0;
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
@@ -667,6 +711,15 @@ try {
     }
     if (url.pathname.startsWith("/api/product/") && response.status() >= 400) {
       productResponseErrors.push(`${response.status()} ${url.pathname}`);
+    }
+  });
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      decodeURIComponent(new URL(request.url()).pathname) ===
+        liveAccountRefreshPath
+    ) {
+      liveAccountRefreshBrowserRequests += 1;
     }
   });
   let scenario = "valid";
@@ -783,8 +836,40 @@ try {
   });
 
   await liveLink.click();
-  await page.getByRole("heading", { name: "真实交易独立准入" }).waitFor();
+  await page
+    .getByRole("heading", { name: "Live 连接与独立准入" })
+    .waitFor();
   await page.getByText("尚未获得 Live 独立审批").waitFor();
+  if (liveAccountRefreshBrowserRequests !== 0) {
+    throw new Error("Live page load issued a production account refresh");
+  }
+  const liveRefreshResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      response.request().method() === "POST" &&
+      decodeURIComponent(url.pathname) === liveAccountRefreshPath
+    );
+  });
+  await page.getByRole("button", { name: "检查账户连接" }).click();
+  const liveRefreshBrowserResponse = await liveRefreshResponsePromise;
+  const liveRefreshBrowserBody = await liveRefreshBrowserResponse.json();
+  if (
+    liveAccountRefreshBrowserRequests !== 1 ||
+    liveRefreshBrowserResponse.status() !== 200 ||
+    liveRefreshBrowserBody.data?.connection_status !== "blocked" ||
+    liveRefreshBrowserBody.data?.network_attempted !== false ||
+    liveRefreshBrowserBody.data?.account_read_attempted !== false
+  ) {
+    throw new Error(
+      `browser Live account refresh did not remain blocked: status=${liveRefreshBrowserResponse.status()} body=${JSON.stringify(liveRefreshBrowserBody)}`,
+    );
+  }
+  const liveAccountRegion = page.getByRole("region", {
+    name: "生产账户只读连接",
+  });
+  await liveAccountRegion.getByText("已阻断", { exact: true }).waitFor();
+  await liveAccountRegion.getByText("0/5").waitFor();
+  await liveAccountRegion.getByText("未尝试", { exact: true }).waitFor();
   if (
     await page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }).count()
   ) {
@@ -1171,6 +1256,7 @@ writeEvidence({
   dock: 1,
   drawer: 1,
   live_admission: 1,
+  live_account_refresh: 1,
   bootstrap_url_clean: 1,
 });
 console.log(`strategy_workbench_browser=pass evidence=${evidenceDir}`);

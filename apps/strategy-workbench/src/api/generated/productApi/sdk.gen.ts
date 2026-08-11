@@ -57,6 +57,9 @@ import type {
   ListStrategyVersionsData,
   ListStrategyVersionsErrors,
   ListStrategyVersionsResponses,
+  RefreshLiveAccountData,
+  RefreshLiveAccountErrors,
+  RefreshLiveAccountResponses,
   ReproduceBacktestRunData,
   ReproduceBacktestRunErrors,
   ReproduceBacktestRunResponses,
@@ -225,6 +228,36 @@ export const getLiveAdmission = <ThrowOnError extends boolean = false>(
     ],
     url: "/strategies/{strategy_id}/versions/{version_id}/live-admission",
     ...options,
+  });
+
+/**
+ * 显式刷新生产认证账户只读连接
+ */
+export const refreshLiveAccount = <ThrowOnError extends boolean = false>(
+  options: Options<RefreshLiveAccountData, ThrowOnError>,
+): RequestResult<
+  RefreshLiveAccountResponses,
+  RefreshLiveAccountErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RefreshLiveAccountResponses,
+    RefreshLiveAccountErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });
 
 /**
