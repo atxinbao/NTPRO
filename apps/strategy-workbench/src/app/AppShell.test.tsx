@@ -407,7 +407,7 @@ describe("strategy workbench product slice", () => {
     expect(screen.getAllByText("关闭")).toHaveLength(7);
   });
 
-  it("renders the blocked Live admission without trading controls", async () => {
+  it("renders explicit Live account results without trading controls", async () => {
     renderWorkbench("/live");
 
     expect(
@@ -423,10 +423,20 @@ describe("strategy workbench product slice", () => {
       name: "生产账户只读连接",
     });
     expect(
-      await within(accountConnection).findByText("已阻断"),
+      await within(accountConnection).findByText("已连接"),
     ).toBeInTheDocument();
-    expect(within(accountConnection).getByText("0/5")).toBeInTheDocument();
-    expect(within(accountConnection).getByText("未尝试")).toBeInTheDocument();
+    expect(within(accountConnection).getByText("5/5")).toBeInTheDocument();
+    expect(within(accountConnection).getByText("已尝试")).toBeInTheDocument();
+    expect(within(accountConnection).getByText("SPOT")).toBeInTheDocument();
+    expect(within(accountConnection).getByText("BTC")).toBeInTheDocument();
+    expect(
+      within(accountConnection).getByText("0.1234568"),
+    ).toBeInTheDocument();
+    expect(within(accountConnection).getByText("USDT")).toBeInTheDocument();
+    expect(within(accountConnection).getByText("105")).toBeInTheDocument();
+    expect(
+      within(accountConnection).getByText(/未做跨币种估值/),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
     ).not.toBeInTheDocument();

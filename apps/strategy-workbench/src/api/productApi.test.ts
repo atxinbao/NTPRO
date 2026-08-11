@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import liveAccountRefreshConnectedFixture from "../test/product-api-fixtures/live-account-refresh-connected.json";
 import liveAccountRefreshFixture from "../test/product-api-fixtures/live-account-refresh.json";
 import liveAdmissionFixture from "../test/product-api-fixtures/live-admission.json";
 import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
@@ -218,18 +219,52 @@ describe("product API generated client", () => {
   };
 
   it("uses an explicit POST command for the Live account refresh", async () => {
-    const fetch = jsonFetch(liveAccountRefreshFixture);
+    const fetch = jsonFetch(liveAccountRefreshConnectedFixture);
     const result = await createProductApiClient({ fetch }).refreshLiveAccount(
       liveAdmissionPath,
     );
     const request = fetch.mock.calls[0]?.[0] as Request;
 
-    expect(result).toEqual(liveAccountRefreshFixture);
+    expect(result).toEqual(liveAccountRefreshConnectedFixture);
     expect(request.method).toBe("POST");
     expect(request.url).toBe(
       `${globalThis.location.origin}/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/live-account/actions/refresh`,
     );
     expect(await request.json()).toEqual({ action: "refresh" });
+  });
+
+  it("accepts a fail-closed Live account refresh without result values", async () => {
+    await expect(
+      createProductApiClient({
+        fetch: jsonFetch(liveAccountRefreshFixture),
+      }).refreshLiveAccount(liveAdmissionPath),
+    ).resolves.toEqual(liveAccountRefreshFixture);
+  });
+
+  it("accepts a failed Live read only when normalized results are absent", async () => {
+    const failed = structuredClone(
+      liveAccountRefreshConnectedFixture,
+    ) as Record<string, any>;
+    failed.data.connection_status = "failed";
+    failed.data.error_code = "account_result_invalid";
+    failed.data.account_result = null;
+    failed.data.asset_balances = [];
+    failed.data.funds_summary = {
+      native_asset_units: true,
+      non_zero_asset_count: 0,
+      portfolio_value: null,
+      source_balance_entry_count: null,
+      valuation_currency: null,
+      valuation_status: "not_evaluated",
+      zero_balance_entry_count: null,
+    };
+    failed.boundaries.normalized_account_results_exposed = false;
+
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(failed) }).refreshLiveAccount(
+        liveAdmissionPath,
+      ),
+    ).resolves.toEqual(failed);
   });
 
   it.each([
@@ -327,9 +362,9 @@ describe("product API generated client", () => {
       },
     ],
     [
-      "missing runtime gate reference",
+      "closed runtime gate without missing reference",
       (payload: Record<string, any>) => {
-        payload.data.missing_runtime_gate_refs.pop();
+        payload.data.runtime_gates.manual_online = false;
       },
     ],
     [
@@ -341,10 +376,35 @@ describe("product API generated client", () => {
       },
     ],
     [
-      "blocked network attempt",
+      "connected without network attempt",
       (payload: Record<string, any>) => {
-        payload.data.network_attempted = true;
-        payload.boundaries.external_network_attempted = true;
+        payload.data.network_attempted = false;
+        payload.data.account_read_attempted = false;
+        payload.boundaries.external_network_attempted = false;
+      },
+    ],
+    [
+      "connected with non-success status",
+      (payload: Record<string, any>) => {
+        payload.data.response_status_code = 401;
+      },
+    ],
+    [
+      "connected without account type shape proof",
+      (payload: Record<string, any>) => {
+        payload.data.shape_summary.account_type_present = false;
+      },
+    ],
+    [
+      "connected without permission count",
+      (payload: Record<string, any>) => {
+        payload.data.shape_summary.permission_entry_count = null;
+      },
+    ],
+    [
+      "response shape identity drift",
+      (payload: Record<string, any>) => {
+        payload.data.response_shape = "unknown_account_shape";
       },
     ],
     [
@@ -360,16 +420,66 @@ describe("product API generated client", () => {
       },
     ],
     [
-      "false connected proof",
+      "blocked response with account results",
       (payload: Record<string, any>) => {
-        payload.data.connection_status = "connected";
+        payload.data.connection_status = "blocked";
+      },
+    ],
+    [
+      "missing account result",
+      (payload: Record<string, any>) => {
+        payload.data.account_result = null;
+      },
+    ],
+    [
+      "duplicate asset result",
+      (payload: Record<string, any>) => {
+        payload.data.asset_balances[1].asset =
+          payload.data.asset_balances[0].asset;
+      },
+    ],
+    [
+      "unsorted asset result",
+      (payload: Record<string, any>) => {
+        payload.data.asset_balances.reverse();
+      },
+    ],
+    [
+      "asset count mismatch",
+      (payload: Record<string, any>) => {
+        payload.data.funds_summary.non_zero_asset_count = 1;
+      },
+    ],
+    [
+      "asset total mismatch",
+      (payload: Record<string, any>) => {
+        payload.data.asset_balances[0].total = "0.1234567";
+      },
+    ],
+    [
+      "zero asset total",
+      (payload: Record<string, any>) => {
+        payload.data.asset_balances[0].free = "0";
+        payload.data.asset_balances[0].locked = "0";
+        payload.data.asset_balances[0].total = "0";
+      },
+    ],
+    [
+      "fabricated cross currency valuation",
+      (payload: Record<string, any>) => {
+        payload.data.funds_summary.portfolio_value = "105.1234568";
+      },
+    ],
+    [
+      "account result persistence drift",
+      (payload: Record<string, any>) => {
+        payload.boundaries.account_results_persisted = true;
       },
     ],
   ] as const)("fails closed for Live account refresh %s", async (_, mutate) => {
-    const payload = structuredClone(liveAccountRefreshFixture) as Record<
-      string,
-      any
-    >;
+    const payload = structuredClone(
+      liveAccountRefreshConnectedFixture,
+    ) as Record<string, any>;
     mutate(payload);
     await expect(
       createProductApiClient({ fetch: jsonFetch(payload) }).refreshLiveAccount(
@@ -377,6 +487,53 @@ describe("product API generated client", () => {
       ),
     ).rejects.toBeInstanceOf(ProductApiContractError);
   });
+
+  it.each([
+    [
+      "none error",
+      (payload: Record<string, any>) => {
+        payload.data.error_code = "none";
+      },
+    ],
+    [
+      "HTTP status",
+      (payload: Record<string, any>) => {
+        payload.data.response_status_code = 200;
+      },
+    ],
+    [
+      "latency",
+      (payload: Record<string, any>) => {
+        payload.data.latency_ms = 1;
+      },
+    ],
+    [
+      "validated shape",
+      (payload: Record<string, any>) => {
+        payload.data.response_shape_validated = true;
+      },
+    ],
+    [
+      "partial shape",
+      (payload: Record<string, any>) => {
+        payload.data.shape_summary.account_type_present = true;
+      },
+    ],
+  ] as const)(
+    "rejects blocked Live account refresh with %s",
+    async (_, mutate) => {
+      const payload = structuredClone(liveAccountRefreshFixture) as Record<
+        string,
+        any
+      >;
+      mutate(payload);
+      await expect(
+        createProductApiClient({
+          fetch: jsonFetch(payload),
+        }).refreshLiveAccount(liveAdmissionPath),
+      ).rejects.toBeInstanceOf(ProductApiContractError);
+    },
+  );
 
   it.each([
     {

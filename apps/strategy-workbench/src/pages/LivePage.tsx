@@ -209,22 +209,69 @@ export function LivePage() {
             value={account?.response_shape_validated ? "通过" : "未通过"}
           />
           <Detail
-            label="余额条目"
+            label="非零资产"
             value={
-              account?.shape_summary.balance_entry_count?.toString() ?? "未返回"
+              account?.funds_summary.non_zero_asset_count.toString() ?? "未返回"
             }
           />
           <Detail
-            label="权限条目"
+            label="已省略零余额"
             value={
-              account?.shape_summary.permission_entry_count?.toString() ??
+              account?.funds_summary.zero_balance_entry_count?.toString() ??
               "未返回"
             }
           />
         </div>
+        {account?.account_result ? (
+          <>
+            <div className={styles.detailGrid} aria-label="Live 账户摘要">
+              <Detail
+                label="账户类型"
+                value={account.account_result.account_type}
+              />
+              <Detail
+                label="交易所交易权限"
+                value={permissionLabel(account.account_result.can_trade)}
+              />
+              <Detail
+                label="交易所充值权限"
+                value={permissionLabel(account.account_result.can_deposit)}
+              />
+              <Detail
+                label="交易所提现权限"
+                value={permissionLabel(account.account_result.can_withdraw)}
+              />
+            </div>
+            <div className={styles.tableWrap} data-testid="live-asset-balances">
+              <table className={styles.detailTable}>
+                <thead>
+                  <tr>
+                    <th>资产</th>
+                    <th>可用</th>
+                    <th>锁定</th>
+                    <th>总额</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {account.asset_balances.map((balance) => (
+                    <tr key={balance.asset}>
+                      <td>{balance.asset}</td>
+                      <td>{balance.free}</td>
+                      <td>{balance.locked}</td>
+                      <td>{balance.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : null}
         <p>
           账户读取：{account?.account_read_attempted ? "已执行" : "未执行"}；
-          原始账户响应：不暴露；订单接口：关闭；自动重试：关闭。
+          {account?.account_result
+            ? "余额使用各资产原生单位，未做跨币种估值；"
+            : "账户结果尚未返回；"}
+          原始账户响应：不暴露；NTPRO 订单接口：关闭；自动重试：关闭。
         </p>
       </section>
 
@@ -256,6 +303,10 @@ export function LivePage() {
 
 function presenceLabel(value: "missing" | "present"): string {
   return value === "present" ? "已配置" : "缺失";
+}
+
+function permissionLabel(enabled: boolean): string {
+  return enabled ? "交易所允许" : "交易所关闭";
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

@@ -14,9 +14,10 @@
 // -------------------------------------------------------------------------------------------------
 
 use std::{
+    collections::BTreeSet,
     fmt::Debug,
     fs::{self, OpenOptions},
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -1135,6 +1136,7 @@ struct ProductionAccountSnapshotHttpResult {
     response_shape: String,
     response_shape_validated: bool,
     response_shape_summary: ProductionAccountSnapshotShapeSummary,
+    product_snapshot: Option<ProductLiveAccountSnapshot>,
     error_code: String,
     network_attempted: bool,
     diagnostic: String,
@@ -1143,10 +1145,11 @@ struct ProductionAccountSnapshotHttpResult {
 impl ProductionAccountSnapshotHttpResult {
     #[cfg(test)]
     fn success(latency_ms: u64, http_status: u16) -> Self {
-        Self::success_with_shape(
+        Self::success_with_product_snapshot(
             latency_ms,
             http_status,
             ProductionAccountSnapshotShapeSummary::accepted_fixture(),
+            ProductLiveAccountSnapshot::accepted_fixture(),
         )
     }
 
@@ -1162,12 +1165,24 @@ impl ProductionAccountSnapshotHttpResult {
             response_shape: production_account_snapshot_response_shape().to_string(),
             response_shape_validated: response_shape_summary.shape_validated,
             response_shape_summary,
+            product_snapshot: None,
             error_code: "none".to_string(),
             network_attempted: true,
             diagnostic: format!(
                 "V120 authenticated production account snapshot read succeeded with GET {PRODUCTION_ACCOUNT_SNAPSHOT_ENDPOINT} and HTTP {http_status}; raw account response, balances, uid, headers, signature, signed query, and signed URL were not recorded."
             ),
         }
+    }
+
+    fn success_with_product_snapshot(
+        latency_ms: u64,
+        http_status: u16,
+        response_shape_summary: ProductionAccountSnapshotShapeSummary,
+        product_snapshot: ProductLiveAccountSnapshot,
+    ) -> Self {
+        let mut result = Self::success_with_shape(latency_ms, http_status, response_shape_summary);
+        result.product_snapshot = Some(product_snapshot);
+        result
     }
 
     fn failure(latency_ms: Option<u64>, http_status: Option<u16>, error_code: &str) -> Self {
@@ -1195,6 +1210,7 @@ impl ProductionAccountSnapshotHttpResult {
             response_shape: production_account_snapshot_response_shape().to_string(),
             response_shape_validated: response_shape_summary.shape_validated,
             response_shape_summary,
+            product_snapshot: None,
             error_code: error_code.to_string(),
             network_attempted: true,
             diagnostic: format!(
@@ -1232,7 +1248,7 @@ struct ProductionAccountSnapshotShapeSummary {
 
 /// 产品 API 可消费的生产账户只读观察结果。
 ///
-/// 该类型只包含连接元数据和响应形状摘要，不携带凭证、签名、原始响应、资产名称或余额。
+/// 该类型只包含连接元数据和受限账户投影，不携带凭证、签名或原始响应。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ProductLiveAccountReadObservation {
     pub status: String,
@@ -1248,7 +1264,47 @@ pub(crate) struct ProductLiveAccountReadObservation {
     pub can_trade_present: bool,
     pub can_withdraw_present: bool,
     pub can_deposit_present: bool,
+    pub account_snapshot: Option<ProductLiveAccountSnapshot>,
     pub error_code: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ProductLiveAssetBalance {
+    pub asset: String,
+    pub free: String,
+    pub locked: String,
+    pub total: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ProductLiveAccountSnapshot {
+    pub account_type: String,
+    pub can_trade: bool,
+    pub can_withdraw: bool,
+    pub can_deposit: bool,
+    pub source_balance_entry_count: usize,
+    pub zero_balance_entry_count: usize,
+    pub assets: Vec<ProductLiveAssetBalance>,
+}
+
+impl ProductLiveAccountSnapshot {
+    #[cfg(test)]
+    fn accepted_fixture() -> Self {
+        Self {
+            account_type: "SPOT".to_string(),
+            can_trade: true,
+            can_withdraw: false,
+            can_deposit: true,
+            source_balance_entry_count: 1,
+            zero_balance_entry_count: 0,
+            assets: vec![ProductLiveAssetBalance {
+                asset: "BTC".to_string(),
+                free: "0.125".to_string(),
+                locked: "0".to_string(),
+                total: "0.125".to_string(),
+            }],
+        }
+    }
 }
 
 impl ProductLiveAccountReadObservation {
@@ -1267,6 +1323,7 @@ impl ProductLiveAccountReadObservation {
             can_trade_present: false,
             can_withdraw_present: false,
             can_deposit_present: false,
+            account_snapshot: None,
             error_code: error_code.to_string(),
         }
     }
@@ -6307,8 +6364,17 @@ where
     }
 
     let result = execute_http(&credentials, recv_window_ms);
+    let product_result_ready = result.response_shape_validated && result.product_snapshot.is_some();
+    let error_code = if result.response_shape_validated
+        && result.product_snapshot.is_none()
+        && result.error_code == "none"
+    {
+        "account_result_missing".to_string()
+    } else {
+        result.error_code
+    };
     ProductLiveAccountReadObservation {
-        status: if result.response_shape_validated {
+        status: if product_result_ready {
             "connected".to_string()
         } else {
             "failed".to_string()
@@ -6325,7 +6391,8 @@ where
         can_trade_present: result.response_shape_summary.can_trade_present,
         can_withdraw_present: result.response_shape_summary.can_withdraw_present,
         can_deposit_present: result.response_shape_summary.can_deposit_present,
-        error_code: result.error_code,
+        account_snapshot: result.product_snapshot,
+        error_code,
     }
 }
 
@@ -6360,15 +6427,34 @@ fn execute_production_account_snapshot_read_on_thread(
             let latency_ms = started.elapsed().as_millis().min(u128::from(u64::MAX)) as u64;
             let status = response.status().as_u16();
             if response.status().is_success() {
-                match response.json::<serde_json::Value>() {
+                let content_length = response.content_length();
+                match read_product_live_account_response_body(response, content_length).and_then(
+                    |bytes| {
+                        serde_json::from_slice::<serde_json::Value>(&bytes)
+                            .map_err(|_| "response_shape_invalid")
+                    },
+                ) {
                     Ok(body) => {
                         let shape_summary = summarize_production_account_snapshot_shape(&body);
                         if shape_summary.shape_validated {
-                            ProductionAccountSnapshotHttpResult::success_with_shape(
-                                latency_ms,
-                                status,
-                                shape_summary,
-                            )
+                            match project_product_live_account_snapshot(&body) {
+                                Ok(product_snapshot) => {
+                                    ProductionAccountSnapshotHttpResult::success_with_product_snapshot(
+                                        latency_ms,
+                                        status,
+                                        shape_summary,
+                                        product_snapshot,
+                                    )
+                                }
+                                Err(error_code) => {
+                                    ProductionAccountSnapshotHttpResult::failure_with_shape(
+                                        Some(latency_ms),
+                                        Some(status),
+                                        error_code,
+                                        shape_summary,
+                                    )
+                                }
+                            }
                         } else {
                             ProductionAccountSnapshotHttpResult::failure_with_shape(
                                 Some(latency_ms),
@@ -6378,10 +6464,10 @@ fn execute_production_account_snapshot_read_on_thread(
                             )
                         }
                     }
-                    Err(_) => ProductionAccountSnapshotHttpResult::failure(
+                    Err(error_code) => ProductionAccountSnapshotHttpResult::failure(
                         Some(latency_ms),
                         Some(status),
-                        "response_shape_invalid",
+                        error_code,
                     ),
                 }
             } else {
@@ -6500,6 +6586,152 @@ fn summarize_production_account_snapshot_shape(
         }
         .to_string(),
     }
+}
+
+const PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES: usize = 1_048_576;
+const PRODUCT_LIVE_ACCOUNT_MAX_SOURCE_BALANCES: usize = 2_048;
+const PRODUCT_LIVE_ACCOUNT_MAX_NON_ZERO_ASSETS: usize = 256;
+
+fn read_product_live_account_response_body<R>(
+    reader: R,
+    content_length: Option<u64>,
+) -> Result<Vec<u8>, &'static str>
+where
+    R: Read,
+{
+    if content_length.is_some_and(|length| length > PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES as u64)
+    {
+        return Err("account_result_limit_exceeded");
+    }
+    let mut bytes = Vec::with_capacity(
+        content_length
+            .unwrap_or_default()
+            .min(PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES as u64) as usize,
+    );
+    reader
+        .take(PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "body_error")?;
+    if bytes.len() > PRODUCT_LIVE_ACCOUNT_MAX_RESPONSE_BYTES {
+        return Err("account_result_limit_exceeded");
+    }
+    Ok(bytes)
+}
+
+fn project_product_live_account_snapshot(
+    body: &serde_json::Value,
+) -> Result<ProductLiveAccountSnapshot, &'static str> {
+    let object = body.as_object().ok_or("account_result_invalid")?;
+    let account_type = object
+        .get("accountType")
+        .and_then(serde_json::Value::as_str)
+        .filter(|value| product_live_account_token_is_valid(value))
+        .ok_or("account_result_invalid")?
+        .to_string();
+    let can_trade = object
+        .get("canTrade")
+        .and_then(serde_json::Value::as_bool)
+        .ok_or("account_result_invalid")?;
+    let can_withdraw = object
+        .get("canWithdraw")
+        .and_then(serde_json::Value::as_bool)
+        .ok_or("account_result_invalid")?;
+    let can_deposit = object
+        .get("canDeposit")
+        .and_then(serde_json::Value::as_bool)
+        .ok_or("account_result_invalid")?;
+    let balances = object
+        .get("balances")
+        .and_then(serde_json::Value::as_array)
+        .ok_or("account_result_invalid")?;
+    if balances.len() > PRODUCT_LIVE_ACCOUNT_MAX_SOURCE_BALANCES {
+        return Err("account_result_limit_exceeded");
+    }
+
+    let mut seen_assets = BTreeSet::new();
+    let mut assets = Vec::new();
+    for balance in balances {
+        let balance = balance.as_object().ok_or("account_result_invalid")?;
+        let asset = balance
+            .get("asset")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| product_live_asset_code_is_valid(value))
+            .ok_or("account_result_invalid")?;
+        if !seen_assets.insert(asset.to_string()) {
+            return Err("account_result_duplicate_asset");
+        }
+        let free_text = balance
+            .get("free")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| value.len() <= 64)
+            .ok_or("account_result_invalid")?;
+        let locked_text = balance
+            .get("locked")
+            .and_then(serde_json::Value::as_str)
+            .filter(|value| value.len() <= 64)
+            .ok_or("account_result_invalid")?;
+        let free = parse_product_live_account_decimal(free_text)?;
+        let locked = parse_product_live_account_decimal(locked_text)?;
+        let total = free.checked_add(locked).ok_or("account_result_invalid")?;
+        if total == Decimal::ZERO {
+            continue;
+        }
+        if assets.len() >= PRODUCT_LIVE_ACCOUNT_MAX_NON_ZERO_ASSETS {
+            return Err("account_result_limit_exceeded");
+        }
+        assets.push(ProductLiveAssetBalance {
+            asset: asset.to_string(),
+            free: format_decimal(&free),
+            locked: format_decimal(&locked),
+            total: format_decimal(&total),
+        });
+    }
+    assets.sort_by(|left, right| left.asset.cmp(&right.asset));
+
+    Ok(ProductLiveAccountSnapshot {
+        account_type,
+        can_trade,
+        can_withdraw,
+        can_deposit,
+        source_balance_entry_count: balances.len(),
+        zero_balance_entry_count: balances.len().saturating_sub(assets.len()),
+        assets,
+    })
+}
+
+fn product_live_account_token_is_valid(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 32
+        && value
+            .chars()
+            .all(|character| character.is_ascii_uppercase() || character == '_')
+}
+
+fn product_live_asset_code_is_valid(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 32
+        && value
+            .chars()
+            .all(|character| character.is_ascii_uppercase() || character.is_ascii_digit())
+}
+
+fn parse_product_live_account_decimal(value: &str) -> Result<Decimal, &'static str> {
+    let (integer, fraction) = match value.split_once('.') {
+        Some((integer, fraction)) if !fraction.contains('.') => (integer, Some(fraction)),
+        Some(_) => return Err("account_result_invalid"),
+        None => (value, None),
+    };
+    let integer_is_canonical = !integer.is_empty()
+        && (integer == "0"
+            || (!integer.starts_with('0')
+                && integer.chars().all(|character| character.is_ascii_digit())));
+    let fraction_is_canonical = fraction.is_none_or(|fraction| {
+        !fraction.is_empty() && fraction.chars().all(|character| character.is_ascii_digit())
+    });
+    if !integer_is_canonical || !fraction_is_canonical {
+        return Err("account_result_invalid");
+    }
+    Decimal::from_str_exact(value).map_err(|_| "account_result_invalid")
 }
 
 fn run_live_production_order_state_readonly_proof_with_env<F>(

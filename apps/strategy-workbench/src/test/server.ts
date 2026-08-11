@@ -4,7 +4,7 @@ import { setupServer } from "msw/node";
 import type { DemoRunSnapshotResponse, Run } from "../api/generated/productApi";
 
 import { validStatusPayload } from "./fixtures";
-import liveAccountRefreshFixture from "./product-api-fixtures/live-account-refresh.json";
+import liveAccountRefreshFixture from "./product-api-fixtures/live-account-refresh-connected.json";
 import liveAdmissionFixture from "./product-api-fixtures/live-admission.json";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
 import runAnalysisFixture from "./product-api-fixtures/run-analysis.json";

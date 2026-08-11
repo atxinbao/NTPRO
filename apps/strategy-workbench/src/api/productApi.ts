@@ -201,6 +201,31 @@ function assertIdentity(condition: boolean, field: string): void {
   if (!condition) throw new ProductApiContractError(field);
 }
 
+function decimalParts(value: string): { coefficient: bigint; scale: number } {
+  const [integer, fraction = ""] = value.split(".");
+  return {
+    coefficient: BigInt(`${integer}${fraction}`),
+    scale: fraction.length,
+  };
+}
+
+function decimalSumMatches(
+  free: string,
+  locked: string,
+  total: string,
+): boolean {
+  const freeParts = decimalParts(free);
+  const lockedParts = decimalParts(locked);
+  const totalParts = decimalParts(total);
+  const scale = Math.max(freeParts.scale, lockedParts.scale, totalParts.scale);
+  const align = (value: { coefficient: bigint; scale: number }) =>
+    value.coefficient * 10n ** BigInt(scale - value.scale);
+  const alignedTotal = align(totalParts);
+  return (
+    alignedTotal > 0n && align(freeParts) + align(lockedParts) === alignedTotal
+  );
+}
+
 function assertUniqueIds(values: string[], field: string): void {
   assertIdentity(new Set(values).size === values.length, field);
 }
@@ -813,7 +838,8 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           payload.data.account_ref === "account://live/binance/primary" &&
           payload.data.endpoint_method === "GET" &&
           payload.data.endpoint_url_redacted ===
-            "https://api.binance.com/api/v3/account",
+            "https://api.binance.com/api/v3/account" &&
+          payload.data.response_shape === "binance_account_snapshot_v1",
         "live_account_refresh.path_identity",
       );
       const gateRefs = [
@@ -871,9 +897,67 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           !boundaries.automatic_recovery_allowed &&
           !boundaries.secret_values_exposed &&
           !boundaries.raw_account_response_exposed &&
+          !boundaries.account_results_persisted &&
+          boundaries.normalized_account_results_exposed === connected &&
           !boundaries.trading_controls_enabled,
         "live_account_refresh.boundaries",
       );
+      const accountResult = payload.data.account_result;
+      const funds = payload.data.funds_summary;
+      const shape = payload.data.shape_summary;
+      const assetCodes = payload.data.asset_balances.map(
+        (balance) => balance.asset,
+      );
+      const sortedAssetCodes = [...assetCodes].sort((left, right) =>
+        left.localeCompare(right),
+      );
+      const sourceBalanceCount = funds.source_balance_entry_count;
+      const zeroBalanceCount = funds.zero_balance_entry_count;
+      const connectedShapeValid =
+        shape.account_type_present &&
+        shape.balance_entry_count !== null &&
+        shape.permission_entry_count !== null &&
+        shape.can_trade_present &&
+        shape.can_withdraw_present &&
+        shape.can_deposit_present;
+      const connectedResultsValid =
+        accountResult !== null &&
+        sourceBalanceCount !== null &&
+        zeroBalanceCount !== null &&
+        payload.data.shape_summary.balance_entry_count === sourceBalanceCount &&
+        funds.non_zero_asset_count === payload.data.asset_balances.length &&
+        sourceBalanceCount === funds.non_zero_asset_count + zeroBalanceCount &&
+        funds.native_asset_units &&
+        funds.valuation_status === "unavailable_without_price_conversion" &&
+        funds.valuation_currency === null &&
+        funds.portfolio_value === null &&
+        connectedShapeValid &&
+        new Set(assetCodes).size === assetCodes.length &&
+        assetCodes.every((asset, index) => asset === sortedAssetCodes[index]) &&
+        payload.data.asset_balances.every((balance) =>
+          decimalSumMatches(balance.free, balance.locked, balance.total),
+        );
+      const absentResultsValid =
+        accountResult === null &&
+        payload.data.asset_balances.length === 0 &&
+        sourceBalanceCount === null &&
+        zeroBalanceCount === null &&
+        funds.non_zero_asset_count === 0 &&
+        funds.native_asset_units &&
+        funds.valuation_status === "not_evaluated" &&
+        funds.valuation_currency === null &&
+        funds.portfolio_value === null;
+      const blockedTransportValid =
+        payload.data.error_code !== "none" &&
+        payload.data.response_status_code === null &&
+        payload.data.latency_ms === null &&
+        !payload.data.response_shape_validated &&
+        !shape.account_type_present &&
+        shape.balance_entry_count === null &&
+        shape.permission_entry_count === null &&
+        !shape.can_trade_present &&
+        !shape.can_withdraw_present &&
+        !shape.can_deposit_present;
       assertIdentity(
         (connected || failed) ===
           (allGatesOpen &&
@@ -892,10 +976,14 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           (!connected ||
             (payload.data.response_shape_validated &&
               payload.data.error_code === "none" &&
-              payload.data.response_status_code !== null)) &&
+              payload.data.response_status_code !== null &&
+              payload.data.response_status_code >= 200 &&
+              payload.data.response_status_code <= 299 &&
+              payload.data.latency_ms !== null &&
+              connectedResultsValid)) &&
           (!failed ||
-            (!payload.data.response_shape_validated &&
-              payload.data.error_code !== "none")),
+            (payload.data.error_code !== "none" && absentResultsValid)) &&
+          (!blocked || (absentResultsValid && blockedTransportValid)),
         "live_account_refresh.connection_state",
       );
       return payload;

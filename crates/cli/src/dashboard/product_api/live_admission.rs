@@ -35,13 +35,13 @@ use crate::live::{
     PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
     PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE,
     PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED, ProductLiveAccountReadObservation,
-    execute_product_live_account_read,
+    ProductLiveAssetBalance, execute_product_live_account_read,
 };
 
 const LIVE_ADMISSION_CONFIG_SCHEMA_VERSION: &str = "ntpro.live_admission.config.v1";
 const LIVE_ADMISSION_RESPONSE_SCHEMA_VERSION: &str = "ntpro.product_api.live_admission.response.v1";
 const LIVE_ACCOUNT_REFRESH_RESPONSE_SCHEMA_VERSION: &str =
-    "ntpro.product_api.live_account_refresh.response.v1";
+    "ntpro.product_api.live_account_refresh.response.v2";
 const BINANCE_PRODUCTION_HTTP_BASE_URL: &str = "https://api.binance.com";
 const BINANCE_PRODUCTION_WEBSOCKET_BASE_URL: &str = "wss://stream.binance.com:9443/ws";
 const BINANCE_MARKET_DATA_ADAPTER_REF: &str = "adapter://binance/spot/production-market-data";
@@ -306,6 +306,51 @@ struct LiveAccountShapeSummary {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveAccountResult {
+    account_type: String,
+    can_trade: bool,
+    can_withdraw: bool,
+    can_deposit: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveAssetBalance {
+    asset: String,
+    free: String,
+    locked: String,
+    total: String,
+}
+
+impl From<ProductLiveAssetBalance> for LiveAssetBalance {
+    fn from(value: ProductLiveAssetBalance) -> Self {
+        Self {
+            asset: value.asset,
+            free: value.free,
+            locked: value.locked,
+            total: value.total,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum LiveValuationStatus {
+    NotEvaluated,
+    UnavailableWithoutPriceConversion,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveFundsSummary {
+    source_balance_entry_count: Option<usize>,
+    non_zero_asset_count: usize,
+    zero_balance_entry_count: Option<usize>,
+    native_asset_units: bool,
+    valuation_status: LiveValuationStatus,
+    valuation_currency: Option<String>,
+    portfolio_value: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 struct LiveAccountRefreshData {
     strategy_id: String,
     strategy_version_id: String,
@@ -327,6 +372,9 @@ struct LiveAccountRefreshData {
     response_shape: String,
     response_shape_validated: bool,
     shape_summary: LiveAccountShapeSummary,
+    account_result: Option<LiveAccountResult>,
+    funds_summary: LiveFundsSummary,
+    asset_balances: Vec<LiveAssetBalance>,
     error_code: String,
     source_refs: Vec<String>,
 }
@@ -349,6 +397,8 @@ struct LiveAccountRefreshBoundaries {
     automatic_recovery_allowed: bool,
     secret_values_exposed: bool,
     raw_account_response_exposed: bool,
+    normalized_account_results_exposed: bool,
+    account_results_persisted: bool,
     trading_controls_enabled: bool,
 }
 
@@ -523,13 +573,76 @@ where
     } else {
         ProductLiveAccountReadObservation::blocked("runtime_gates_missing")
     };
+    let connected_observation_valid = observation.status == "connected"
+        && observation.account_snapshot.is_some()
+        && observation
+            .response_status_code
+            .is_some_and(|status| (200..=299).contains(&status))
+        && observation.latency_ms.is_some()
+        && observation.response_shape_validated
+        && observation.account_type_present
+        && observation.balance_entry_count.is_some()
+        && observation.permission_entry_count.is_some()
+        && observation.can_trade_present
+        && observation.can_withdraw_present
+        && observation.can_deposit_present;
     let connection_status = match observation.status.as_str() {
-        "connected" => LiveAccountConnectionStatus::Connected,
+        "connected" if connected_observation_valid => LiveAccountConnectionStatus::Connected,
+        "connected" => LiveAccountConnectionStatus::Failed,
         "failed" => LiveAccountConnectionStatus::Failed,
         _ => LiveAccountConnectionStatus::Blocked,
     };
+    let error_code = if observation.status == "connected" && !connected_observation_valid {
+        if observation.account_snapshot.is_none() {
+            "account_result_missing".to_string()
+        } else {
+            "account_result_invalid".to_string()
+        }
+    } else {
+        observation.error_code.clone()
+    };
     let effective_account_read_allowed =
         account_read_allowed && connection_status != LiveAccountConnectionStatus::Blocked;
+    let account_snapshot = if connection_status == LiveAccountConnectionStatus::Connected {
+        observation.account_snapshot.clone()
+    } else {
+        None
+    };
+    let account_result = account_snapshot.as_ref().map(|snapshot| LiveAccountResult {
+        account_type: snapshot.account_type.clone(),
+        can_trade: snapshot.can_trade,
+        can_withdraw: snapshot.can_withdraw,
+        can_deposit: snapshot.can_deposit,
+    });
+    let funds_summary = LiveFundsSummary {
+        source_balance_entry_count: account_snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.source_balance_entry_count),
+        non_zero_asset_count: account_snapshot
+            .as_ref()
+            .map_or(0, |snapshot| snapshot.assets.len()),
+        zero_balance_entry_count: account_snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.zero_balance_entry_count),
+        native_asset_units: true,
+        valuation_status: if account_snapshot.is_some() {
+            LiveValuationStatus::UnavailableWithoutPriceConversion
+        } else {
+            LiveValuationStatus::NotEvaluated
+        },
+        valuation_currency: None,
+        portfolio_value: None,
+    };
+    let mut asset_balances: Vec<LiveAssetBalance> = account_snapshot
+        .map(|snapshot| {
+            snapshot
+                .assets
+                .into_iter()
+                .map(LiveAssetBalance::from)
+                .collect()
+        })
+        .unwrap_or_default();
+    asset_balances.sort_by(|left, right| left.asset.cmp(&right.asset));
 
     Ok(LiveAccountRefreshResponse {
         schema_version: LIVE_ACCOUNT_REFRESH_RESPONSE_SCHEMA_VERSION.to_string(),
@@ -566,7 +679,10 @@ where
                 raw_balances_exposed: false,
                 raw_permissions_exposed: false,
             },
-            error_code: observation.error_code,
+            account_result,
+            funds_summary,
+            asset_balances,
+            error_code,
             source_refs: vec![
                 format!("node-config:{}#live_admission", source.config_name),
                 strategy_version.content_hash().to_string(),
@@ -589,6 +705,9 @@ where
             automatic_recovery_allowed: false,
             secret_values_exposed: false,
             raw_account_response_exposed: false,
+            normalized_account_results_exposed: connection_status
+                == LiveAccountConnectionStatus::Connected,
+            account_results_persisted: false,
             trading_controls_enabled: false,
         },
     })

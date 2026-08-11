@@ -1868,7 +1868,7 @@ async fn live_account_refresh_route_is_explicit_blocked_and_post_only() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         body["schema_version"],
-        "ntpro.product_api.live_account_refresh.response.v1"
+        "ntpro.product_api.live_account_refresh.response.v2"
     );
     assert_eq!(body["data"]["connection_status"], "blocked");
     assert_eq!(body["data"]["network_attempted"], false);
@@ -1959,7 +1959,7 @@ async fn live_account_refresh_requires_the_institution_role() {
 }
 
 #[test]
-fn live_account_refresh_calls_allowlisted_reader_once_and_exposes_only_shape_summary() {
+fn live_account_refresh_calls_allowlisted_reader_once_and_exposes_normalized_results() {
     let fixture = Fixture::new("live-account-refresh-connected");
     let source = load_product_source(&fixture.state(), unix_time_ms())
         .expect("valid product source should load");
@@ -1991,11 +1991,33 @@ fn live_account_refresh_calls_allowlisted_reader_once_and_exposes_only_shape_sum
                 response_shape: "binance_account_snapshot_v1".to_string(),
                 response_shape_validated: true,
                 account_type_present: true,
-                balance_entry_count: Some(2),
+                balance_entry_count: Some(3),
                 permission_entry_count: Some(1),
                 can_trade_present: true,
                 can_withdraw_present: true,
                 can_deposit_present: true,
+                account_snapshot: Some(crate::live::ProductLiveAccountSnapshot {
+                    account_type: "SPOT".to_string(),
+                    can_trade: true,
+                    can_withdraw: false,
+                    can_deposit: true,
+                    source_balance_entry_count: 3,
+                    zero_balance_entry_count: 1,
+                    assets: vec![
+                        crate::live::ProductLiveAssetBalance {
+                            asset: "USDT".to_string(),
+                            free: "100.25".to_string(),
+                            locked: "4.75".to_string(),
+                            total: "105".to_string(),
+                        },
+                        crate::live::ProductLiveAssetBalance {
+                            asset: "BTC".to_string(),
+                            free: "0.12345678".to_string(),
+                            locked: "0.00000002".to_string(),
+                            total: "0.1234568".to_string(),
+                        },
+                    ],
+                }),
                 error_code: "none".to_string(),
             }
         },
@@ -2007,7 +2029,30 @@ fn live_account_refresh_calls_allowlisted_reader_once_and_exposes_only_shape_sum
     assert_eq!(value["data"]["connection_status"], "connected");
     assert_eq!(value["data"]["network_attempted"], true);
     assert_eq!(value["data"]["response_shape_validated"], true);
-    assert_eq!(value["data"]["shape_summary"]["balance_entry_count"], 2);
+    assert_eq!(value["data"]["shape_summary"]["balance_entry_count"], 3);
+    assert_eq!(value["data"]["account_result"]["account_type"], "SPOT");
+    assert_eq!(value["data"]["account_result"]["can_trade"], true);
+    assert_eq!(
+        value["data"]["funds_summary"]["source_balance_entry_count"],
+        3
+    );
+    assert_eq!(value["data"]["funds_summary"]["non_zero_asset_count"], 2);
+    assert_eq!(
+        value["data"]["funds_summary"]["zero_balance_entry_count"],
+        1
+    );
+    assert_eq!(
+        value["data"]["funds_summary"]["valuation_status"],
+        "unavailable_without_price_conversion"
+    );
+    assert_eq!(
+        value["data"]["funds_summary"]["portfolio_value"],
+        Value::Null
+    );
+    assert_eq!(value["data"]["asset_balances"][0]["asset"], "BTC");
+    assert_eq!(value["data"]["asset_balances"][0]["total"], "0.1234568");
+    assert_eq!(value["data"]["asset_balances"][1]["asset"], "USDT");
+    assert_eq!(value["data"]["asset_balances"][1]["total"], "105");
     assert_eq!(value["boundaries"]["production_network_allowed"], true);
     assert_eq!(
         value["boundaries"]["authenticated_account_read_allowed"],
@@ -2015,13 +2060,17 @@ fn live_account_refresh_calls_allowlisted_reader_once_and_exposes_only_shape_sum
     );
     assert_eq!(value["boundaries"]["order_submission_allowed"], false);
     assert_eq!(value["boundaries"]["automatic_retry_allowed"], false);
+    assert_eq!(
+        value["boundaries"]["normalized_account_results_exposed"],
+        true
+    );
+    assert_eq!(value["boundaries"]["account_results_persisted"], false);
     for forbidden in [
         "synthetic-api-key",
         "synthetic-api-secret",
         "signature=",
-        "BTC",
-        "USDT",
-        "0.12345678",
+        "uid-secret",
+        "signed-query-secret",
     ] {
         assert!(!body.contains(forbidden), "forbidden value {forbidden}");
     }
@@ -2052,11 +2101,142 @@ fn live_account_refresh_missing_gate_or_credential_never_calls_reader() {
         assert_eq!(value["data"]["error_code"], expected_error);
         assert_eq!(value["data"]["network_attempted"], false);
         assert_eq!(value["data"]["account_read_attempted"], false);
+        assert_eq!(value["data"]["account_result"], Value::Null);
+        assert_eq!(value["data"]["asset_balances"], json!([]));
+        assert_eq!(value["data"]["funds_summary"]["non_zero_asset_count"], 0);
+        assert_eq!(
+            value["data"]["funds_summary"]["valuation_status"],
+            "not_evaluated"
+        );
         assert_eq!(value["boundaries"]["production_network_allowed"], false);
         assert_eq!(
             value["boundaries"]["authenticated_account_read_allowed"],
             false
         );
+        assert_eq!(
+            value["boundaries"]["normalized_account_results_exposed"],
+            false
+        );
+    }
+}
+
+#[test]
+fn live_account_refresh_fails_closed_when_connected_observation_has_no_results() {
+    let fixture = Fixture::new("live-account-refresh-missing-results");
+    let source = load_product_source(&fixture.state(), unix_time_ms())
+        .expect("valid product source should load");
+    let response = project_live_account_refresh(
+        &source,
+        "ema-cross",
+        "ema-cross@v1",
+        unix_time_ms(),
+        "product-0000000000000000-0000000000000002".to_string(),
+        |_| true,
+        |_| true,
+        |_, _, _| crate::live::ProductLiveAccountReadObservation {
+            status: "connected".to_string(),
+            network_attempted: true,
+            account_read_attempted: true,
+            response_status_code: Some(200),
+            latency_ms: Some(5),
+            response_shape: "binance_account_snapshot_v1".to_string(),
+            response_shape_validated: true,
+            account_type_present: true,
+            balance_entry_count: Some(1),
+            permission_entry_count: Some(1),
+            can_trade_present: true,
+            can_withdraw_present: true,
+            can_deposit_present: true,
+            account_snapshot: None,
+            error_code: "none".to_string(),
+        },
+    )
+    .expect("missing normalized results should return a failed response");
+    let value = serde_json::to_value(response).expect("response should serialize");
+    assert_eq!(value["data"]["connection_status"], "failed");
+    assert_eq!(value["data"]["error_code"], "account_result_missing");
+    assert_eq!(value["data"]["account_result"], Value::Null);
+    assert_eq!(value["data"]["asset_balances"], json!([]));
+    assert_eq!(
+        value["boundaries"]["normalized_account_results_exposed"],
+        false
+    );
+    assert_eq!(value["boundaries"]["order_submission_allowed"], false);
+    validate_openapi_instance("LiveAccountRefreshResponse", &value);
+}
+
+#[test]
+fn live_account_refresh_rejects_incoherent_connected_observations() {
+    for (index, drift) in ["http_status", "latency", "account_type", "permission_count"]
+        .into_iter()
+        .enumerate()
+    {
+        let fixture = Fixture::new(&format!("live-account-refresh-incoherent-{drift}"));
+        let source = load_product_source(&fixture.state(), unix_time_ms())
+            .expect("valid product source should load");
+        let response = project_live_account_refresh(
+            &source,
+            "ema-cross",
+            "ema-cross@v1",
+            unix_time_ms(),
+            format!("product-0000000000000000-{index:016x}"),
+            |_| true,
+            |_| true,
+            |_, _, _| {
+                let mut observation = crate::live::ProductLiveAccountReadObservation {
+                    status: "connected".to_string(),
+                    network_attempted: true,
+                    account_read_attempted: true,
+                    response_status_code: Some(200),
+                    latency_ms: Some(5),
+                    response_shape: "binance_account_snapshot_v1".to_string(),
+                    response_shape_validated: true,
+                    account_type_present: true,
+                    balance_entry_count: Some(1),
+                    permission_entry_count: Some(1),
+                    can_trade_present: true,
+                    can_withdraw_present: true,
+                    can_deposit_present: true,
+                    account_snapshot: Some(crate::live::ProductLiveAccountSnapshot {
+                        account_type: "SPOT".to_string(),
+                        can_trade: true,
+                        can_withdraw: false,
+                        can_deposit: true,
+                        source_balance_entry_count: 1,
+                        zero_balance_entry_count: 0,
+                        assets: vec![crate::live::ProductLiveAssetBalance {
+                            asset: "BTC".to_string(),
+                            free: "1".to_string(),
+                            locked: "0".to_string(),
+                            total: "1".to_string(),
+                        }],
+                    }),
+                    error_code: "none".to_string(),
+                };
+                match drift {
+                    "http_status" => observation.response_status_code = Some(401),
+                    "latency" => observation.latency_ms = None,
+                    "account_type" => observation.account_type_present = false,
+                    "permission_count" => observation.permission_entry_count = None,
+                    _ => unreachable!(),
+                }
+                observation
+            },
+        )
+        .expect("incoherent observation should return a failed response");
+        let value = serde_json::to_value(response).expect("response should serialize");
+        assert_eq!(value["data"]["connection_status"], "failed", "{drift}");
+        assert_eq!(
+            value["data"]["error_code"], "account_result_invalid",
+            "{drift}"
+        );
+        assert_eq!(value["data"]["account_result"], Value::Null, "{drift}");
+        assert_eq!(value["data"]["asset_balances"], json!([]), "{drift}");
+        assert_eq!(
+            value["boundaries"]["normalized_account_results_exposed"], false,
+            "{drift}"
+        );
+        validate_openapi_instance("LiveAccountRefreshResponse", &value);
     }
 }
 

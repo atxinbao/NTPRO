@@ -990,6 +990,45 @@ export const zLiveAccountShapeSummary = z.object({
   raw_permissions_exposed: z.literal(false),
 });
 
+export const zLiveAccountResult = z.object({
+  account_type: z.string().regex(/^[A-Z_]{1,32}$/),
+  can_trade: z.boolean(),
+  can_withdraw: z.boolean(),
+  can_deposit: z.boolean(),
+});
+
+export const zLiveFundsSummary = z.object({
+  source_balance_entry_count: z.int().gte(0).lte(2048).nullable(),
+  non_zero_asset_count: z.int().gte(0).lte(256),
+  zero_balance_entry_count: z.int().gte(0).lte(2048).nullable(),
+  native_asset_units: z.literal(true),
+  valuation_status: z.enum([
+    "not_evaluated",
+    "unavailable_without_price_conversion",
+  ]),
+  valuation_currency: z.null(),
+  portfolio_value: z.null(),
+});
+
+export const zLiveAssetBalance = z.object({
+  asset: z.string().regex(/^[A-Z0-9]{1,32}$/),
+  free: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^(0|[1-9][0-9]*)(\.[0-9]+)?$/),
+  locked: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^(0|[1-9][0-9]*)(\.[0-9]+)?$/),
+  total: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^(0|[1-9][0-9]*)(\.[0-9]+)?$/),
+});
+
 export const zLiveAccountRefresh = z.object({
   strategy_id: zStrategyId,
   strategy_version_id: zStrategyVersionId,
@@ -1011,6 +1050,9 @@ export const zLiveAccountRefresh = z.object({
   response_shape: z.literal("binance_account_snapshot_v1"),
   response_shape_validated: z.boolean(),
   shape_summary: zLiveAccountShapeSummary,
+  account_result: zLiveAccountResult.nullable(),
+  funds_summary: zLiveFundsSummary,
+  asset_balances: z.array(zLiveAssetBalance).max(256),
   error_code: z.enum([
     "none",
     "credentials_missing",
@@ -1027,6 +1069,10 @@ export const zLiveAccountRefresh = z.object({
     "decode_error",
     "request_error",
     "body_error",
+    "account_result_missing",
+    "account_result_invalid",
+    "account_result_duplicate_asset",
+    "account_result_limit_exceeded",
     "unknown_http_error",
   ]),
   source_refs: z.tuple([z.string().min(1), z.string().min(1)]),
@@ -1049,12 +1095,14 @@ export const zLiveAccountRefreshBoundaries = z.object({
   automatic_recovery_allowed: z.literal(false),
   secret_values_exposed: z.literal(false),
   raw_account_response_exposed: z.literal(false),
+  normalized_account_results_exposed: z.boolean(),
+  account_results_persisted: z.literal(false),
   trading_controls_enabled: z.literal(false),
 });
 
 export const zLiveAccountRefreshResponse = z.object({
   schema_version: z.literal(
-    "ntpro.product_api.live_account_refresh.response.v1",
+    "ntpro.product_api.live_account_refresh.response.v2",
   ),
   contract_version: z.literal("ntpro.product_api.v1"),
   request_id: zRequestId,
