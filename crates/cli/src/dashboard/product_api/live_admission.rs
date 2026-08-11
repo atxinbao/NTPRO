@@ -17,7 +17,10 @@
 
 use axum::{
     Json,
-    extract::{Path as AxumPath, RawQuery, State, rejection::PathRejection},
+    extract::{
+        Path as AxumPath, RawQuery, State,
+        rejection::{JsonRejection, PathRejection},
+    },
 };
 use serde::{Deserialize, Serialize};
 
@@ -27,9 +30,18 @@ use super::{
     product_request_id, reject_detail_query, strategy_version, unix_time_ms, validate_identifier,
 };
 use crate::dashboard::ApiResult;
+use crate::live::{
+    PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW, PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE,
+    PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
+    PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE,
+    PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED, ProductLiveAccountReadObservation,
+    execute_product_live_account_read,
+};
 
 const LIVE_ADMISSION_CONFIG_SCHEMA_VERSION: &str = "ntpro.live_admission.config.v1";
 const LIVE_ADMISSION_RESPONSE_SCHEMA_VERSION: &str = "ntpro.product_api.live_admission.response.v1";
+const LIVE_ACCOUNT_REFRESH_RESPONSE_SCHEMA_VERSION: &str =
+    "ntpro.product_api.live_account_refresh.response.v1";
 const BINANCE_PRODUCTION_HTTP_BASE_URL: &str = "https://api.binance.com";
 const BINANCE_PRODUCTION_WEBSOCKET_BASE_URL: &str = "wss://stream.binance.com:9443/ws";
 const BINANCE_MARKET_DATA_ADAPTER_REF: &str = "adapter://binance/spot/production-market-data";
@@ -64,6 +76,7 @@ struct LiveAdmissionConfig {
     credential_provider: String,
     api_key_env: String,
     api_secret_env: String,
+    account_read_recv_window_ms: u64,
     owner_approval: bool,
     production_network_allowed: bool,
     authenticated_account_read_allowed: bool,
@@ -82,6 +95,7 @@ struct LiveAdmissionConfig {
 #[serde(rename_all = "snake_case")]
 enum LiveAdmissionStatus {
     Blocked,
+    ReadOnlyReady,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -95,6 +109,27 @@ enum CredentialPresence {
 #[serde(rename_all = "snake_case")]
 enum LiveGateState {
     Blocked,
+    Ready,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum LiveAccountRefreshAction {
+    Refresh,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::dashboard) struct LiveAccountRefreshRequest {
+    action: LiveAccountRefreshAction,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum LiveAccountConnectionStatus {
+    Blocked,
+    Connected,
+    Failed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -124,6 +159,75 @@ struct LiveCredentialAdmission {
     api_key_presence: CredentialPresence,
     api_secret_presence: CredentialPresence,
     secret_values_exposed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveRuntimeGateState {
+    production_authenticated_read: bool,
+    owner_approved_read_only: bool,
+    no_order_mutation: bool,
+    no_secret_persistence: bool,
+    manual_online: bool,
+}
+
+impl LiveRuntimeGateState {
+    fn from_reader<F>(mut runtime_gate_enabled: F) -> Self
+    where
+        F: FnMut(&str) -> bool,
+    {
+        Self {
+            production_authenticated_read: runtime_gate_enabled(
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW,
+            ),
+            owner_approved_read_only: runtime_gate_enabled(
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED,
+            ),
+            no_order_mutation: runtime_gate_enabled(
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
+            ),
+            no_secret_persistence: runtime_gate_enabled(
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE,
+            ),
+            manual_online: runtime_gate_enabled(PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE),
+        }
+    }
+
+    const fn all_open(&self) -> bool {
+        self.production_authenticated_read
+            && self.owner_approved_read_only
+            && self.no_order_mutation
+            && self.no_secret_persistence
+            && self.manual_online
+    }
+
+    fn missing_refs(&self) -> Vec<String> {
+        [
+            (
+                self.production_authenticated_read,
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_ALLOW,
+            ),
+            (
+                self.owner_approved_read_only,
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_OWNER_APPROVED,
+            ),
+            (
+                self.no_order_mutation,
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_ORDER_MUTATION,
+            ),
+            (
+                self.no_secret_persistence,
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_NO_SECRET_PERSISTENCE,
+            ),
+            (
+                self.manual_online,
+                PRODUCTION_ACCOUNT_SNAPSHOT_ENV_MANUAL_ONLINE,
+            ),
+        ]
+        .into_iter()
+        .filter(|(open, _)| !open)
+        .map(|(_, name)| format!("env://{name}"))
+        .collect()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -161,18 +265,18 @@ struct LiveAdmissionBoundaries {
 }
 
 impl LiveAdmissionBoundaries {
-    const fn blocked() -> Self {
+    const fn effective(owner_approval_granted: bool, account_read_allowed: bool) -> Self {
         Self {
             read_only: true,
             independent_live_admission_required: true,
-            owner_approval_granted: false,
+            owner_approval_granted,
             inherited_from_backtest: false,
             inherited_from_demo: false,
             external_venue_connection: false,
             production_venue_connection: false,
-            production_network_allowed: false,
+            production_network_allowed: account_read_allowed,
             external_network_attempted: false,
-            authenticated_account_read_allowed: false,
+            authenticated_account_read_allowed: account_read_allowed,
             live_run_creation_allowed: false,
             order_submission_allowed: false,
             cancel_order_allowed: false,
@@ -186,6 +290,75 @@ impl LiveAdmissionBoundaries {
             trading_controls_enabled: false,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveAccountShapeSummary {
+    account_type_present: bool,
+    balance_entry_count: Option<usize>,
+    permission_entry_count: Option<usize>,
+    can_trade_present: bool,
+    can_withdraw_present: bool,
+    can_deposit_present: bool,
+    raw_account_response_exposed: bool,
+    raw_balances_exposed: bool,
+    raw_permissions_exposed: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveAccountRefreshData {
+    strategy_id: String,
+    strategy_version_id: String,
+    environment: String,
+    venue_id: String,
+    account_ref: String,
+    connection_status: LiveAccountConnectionStatus,
+    evaluated_at_unix_ms: u64,
+    endpoint_method: String,
+    endpoint_url_redacted: String,
+    runtime_gates: LiveRuntimeGateState,
+    missing_runtime_gate_refs: Vec<String>,
+    api_key_presence: CredentialPresence,
+    api_secret_presence: CredentialPresence,
+    network_attempted: bool,
+    account_read_attempted: bool,
+    response_status_code: Option<u16>,
+    latency_ms: Option<u64>,
+    response_shape: String,
+    response_shape_validated: bool,
+    shape_summary: LiveAccountShapeSummary,
+    error_code: String,
+    source_refs: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveAccountRefreshBoundaries {
+    read_only: bool,
+    independent_live_admission_required: bool,
+    owner_approval_granted: bool,
+    production_network_allowed: bool,
+    authenticated_account_read_allowed: bool,
+    external_network_attempted: bool,
+    account_mutation_allowed: bool,
+    order_endpoint_access_allowed: bool,
+    order_submission_allowed: bool,
+    cancel_order_allowed: bool,
+    replace_order_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    automatic_recovery_allowed: bool,
+    secret_values_exposed: bool,
+    raw_account_response_exposed: bool,
+    trading_controls_enabled: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub(in crate::dashboard) struct LiveAccountRefreshResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: LiveAccountRefreshData,
+    boundaries: LiveAccountRefreshBoundaries,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -237,6 +410,7 @@ pub(in crate::dashboard) async fn live_admission_api(
             now,
             request_id.clone(),
             credential_is_present,
+            runtime_gate_is_enabled,
         )
     });
     result
@@ -244,16 +418,73 @@ pub(in crate::dashboard) async fn live_admission_api(
         .map_err(|error| product_error_response(&error, &request_id))
 }
 
-pub(super) fn project_live_admission<F>(
+pub(in crate::dashboard) async fn live_account_refresh_api(
+    State(state): State<DashboardServerState>,
+    path: Result<AxumPath<LiveAdmissionPath>, PathRejection>,
+    payload: Result<Json<LiveAccountRefreshRequest>, JsonRejection>,
+) -> ApiResult<LiveAccountRefreshResponse> {
+    let request_id = product_request_id();
+    let path = path.map(|AxumPath(path)| path).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "live_account_refresh_path"),
+            &request_id,
+        )
+    })?;
+    let Json(request) = payload.map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "request_body"),
+            &request_id,
+        )
+    })?;
+    if request.action != LiveAccountRefreshAction::Refresh {
+        return Err(product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "action"),
+            &request_id,
+        ));
+    }
+
+    let worker_request_id = request_id.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        validate_identifier("strategy_id", &path.strategy_id)
+            .map_err(|_| product_error(ProductErrorKind::BadRequest, "strategy_id"))?;
+        strategy_version::validate_requested_version_id("version_id", &path.version_id)?;
+        let now = unix_time_ms();
+        let source = load_product_source(&state, now)?;
+        project_live_account_refresh(
+            &source,
+            &path.strategy_id,
+            &path.version_id,
+            now,
+            worker_request_id,
+            credential_is_present,
+            runtime_gate_is_enabled,
+            execute_product_live_account_read,
+        )
+    })
+    .await
+    .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "live_account_worker"))
+    .and_then(|result| result);
+
+    result
+        .map(Json)
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn project_live_account_refresh<F, G, H>(
     source: &ValidatedProductSource,
     strategy_id: &str,
     version_id: &str,
     evaluated_at_unix_ms: u64,
     request_id: String,
     credential_present: F,
-) -> Result<LiveAdmissionResponse, ProductError>
+    runtime_gate_enabled: G,
+    account_reader: H,
+) -> Result<LiveAccountRefreshResponse, ProductError>
 where
     F: Fn(&str) -> bool,
+    G: Fn(&str) -> bool,
+    H: FnOnce(&str, &str, u64) -> ProductLiveAccountReadObservation,
 {
     if source.strategy.strategy_id != strategy_id {
         return Err(product_error(ProductErrorKind::NotFound, "strategy_id"));
@@ -273,14 +504,146 @@ where
     let config = document.live_admission;
     let api_key_present = credential_present(&config.api_key_env);
     let api_secret_present = credential_present(&config.api_secret_env);
+    let runtime_gates = LiveRuntimeGateState::from_reader(runtime_gate_enabled);
+    let source_capability_enabled =
+        config.production_network_allowed && config.authenticated_account_read_allowed;
+    let account_read_allowed = source_capability_enabled
+        && runtime_gates.all_open()
+        && api_key_present
+        && api_secret_present;
+    let missing_runtime_gate_refs = runtime_gates.missing_refs();
+    let observation = if account_read_allowed {
+        account_reader(
+            &config.api_key_env,
+            &config.api_secret_env,
+            config.account_read_recv_window_ms,
+        )
+    } else if !api_key_present || !api_secret_present {
+        ProductLiveAccountReadObservation::blocked("credentials_missing")
+    } else {
+        ProductLiveAccountReadObservation::blocked("runtime_gates_missing")
+    };
+    let connection_status = match observation.status.as_str() {
+        "connected" => LiveAccountConnectionStatus::Connected,
+        "failed" => LiveAccountConnectionStatus::Failed,
+        _ => LiveAccountConnectionStatus::Blocked,
+    };
+    let effective_account_read_allowed =
+        account_read_allowed && connection_status != LiveAccountConnectionStatus::Blocked;
+
+    Ok(LiveAccountRefreshResponse {
+        schema_version: LIVE_ACCOUNT_REFRESH_RESPONSE_SCHEMA_VERSION.to_string(),
+        contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+        request_id,
+        data: LiveAccountRefreshData {
+            strategy_id: strategy_id.to_string(),
+            strategy_version_id: version_id.to_string(),
+            environment: "live".to_string(),
+            venue_id: config.venue_id,
+            account_ref: config.account_ref,
+            connection_status,
+            evaluated_at_unix_ms,
+            endpoint_method: "GET".to_string(),
+            endpoint_url_redacted: format!("{BINANCE_PRODUCTION_HTTP_BASE_URL}/api/v3/account"),
+            runtime_gates: runtime_gates.clone(),
+            missing_runtime_gate_refs,
+            api_key_presence: credential_presence(api_key_present),
+            api_secret_presence: credential_presence(api_secret_present),
+            network_attempted: observation.network_attempted,
+            account_read_attempted: observation.account_read_attempted,
+            response_status_code: observation.response_status_code,
+            latency_ms: observation.latency_ms,
+            response_shape: observation.response_shape,
+            response_shape_validated: observation.response_shape_validated,
+            shape_summary: LiveAccountShapeSummary {
+                account_type_present: observation.account_type_present,
+                balance_entry_count: observation.balance_entry_count,
+                permission_entry_count: observation.permission_entry_count,
+                can_trade_present: observation.can_trade_present,
+                can_withdraw_present: observation.can_withdraw_present,
+                can_deposit_present: observation.can_deposit_present,
+                raw_account_response_exposed: false,
+                raw_balances_exposed: false,
+                raw_permissions_exposed: false,
+            },
+            error_code: observation.error_code,
+            source_refs: vec![
+                format!("node-config:{}#live_admission", source.config_name),
+                strategy_version.content_hash().to_string(),
+            ],
+        },
+        boundaries: LiveAccountRefreshBoundaries {
+            read_only: true,
+            independent_live_admission_required: true,
+            owner_approval_granted: runtime_gates.owner_approved_read_only,
+            production_network_allowed: effective_account_read_allowed,
+            authenticated_account_read_allowed: effective_account_read_allowed,
+            external_network_attempted: observation.network_attempted,
+            account_mutation_allowed: false,
+            order_endpoint_access_allowed: false,
+            order_submission_allowed: false,
+            cancel_order_allowed: false,
+            replace_order_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            automatic_recovery_allowed: false,
+            secret_values_exposed: false,
+            raw_account_response_exposed: false,
+            trading_controls_enabled: false,
+        },
+    })
+}
+
+pub(super) fn project_live_admission<F, G>(
+    source: &ValidatedProductSource,
+    strategy_id: &str,
+    version_id: &str,
+    evaluated_at_unix_ms: u64,
+    request_id: String,
+    credential_present: F,
+    runtime_gate_enabled: G,
+) -> Result<LiveAdmissionResponse, ProductError>
+where
+    F: Fn(&str) -> bool,
+    G: Fn(&str) -> bool,
+{
+    if source.strategy.strategy_id != strategy_id {
+        return Err(product_error(ProductErrorKind::NotFound, "strategy_id"));
+    }
+    let strategy_version =
+        strategy_version::load_product_strategy_version(source, evaluated_at_unix_ms)?;
+    if strategy_version.strategy_version_id() != version_id {
+        return Err(product_error(
+            ProductErrorKind::VersionNotFound,
+            "version_id",
+        ));
+    }
+    let document: LiveAdmissionConfigDocument = toml::from_str(&source.raw_config)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_admission_config"))?;
+    validate_live_admission_config(&document.live_admission, version_id)?;
+
+    let config = document.live_admission;
+    let api_key_present = credential_present(&config.api_key_env);
+    let api_secret_present = credential_present(&config.api_secret_env);
+    let runtime_gates = LiveRuntimeGateState::from_reader(runtime_gate_enabled);
+    let account_read_allowed = config.production_network_allowed
+        && config.authenticated_account_read_allowed
+        && runtime_gates.all_open();
+    let credentials_present = api_key_present && api_secret_present;
     let mut blockers = vec![
-        "independent_owner_approval_missing".to_string(),
-        "production_network_not_authorized".to_string(),
-        "authenticated_account_read_not_authorized".to_string(),
         "live_run_creation_not_authorized".to_string(),
         "order_lifecycle_not_authorized".to_string(),
         "automatic_recovery_not_authorized".to_string(),
     ];
+    if !runtime_gates.owner_approved_read_only {
+        blockers.insert(0, "independent_owner_approval_missing".to_string());
+    }
+    if !config.production_network_allowed || !runtime_gates.all_open() {
+        blockers.push("production_network_not_authorized".to_string());
+    }
+    if !config.authenticated_account_read_allowed || !runtime_gates.all_open() {
+        blockers.push("authenticated_account_read_not_authorized".to_string());
+    }
     if !api_key_present {
         blockers.push("api_key_missing".to_string());
     }
@@ -296,7 +659,11 @@ where
             strategy_id: strategy_id.to_string(),
             strategy_version_id: version_id.to_string(),
             environment: "live".to_string(),
-            admission_status: LiveAdmissionStatus::Blocked,
+            admission_status: if account_read_allowed && credentials_present {
+                LiveAdmissionStatus::ReadOnlyReady
+            } else {
+                LiveAdmissionStatus::Blocked
+            },
             evaluated_at_unix_ms,
             venue: LiveVenueAdmission {
                 venue_id: config.venue_id,
@@ -310,8 +677,16 @@ where
             },
             account: LiveAccountAdmission {
                 account_ref: config.account_ref,
-                binding_status: "configured_not_authorized".to_string(),
-                authenticated_read_state: LiveGateState::Blocked,
+                binding_status: if account_read_allowed {
+                    "authorized_read_only".to_string()
+                } else {
+                    "configured_not_authorized".to_string()
+                },
+                authenticated_read_state: if account_read_allowed && credentials_present {
+                    LiveGateState::Ready
+                } else {
+                    LiveGateState::Blocked
+                },
             },
             credentials: LiveCredentialAdmission {
                 provider: config.credential_provider,
@@ -334,7 +709,10 @@ where
                 strategy_version.content_hash().to_string(),
             ],
         },
-        boundaries: LiveAdmissionBoundaries::blocked(),
+        boundaries: LiveAdmissionBoundaries::effective(
+            runtime_gates.owner_approved_read_only,
+            account_read_allowed,
+        ),
     })
 }
 
@@ -353,7 +731,8 @@ fn validate_live_admission_config(
         && config.account_ref == BINANCE_LIVE_ACCOUNT_REF;
     let credentials_match = config.credential_provider == "environment"
         && config.api_key_env == BINANCE_LIVE_API_KEY_ENV
-        && config.api_secret_env == BINANCE_LIVE_API_SECRET_ENV;
+        && config.api_secret_env == BINANCE_LIVE_API_SECRET_ENV
+        && config.account_read_recv_window_ms == 5_000;
     if !identity_matches {
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
@@ -373,8 +752,8 @@ fn validate_live_admission_config(
         ));
     }
     if config.owner_approval
-        || config.production_network_allowed
-        || config.authenticated_account_read_allowed
+        || !config.production_network_allowed
+        || !config.authenticated_account_read_allowed
         || config.live_run_creation_allowed
         || config.order_submission_allowed
         || config.cancel_order_allowed
@@ -395,6 +774,10 @@ fn validate_live_admission_config(
 
 fn credential_is_present(name: &str) -> bool {
     std::env::var_os(name).is_some_and(|value| !value.is_empty())
+}
+
+fn runtime_gate_is_enabled(name: &str) -> bool {
+    std::env::var(name).ok().as_deref() == Some("1")
 }
 
 const fn credential_presence(present: bool) -> CredentialPresence {

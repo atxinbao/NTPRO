@@ -1,0 +1,73 @@
+{
+  "boundaries": {
+    "account_mutation_allowed": false,
+    "authenticated_account_read_allowed": false,
+    "automatic_recovery_allowed": false,
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "cancel_order_allowed": false,
+    "external_network_attempted": false,
+    "independent_live_admission_required": true,
+    "order_endpoint_access_allowed": false,
+    "order_submission_allowed": false,
+    "owner_approval_granted": false,
+    "production_network_allowed": false,
+    "raw_account_response_exposed": false,
+    "read_only": true,
+    "replace_order_allowed": false,
+    "secret_values_exposed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": {
+    "account_read_attempted": false,
+    "account_ref": "account://live/binance/primary",
+    "api_key_presence": "missing",
+    "api_secret_presence": "missing",
+    "connection_status": "blocked",
+    "endpoint_method": "GET",
+    "endpoint_url_redacted": "https://api.binance.com/api/v3/account",
+    "environment": "live",
+    "error_code": "credentials_missing",
+    "evaluated_at_unix_ms": 1786406400001,
+    "latency_ms": null,
+    "missing_runtime_gate_refs": [
+      "env://NTPRO_ALLOW_PRODUCTION_AUTHENTICATED_READ",
+      "env://NTPRO_OWNER_APPROVED_PRODUCTION_READ_ONLY",
+      "env://NTPRO_CONFIRM_PRODUCTION_ACCOUNT_NO_ORDER_MUTATION",
+      "env://NTPRO_CONFIRM_NO_SECRET_PERSISTENCE",
+      "env://NTPRO_V12_MANUAL_ONLINE"
+    ],
+    "network_attempted": false,
+    "response_shape": "binance_account_snapshot_v1",
+    "response_shape_validated": false,
+    "response_status_code": null,
+    "runtime_gates": {
+      "manual_online": false,
+      "no_order_mutation": false,
+      "no_secret_persistence": false,
+      "owner_approved_read_only": false,
+      "production_authenticated_read": false
+    },
+    "shape_summary": {
+      "account_type_present": false,
+      "balance_entry_count": null,
+      "can_deposit_present": false,
+      "can_trade_present": false,
+      "can_withdraw_present": false,
+      "permission_entry_count": null,
+      "raw_account_response_exposed": false,
+      "raw_balances_exposed": false,
+      "raw_permissions_exposed": false
+    },
+    "source_refs": [
+      "node-config:node.toml#live_admission",
+      "sha256:950d09dddab99e9beb225eb1b54f867d5068bc2b6051635b07e612ccce3f101c"
+    ],
+    "strategy_id": "ema-cross",
+    "strategy_version_id": "ema-cross@v1",
+    "venue_id": "BINANCE"
+  },
+  "request_id": "product-0000000000000000-0000000000000001",
+  "schema_version": "ntpro.product_api.live_account_refresh.response.v1"
+}

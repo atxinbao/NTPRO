@@ -16,6 +16,7 @@ import {
   listRuns,
   listStrategies,
   listStrategyVersions,
+  refreshLiveAccount,
   reproduceBacktestRun,
   type CompareRunsData,
   type CreateBacktestRunRequest,
@@ -37,7 +38,9 @@ import {
   type ListStrategiesData,
   type ListStrategyVersionsData,
   type LiveAdmissionResponse,
+  type LiveAccountRefreshResponse,
   type ProductErrorResponse,
+  type RefreshLiveAccountData,
   type ReproduceBacktestRunRequest,
   type RunComparisonResponse,
   type RunCreateResponse,
@@ -58,6 +61,7 @@ import {
   zDemoRunCreateResponse,
   zDemoRunSnapshotResponse,
   zLiveAdmissionResponse,
+  zLiveAccountRefreshResponse,
   zProductErrorResponse,
   zRunCreateResponse,
   zRunAnalysisResponse,
@@ -85,6 +89,7 @@ type ListRunsQuery = NonNullable<ListRunsData["query"]>;
 type RunPath = GetRunData["path"];
 type DemoRunSnapshotPath = GetDemoRunSnapshotData["path"];
 type LiveAdmissionPath = GetLiveAdmissionData["path"];
+type LiveAccountRefreshPath = RefreshLiveAccountData["path"];
 type RunAnalysisPath = GetRunAnalysisData["path"];
 type RunMetricsPath = GetRunMetricsData["path"];
 type RunReportPath = GetRunReportData["path"];
@@ -712,15 +717,11 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         payload.data.strategy_id === path.strategy_id &&
           payload.data.strategy_version_id === path.version_id &&
-          payload.data.environment === "live" &&
-          payload.data.admission_status === "blocked",
+          payload.data.environment === "live",
         "live_admission.path_identity",
       );
       const blockers = new Set(payload.data.blockers);
       const requiredBlockers = [
-        "independent_owner_approval_missing",
-        "production_network_not_authorized",
-        "authenticated_account_read_not_authorized",
         "live_run_creation_not_authorized",
         "order_lifecycle_not_authorized",
         "automatic_recovery_not_authorized",
@@ -728,6 +729,12 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         blockers.size === payload.data.blockers.length &&
           requiredBlockers.every((blocker) => blockers.has(blocker)) &&
+          blockers.has("independent_owner_approval_missing") ===
+            !payload.boundaries.owner_approval_granted &&
+          blockers.has("production_network_not_authorized") ===
+            !payload.boundaries.production_network_allowed &&
+          blockers.has("authenticated_account_read_not_authorized") ===
+            !payload.boundaries.authenticated_account_read_allowed &&
           (payload.data.credentials.api_key_presence === "missing") ===
             blockers.has("api_key_missing") &&
           (payload.data.credentials.api_secret_presence === "missing") ===
@@ -744,17 +751,19 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
         "live_admission.order_lifecycle",
       );
       const boundary = payload.boundaries;
+      const credentialsPresent =
+        payload.data.credentials.api_key_presence === "present" &&
+        payload.data.credentials.api_secret_presence === "present";
       assertIdentity(
         boundary.read_only &&
           boundary.independent_live_admission_required &&
-          !boundary.owner_approval_granted &&
           !boundary.inherited_from_backtest &&
           !boundary.inherited_from_demo &&
           !boundary.external_venue_connection &&
           !boundary.production_venue_connection &&
-          !boundary.production_network_allowed &&
           !boundary.external_network_attempted &&
-          !boundary.authenticated_account_read_allowed &&
+          boundary.production_network_allowed ===
+            boundary.authenticated_account_read_allowed &&
           !boundary.live_run_creation_allowed &&
           !boundary.order_submission_allowed &&
           !boundary.cancel_order_allowed &&
@@ -767,6 +776,127 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           !boundary.real_orders_submitted &&
           !boundary.trading_controls_enabled,
         "live_admission.boundaries",
+      );
+      assertIdentity(
+        (payload.data.admission_status === "read_only_ready") ===
+          (boundary.owner_approval_granted &&
+            boundary.authenticated_account_read_allowed &&
+            credentialsPresent) &&
+          (payload.data.account.authenticated_read_state === "ready") ===
+            (payload.data.admission_status === "read_only_ready") &&
+          (payload.data.account.binding_status === "authorized_read_only") ===
+            boundary.authenticated_account_read_allowed,
+        "live_admission.read_only_state",
+      );
+      return payload;
+    },
+
+    async refreshLiveAccount(
+      path: LiveAccountRefreshPath,
+      signal?: AbortSignal,
+    ): Promise<LiveAccountRefreshResponse> {
+      const payload = await resolveResponse(
+        refreshLiveAccount({
+          client,
+          path,
+          body: { action: "refresh" },
+          signal,
+        }),
+        zLiveAccountRefreshResponse,
+        "live_account_refresh",
+      );
+      assertIdentity(
+        payload.data.strategy_id === path.strategy_id &&
+          payload.data.strategy_version_id === path.version_id &&
+          payload.data.environment === "live" &&
+          payload.data.venue_id === "BINANCE" &&
+          payload.data.account_ref === "account://live/binance/primary" &&
+          payload.data.endpoint_method === "GET" &&
+          payload.data.endpoint_url_redacted ===
+            "https://api.binance.com/api/v3/account",
+        "live_account_refresh.path_identity",
+      );
+      const gateRefs = [
+        [
+          payload.data.runtime_gates.production_authenticated_read,
+          "env://NTPRO_ALLOW_PRODUCTION_AUTHENTICATED_READ",
+        ],
+        [
+          payload.data.runtime_gates.owner_approved_read_only,
+          "env://NTPRO_OWNER_APPROVED_PRODUCTION_READ_ONLY",
+        ],
+        [
+          payload.data.runtime_gates.no_order_mutation,
+          "env://NTPRO_CONFIRM_PRODUCTION_ACCOUNT_NO_ORDER_MUTATION",
+        ],
+        [
+          payload.data.runtime_gates.no_secret_persistence,
+          "env://NTPRO_CONFIRM_NO_SECRET_PERSISTENCE",
+        ],
+        [
+          payload.data.runtime_gates.manual_online,
+          "env://NTPRO_V12_MANUAL_ONLINE",
+        ],
+      ] as const;
+      const missingRefs = new Set(payload.data.missing_runtime_gate_refs);
+      assertIdentity(
+        missingRefs.size === payload.data.missing_runtime_gate_refs.length &&
+          gateRefs.every(([open, ref]) => missingRefs.has(ref) === !open),
+        "live_account_refresh.runtime_gates",
+      );
+      const boundaries = payload.boundaries;
+      const connected = payload.data.connection_status === "connected";
+      const failed = payload.data.connection_status === "failed";
+      const blocked = payload.data.connection_status === "blocked";
+      const allGatesOpen = gateRefs.every(([open]) => open);
+      const credentialsPresent =
+        payload.data.api_key_presence === "present" &&
+        payload.data.api_secret_presence === "present";
+      assertIdentity(
+        boundaries.read_only &&
+          boundaries.independent_live_admission_required &&
+          boundaries.owner_approval_granted ===
+            payload.data.runtime_gates.owner_approved_read_only &&
+          boundaries.production_network_allowed ===
+            boundaries.authenticated_account_read_allowed &&
+          boundaries.external_network_attempted ===
+            payload.data.network_attempted &&
+          !boundaries.account_mutation_allowed &&
+          !boundaries.order_endpoint_access_allowed &&
+          !boundaries.order_submission_allowed &&
+          !boundaries.cancel_order_allowed &&
+          !boundaries.replace_order_allowed &&
+          !boundaries.automatic_retry_allowed &&
+          !boundaries.automatic_remediation_allowed &&
+          !boundaries.automatic_recovery_allowed &&
+          !boundaries.secret_values_exposed &&
+          !boundaries.raw_account_response_exposed &&
+          !boundaries.trading_controls_enabled,
+        "live_account_refresh.boundaries",
+      );
+      assertIdentity(
+        (connected || failed) ===
+          (allGatesOpen &&
+            credentialsPresent &&
+            boundaries.authenticated_account_read_allowed) &&
+          (connected || failed) ===
+            (payload.data.network_attempted &&
+              payload.data.account_read_attempted) &&
+          !payload.data.shape_summary.raw_account_response_exposed &&
+          !payload.data.shape_summary.raw_balances_exposed &&
+          !payload.data.shape_summary.raw_permissions_exposed &&
+          (!blocked ||
+            (!payload.data.network_attempted &&
+              !payload.data.account_read_attempted &&
+              !boundaries.authenticated_account_read_allowed)) &&
+          (!connected ||
+            (payload.data.response_shape_validated &&
+              payload.data.error_code === "none" &&
+              payload.data.response_status_code !== null)) &&
+          (!failed ||
+            (!payload.data.response_shape_validated &&
+              payload.data.error_code !== "none")),
+        "live_account_refresh.connection_state",
       );
       return payload;
     },

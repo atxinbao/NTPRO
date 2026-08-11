@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import liveAccountRefreshFixture from "../test/product-api-fixtures/live-account-refresh.json";
 import liveAdmissionFixture from "../test/product-api-fixtures/live-admission.json";
 import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
@@ -216,6 +217,21 @@ describe("product API generated client", () => {
     version_id: "ema-cross@v1",
   };
 
+  it("uses an explicit POST command for the Live account refresh", async () => {
+    const fetch = jsonFetch(liveAccountRefreshFixture);
+    const result = await createProductApiClient({ fetch }).refreshLiveAccount(
+      liveAdmissionPath,
+    );
+    const request = fetch.mock.calls[0]?.[0] as Request;
+
+    expect(result).toEqual(liveAccountRefreshFixture);
+    expect(request.method).toBe("POST");
+    expect(request.url).toBe(
+      `${globalThis.location.origin}/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/live-account/actions/refresh`,
+    );
+    expect(await request.json()).toEqual({ action: "refresh" });
+  });
+
   it.each([
     [
       "unknown field",
@@ -298,6 +314,65 @@ describe("product API generated client", () => {
     payload.boundaries[field] = value;
     await expect(
       createProductApiClient({ fetch: jsonFetch(payload) }).getLiveAdmission(
+        liveAdmissionPath,
+      ),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
+  });
+
+  it.each([
+    [
+      "mismatched identity",
+      (payload: Record<string, any>) => {
+        payload.data.strategy_version_id = "ema-cross@v2";
+      },
+    ],
+    [
+      "missing runtime gate reference",
+      (payload: Record<string, any>) => {
+        payload.data.missing_runtime_gate_refs.pop();
+      },
+    ],
+    [
+      "duplicate runtime gate reference",
+      (payload: Record<string, any>) => {
+        payload.data.missing_runtime_gate_refs.push(
+          payload.data.missing_runtime_gate_refs[0],
+        );
+      },
+    ],
+    [
+      "blocked network attempt",
+      (payload: Record<string, any>) => {
+        payload.data.network_attempted = true;
+        payload.boundaries.external_network_attempted = true;
+      },
+    ],
+    [
+      "order authority",
+      (payload: Record<string, any>) => {
+        payload.boundaries.order_submission_allowed = true;
+      },
+    ],
+    [
+      "raw account exposure",
+      (payload: Record<string, any>) => {
+        payload.data.shape_summary.raw_balances_exposed = true;
+      },
+    ],
+    [
+      "false connected proof",
+      (payload: Record<string, any>) => {
+        payload.data.connection_status = "connected";
+      },
+    ],
+  ] as const)("fails closed for Live account refresh %s", async (_, mutate) => {
+    const payload = structuredClone(liveAccountRefreshFixture) as Record<
+      string,
+      any
+    >;
+    mutate(payload);
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(payload) }).refreshLiveAccount(
         liveAdmissionPath,
       ),
     ).rejects.toBeInstanceOf(ProductApiContractError);

@@ -5,8 +5,8 @@
   "executor": "Codex",
   "classification": "v33-separately-scoped",
   "baseline_commit": "47ae0dbaeb51269991062d415fb213c862904cee",
-  "last_rebased_by": "S3-LV-001",
-  "last_rebased_at": "2026-08-11",
+  "last_rebased_by": "S3-LV-002",
+  "last_rebased_at": "2026-08-12",
   "status": "local_validated_hosted_review_pending",
   "count_policy": "The canonical scan is reproducible and hash-checked; explicit cfg(test) module ranges are test_inline owned while ambiguous mixed-source items remain production owned.",
   "scan": {
@@ -35,26 +35,26 @@
     "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
     "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
     "summary": {
-      "total_matches": 29866,
+      "total_matches": 29888,
       "matched_files": 1225,
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
         "production": 2703,
-        "test": 15238,
+        "test": 15260,
         "test_inline": 10605
       },
       "by_signal": {
         "TODO": 163,
         "dead_code": 155,
-        "expect": 6273,
-        "panic": 1529,
+        "expect": 6292,
+        "panic": 1532,
         "todo_macro": 18,
         "unsafe": 1922,
         "unused": 96,
         "unwrap": 19710
       },
-      "canonical_sha256": "f20a9cc068c39a8d64ce12e828fb17e7bea18a619ffa7b02ea3a365b0a066b0b"
+      "canonical_sha256": "cdbfd2f909d8144a95b2a386b26e4fc796ded1f84d871b26dadfe17edfc87138"
     },
     "limitations": [
       "Dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",

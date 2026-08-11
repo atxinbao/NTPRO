@@ -1708,6 +1708,7 @@ fn live_admission_credentials_expose_presence_only_and_never_grant_authority() {
                 "NTPRO_BINANCE_LIVE_API_KEY" | "NTPRO_BINANCE_LIVE_API_SECRET"
             )
         },
+        |_| false,
     )
     .expect("credential presence must remain a blocked read-only projection");
     let body = serde_json::to_string(&response).expect("response should serialize");
@@ -1744,17 +1745,24 @@ fn live_admission_config_and_permission_drift_fail_closed() {
         ),
         (
             "network-authority",
-            "production_network_allowed = false",
             "production_network_allowed = true",
+            "production_network_allowed = false",
             ProductErrorKind::BoundaryViolation,
             "live_admission_boundaries",
         ),
         (
             "authenticated-read-authority",
-            "authenticated_account_read_allowed = false",
             "authenticated_account_read_allowed = true",
+            "authenticated_account_read_allowed = false",
             ProductErrorKind::BoundaryViolation,
             "live_admission_boundaries",
+        ),
+        (
+            "recv-window",
+            "account_read_recv_window_ms = 5000",
+            "account_read_recv_window_ms = 0",
+            ProductErrorKind::SourceInvalid,
+            "live_admission_credentials",
         ),
         (
             "live-run-authority",
@@ -1841,10 +1849,214 @@ fn live_admission_config_and_permission_drift_fail_closed() {
             unix_time_ms(),
             "product-test-live-drift".to_string(),
             |_| false,
+            |_| false,
         )
         .expect_err("invalid Live admission config must fail closed");
         assert_eq!(error.kind, expected_kind, "{name}");
         assert_eq!(error.field, expected_field, "{name}");
+    }
+}
+
+#[tokio::test]
+async fn live_account_refresh_route_is_explicit_blocked_and_post_only() {
+    let fixture = Fixture::new("live-account-refresh-route");
+    let router = fixture.router();
+    let path =
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/live-account/actions/refresh";
+    let (status, body) =
+        router_json_body(&router, Method::POST, path, &json!({"action": "refresh"})).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(
+        body["schema_version"],
+        "ntpro.product_api.live_account_refresh.response.v1"
+    );
+    assert_eq!(body["data"]["connection_status"], "blocked");
+    assert_eq!(body["data"]["network_attempted"], false);
+    assert_eq!(body["data"]["account_read_attempted"], false);
+    assert_eq!(body["data"]["error_code"], "credentials_missing");
+    assert_eq!(body["boundaries"]["account_mutation_allowed"], false);
+    assert_eq!(body["boundaries"]["order_endpoint_access_allowed"], false);
+    assert_eq!(body["boundaries"]["order_submission_allowed"], false);
+    assert_eq!(body["boundaries"]["automatic_retry_allowed"], false);
+    assert_eq!(body["boundaries"]["secret_values_exposed"], false);
+    validate_openapi_instance("LiveAccountRefreshResponse", &body);
+
+    for malformed in [
+        json!({}),
+        json!({"action": "submit"}),
+        json!({
+            "action": "refresh",
+            "unexpected": true
+        }),
+    ] {
+        let (status, body) = router_json_body(&router, Method::POST, path, &malformed).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(body["error"]["field"], "request_body");
+    }
+
+    for method in [
+        Method::GET,
+        Method::HEAD,
+        Method::PUT,
+        Method::PATCH,
+        Method::DELETE,
+        Method::OPTIONS,
+        Method::CONNECT,
+        Method::TRACE,
+    ] {
+        let (status, headers, body) = router_json_with_headers(&router, method.clone(), path).await;
+        assert_eq!(status, StatusCode::METHOD_NOT_ALLOWED, "{method} {path}");
+        assert_eq!(
+            headers.get(ALLOW).and_then(|value| value.to_str().ok()),
+            Some("POST")
+        );
+        if method != Method::HEAD {
+            assert_eq!(body["error"]["code"], "product_method_not_allowed");
+        }
+    }
+}
+
+#[tokio::test]
+async fn live_account_refresh_requires_the_institution_role() {
+    let fixture = Fixture::new("live-account-refresh-role-matrix");
+    let router = dashboard_router_with_access(
+        fixture.registry_path.clone(),
+        PathBuf::from("missing-ntpro-node"),
+        "institution-token",
+        "operator-token",
+    );
+    let path =
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/live-account/actions/refresh";
+    let body = json!({"action": "refresh"});
+
+    let (status, denied) = router_json_body(&router, Method::POST, path, &body).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(denied["error"]["code"], "product_access_denied");
+
+    let (status, denied) = router_json_body_with_cookie(
+        &router,
+        Method::POST,
+        path,
+        &body,
+        "ntpro_mvp_operator_access=operator-token",
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(denied["error"]["code"], "product_access_denied");
+
+    let (status, response) = router_json_body_with_cookie(
+        &router,
+        Method::POST,
+        path,
+        &body,
+        "ntpro_mvp_institution_access=institution-token",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(response["data"]["connection_status"], "blocked");
+    assert_eq!(response["data"]["network_attempted"], false);
+    validate_openapi_instance("LiveAccountRefreshResponse", &response);
+}
+
+#[test]
+fn live_account_refresh_calls_allowlisted_reader_once_and_exposes_only_shape_summary() {
+    let fixture = Fixture::new("live-account-refresh-connected");
+    let source = load_product_source(&fixture.state(), unix_time_ms())
+        .expect("valid product source should load");
+    let calls = std::cell::Cell::new(0_u8);
+    let response = project_live_account_refresh(
+        &source,
+        "ema-cross",
+        "ema-cross@v1",
+        unix_time_ms(),
+        "product-test-live-account-connected".to_string(),
+        |name| {
+            matches!(
+                name,
+                "NTPRO_BINANCE_LIVE_API_KEY" | "NTPRO_BINANCE_LIVE_API_SECRET"
+            )
+        },
+        |_| true,
+        |api_key_env, api_secret_env, recv_window_ms| {
+            calls.set(calls.get().saturating_add(1));
+            assert_eq!(api_key_env, "NTPRO_BINANCE_LIVE_API_KEY");
+            assert_eq!(api_secret_env, "NTPRO_BINANCE_LIVE_API_SECRET");
+            assert_eq!(recv_window_ms, 5_000);
+            crate::live::ProductLiveAccountReadObservation {
+                status: "connected".to_string(),
+                network_attempted: true,
+                account_read_attempted: true,
+                response_status_code: Some(200),
+                latency_ms: Some(42),
+                response_shape: "binance_account_snapshot_v1".to_string(),
+                response_shape_validated: true,
+                account_type_present: true,
+                balance_entry_count: Some(2),
+                permission_entry_count: Some(1),
+                can_trade_present: true,
+                can_withdraw_present: true,
+                can_deposit_present: true,
+                error_code: "none".to_string(),
+            }
+        },
+    )
+    .expect("fully gated account refresh should project connected observation");
+    assert_eq!(calls.get(), 1);
+    let body = serde_json::to_string(&response).expect("response should serialize");
+    let value: Value = serde_json::from_str(&body).expect("response should parse");
+    assert_eq!(value["data"]["connection_status"], "connected");
+    assert_eq!(value["data"]["network_attempted"], true);
+    assert_eq!(value["data"]["response_shape_validated"], true);
+    assert_eq!(value["data"]["shape_summary"]["balance_entry_count"], 2);
+    assert_eq!(value["boundaries"]["production_network_allowed"], true);
+    assert_eq!(
+        value["boundaries"]["authenticated_account_read_allowed"],
+        true
+    );
+    assert_eq!(value["boundaries"]["order_submission_allowed"], false);
+    assert_eq!(value["boundaries"]["automatic_retry_allowed"], false);
+    for forbidden in [
+        "synthetic-api-key",
+        "synthetic-api-secret",
+        "signature=",
+        "BTC",
+        "USDT",
+        "0.12345678",
+    ] {
+        assert!(!body.contains(forbidden), "forbidden value {forbidden}");
+    }
+}
+
+#[test]
+fn live_account_refresh_missing_gate_or_credential_never_calls_reader() {
+    for (name, credentials_present, runtime_gates_open, expected_error) in [
+        ("gate", true, false, "runtime_gates_missing"),
+        ("credential", false, true, "credentials_missing"),
+    ] {
+        let fixture = Fixture::new(&format!("live-account-refresh-{name}"));
+        let source = load_product_source(&fixture.state(), unix_time_ms())
+            .expect("valid product source should load");
+        let response = project_live_account_refresh(
+            &source,
+            "ema-cross",
+            "ema-cross@v1",
+            unix_time_ms(),
+            format!("product-test-live-account-{name}"),
+            |_| credentials_present,
+            |_| runtime_gates_open,
+            |_, _, _| panic!("blocked refresh must not call account reader"),
+        )
+        .expect("blocked refresh should remain a valid response");
+        let value = serde_json::to_value(response).expect("response should serialize");
+        assert_eq!(value["data"]["connection_status"], "blocked");
+        assert_eq!(value["data"]["error_code"], expected_error);
+        assert_eq!(value["data"]["network_attempted"], false);
+        assert_eq!(value["data"]["account_read_attempted"], false);
+        assert_eq!(value["boundaries"]["production_network_allowed"], false);
+        assert_eq!(
+            value["boundaries"]["authenticated_account_read_allowed"],
+            false
+        );
     }
 }
 
@@ -4811,6 +5023,21 @@ async fn tracked_frontend_fixtures_match_real_rust_routes() {
         validate_openapi_instance(schema, &value);
         assert_tracked_frontend_fixture(name, &value);
     }
+
+    let refresh_path =
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/live-account/actions/refresh";
+    let (status, mut value) = router_json_body(
+        &router,
+        Method::POST,
+        refresh_path,
+        &json!({"action": "refresh"}),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{refresh_path}");
+    value["request_id"] = json!("product-0000000000000000-0000000000000001");
+    value["data"]["evaluated_at_unix_ms"] = json!(1786406400001_u64);
+    validate_openapi_instance("LiveAccountRefreshResponse", &value);
+    assert_tracked_frontend_fixture("live-account-refresh.json", &value);
 }
 
 #[tokio::test]
@@ -4907,6 +5134,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/strategies/{strategy_id}",
             "/strategies/{strategy_id}/versions",
             "/strategies/{strategy_id}/versions/{version_id}",
+            "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh",
             "/strategies/{strategy_id}/versions/{version_id}/live-admission"
         ]
     );
@@ -4917,7 +5145,9 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
                 vec!["get", "post"]
             } else if matches!(
                 path_name.as_str(),
-                "/demo-runs" | "/demo-runs/{run_id}/actions"
+                "/demo-runs"
+                    | "/demo-runs/{run_id}/actions"
+                    | "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh"
             ) {
                 vec!["post"]
             } else {
@@ -4956,6 +5186,15 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
         } else if path_name == "/demo-runs/{run_id}/actions" {
             assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
             assert_eq!(path["post"]["operationId"], "actOnDemoRun");
+        } else if path_name
+            == "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh"
+        {
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "refreshLiveAccount");
+            assert_eq!(
+                path["post"]["responses"]["405"]["$ref"],
+                "#/components/responses/ProductMethodNotAllowed"
+            );
         }
     }
 
@@ -5076,9 +5315,10 @@ account_ref = "account://live/binance/primary"
 credential_provider = "environment"
 api_key_env = "NTPRO_BINANCE_LIVE_API_KEY"
 api_secret_env = "NTPRO_BINANCE_LIVE_API_SECRET"
+account_read_recv_window_ms = 5000
 owner_approval = false
-production_network_allowed = false
-authenticated_account_read_allowed = false
+production_network_allowed = true
+authenticated_account_read_allowed = true
 live_run_creation_allowed = false
 order_submission_allowed = false
 cancel_order_allowed = false

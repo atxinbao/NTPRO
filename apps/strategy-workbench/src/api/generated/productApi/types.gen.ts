@@ -827,7 +827,7 @@ export type LiveAdmission = {
   strategy_id: StrategyId;
   strategy_version_id: StrategyVersionId;
   environment: "live";
-  admission_status: "blocked";
+  admission_status: "blocked" | "read_only_ready";
   evaluated_at_unix_ms: number;
   venue: LiveVenueAdmission;
   account: LiveAccountAdmission;
@@ -859,8 +859,8 @@ export type LiveVenueAdmission = {
 
 export type LiveAccountAdmission = {
   account_ref: "account://live/binance/primary";
-  binding_status: "configured_not_authorized";
-  authenticated_read_state: "blocked";
+  binding_status: "configured_not_authorized" | "authorized_read_only";
+  authenticated_read_state: "blocked" | "ready";
 };
 
 export type LiveCredentialAdmission = {
@@ -883,14 +883,14 @@ export type LiveOrderLifecycleAdmission = {
 export type LiveAdmissionBoundaries = {
   read_only: true;
   independent_live_admission_required: true;
-  owner_approval_granted: false;
+  owner_approval_granted: boolean;
   inherited_from_backtest: false;
   inherited_from_demo: false;
   external_venue_connection: false;
   production_venue_connection: false;
-  production_network_allowed: false;
+  production_network_allowed: boolean;
   external_network_attempted: false;
-  authenticated_account_read_allowed: false;
+  authenticated_account_read_allowed: boolean;
   live_run_creation_allowed: false;
   order_submission_allowed: false;
   cancel_order_allowed: false;
@@ -901,6 +901,99 @@ export type LiveAdmissionBoundaries = {
   automatic_remediation_allowed: false;
   automatic_recovery_allowed: false;
   real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
+export type LiveAccountRefreshRequest = {
+  action: "refresh";
+};
+
+export type LiveAccountRefreshResponse = {
+  schema_version: "ntpro.product_api.live_account_refresh.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: LiveAccountRefresh;
+  boundaries: LiveAccountRefreshBoundaries;
+};
+
+export type LiveAccountRefresh = {
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  environment: "live";
+  venue_id: "BINANCE";
+  account_ref: "account://live/binance/primary";
+  connection_status: "blocked" | "connected" | "failed";
+  evaluated_at_unix_ms: number;
+  endpoint_method: "GET";
+  endpoint_url_redacted: "https://api.binance.com/api/v3/account";
+  runtime_gates: LiveRuntimeGateState;
+  missing_runtime_gate_refs: Array<string>;
+  api_key_presence: "missing" | "present";
+  api_secret_presence: "missing" | "present";
+  network_attempted: boolean;
+  account_read_attempted: boolean;
+  response_status_code: number | null;
+  latency_ms: number | null;
+  response_shape: "binance_account_snapshot_v1";
+  response_shape_validated: boolean;
+  shape_summary: LiveAccountShapeSummary;
+  error_code:
+    | "none"
+    | "credentials_missing"
+    | "runtime_gates_missing"
+    | "runtime_gate_changed"
+    | "credential_state_changed"
+    | "http_probe_thread_panicked"
+    | "signed_request_builder_failed"
+    | "http_client_build_failed"
+    | "response_shape_invalid"
+    | "http_status_not_success"
+    | "timeout"
+    | "connect_error"
+    | "decode_error"
+    | "request_error"
+    | "body_error"
+    | "unknown_http_error";
+  source_refs: [string, string];
+};
+
+export type LiveRuntimeGateState = {
+  production_authenticated_read: boolean;
+  owner_approved_read_only: boolean;
+  no_order_mutation: boolean;
+  no_secret_persistence: boolean;
+  manual_online: boolean;
+};
+
+export type LiveAccountShapeSummary = {
+  account_type_present: boolean;
+  balance_entry_count: number | null;
+  permission_entry_count: number | null;
+  can_trade_present: boolean;
+  can_withdraw_present: boolean;
+  can_deposit_present: boolean;
+  raw_account_response_exposed: false;
+  raw_balances_exposed: false;
+  raw_permissions_exposed: false;
+};
+
+export type LiveAccountRefreshBoundaries = {
+  read_only: true;
+  independent_live_admission_required: true;
+  owner_approval_granted: boolean;
+  production_network_allowed: boolean;
+  authenticated_account_read_allowed: boolean;
+  external_network_attempted: boolean;
+  account_mutation_allowed: false;
+  order_endpoint_access_allowed: false;
+  order_submission_allowed: false;
+  cancel_order_allowed: false;
+  replace_order_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  automatic_recovery_allowed: false;
+  secret_values_exposed: false;
+  raw_account_response_exposed: false;
   trading_controls_enabled: false;
 };
 
@@ -1250,6 +1343,56 @@ export type GetLiveAdmissionResponses = {
 
 export type GetLiveAdmissionResponse =
   GetLiveAdmissionResponses[keyof GetLiveAdmissionResponses];
+
+export type RefreshLiveAccountData = {
+  body: LiveAccountRefreshRequest;
+  path: {
+    strategy_id: StrategyId;
+    version_id: StrategyVersionId;
+  };
+  query?: never;
+  url: "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh";
+};
+
+export type RefreshLiveAccountErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type RefreshLiveAccountError =
+  RefreshLiveAccountErrors[keyof RefreshLiveAccountErrors];
+
+export type RefreshLiveAccountResponses = {
+  /**
+   * 生产账户只读刷新结果；阻断和连接失败也返回脱敏状态
+   */
+  200: LiveAccountRefreshResponse;
+};
+
+export type RefreshLiveAccountResponse =
+  RefreshLiveAccountResponses[keyof RefreshLiveAccountResponses];
 
 export type ListRunsData = {
   body?: never;

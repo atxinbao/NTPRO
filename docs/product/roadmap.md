@@ -74,10 +74,10 @@ S2-DM-001 已交付 Demo Run 创建、不可变 StrategyVersion 绑定和 Superv
 独立审查、hosted checks 与手动合并。S2 产品退出条件已满足并收口；下一阶段进入 S3 Live
 产品能力，且不得从 Demo 自动继承真实交易权限。
 
-S3-LV-001 正在交付首个 Live 纵向切片：为当前不可变 StrategyVersion 登记 Binance Spot
-生产 Venue、账户与凭证引用，通过只读 Product API 和工作台 Live 页面展示独立准入、订单
-生命周期和阻断原因。本切片不连接生产网络、不读取账户、不创建 Live Run，也不开放任何
-真实订单权限；后续必须在独立任务中逐层解除门禁。
+S3-LV-001 已交付首个 Live 独立准入合同。S3-LV-002 在同一 StrategyVersion 上新增用户显式
+触发的 Binance Spot 生产账户只读检查：只有源能力、五项运行门禁和环境凭证全部满足时才
+访问一次 `/api/v3/account`，默认环境返回 blocked 且不触网。响应只保留状态码、延迟和
+结构摘要；Live Run、订单 endpoint、下单、撤改、自动重试和恢复仍保持关闭。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -95,7 +95,8 @@ FEA-001 前端架构文档
   -> S2-DM-001 Demo Run 创建与 Supervisor 生命周期（DONE）
   -> S2-DM-002 Demo 实时状态与运行结果（DONE）
   -> S2-DM-003 Demo 模拟执行结果与跨环境比较（DONE）
-  -> S3-LV-001 Live Venue、账户凭证与独立准入合同（REVIEW_APPROVED）
+  -> S3-LV-001 Live Venue、账户凭证与独立准入合同（DONE）
+  -> S3-LV-002 生产网络连接与认证账户只读接入（REVIEW_APPROVED）
   -> S1-S4 三模式产品闭环
 ```
 

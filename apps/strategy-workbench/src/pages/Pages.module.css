@@ -186,6 +186,34 @@
   font-size: 8px;
 }
 
+.liveRefreshButton {
+  display: inline-flex;
+  min-width: 118px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #3f8064;
+  border-radius: 3px;
+  background: #1c382c;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.liveRefreshButton:disabled {
+  border-color: var(--line);
+  background: #1a1f1c;
+  color: var(--muted);
+  cursor: wait;
+}
+
+.liveRefreshButton svg {
+  width: 13px;
+}
+
 .modeProgress {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

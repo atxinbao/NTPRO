@@ -57,7 +57,7 @@ mod strategy_version;
 #[cfg(test)]
 mod tests;
 
-pub(super) use live_admission::live_admission_api;
+pub(super) use live_admission::{live_account_refresh_api, live_admission_api};
 pub(crate) use run::shutdown_active_demo_run;
 pub(super) use run::{
     demo_run_action_api, demo_run_create_api, demo_run_snapshot_api, run_analysis_api,
@@ -336,6 +336,19 @@ pub(super) async fn product_run_method_not_allowed() -> Response {
     response
         .headers_mut()
         .insert(ALLOW, HeaderValue::from_static("GET, POST"));
+    response
+}
+
+pub(super) async fn product_command_method_not_allowed() -> Response {
+    let request_id = product_request_id();
+    let mut response = product_error_response(
+        &product_error(ProductErrorKind::MethodNotAllowed, "method"),
+        &request_id,
+    )
+    .into_response();
+    response
+        .headers_mut()
+        .insert(ALLOW, HeaderValue::from_static("POST"));
     response
 }
 
