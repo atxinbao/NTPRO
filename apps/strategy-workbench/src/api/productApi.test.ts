@@ -14,8 +14,10 @@ import {
   backtestComparisonResponse,
   backtestReproductionProofResponse,
   backtestReproductionResponse,
+  createdDemo,
   createdDemoResponse,
   demoActionResponse,
+  demoSnapshotResponse,
 } from "../test/server";
 import {
   createProductApiClient,
@@ -290,6 +292,78 @@ describe("product API generated client", () => {
       createProductApiClient({ fetch: jsonFetch(payload, 201) }).createDemoRun(
         createDemoBody,
       ),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
+  });
+
+  it("reads a strict Demo snapshot and preserves its Run identity", async () => {
+    const payload = demoSnapshotResponse(createdDemo);
+    const fetch = jsonFetch(payload);
+
+    await expect(
+      createProductApiClient({ fetch }).getDemoRunSnapshot({
+        run_id: createdDemo.run_id,
+      }),
+    ).resolves.toEqual(payload);
+
+    const request = fetch.mock.calls[0]?.[0] as Request;
+    expect(request.url).toBe(
+      `${globalThis.location.origin}/api/product/v1/runs/demo-created-001/demo-snapshot`,
+    );
+    expect(request.method).toBe("GET");
+  });
+
+  it.each([
+    [
+      "submission boundary",
+      (payload: Record<string, any>) => {
+        payload.boundaries.order_submission_allowed = true;
+      },
+    ],
+    [
+      "unknown field",
+      (payload: Record<string, any>) => {
+        payload.data.unexpected = true;
+      },
+    ],
+    [
+      "mismatched Run",
+      (payload: Record<string, any>) => {
+        payload.data.run_id = "demo-other";
+      },
+    ],
+    [
+      "partial not-started market",
+      (payload: Record<string, any>) => {
+        payload.data.market = {
+          connection: "connected",
+          state: "exhausted",
+          source: "fixture",
+          event_count: 0,
+          last_event_at_unix_ms: null,
+          updated_at_unix_ms: 1,
+          latest_event: null,
+        };
+      },
+    ],
+    [
+      "partial not-started signal",
+      (payload: Record<string, any>) => {
+        payload.data.latest_signal = {
+          symbol: "BTCUSDT.BINANCE",
+          signal: "sell",
+          confidence: 0.5,
+          market_event_seq: 1,
+          generated_at_unix_ms: 1,
+        };
+      },
+    ],
+  ])("fails closed for Demo snapshot %s", async (_, mutate) => {
+    const payload = structuredClone(demoSnapshotResponse(createdDemo));
+    mutate(payload);
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(payload) }).getDemoRunSnapshot({
+        run_id: createdDemo.run_id,
+      }),
     ).rejects.toBeInstanceOf(ProductApiContractError);
   });
 

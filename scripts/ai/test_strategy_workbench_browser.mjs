@@ -579,12 +579,7 @@ try {
     ["GET", "/api/product/v1/unknown", 404, null],
     ["POST", "/api/product/v1/strategies", 405, "GET"],
     ["PUT", "/api/product/v1/runs", 405, "GET, POST"],
-    [
-      "POST",
-      `/api/product/v1/runs/${backtestRunId}/metrics`,
-      405,
-      "GET",
-    ],
+    ["POST", `/api/product/v1/runs/${backtestRunId}/metrics`, 405, "GET"],
     [
       "POST",
       "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions",
@@ -752,9 +747,7 @@ try {
 
   await page.getByRole("link", { name: "Demo", exact: true }).click();
   await page.getByRole("heading", { name: "Sandbox 策略运行" }).waitFor();
-  await page
-    .getByRole("checkbox", { name: /我确认创建 Demo Run/ })
-    .check();
+  await page.getByRole("checkbox", { name: /我确认创建 Demo Run/ }).check();
   await page.getByRole("button", { name: "创建 Demo Run" }).click();
   await page.waitForURL(/\/strategy-workbench\/runs\/demo-/);
   const browserDemoRunId = page.url().split("/").at(-1);
@@ -762,14 +755,32 @@ try {
     throw new Error(`browser-created Demo Run ID drifted: ${page.url()}`);
   }
   const demoLifecycle = page.getByRole("region", { name: "Demo 生命周期" });
-  const demoRunState = demoLifecycle.getByText("运行状态", {
-    exact: true,
-  }).locator("..");
+  const demoRunState = demoLifecycle
+    .getByText("运行状态", {
+      exact: true,
+    })
+    .locator("..");
   await demoLifecycle.waitFor();
   await page.getByRole("button", { name: "启动" }).click();
   await demoRunState.getByText("running", { exact: true }).waitFor();
+  const demoResult = page.getByRole("region", { name: "Demo 运行结果" });
+  await demoResult.waitFor();
+  await demoResult.getByRole("heading", { name: "实时策略快照" }).waitFor();
+  const runningResultHash = demoResult.getByText("结果哈希").locator("..");
+  await runningResultHash.getByText("运行中", { exact: true }).waitFor();
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-demo-running-1440.png"),
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "停止" }).click();
   await demoRunState.getByText("stopped", { exact: true }).waitFor();
+  await demoResult.getByRole("heading", { name: "终态冻结快照" }).waitFor();
+  const frozenResultHash = await runningResultHash
+    .locator("strong")
+    .textContent();
+  if (!frozenResultHash || !/^sha256:[a-f0-9]{64}$/.test(frozenResultHash)) {
+    throw new Error(`Demo frozen result hash drifted: ${frozenResultHash}`);
+  }
   await page.screenshot({
     path: path.join(evidenceDir, "strategy-workbench-demo-stopped-1440.png"),
     fullPage: true,
@@ -790,7 +801,10 @@ try {
   await page.getByRole("heading", { name: browserCreatedRunId }).waitFor();
   await page.getByText("真实引擎回测结果").waitFor();
   await page.screenshot({
-    path: path.join(evidenceDir, "strategy-workbench-backtest-created-1440.png"),
+    path: path.join(
+      evidenceDir,
+      "strategy-workbench-backtest-created-1440.png",
+    ),
     fullPage: true,
   });
   await page.getByRole("link", { name: "返回策略总览" }).click();
@@ -955,9 +969,15 @@ try {
   failure = error instanceof Error ? error : new Error(String(error));
   if (page) {
     failurePageUrl = page.url();
-    failurePageText = await page.locator("body").innerText().catch(() => undefined);
+    failurePageText = await page
+      .locator("body")
+      .innerText()
+      .catch(() => undefined);
     await page
-      .screenshot({ path: path.join(evidenceDir, "failure.png"), fullPage: true })
+      .screenshot({
+        path: path.join(evidenceDir, "failure.png"),
+        fullPage: true,
+      })
       .catch(() => {});
   }
 } finally {
@@ -1010,6 +1030,8 @@ writeEvidence({
   product_run_live_boundary: 1,
   product_run_access_control: 1,
   product_run_deep_link: 1,
+  demo_snapshot_running: 1,
+  demo_snapshot_frozen: 1,
   asset_404: 1,
   method_405: 1,
   valid: 1,

@@ -46,11 +46,11 @@ use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
 use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
 use super::product_api::{
-    demo_run_action_api, demo_run_create_api, product_access_denied_response,
-    product_method_not_allowed, product_run_method_not_allowed, run_analysis_api,
-    run_comparison_api, run_create_api, run_detail_api, run_list_api, run_metrics_api,
-    run_report_api, run_reproduce_api, run_reproduction_proof_api, strategy_detail_api,
-    strategy_list_api, strategy_version_detail_api, strategy_version_list_api,
+    demo_run_action_api, demo_run_create_api, demo_run_snapshot_api,
+    product_access_denied_response, product_method_not_allowed, product_run_method_not_allowed,
+    run_analysis_api, run_comparison_api, run_create_api, run_detail_api, run_list_api,
+    run_metrics_api, run_report_api, run_reproduce_api, run_reproduction_proof_api,
+    strategy_detail_api, strategy_list_api, strategy_version_detail_api, strategy_version_list_api,
 };
 use super::trader_terminal_api::{
     audit_entries_api, backend_closure_status_api, deployment_state_api, permission_snapshot_api,
@@ -350,6 +350,12 @@ fn dashboard_router_with_workflow_root(
         .route(
             "/api/product/v1/runs/{run_id}",
             get(run_detail_api)
+                .head(product_method_not_allowed)
+                .fallback(product_method_not_allowed),
+        )
+        .route(
+            "/api/product/v1/runs/{run_id}/demo-snapshot",
+            get(demo_run_snapshot_api)
                 .head(product_method_not_allowed)
                 .fallback(product_method_not_allowed),
         )

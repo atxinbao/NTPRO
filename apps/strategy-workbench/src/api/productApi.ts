@@ -4,6 +4,7 @@ import {
   compareBacktestRuns,
   createBacktestRun,
   createDemoRun,
+  getDemoRunSnapshot,
   getRunReproductionProof,
   getRunAnalysis,
   getRun,
@@ -21,6 +22,8 @@ import {
   type DemoRunAction,
   type DemoRunActionResponse,
   type DemoRunCreateResponse,
+  type DemoRunSnapshotResponse,
+  type GetDemoRunSnapshotData,
   type GetRunData,
   type GetRunAnalysisData,
   type GetRunMetricsData,
@@ -50,6 +53,7 @@ import {
 import {
   zDemoRunActionResponse,
   zDemoRunCreateResponse,
+  zDemoRunSnapshotResponse,
   zProductErrorResponse,
   zRunCreateResponse,
   zRunAnalysisResponse,
@@ -75,6 +79,7 @@ type ListStrategyVersionsQuery = NonNullable<ListStrategyVersionsData["query"]>;
 type StrategyVersionPath = GetStrategyVersionData["path"];
 type ListRunsQuery = NonNullable<ListRunsData["query"]>;
 type RunPath = GetRunData["path"];
+type DemoRunSnapshotPath = GetDemoRunSnapshotData["path"];
 type RunAnalysisPath = GetRunAnalysisData["path"];
 type RunMetricsPath = GetRunMetricsData["path"];
 type RunReportPath = GetRunReportData["path"];
@@ -675,6 +680,68 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         payload.data.run_id === path.run_id,
         "run_detail.path.run_id",
+      );
+      return payload;
+    },
+
+    async getDemoRunSnapshot(
+      path: DemoRunSnapshotPath,
+      signal?: AbortSignal,
+    ): Promise<DemoRunSnapshotResponse> {
+      const payload = await resolveResponse(
+        getDemoRunSnapshot({ client, path, signal }),
+        zDemoRunSnapshotResponse,
+        "demo_run_snapshot",
+      );
+      const snapshot = payload.data;
+      assertIdentity(
+        snapshot.run_id === path.run_id,
+        "demo_run_snapshot.path.run_id",
+      );
+      assertIdentity(
+        payload.boundaries.read_only &&
+          payload.boundaries.sandbox_only &&
+          !payload.boundaries.live_run_creation_allowed &&
+          !payload.boundaries.external_venue_connection &&
+          !payload.boundaries.order_submission_allowed &&
+          !payload.boundaries.order_mutation_allowed &&
+          !payload.boundaries.automatic_retry_allowed &&
+          !payload.boundaries.automatic_remediation_allowed &&
+          !payload.boundaries.real_orders_submitted &&
+          !payload.boundaries.trading_controls_enabled,
+        "demo_run_snapshot.boundaries",
+      );
+      const hasRuntimeData =
+        snapshot.market !== null && snapshot.session !== null;
+      const hasNoRuntimeData =
+        snapshot.market === null &&
+        snapshot.session === null &&
+        snapshot.latest_signal === null &&
+        snapshot.latest_order_intent === null &&
+        snapshot.latest_risk_decision === null;
+      assertIdentity(
+        (snapshot.snapshot_status === "not_started" &&
+          snapshot.lifecycle === "created" &&
+          hasNoRuntimeData &&
+          snapshot.provenance.result_ref === null &&
+          snapshot.provenance.result_sha256 === null) ||
+          (snapshot.snapshot_status === "running" &&
+            ["running", "paused", "stopping"].includes(snapshot.lifecycle) &&
+            hasRuntimeData &&
+            snapshot.technical_health.status === "healthy" &&
+            snapshot.provenance.result_ref === null &&
+            snapshot.provenance.result_sha256 === null) ||
+          (snapshot.snapshot_status === "frozen" &&
+            ["stopped", "failed"].includes(snapshot.lifecycle) &&
+            snapshot.provenance.result_ref !== null &&
+            snapshot.provenance.result_sha256 !== null),
+        "demo_run_snapshot.data.state",
+      );
+      assertIdentity(
+        (snapshot.session?.actual_submission_count ?? 0) === 0 &&
+          !snapshot.latest_order_intent?.submission_allowed &&
+          !snapshot.latest_risk_decision?.actual_submission,
+        "demo_run_snapshot.data.submission",
       );
       return payload;
     },

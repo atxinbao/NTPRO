@@ -137,10 +137,10 @@
     "process_alive_implies_technical_health": false
   },
   "frozen_source_sha256": {
-    "crates/cli/src/mvp.rs": "ae8ceea4ea4f4cdeb069c9846f0d468e0886e8f88a1c125044fdb51aa4c9b46f",
+    "crates/cli/src/mvp.rs": "07412b7a072f0fb2747a49c39adaf88933bf7391576b828347677432013615f0",
     "crates/cli/src/mvp_contract.rs": "9b36f82c83f49c0b416e6c1b758b7c327fe10144c0c98f24dcacfefa26629f99",
     "crates/cli/src/supervisor.rs": "93b87eaa1a4cd94000a70d07a122d2bb697b9e0884552d786e1aa9bc995195fb",
-    "crates/cli/src/dashboard/server.rs": "7c44fe51e47ce8816c0b16e6546f22dbb12514fa23ca8b49a0df4dd794859702",
+    "crates/cli/src/dashboard/server.rs": "38b1249c41cee89ded2cec4a2745b33d293fe8751c3be33999a725581a272b5b",
     "crates/cli/src/dashboard/mvp_status_api.rs": "4b641fe0d9b8410fef602b755c58ceab5e4d4ea53626b1a431548c726ee4f374",
     "crates/cli/src/dashboard/institution_workbench.rs": "eb78932657389976dc1c740a94afa21343e7f5ae3ae752f0e064741b76427cca",
     "crates/cli/src/dashboard/control_center.rs": "a207c5af6be9f3750d84e6026ddd0f5eeca6239950413279a9f3cb58e7dd39c4",

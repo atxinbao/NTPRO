@@ -153,6 +153,98 @@ export function RunDetailPage() {
         </section>
       ) : null}
 
+      {product.demoSnapshot ? (
+        <section className={styles.panel} aria-label="Demo 运行结果">
+          <header>
+            <div>
+              <span className="eyebrow">Demo 运行结果</span>
+              <h2>
+                {product.demoSnapshot.snapshot_status === "frozen"
+                  ? "终态冻结快照"
+                  : product.demoSnapshot.snapshot_status === "running"
+                    ? "实时策略快照"
+                    : "等待启动"}
+              </h2>
+            </div>
+            <span>
+              {product.demoSnapshot.technical_health.status === "healthy"
+                ? "运行健康"
+                : "当前阻断"}
+            </span>
+          </header>
+          <div className={styles.metricGrid}>
+            <Metric
+              label="行情事件"
+              value={String(
+                product.demoSnapshot.session?.market_event_count ?? 0,
+              )}
+              note={product.demoSnapshot.market?.state ?? "尚未启动"}
+            />
+            <Metric
+              label="策略信号"
+              value={String(product.demoSnapshot.session?.signal_count ?? 0)}
+              note={product.demoSnapshot.latest_signal?.signal ?? "暂无信号"}
+            />
+            <Metric
+              label="订单意图"
+              value={String(product.demoSnapshot.session?.intent_count ?? 0)}
+              note={
+                product.demoSnapshot.latest_order_intent?.submission_status ??
+                "暂无意图"
+              }
+            />
+            <Metric
+              label="风控拒绝"
+              value={String(product.demoSnapshot.session?.rejection_count ?? 0)}
+              note={
+                product.demoSnapshot.latest_risk_decision?.decision ??
+                "暂无决策"
+              }
+              warning={Boolean(product.demoSnapshot.session?.rejection_count)}
+            />
+          </div>
+          <div className={styles.versionSummary}>
+            <KeyValue
+              label="数据连接"
+              value={product.demoSnapshot.runtime.data_connection}
+            />
+            <KeyValue
+              label="执行连接"
+              value={product.demoSnapshot.runtime.execution_connection}
+            />
+            <KeyValue
+              label="最新行情"
+              value={
+                product.demoSnapshot.market?.latest_event
+                  ? `${product.demoSnapshot.market.latest_event.symbol} · ${product.demoSnapshot.market.latest_event.price}`
+                  : "暂无行情"
+              }
+            />
+            <KeyValue
+              label="最新风控原因"
+              value={
+                product.demoSnapshot.latest_risk_decision?.reasons.join("、") ||
+                product.demoSnapshot.technical_health.diagnostics.join("、") ||
+                "无"
+              }
+            />
+            <KeyValue
+              label="结果来源"
+              value={
+                product.demoSnapshot.provenance.result_ref ??
+                product.demoSnapshot.provenance.source_refs[0]
+              }
+              mono
+            />
+            <KeyValue
+              label="结果哈希"
+              value={product.demoSnapshot.provenance.result_sha256 ?? "运行中"}
+              mono
+            />
+          </div>
+        </section>
+      ) : null}
+
       <section className={styles.metricGrid} aria-label="Run 摘要">
         <Metric
           label="环境"

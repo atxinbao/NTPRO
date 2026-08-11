@@ -22,16 +22,17 @@ use axum::{
     http::StatusCode,
 };
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
-use nautilus_live::status::LifecycleStatus;
+use nautilus_live::status::{LifecycleStatus, SnapshotAvailability, SnapshotValue};
 use nautilus_model::types::{Money, Quantity};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     dashboard::ApiStatusResult,
+    strategy_session::{StrategyMarketEventKind, StrategySessionState},
     supervisor::{
-        StartNodeRequest, StopNodeRequest, SupervisorRegistryStore, SupervisorRunOwnership,
-        SupervisorRunTerminalAnchor,
+        NodeMetrics, StartNodeRequest, StopNodeRequest, SupervisorNodeRecord,
+        SupervisorRegistryStore, SupervisorRunOwnership, SupervisorRunTerminalAnchor,
     },
 };
 
@@ -55,7 +56,9 @@ const BACKTEST_REPRODUCTION_PROOF_SCHEMA_VERSION: &str = "ntpro.backtest_reprodu
 const DEMO_RUN_CREATE_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_create.response.v1";
 const DEMO_RUN_ACTION_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_action.response.v1";
 const DEMO_RUN_MANIFEST_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_manifest.v1";
-const DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_terminal_state.v1";
+const DEMO_RUN_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_snapshot.response.v1";
+const DEMO_RUN_RESULT_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_result.v1";
+const DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_terminal_state.v2";
 const RUN_CURSOR_PREFIX: &str = "run-v1-";
 static RUN_MANIFEST_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
@@ -401,8 +404,362 @@ struct DynamicDemoRunTerminalState {
     started_at_unix_ms: Option<u64>,
     completed_at_unix_ms: u64,
     updated_at_unix_ms: u64,
+    demo_result_sha256: String,
     error_code: Option<String>,
     error_summary: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum DemoSnapshotStatus {
+    NotStarted,
+    Running,
+    Frozen,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum DemoTechnicalHealthStatus {
+    Healthy,
+    Blocked,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSnapshotRuntime {
+    supervisor_node_id: String,
+    strategy_instance_id: String,
+    process_state: SupervisorProcessState,
+    lifecycle_state: LifecycleStatus,
+    data_connection: String,
+    execution_connection: String,
+    uptime_ms: Option<u64>,
+    generated_at_unix_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoMarketSnapshot {
+    connection: String,
+    state: String,
+    source: String,
+    event_count: u64,
+    last_event_at_unix_ms: Option<u64>,
+    updated_at_unix_ms: u64,
+    latest_event: Option<DemoMarketEvent>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoMarketEvent {
+    event_type: StrategyMarketEventKind,
+    source: String,
+    seq: u64,
+    symbol: String,
+    price: f64,
+    event_at_unix_ms: u64,
+    recorded_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSessionSnapshot {
+    state: StrategySessionState,
+    reason: String,
+    event_count: u64,
+    market_event_count: u64,
+    signal_count: u64,
+    intent_count: u64,
+    risk_decision_count: u64,
+    rejection_count: u64,
+    actual_submission_count: u64,
+    updated_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSignalSnapshot {
+    symbol: String,
+    signal: String,
+    confidence: f64,
+    market_event_seq: u64,
+    generated_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoOrderIntentSnapshot {
+    intent_id: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: f64,
+    source_signal: String,
+    confidence: f64,
+    market_event_seq: u64,
+    created_at_unix_ms: u64,
+    submission_allowed: bool,
+    submission_status: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoRiskDecisionSnapshot {
+    decision_id: String,
+    intent_id: String,
+    symbol: String,
+    decision: String,
+    reasons: Vec<String>,
+    mode: String,
+    order_submission: String,
+    kill_switch_enabled: bool,
+    kill_switch_active: bool,
+    account_state: String,
+    market_state: String,
+    actual_submission: bool,
+    evaluated_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoTechnicalHealth {
+    status: DemoTechnicalHealthStatus,
+    diagnostics: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSnapshotProvenance {
+    source_refs: Vec<String>,
+    manifest_sha256: Option<String>,
+    result_ref: Option<String>,
+    result_sha256: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoRunSnapshotData {
+    schema_version: String,
+    run_id: String,
+    strategy_id: String,
+    strategy_version_id: String,
+    observed_at_unix_ms: u64,
+    lifecycle: RunLifecycle,
+    snapshot_status: DemoSnapshotStatus,
+    runtime: DemoSnapshotRuntime,
+    market: Option<DemoMarketSnapshot>,
+    session: Option<DemoSessionSnapshot>,
+    latest_signal: Option<DemoSignalSnapshot>,
+    latest_order_intent: Option<DemoOrderIntentSnapshot>,
+    latest_risk_decision: Option<DemoRiskDecisionSnapshot>,
+    technical_health: DemoTechnicalHealth,
+    provenance: DemoSnapshotProvenance,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct DemoSnapshotBoundaries {
+    read_only: bool,
+    sandbox_only: bool,
+    live_run_creation_allowed: bool,
+    external_venue_connection: bool,
+    order_submission_allowed: bool,
+    order_mutation_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    real_orders_submitted: bool,
+    trading_controls_enabled: bool,
+}
+
+impl DemoSnapshotBoundaries {
+    const fn enforced() -> Self {
+        Self {
+            read_only: true,
+            sandbox_only: true,
+            live_run_creation_allowed: false,
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(in crate::dashboard) struct DemoRunSnapshotResponse {
+    schema_version: String,
+    contract_version: String,
+    request_id: String,
+    data: DemoRunSnapshotData,
+    boundaries: DemoSnapshotBoundaries,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategySessionStatus {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    state: StrategySessionState,
+    reason: String,
+    updated_at_unix_ms: u64,
+    artifacts: StoredStrategyArtifactPaths,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategyArtifactPaths {
+    session_status: String,
+    events: String,
+    market_status: String,
+    market_events: String,
+    signal: String,
+    order_intent: String,
+    risk_decision: String,
+    summary: String,
+    manifest: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategyManifest {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    state: StrategySessionState,
+    created_at_unix_ms: u64,
+    updated_at_unix_ms: u64,
+    artifacts: Vec<StoredStrategyManifestArtifact>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategyManifestArtifact {
+    name: String,
+    path: String,
+    format: String,
+    present: bool,
+    record_count: Option<u64>,
+    byte_len: Option<u64>,
+    checksum: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategySessionEvent {
+    schema_version: String,
+    event_type: String,
+    session_id: String,
+    strategy_id: String,
+    previous_state: Option<StrategySessionState>,
+    state: StrategySessionState,
+    reason: String,
+    occurred_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategyMarketStatus {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    connection: String,
+    state: String,
+    source: String,
+    event_count: u64,
+    last_event_at_unix_ms: Option<u64>,
+    updated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategyMarketEvent {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    event_type: StrategyMarketEventKind,
+    source: String,
+    seq: u64,
+    symbol: String,
+    price: f64,
+    event_at_unix_ms: u64,
+    recorded_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategySignal {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    symbol: String,
+    signal: String,
+    confidence: f64,
+    market_event_seq: u64,
+    generated_at: String,
+    generated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategyOrderIntent {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    intent_id: String,
+    symbol: String,
+    side: String,
+    order_type: String,
+    quantity: f64,
+    source_signal: String,
+    confidence: f64,
+    market_event_seq: u64,
+    signal_generated_at: String,
+    created_at: String,
+    created_at_unix_ms: u64,
+    submission_allowed: bool,
+    submission_status: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategyRiskDecision {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    decision_id: String,
+    intent_id: String,
+    symbol: String,
+    decision: String,
+    reasons: Vec<String>,
+    mode: String,
+    order_submission: String,
+    kill_switch_enabled: bool,
+    kill_switch_active: bool,
+    account_state: String,
+    market_state: String,
+    actual_submission: bool,
+    evaluated_at: String,
+    evaluated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredStrategySummary {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    state: StrategySessionState,
+    event_count: u64,
+    market_event_count: u64,
+    signal_count: u64,
+    intent_count: u64,
+    risk_decision_count: u64,
+    rejection_count: u64,
+    actual_submission_count: u64,
+    updated_at_unix_ms: u64,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1252,25 +1609,43 @@ fn run_demo_action(
                     })
             });
             if let Err(error) = initial_validation {
-                cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
+                cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256, &error)?;
                 return Err(error);
             }
             if let Err(error) = refresh_product_status_contract(state, &runtime.supervisor_node_id)
             {
-                cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
+                cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256, &error)?;
                 return Err(error);
             }
             match load_demo_run_by_id(state, path_run_id) {
-                Ok(current) if current.lifecycle == RunLifecycle::Running => current,
+                Ok(current) if current.lifecycle == RunLifecycle::Running => {
+                    let snapshot_validation = wait_for_demo_snapshot(
+                        &store,
+                        &current,
+                        Duration::from_millis(super::super::DASHBOARD_ACTION_TIMEOUT_MS),
+                    );
+                    if let Err(error) = snapshot_validation {
+                        cleanup_failed_demo_start(
+                            state,
+                            &store,
+                            &previous,
+                            &manifest_sha256,
+                            &error,
+                        )?;
+                        return Err(error);
+                    }
+                    current
+                }
                 Ok(_) => {
-                    cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
-                    return Err(product_error(
+                    let error = product_error(
                         ProductErrorKind::DemoExecutionFailed,
                         "demo_start_lifecycle",
-                    ));
+                    );
+                    cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256, &error)?;
+                    return Err(error);
                 }
                 Err(error) => {
-                    cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256)?;
+                    cleanup_failed_demo_start(state, &store, &previous, &manifest_sha256, &error)?;
                     return Err(error);
                 }
             }
@@ -1320,6 +1695,904 @@ fn run_demo_action(
     })
 }
 
+fn load_demo_snapshot_by_id(
+    state: &DashboardServerState,
+    run_id: &str,
+    now_unix_ms: u64,
+) -> Result<DemoRunSnapshotData, ProductError> {
+    let run = load_product_runs(state, now_unix_ms)?
+        .into_iter()
+        .find(|run| run.run_id == run_id && run.environment == RunEnvironment::Sandbox)
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "demo_snapshot"))?;
+    let observed_at_unix_ms = now_unix_ms.max(unix_time_ms());
+    let runtime = run
+        .runtime
+        .as_ref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_snapshot_runtime"))?;
+    if run.lifecycle == RunLifecycle::Created {
+        return Ok(DemoRunSnapshotData {
+            schema_version: DEMO_RUN_RESULT_SCHEMA_VERSION.to_string(),
+            run_id: run.run_id,
+            strategy_id: run.strategy_id,
+            strategy_version_id: run.strategy_version_id,
+            observed_at_unix_ms,
+            lifecycle: run.lifecycle,
+            snapshot_status: DemoSnapshotStatus::NotStarted,
+            runtime: DemoSnapshotRuntime {
+                supervisor_node_id: runtime.supervisor_node_id.clone(),
+                strategy_instance_id: runtime.strategy_instance_id.clone(),
+                process_state: runtime.process_state,
+                lifecycle_state: runtime.lifecycle_state,
+                data_connection: "not_configured".to_string(),
+                execution_connection: "not_configured".to_string(),
+                uptime_ms: None,
+                generated_at_unix_ms: None,
+            },
+            market: None,
+            session: None,
+            latest_signal: None,
+            latest_order_intent: None,
+            latest_risk_decision: None,
+            technical_health: DemoTechnicalHealth {
+                status: DemoTechnicalHealthStatus::Blocked,
+                diagnostics: vec!["demo_not_started".to_string()],
+            },
+            provenance: DemoSnapshotProvenance {
+                source_refs: vec![run.config_ref],
+                manifest_sha256: Some(demo_run_manifest_sha256(state, run_id)?),
+                result_ref: None,
+                result_sha256: None,
+            },
+        });
+    }
+    if is_terminal_demo_lifecycle(run.lifecycle) {
+        return load_frozen_demo_result(state, &run);
+    }
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    let record = store
+        .refresh_process_state(&runtime.supervisor_node_id)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "demo_snapshot_runtime"))?;
+    let metrics = store
+        .node_metrics(&runtime.supervisor_node_id)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "demo_snapshot_metrics"))?;
+    build_demo_snapshot_from_record(
+        &run,
+        &record,
+        &metrics,
+        observed_at_unix_ms,
+        DemoSnapshotStatus::Running,
+    )
+}
+
+fn load_frozen_demo_result(
+    state: &DashboardServerState,
+    run: &ProductRun,
+) -> Result<DemoRunSnapshotData, ProductError> {
+    let run_root = canonical_demo_artifact_root(state, false)?.join(&run.run_id);
+    let terminal_raw = read_backtest_result_bytes(&run_root.join("terminal-state.json"))?;
+    let terminal: DynamicDemoRunTerminalState = serde_json::from_slice(&terminal_raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_terminal_state"))?;
+    let result_raw = read_backtest_result_bytes(&run_root.join("demo-result.json"))?;
+    if !is_sha256_ref(&terminal.demo_result_sha256)
+        || sha256_ref(&result_raw) != terminal.demo_result_sha256
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_result_sha256",
+        ));
+    }
+    let mut result: DemoRunSnapshotData = serde_json::from_slice(&result_raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_result"))?;
+    let expected_ref = format!("artifact://demo-runs/{}/demo-result.json", run.run_id);
+    if result.schema_version != DEMO_RUN_RESULT_SCHEMA_VERSION
+        || result.run_id != run.run_id
+        || result.strategy_id != run.strategy_id
+        || result.strategy_version_id != run.strategy_version_id
+        || result.lifecycle != run.lifecycle
+        || result.snapshot_status != DemoSnapshotStatus::Frozen
+        || result.provenance.result_ref.as_deref() != Some(expected_ref.as_str())
+        || result.provenance.result_sha256.is_some()
+        || result.runtime.supervisor_node_id
+            != run
+                .runtime
+                .as_ref()
+                .map(|runtime| runtime.supervisor_node_id.as_str())
+                .unwrap_or_default()
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_result",
+        ));
+    }
+    result.provenance.result_sha256 = Some(terminal.demo_result_sha256);
+    validate_demo_snapshot_boundaries(&result)?;
+    Ok(result)
+}
+
+fn build_demo_snapshot_from_record(
+    run: &ProductRun,
+    record: &SupervisorNodeRecord,
+    metrics: &NodeMetrics,
+    observed_at_unix_ms: u64,
+    snapshot_status: DemoSnapshotStatus,
+) -> Result<DemoRunSnapshotData, ProductError> {
+    let runtime = run
+        .runtime
+        .as_ref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_snapshot_runtime"))?;
+    if record.node_id != runtime.supervisor_node_id
+        || metrics.node_id != runtime.supervisor_node_id
+        || metrics.external_venue_connection
+        || metrics.real_orders_submitted
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "demo_snapshot_runtime",
+        ));
+    }
+    let strategy = load_strategy_snapshot(record, &record.node_id, &run.strategy_id)?;
+    let observed_at_unix_ms = observed_at_unix_ms.max(unix_time_ms());
+    let generated_at_unix_ms =
+        snapshot_unix_ms(&metrics.generated_at, "demo_snapshot_metrics_generated_at")?;
+    let result = DemoRunSnapshotData {
+        schema_version: DEMO_RUN_RESULT_SCHEMA_VERSION.to_string(),
+        run_id: run.run_id.clone(),
+        strategy_id: run.strategy_id.clone(),
+        strategy_version_id: run.strategy_version_id.clone(),
+        observed_at_unix_ms,
+        lifecycle: run.lifecycle,
+        snapshot_status,
+        runtime: DemoSnapshotRuntime {
+            supervisor_node_id: runtime.supervisor_node_id.clone(),
+            strategy_instance_id: runtime.strategy_instance_id.clone(),
+            process_state: record.process.state,
+            lifecycle_state: record.last_known_status.lifecycle_state,
+            data_connection: connection_count_label(
+                metrics.connection_counts.data_connected,
+                metrics.connection_counts.data_disconnected,
+                metrics.connection_counts.data_not_configured,
+            )?,
+            execution_connection: connection_count_label(
+                metrics.connection_counts.execution_connected,
+                metrics.connection_counts.execution_disconnected,
+                metrics.connection_counts.execution_not_configured,
+            )?,
+            uptime_ms: metrics.uptime_ms.value,
+            generated_at_unix_ms,
+        },
+        market: Some(strategy.market),
+        session: Some(strategy.session),
+        latest_signal: strategy.latest_signal,
+        latest_order_intent: strategy.latest_order_intent,
+        latest_risk_decision: strategy.latest_risk_decision,
+        technical_health: DemoTechnicalHealth {
+            status: DemoTechnicalHealthStatus::Healthy,
+            diagnostics: Vec::new(),
+        },
+        provenance: DemoSnapshotProvenance {
+            source_refs: vec![
+                format!("artifact://demo-runs/{}/run-manifest.json", run.run_id),
+                format!(
+                    "artifact://demo-runs/{}/strategy-session/manifest.json",
+                    run.run_id
+                ),
+            ],
+            manifest_sha256: Some(strategy.manifest_sha256),
+            result_ref: None,
+            result_sha256: None,
+        },
+    };
+    validate_demo_snapshot_boundaries(&result)?;
+    Ok(result)
+}
+
+struct LoadedStrategySnapshot {
+    market: DemoMarketSnapshot,
+    session: DemoSessionSnapshot,
+    latest_signal: Option<DemoSignalSnapshot>,
+    latest_order_intent: Option<DemoOrderIntentSnapshot>,
+    latest_risk_decision: Option<DemoRiskDecisionSnapshot>,
+    manifest_sha256: String,
+}
+
+fn load_strategy_snapshot(
+    record: &SupervisorNodeRecord,
+    run_id: &str,
+    strategy_id: &str,
+) -> Result<LoadedStrategySnapshot, ProductError> {
+    let artifact_root = canonical_path(&record.artifact_root, "demo_strategy_root")?;
+    let strategy_candidate = artifact_root.join("strategy");
+    let strategy_root = canonical_path(&strategy_candidate, "demo_strategy_root")?;
+    if strategy_root != strategy_candidate {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_strategy_root_containment",
+        ));
+    }
+    let manifest_raw = read_backtest_result_bytes(&strategy_root.join("manifest.json"))?;
+    let manifest: StoredStrategyManifest = strict_json(&manifest_raw, "demo_strategy_manifest")?;
+    if manifest.schema_version != "ntpro.v091_strategy_session_manifest.v1"
+        || manifest.session_id != run_id
+        || manifest.strategy_id != strategy_id
+        || manifest.created_at_unix_ms == 0
+        || manifest.updated_at_unix_ms < manifest.created_at_unix_ms
+        || manifest.artifacts.len() != 8
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_strategy_manifest",
+        ));
+    }
+    let expected = [
+        ("session_status", "session_status.json", "json"),
+        ("events", "events.jsonl", "jsonl"),
+        ("market_status", "market_status.json", "json"),
+        ("market_events", "market_events.jsonl", "jsonl"),
+        ("signal", "signal.jsonl", "jsonl"),
+        ("order_intent", "order_intent.jsonl", "jsonl"),
+        ("risk_decision", "risk_decision.jsonl", "jsonl"),
+        ("summary", "summary.json", "json"),
+    ];
+    let mut artifacts = BTreeMap::new();
+    for (name, file_name, format) in expected {
+        let artifact = manifest
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.name == name)
+            .ok_or_else(|| {
+                product_error(ProductErrorKind::SourceInvalid, "demo_strategy_manifest")
+            })?;
+        let expected_path = strategy_root.join(file_name);
+        if !strategy_artifact_path_matches(&artifact.path, &expected_path)
+            || artifact.format != format
+            || !artifact.present
+            || artifact.record_count.is_none()
+            || artifact.byte_len.is_none()
+            || artifact
+                .checksum
+                .as_deref()
+                .is_none_or(|value| !value.starts_with("blake3:") && !value.starts_with("sha256:"))
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_strategy_manifest",
+            ));
+        }
+        let raw = read_backtest_result_bytes(&expected_path)?;
+        if artifact.byte_len != Some(u64::try_from(raw.len()).unwrap_or(u64::MAX))
+            || artifact.checksum.as_deref().is_none_or(|expected| {
+                strategy_checksum(&raw, expected).as_deref() != Some(expected)
+            })
+            || (format == "jsonl" && artifact.record_count != Some(jsonl_record_count(&raw)))
+            || (format == "json" && artifact.record_count != Some(1))
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_strategy_artifact",
+            ));
+        }
+        if artifacts.insert(name, raw).is_some() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_strategy_manifest",
+            ));
+        }
+    }
+    let status: StoredStrategySessionStatus = strict_json(
+        artifacts.get("session_status").expect("required artifact"),
+        "demo_session_status",
+    )?;
+    let market: StoredStrategyMarketStatus = strict_json(
+        artifacts.get("market_status").expect("required artifact"),
+        "demo_market_status",
+    )?;
+    let summary: StoredStrategySummary = strict_json(
+        artifacts.get("summary").expect("required artifact"),
+        "demo_session_summary",
+    )?;
+    validate_strategy_identity(&status.session_id, &status.strategy_id, run_id, strategy_id)?;
+    validate_strategy_identity(&market.session_id, &market.strategy_id, run_id, strategy_id)?;
+    validate_strategy_identity(
+        &summary.session_id,
+        &summary.strategy_id,
+        run_id,
+        strategy_id,
+    )?;
+    if status.schema_version != "ntpro.v09_strategy_session_status.v1"
+        || market.schema_version != "ntpro.v09_market_stream_status.v1"
+        || summary.schema_version != "ntpro.v09_strategy_session_summary.v1"
+        || status.state != manifest.state
+        || summary.state != manifest.state
+        || status.reason.trim().is_empty()
+        || status.updated_at_unix_ms != manifest.updated_at_unix_ms
+        || market.updated_at_unix_ms < status.updated_at_unix_ms
+        || summary.updated_at_unix_ms < market.updated_at_unix_ms
+        || summary.event_count != artifact_count(&manifest, "events")?
+        || summary.market_event_count != artifact_count(&manifest, "market_events")?
+        || summary.signal_count != artifact_count(&manifest, "signal")?
+        || summary.intent_count != artifact_count(&manifest, "order_intent")?
+        || summary.risk_decision_count != artifact_count(&manifest, "risk_decision")?
+        || market.event_count != summary.market_event_count
+        || summary.actual_submission_count != 0
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_strategy_projection",
+        ));
+    }
+    validate_strategy_artifact_paths(&status.artifacts, &strategy_root)?;
+    let events = parse_jsonl::<StoredStrategySessionEvent>(
+        artifacts.get("events").ok_or_else(|| {
+            product_error(ProductErrorKind::SourceInvalid, "demo_strategy_artifact")
+        })?,
+        "demo_session_event",
+    )?;
+    let market_events = parse_jsonl::<StoredStrategyMarketEvent>(
+        artifacts.get("market_events").expect("required artifact"),
+        "demo_market_event",
+    )?;
+    let signals = parse_jsonl::<StoredStrategySignal>(
+        artifacts.get("signal").expect("required artifact"),
+        "demo_signal",
+    )?;
+    let intents = parse_jsonl::<StoredStrategyOrderIntent>(
+        artifacts.get("order_intent").expect("required artifact"),
+        "demo_order_intent",
+    )?;
+    let risk_decisions = parse_jsonl::<StoredStrategyRiskDecision>(
+        artifacts.get("risk_decision").expect("required artifact"),
+        "demo_risk_decision",
+    )?;
+    validate_strategy_records(
+        run_id,
+        strategy_id,
+        manifest.state,
+        &market,
+        &summary,
+        &events,
+        &market_events,
+        &signals,
+        &intents,
+        &risk_decisions,
+    )?;
+    let latest_market = market_events.into_iter().last();
+    let latest_signal = signals.into_iter().last();
+    let latest_intent = intents.into_iter().last();
+    let latest_risk = risk_decisions.into_iter().last();
+    Ok(LoadedStrategySnapshot {
+        market: DemoMarketSnapshot {
+            connection: market.connection,
+            state: market.state,
+            source: market.source,
+            event_count: market.event_count,
+            last_event_at_unix_ms: market.last_event_at_unix_ms,
+            updated_at_unix_ms: market.updated_at_unix_ms,
+            latest_event: latest_market.map(|value| DemoMarketEvent {
+                event_type: value.event_type,
+                source: value.source,
+                seq: value.seq,
+                symbol: value.symbol,
+                price: value.price,
+                event_at_unix_ms: value.event_at_unix_ms,
+                recorded_at_unix_ms: value.recorded_at_unix_ms,
+            }),
+        },
+        session: DemoSessionSnapshot {
+            state: status.state,
+            reason: status.reason,
+            event_count: summary.event_count,
+            market_event_count: summary.market_event_count,
+            signal_count: summary.signal_count,
+            intent_count: summary.intent_count,
+            risk_decision_count: summary.risk_decision_count,
+            rejection_count: summary.rejection_count,
+            actual_submission_count: summary.actual_submission_count,
+            updated_at_unix_ms: summary.updated_at_unix_ms,
+        },
+        latest_signal: latest_signal.map(|value| DemoSignalSnapshot {
+            symbol: value.symbol,
+            signal: value.signal,
+            confidence: value.confidence,
+            market_event_seq: value.market_event_seq,
+            generated_at_unix_ms: value.generated_at_unix_ms,
+        }),
+        latest_order_intent: latest_intent.map(|value| DemoOrderIntentSnapshot {
+            intent_id: value.intent_id,
+            symbol: value.symbol,
+            side: value.side,
+            order_type: value.order_type,
+            quantity: value.quantity,
+            source_signal: value.source_signal,
+            confidence: value.confidence,
+            market_event_seq: value.market_event_seq,
+            created_at_unix_ms: value.created_at_unix_ms,
+            submission_allowed: value.submission_allowed,
+            submission_status: value.submission_status,
+        }),
+        latest_risk_decision: latest_risk.map(|value| DemoRiskDecisionSnapshot {
+            decision_id: value.decision_id,
+            intent_id: value.intent_id,
+            symbol: value.symbol,
+            decision: value.decision,
+            reasons: value.reasons,
+            mode: value.mode,
+            order_submission: value.order_submission,
+            kill_switch_enabled: value.kill_switch_enabled,
+            kill_switch_active: value.kill_switch_active,
+            account_state: value.account_state,
+            market_state: value.market_state,
+            actual_submission: value.actual_submission,
+            evaluated_at_unix_ms: value.evaluated_at_unix_ms,
+        }),
+        manifest_sha256: sha256_ref(&manifest_raw),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_strategy_records(
+    run_id: &str,
+    strategy_id: &str,
+    manifest_state: StrategySessionState,
+    market: &StoredStrategyMarketStatus,
+    summary: &StoredStrategySummary,
+    events: &[StoredStrategySessionEvent],
+    market_events: &[StoredStrategyMarketEvent],
+    signals: &[StoredStrategySignal],
+    intents: &[StoredStrategyOrderIntent],
+    risk_decisions: &[StoredStrategyRiskDecision],
+) -> Result<(), ProductError> {
+    for (session_id, observed_strategy_id) in events
+        .iter()
+        .map(|value| (&value.session_id, &value.strategy_id))
+        .chain(
+            market_events
+                .iter()
+                .map(|value| (&value.session_id, &value.strategy_id)),
+        )
+        .chain(
+            signals
+                .iter()
+                .map(|value| (&value.session_id, &value.strategy_id)),
+        )
+        .chain(
+            intents
+                .iter()
+                .map(|value| (&value.session_id, &value.strategy_id)),
+        )
+        .chain(
+            risk_decisions
+                .iter()
+                .map(|value| (&value.session_id, &value.strategy_id)),
+        )
+    {
+        validate_strategy_identity(session_id, observed_strategy_id, run_id, strategy_id)?;
+    }
+    if market.connection.trim().is_empty()
+        || market.state.trim().is_empty()
+        || market.source.trim().is_empty()
+        || market.last_event_at_unix_ms == Some(0)
+        || (market.event_count == 0) != market_events.is_empty()
+        || market.last_event_at_unix_ms != market_events.last().map(|value| value.event_at_unix_ms)
+        || events.iter().any(|value| {
+            value.schema_version != "ntpro.v09_strategy_session_event.v1"
+                || value.event_type.trim().is_empty()
+                || value.reason.trim().is_empty()
+                || value.previous_state == Some(value.state)
+                || value.occurred_at_unix_ms == 0
+        })
+        || market_events.iter().any(|value| {
+            value.schema_version != "ntpro.v09_market_stream_event.v1"
+                || value.seq == 0
+                || value.source.trim().is_empty()
+                || value.symbol.trim().is_empty()
+                || !value.price.is_finite()
+                || value.event_at_unix_ms == 0
+                || value.recorded_at_unix_ms == 0
+                || value.recorded_at_unix_ms < value.event_at_unix_ms
+        })
+        || signals.iter().any(|value| {
+            value.schema_version != "ntpro.v09_strategy_signal.v1"
+                || value.symbol.trim().is_empty()
+                || value.signal.trim().is_empty()
+                || !value.confidence.is_finite()
+                || !(0.0..=1.0).contains(&value.confidence)
+                || value.market_event_seq == 0
+                || value.generated_at.trim().is_empty()
+                || value.generated_at_unix_ms == 0
+        })
+        || intents.iter().any(|value| {
+            value.schema_version != "ntpro.v09_order_intent.v1"
+                || validate_identifier("demo_order_intent_id", &value.intent_id).is_err()
+                || value.symbol.trim().is_empty()
+                || value.side.trim().is_empty()
+                || value.order_type.trim().is_empty()
+                || value.source_signal.trim().is_empty()
+                || value.submission_status.trim().is_empty()
+                || !value.quantity.is_finite()
+                || value.quantity <= 0.0
+                || !value.confidence.is_finite()
+                || !(0.0..=1.0).contains(&value.confidence)
+                || value.market_event_seq == 0
+                || value.signal_generated_at.trim().is_empty()
+                || value.created_at.trim().is_empty()
+                || value.created_at_unix_ms == 0
+        })
+        || risk_decisions.iter().any(|value| {
+            value.schema_version != "ntpro.v09_risk_decision.v1"
+                || validate_identifier("demo_risk_decision_id", &value.decision_id).is_err()
+                || validate_identifier("demo_risk_intent_id", &value.intent_id).is_err()
+                || value.symbol.trim().is_empty()
+                || value.decision.trim().is_empty()
+                || value.reasons.is_empty()
+                || value.reasons.iter().any(|reason| reason.trim().is_empty())
+                || value.mode.trim().is_empty()
+                || value.order_submission.trim().is_empty()
+                || value.account_state.trim().is_empty()
+                || value.market_state.trim().is_empty()
+                || value.evaluated_at.trim().is_empty()
+                || value.evaluated_at_unix_ms == 0
+        })
+        || events
+            .last()
+            .is_none_or(|value| value.state != manifest_state)
+        || (summary.event_count == 0) != events.is_empty()
+        || (summary.market_event_count == 0) != market_events.is_empty()
+        || (summary.signal_count == 0) != signals.is_empty()
+        || (summary.intent_count == 0) != intents.is_empty()
+        || (summary.risk_decision_count == 0) != risk_decisions.is_empty()
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_strategy_projection",
+        ));
+    }
+    if intents.iter().any(|intent| intent.submission_allowed)
+        || risk_decisions.iter().any(|risk| risk.actual_submission)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "demo_strategy_submission",
+        ));
+    }
+    Ok(())
+}
+
+fn strict_json<T: serde::de::DeserializeOwned>(
+    raw: &[u8],
+    field: &'static str,
+) -> Result<T, ProductError> {
+    serde_json::from_slice(raw).map_err(|_| product_error(ProductErrorKind::SourceInvalid, field))
+}
+
+fn parse_jsonl<T: serde::de::DeserializeOwned>(
+    raw: &[u8],
+    field: &'static str,
+) -> Result<Vec<T>, ProductError> {
+    let text = std::str::from_utf8(raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, field))?;
+    let mut records = Vec::new();
+    for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        records.push(
+            serde_json::from_str(line)
+                .map_err(|_| product_error(ProductErrorKind::SourceInvalid, field))?,
+        );
+    }
+    Ok(records)
+}
+
+fn snapshot_unix_ms(
+    value: &SnapshotValue<String>,
+    field: &'static str,
+) -> Result<Option<u64>, ProductError> {
+    match (value.availability, value.value.as_deref()) {
+        (SnapshotAvailability::Available, Some(raw)) => raw
+            .parse::<u64>()
+            .ok()
+            .filter(|parsed| *parsed > 0)
+            .map(Some)
+            .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, field)),
+        (SnapshotAvailability::Available, None) | (_, Some(_)) => {
+            Err(product_error(ProductErrorKind::SourceInvalid, field))
+        }
+        (_, None) => Ok(None),
+    }
+}
+
+#[cfg(test)]
+mod strategy_record_validation_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_invalid_or_forbidden_early_jsonl_records() {
+        let events = parse_jsonl::<StoredStrategySessionEvent>(
+            br#"
+{"schema_version":"ntpro.v09_strategy_session_event.v1","event_type":"started","session_id":"demo-run","strategy_id":"ema-cross","previous_state":null,"state":"running","reason":"started","occurred_at_unix_ms":1}
+"#,
+            "demo_session_event",
+        )
+        .expect("session event should parse");
+        let signals = parse_jsonl::<StoredStrategySignal>(
+            br#"
+{"schema_version":"ntpro.v09_strategy_signal.v1","session_id":"demo-run","strategy_id":"ema-cross","symbol":"BTCUSDT.BINANCE","signal":"buy","confidence":0.8,"market_event_seq":1,"generated_at":"invalid-early","generated_at_unix_ms":0}
+{"schema_version":"ntpro.v09_strategy_signal.v1","session_id":"demo-run","strategy_id":"ema-cross","symbol":"BTCUSDT.BINANCE","signal":"sell","confidence":0.7,"market_event_seq":2,"generated_at":"valid-latest","generated_at_unix_ms":2}
+"#,
+            "demo_signal",
+        )
+        .expect("signals should parse");
+        let invalid_summary = StoredStrategySummary {
+            schema_version: "ntpro.v09_strategy_session_summary.v1".to_string(),
+            session_id: "demo-run".to_string(),
+            strategy_id: "ema-cross".to_string(),
+            state: StrategySessionState::Running,
+            event_count: 1,
+            market_event_count: 0,
+            signal_count: 2,
+            intent_count: 0,
+            risk_decision_count: 0,
+            rejection_count: 0,
+            actual_submission_count: 0,
+            updated_at_unix_ms: 2,
+        };
+        let market = StoredStrategyMarketStatus {
+            schema_version: "ntpro.v09_market_stream_status.v1".to_string(),
+            session_id: "demo-run".to_string(),
+            strategy_id: "ema-cross".to_string(),
+            connection: "connected".to_string(),
+            state: "streaming".to_string(),
+            source: "fixture".to_string(),
+            event_count: 0,
+            last_event_at_unix_ms: None,
+            updated_at_unix_ms: 2,
+        };
+        let error = validate_strategy_records(
+            "demo-run",
+            "ema-cross",
+            StrategySessionState::Running,
+            &market,
+            &invalid_summary,
+            &events,
+            &[],
+            &signals,
+            &[],
+            &[],
+        )
+        .expect_err("an invalid earlier signal must not be hidden by a valid latest signal");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+
+        let intents = parse_jsonl::<StoredStrategyOrderIntent>(
+            br#"
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"demo-run","strategy_id":"ema-cross","intent_id":"intent-early","symbol":"BTCUSDT.BINANCE","side":"buy","order_type":"market","quantity":1.0,"source_signal":"buy","confidence":0.8,"market_event_seq":1,"signal_generated_at":"early","created_at":"early","created_at_unix_ms":1,"submission_allowed":true,"submission_status":"forbidden"}
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"demo-run","strategy_id":"ema-cross","intent_id":"intent-latest","symbol":"BTCUSDT.BINANCE","side":"sell","order_type":"market","quantity":1.0,"source_signal":"sell","confidence":0.7,"market_event_seq":2,"signal_generated_at":"latest","created_at":"latest","created_at_unix_ms":2,"submission_allowed":false,"submission_status":"blocked"}
+"#,
+            "demo_order_intent",
+        )
+        .expect("order intents should parse");
+        let forbidden_summary = StoredStrategySummary {
+            signal_count: 0,
+            intent_count: 2,
+            ..invalid_summary
+        };
+        let error = validate_strategy_records(
+            "demo-run",
+            "ema-cross",
+            StrategySessionState::Running,
+            &market,
+            &forbidden_summary,
+            &events,
+            &[],
+            &[],
+            &intents,
+            &[],
+        )
+        .expect_err("a forbidden earlier intent must not be hidden by a safe latest intent");
+        assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+
+        let invalid_contract_intents = parse_jsonl::<StoredStrategyOrderIntent>(
+            br#"
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"demo-run","strategy_id":"ema-cross","intent_id":"bad/intent","symbol":"BTCUSDT.BINANCE","side":"buy","order_type":"market","quantity":1.0,"source_signal":"buy","confidence":0.8,"market_event_seq":1,"signal_generated_at":"early","created_at":"early","created_at_unix_ms":1,"submission_allowed":false,"submission_status":""}
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"demo-run","strategy_id":"ema-cross","intent_id":"intent-latest","symbol":"BTCUSDT.BINANCE","side":"sell","order_type":"market","quantity":1.0,"source_signal":"sell","confidence":0.7,"market_event_seq":2,"signal_generated_at":"latest","created_at":"latest","created_at_unix_ms":2,"submission_allowed":false,"submission_status":"blocked"}
+"#,
+            "demo_order_intent",
+        )
+        .expect("contract-negative order intents should parse");
+        let invalid_contract_summary = StoredStrategySummary {
+            schema_version: "ntpro.v09_strategy_session_summary.v1".to_string(),
+            session_id: "demo-run".to_string(),
+            strategy_id: "ema-cross".to_string(),
+            state: StrategySessionState::Running,
+            event_count: 1,
+            market_event_count: 0,
+            signal_count: 0,
+            intent_count: 2,
+            risk_decision_count: 0,
+            rejection_count: 0,
+            actual_submission_count: 0,
+            updated_at_unix_ms: 2,
+        };
+        let error = validate_strategy_records(
+            "demo-run",
+            "ema-cross",
+            StrategySessionState::Running,
+            &market,
+            &invalid_contract_summary,
+            &events,
+            &[],
+            &[],
+            &invalid_contract_intents,
+            &[],
+        )
+        .expect_err("an invalid early intent contract must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+
+        let invalid_risk_decisions = parse_jsonl::<StoredStrategyRiskDecision>(
+            br#"
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"demo-run","strategy_id":"ema-cross","decision_id":"bad/decision","intent_id":"bad/intent","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":[""],"mode":"sandbox","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"sandbox","market_state":"fresh","actual_submission":false,"evaluated_at":"early","evaluated_at_unix_ms":1}
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"demo-run","strategy_id":"ema-cross","decision_id":"decision-latest","intent_id":"intent-latest","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["blocked"],"mode":"sandbox","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"sandbox","market_state":"fresh","actual_submission":false,"evaluated_at":"latest","evaluated_at_unix_ms":2}
+"#,
+            "demo_risk_decision",
+        )
+        .expect("contract-negative risk decisions should parse");
+        let error = validate_strategy_records(
+            "demo-run",
+            "ema-cross",
+            StrategySessionState::Running,
+            &market,
+            &StoredStrategySummary {
+                intent_count: 0,
+                risk_decision_count: 2,
+                ..invalid_contract_summary
+            },
+            &events,
+            &[],
+            &[],
+            &[],
+            &invalid_risk_decisions,
+        )
+        .expect_err("invalid early risk IDs and reasons must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+
+        let invalid_market = StoredStrategyMarketStatus {
+            event_count: 1,
+            last_event_at_unix_ms: Some(0),
+            ..market
+        };
+        let error = validate_strategy_records(
+            "demo-run",
+            "ema-cross",
+            StrategySessionState::Running,
+            &invalid_market,
+            &StoredStrategySummary {
+                market_event_count: 0,
+                intent_count: 0,
+                ..forbidden_summary
+            },
+            &events,
+            &[],
+            &[],
+            &[],
+            &[],
+        )
+        .expect_err("zero market timestamps must fail the public schema boundary");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+
+        let error = snapshot_unix_ms(
+            &SnapshotValue::available("0".to_string()),
+            "demo_snapshot_metrics_generated_at",
+        )
+        .expect_err("zero generated time must fail the public schema boundary");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+    }
+}
+
+fn validate_strategy_identity(
+    session_id: &str,
+    observed_strategy_id: &str,
+    run_id: &str,
+    strategy_id: &str,
+) -> Result<(), ProductError> {
+    if session_id != run_id || observed_strategy_id != strategy_id {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_strategy_identity",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_strategy_artifact_paths(
+    paths: &StoredStrategyArtifactPaths,
+    root: &Path,
+) -> Result<(), ProductError> {
+    for (actual, name) in [
+        (&paths.session_status, "session_status.json"),
+        (&paths.events, "events.jsonl"),
+        (&paths.market_status, "market_status.json"),
+        (&paths.market_events, "market_events.jsonl"),
+        (&paths.signal, "signal.jsonl"),
+        (&paths.order_intent, "order_intent.jsonl"),
+        (&paths.risk_decision, "risk_decision.jsonl"),
+        (&paths.summary, "summary.json"),
+        (&paths.manifest, "manifest.json"),
+    ] {
+        if !strategy_artifact_path_matches(actual, &root.join(name)) {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_strategy_artifact_paths",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn strategy_artifact_path_matches(actual: &str, expected: &Path) -> bool {
+    Path::new(actual).is_absolute()
+        && fs::canonicalize(actual).is_ok_and(|canonical_actual| canonical_actual == expected)
+}
+
+fn artifact_count(manifest: &StoredStrategyManifest, name: &str) -> Result<u64, ProductError> {
+    manifest
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.name == name)
+        .and_then(|artifact| artifact.record_count)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_strategy_manifest"))
+}
+
+fn strategy_checksum(raw: &[u8], expected: &str) -> Option<String> {
+    if expected.starts_with("blake3:") {
+        Some(format!("blake3:{}", blake3::hash(raw).to_hex()))
+    } else if expected.starts_with("sha256:") {
+        Some(sha256_ref(raw))
+    } else {
+        None
+    }
+}
+
+fn jsonl_record_count(raw: &[u8]) -> u64 {
+    std::str::from_utf8(raw).map_or(u64::MAX, |text| {
+        u64::try_from(text.lines().filter(|line| !line.trim().is_empty()).count())
+            .unwrap_or(u64::MAX)
+    })
+}
+
+fn connection_count_label(
+    connected: u64,
+    disconnected: u64,
+    not_configured: u64,
+) -> Result<String, ProductError> {
+    match (connected, disconnected, not_configured) {
+        (1, 0, 0) => Ok("connected".to_string()),
+        (0, 1, 0) => Ok("disconnected".to_string()),
+        (0, 0, 1) => Ok("not_configured".to_string()),
+        _ => Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_connection_counts",
+        )),
+    }
+}
+
+fn validate_demo_snapshot_boundaries(result: &DemoRunSnapshotData) -> Result<(), ProductError> {
+    if result
+        .session
+        .as_ref()
+        .is_some_and(|session| session.actual_submission_count != 0)
+        || result
+            .latest_order_intent
+            .as_ref()
+            .is_some_and(|intent| intent.submission_allowed)
+        || result
+            .latest_risk_decision
+            .as_ref()
+            .is_some_and(|decision| decision.actual_submission)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "demo_snapshot_boundaries",
+        ));
+    }
+    Ok(())
+}
+
 fn load_demo_run_by_id(
     state: &DashboardServerState,
     run_id: &str,
@@ -1365,6 +2638,7 @@ fn cleanup_failed_demo_start(
     store: &SupervisorRegistryStore,
     run: &ProductRun,
     manifest_sha256: &str,
+    failure: &ProductError,
 ) -> Result<(), ProductError> {
     let runtime = run
         .runtime
@@ -1380,7 +2654,16 @@ fn cleanup_failed_demo_start(
             manifest_sha256,
         )
         .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_start_cleanup"))?;
-    publish_demo_terminal_state(
+    if matches!(
+        failure.kind,
+        ProductErrorKind::SourceUnavailable
+            | ProductErrorKind::SourceInvalid
+            | ProductErrorKind::BoundaryViolation
+    ) {
+        remove_unanchored_demo_terminal_files(state, store, run)?;
+        return refresh_product_status_contract(state, &runtime.supervisor_node_id);
+    }
+    let publication = publish_demo_terminal_state(
         state,
         store,
         &demo_terminal_identity_from_run(run)?,
@@ -1391,14 +2674,199 @@ fn cleanup_failed_demo_start(
             "demo_start_validation_failed",
             "Demo 启动后运行时校验失败，节点已停止",
         )),
-    )
-    .map_err(|_| {
-        product_error(
-            ProductErrorKind::DemoExecutionFailed,
-            "demo_start_cleanup_state",
-        )
-    })?;
+    );
+    match publication {
+        Ok(()) => {}
+        Err(error)
+            if matches!(
+                error.kind,
+                ProductErrorKind::SourceUnavailable
+                    | ProductErrorKind::SourceInvalid
+                    | ProductErrorKind::BoundaryViolation
+            ) =>
+        {
+            remove_unanchored_demo_terminal_files(state, store, run)?;
+        }
+        Err(_) => {
+            return Err(product_error(
+                ProductErrorKind::DemoExecutionFailed,
+                "demo_start_cleanup_state",
+            ));
+        }
+    }
     refresh_product_status_contract(state, &runtime.supervisor_node_id)
+}
+
+fn remove_unanchored_demo_terminal_files(
+    state: &DashboardServerState,
+    store: &SupervisorRegistryStore,
+    run: &ProductRun,
+) -> Result<(), ProductError> {
+    let runtime = run
+        .runtime
+        .as_ref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "run_runtime"))?;
+    let registry = store
+        .load()
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "registry"))?;
+    let ownership = registry
+        .nodes
+        .get(&runtime.supervisor_node_id)
+        .and_then(|record| record.run_ownership.get(&run.run_id))
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_run_ownership"))?;
+    if ownership.terminal.is_some() {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_terminal_anchor",
+        ));
+    }
+    let run_root = canonical_demo_artifact_root(state, false)?.join(&run.run_id);
+    let directory = open_absolute_directory_nofollow(&run_root)?;
+    for name in ["terminal-state.json", "demo-result.json"] {
+        match directory.remove_file(name) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => {
+                return Err(product_error(
+                    ProductErrorKind::DemoExecutionFailed,
+                    "demo_start_cleanup_state",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn product_run_for_demo_terminal(
+    config: &ProductRunConfig,
+    record: &SupervisorNodeRecord,
+    lifecycle: RunLifecycle,
+    completed_at_unix_ms: u64,
+    error_code: Option<&str>,
+    error_summary: Option<&str>,
+) -> Result<ProductRun, ProductError> {
+    let supervisor_node_id = config
+        .demo_supervisor_node_id
+        .clone()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_supervisor_node_id"))?;
+    let strategy_instance_id = config.demo_strategy_instance_id.clone().ok_or_else(|| {
+        product_error(ProductErrorKind::SourceInvalid, "demo_strategy_instance_id")
+    })?;
+    if supervisor_node_id != record.node_id {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_terminal_identity",
+        ));
+    }
+    Ok(ProductRun {
+        run_id: config.run_id.clone(),
+        strategy_id: config.strategy_id.clone(),
+        strategy_version_id: config.strategy_version_id.clone(),
+        environment: RunEnvironment::Sandbox,
+        data_ref: config.data_ref.clone(),
+        config_ref: config.config_ref.clone(),
+        adapter_ref: config.adapter_ref.clone(),
+        account_ref: config.account_ref.clone(),
+        venue_ref: config.venue_ref.clone(),
+        lifecycle,
+        result: ProductRunResult {
+            status: if lifecycle == RunLifecycle::Failed {
+                RunResultStatus::Unavailable
+            } else {
+                RunResultStatus::Pending
+            },
+            result_ref: None,
+            report_ref: None,
+            analysis_ref: None,
+            reproduction_ref: None,
+        },
+        risk: ProductRunRisk {
+            status: RunRiskStatus::Blocked,
+            risk_ref: config.risk_ref.clone(),
+        },
+        error: match (error_code, error_summary) {
+            (Some(code), Some(summary)) => Some(ProductRunError {
+                code: code.to_string(),
+                summary: summary.to_string(),
+            }),
+            (None, None) => None,
+            _ => return Err(product_error(ProductErrorKind::SourceInvalid, "run_error")),
+        },
+        created_at_unix_ms: config.created_at_unix_ms,
+        started_at_unix_ms: config.started_at_unix_ms.or_else(|| {
+            snapshot_timestamp(&record.last_known_status.started_at)
+                .map(|value| value.max(config.created_at_unix_ms))
+        }),
+        completed_at_unix_ms: Some(completed_at_unix_ms),
+        updated_at_unix_ms: completed_at_unix_ms,
+        source: ProductSource {
+            source_type: "demo_runtime".to_string(),
+            freshness_status: "frozen".to_string(),
+            source_refs: vec![format!(
+                "artifact://demo-runs/{}/run-manifest.json",
+                config.run_id
+            )],
+        },
+        capabilities: ProductRunCapabilities {
+            external_venue_connection: false,
+            order_submission_allowed: false,
+            order_mutation_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_remediation_allowed: false,
+            real_orders_submitted: false,
+            trading_controls_enabled: false,
+        },
+        runtime: Some(ProductRunRuntime {
+            supervisor_node_id,
+            strategy_instance_id,
+            process_state: record.process.state,
+            lifecycle_state: record.last_known_status.lifecycle_state,
+        }),
+    })
+}
+
+fn failed_demo_snapshot(run: &ProductRun, observed_at_unix_ms: u64) -> DemoRunSnapshotData {
+    let runtime = run
+        .runtime
+        .as_ref()
+        .expect("terminal Demo runtime is required");
+    DemoRunSnapshotData {
+        schema_version: DEMO_RUN_RESULT_SCHEMA_VERSION.to_string(),
+        run_id: run.run_id.clone(),
+        strategy_id: run.strategy_id.clone(),
+        strategy_version_id: run.strategy_version_id.clone(),
+        observed_at_unix_ms,
+        lifecycle: RunLifecycle::Failed,
+        snapshot_status: DemoSnapshotStatus::Frozen,
+        runtime: DemoSnapshotRuntime {
+            supervisor_node_id: runtime.supervisor_node_id.clone(),
+            strategy_instance_id: runtime.strategy_instance_id.clone(),
+            process_state: runtime.process_state,
+            lifecycle_state: runtime.lifecycle_state,
+            data_connection: "unknown".to_string(),
+            execution_connection: "unknown".to_string(),
+            uptime_ms: None,
+            generated_at_unix_ms: None,
+        },
+        market: None,
+        session: None,
+        latest_signal: None,
+        latest_order_intent: None,
+        latest_risk_decision: None,
+        technical_health: DemoTechnicalHealth {
+            status: DemoTechnicalHealthStatus::Blocked,
+            diagnostics: vec!["demo_runtime_validation_failed".to_string()],
+        },
+        provenance: DemoSnapshotProvenance {
+            source_refs: vec![format!(
+                "artifact://demo-runs/{}/run-manifest.json",
+                run.run_id
+            )],
+            manifest_sha256: None,
+            result_ref: None,
+            result_sha256: None,
+        },
+    }
 }
 
 fn publish_demo_terminal_state(
@@ -1442,6 +2910,59 @@ fn publish_demo_terminal_state(
     let (error_code, error_summary) = failure.map_or((None, None), |(code, summary)| {
         (Some(code.to_string()), Some(summary.to_string()))
     });
+    let manifest: DynamicDemoRunManifest = serde_json::from_slice(&manifest_raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_terminal_manifest"))?;
+    let terminal_run = product_run_for_demo_terminal(
+        &manifest.config,
+        record,
+        lifecycle,
+        completed_at_unix_ms,
+        error_code.as_deref(),
+        error_summary.as_deref(),
+    )?;
+    let mut result = match store
+        .node_metrics(&run.supervisor_node_id)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "demo_snapshot_metrics"))
+        .and_then(|metrics| {
+            build_demo_snapshot_from_record(
+                &terminal_run,
+                record,
+                &metrics,
+                completed_at_unix_ms,
+                DemoSnapshotStatus::Frozen,
+            )
+        }) {
+        Ok(result) => result,
+        Err(error)
+            if lifecycle == RunLifecycle::Failed
+                && failure.is_some_and(|(code, _)| code == "demo_runtime_unavailable")
+                && error.kind == ProductErrorKind::SourceUnavailable =>
+        {
+            failed_demo_snapshot(&terminal_run, completed_at_unix_ms)
+        }
+        Err(error) => return Err(error),
+    };
+    result.provenance.result_ref = Some(format!(
+        "artifact://demo-runs/{}/demo-result.json",
+        run.run_id
+    ));
+    result.provenance.result_sha256 = None;
+    let result_raw = serde_json::to_vec_pretty(&result)
+        .map_err(|_| product_error(ProductErrorKind::DemoExecutionFailed, "demo_result"))?;
+    match publish_new_run_file(&directory, "demo-result.json", &result_raw) {
+        Ok(()) => {}
+        Err(error) if error.kind == ProductErrorKind::Conflict => {
+            let existing = read_backtest_result_bytes(&run_root.join("demo-result.json"))?;
+            if existing != result_raw {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_result",
+                ));
+            }
+        }
+        Err(error) => return Err(error),
+    }
+    let demo_result_sha256 = sha256_ref(&result_raw);
     let terminal = DynamicDemoRunTerminalState {
         schema_version: DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION.to_string(),
         source_manifest_sha256: sha256_ref(&manifest_raw),
@@ -1459,6 +2980,7 @@ fn publish_demo_terminal_state(
         }),
         completed_at_unix_ms,
         updated_at_unix_ms: completed_at_unix_ms,
+        demo_result_sha256,
         error_code,
         error_summary,
     };
@@ -1652,6 +3174,49 @@ fn wait_for_demo_metrics_artifact(path: &Path, timeout: Duration) -> Result<(), 
             return Err(());
         }
         thread::sleep(Duration::from_millis(10));
+    }
+}
+
+fn wait_for_demo_snapshot(
+    store: &SupervisorRegistryStore,
+    run: &ProductRun,
+    timeout: Duration,
+) -> Result<(), ProductError> {
+    let node_id = run
+        .runtime
+        .as_ref()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_snapshot_runtime"))?
+        .supervisor_node_id
+        .clone();
+    let deadline = Instant::now() + timeout;
+    loop {
+        let snapshot = store
+            .refresh_process_state(&node_id)
+            .map_err(|_| {
+                product_error(ProductErrorKind::DemoExecutionFailed, "demo_start_snapshot")
+            })
+            .and_then(|record| {
+                store
+                    .node_metrics(&node_id)
+                    .map_err(|_| {
+                        product_error(ProductErrorKind::DemoExecutionFailed, "demo_start_snapshot")
+                    })
+                    .and_then(|metrics| {
+                        build_demo_snapshot_from_record(
+                            run,
+                            &record,
+                            &metrics,
+                            unix_time_ms(),
+                            DemoSnapshotStatus::Running,
+                        )
+                        .map(|_| ())
+                    })
+            });
+        match snapshot {
+            Ok(()) => return Ok(()),
+            Err(_) if Instant::now() < deadline => thread::sleep(Duration::from_millis(10)),
+            Err(error) => return Err(error),
+        }
     }
 }
 
@@ -2245,6 +3810,34 @@ pub(in crate::dashboard) async fn run_detail_api(
             request_id: request_id.clone(),
             data: run,
             boundaries: ProductReadOnlyBoundaries::enforced(),
+        })
+    });
+    result
+        .map(Json)
+        .map_err(|error| product_error_response(&error, &request_id))
+}
+
+pub(in crate::dashboard) async fn demo_run_snapshot_api(
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    RawQuery(raw_query): RawQuery,
+) -> ApiResult<DemoRunSnapshotResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(run_id)| run_id).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
+        validate_requested_run_id("run_id", &run_id)?;
+        let data = load_demo_snapshot_by_id(&state, &run_id, unix_time_ms())?;
+        Ok(DemoRunSnapshotResponse {
+            schema_version: DEMO_RUN_SNAPSHOT_SCHEMA_VERSION.to_string(),
+            contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
+            request_id: request_id.clone(),
+            data,
+            boundaries: DemoSnapshotBoundaries::enforced(),
         })
     });
     result
@@ -3805,7 +5398,9 @@ pub(super) fn load_product_runs(
         .lifecycle_action_lock
         .lock()
         .map_err(|_| product_error(ProductErrorKind::Conflict, "demo_action_lock"))?;
-    load_product_runs_unlocked(state, now_unix_ms)
+    // A lifecycle action can hold the lock longer than the allowed clock skew. Validate any
+    // contracts published by that action against a timestamp observed after acquiring the lock.
+    load_product_runs_unlocked(state, now_unix_ms.max(unix_time_ms()))
 }
 
 fn load_product_runs_unlocked(
@@ -4218,12 +5813,19 @@ fn load_demo_terminal_state(
     }
     let terminal: DynamicDemoRunTerminalState = serde_json::from_slice(&raw)
         .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_terminal_state"))?;
+    let result_path = path
+        .parent()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_result"))?
+        .join("demo-result.json");
+    let result_raw = read_backtest_result_bytes(&result_path)?;
     let error_pair_valid = matches!(
         (&terminal.error_code, &terminal.error_summary),
         (None, None) | (Some(_), Some(_))
     );
     if terminal.schema_version != DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION
         || terminal.source_manifest_sha256 != sha256_ref(manifest_raw)
+        || !is_sha256_ref(&terminal.demo_result_sha256)
+        || terminal.demo_result_sha256 != sha256_ref(&result_raw)
         || terminal.run_id != config.run_id
         || !is_terminal_demo_lifecycle(terminal.lifecycle)
         || terminal.runtime.supervisor_node_id

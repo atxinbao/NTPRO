@@ -303,6 +303,159 @@ export const zDemoRunActionResponse = z.object({
   boundaries: zDemoRunBoundaries,
 });
 
+export const zDemoSnapshotBoundaries = z.object({
+  read_only: z.literal(true),
+  sandbox_only: z.literal(true),
+  live_run_creation_allowed: z.literal(false),
+  external_venue_connection: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  order_mutation_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  real_orders_submitted: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zDemoSnapshotRuntime = z.object({
+  supervisor_node_id: zRunId,
+  strategy_instance_id: zRunId,
+  process_state: zSupervisorProcessState,
+  lifecycle_state: zRuntimeLifecycleState,
+  data_connection: z.enum([
+    "connected",
+    "disconnected",
+    "not_configured",
+    "unknown",
+  ]),
+  execution_connection: z.enum([
+    "connected",
+    "disconnected",
+    "not_configured",
+    "unknown",
+  ]),
+  uptime_ms: z.int().gte(0).nullable(),
+  generated_at_unix_ms: z.int().gte(1).nullable(),
+});
+
+export const zDemoMarketEvent = z.object({
+  event_type: z.enum(["fixture_bar", "mock_bar", "mock_tick"]),
+  source: z.string().min(1),
+  seq: z.int().gte(0),
+  symbol: z.string().min(1),
+  price: z.number(),
+  event_at_unix_ms: z.int().gte(1),
+  recorded_at_unix_ms: z.int().gte(1),
+});
+
+export const zDemoMarketSnapshot = z.object({
+  connection: z.string().min(1),
+  state: z.string().min(1),
+  source: z.string().min(1),
+  event_count: z.int().gte(0),
+  last_event_at_unix_ms: z.int().gte(1).nullable(),
+  updated_at_unix_ms: z.int().gte(1),
+  latest_event: zDemoMarketEvent.nullable(),
+});
+
+export const zDemoSessionSnapshot = z.object({
+  state: z.enum([
+    "created",
+    "validated",
+    "starting",
+    "running",
+    "paused",
+    "risk_halted",
+    "stopping",
+    "stopped",
+    "failed",
+  ]),
+  reason: z.string().min(1),
+  event_count: z.int().gte(0),
+  market_event_count: z.int().gte(0),
+  signal_count: z.int().gte(0),
+  intent_count: z.int().gte(0),
+  risk_decision_count: z.int().gte(0),
+  rejection_count: z.int().gte(0),
+  actual_submission_count: z.literal(0),
+  updated_at_unix_ms: z.int().gte(1),
+});
+
+export const zDemoSignalSnapshot = z.object({
+  symbol: z.string().min(1),
+  signal: z.string().min(1),
+  confidence: z.number().gte(0).lte(1),
+  market_event_seq: z.int().gte(0),
+  generated_at_unix_ms: z.int().gte(1),
+});
+
+export const zDemoOrderIntentSnapshot = z.object({
+  intent_id: zRunId,
+  symbol: z.string().min(1),
+  side: z.string().min(1),
+  order_type: z.string().min(1),
+  quantity: z.number().gt(0),
+  source_signal: z.string().min(1),
+  confidence: z.number().gte(0).lte(1),
+  market_event_seq: z.int().gte(0),
+  created_at_unix_ms: z.int().gte(1),
+  submission_allowed: z.literal(false),
+  submission_status: z.string().min(1),
+});
+
+export const zDemoRiskDecisionSnapshot = z.object({
+  decision_id: zRunId,
+  intent_id: zRunId,
+  symbol: z.string().min(1),
+  decision: z.string().min(1),
+  reasons: z.array(z.string().min(1)),
+  mode: z.string().min(1),
+  order_submission: z.string().min(1),
+  kill_switch_enabled: z.boolean(),
+  kill_switch_active: z.boolean(),
+  account_state: z.string().min(1),
+  market_state: z.string().min(1),
+  actual_submission: z.literal(false),
+  evaluated_at_unix_ms: z.int().gte(1),
+});
+
+export const zDemoTechnicalHealth = z.object({
+  status: z.enum(["healthy", "blocked"]),
+  diagnostics: z.array(z.string().min(1)),
+});
+
+export const zDemoSnapshotProvenance = z.object({
+  source_refs: z.array(z.string().min(1)).min(1),
+  manifest_sha256: zContentHash.nullable(),
+  result_ref: z.string().min(1).nullable(),
+  result_sha256: zContentHash.nullable(),
+});
+
+export const zDemoRunSnapshot = z.object({
+  schema_version: z.literal("ntpro.product_api.demo_run_result.v1"),
+  run_id: zRunId,
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  observed_at_unix_ms: z.int().gte(1),
+  lifecycle: zRunLifecycle,
+  snapshot_status: z.enum(["not_started", "running", "frozen"]),
+  runtime: zDemoSnapshotRuntime,
+  market: zDemoMarketSnapshot.nullable(),
+  session: zDemoSessionSnapshot.nullable(),
+  latest_signal: zDemoSignalSnapshot.nullable(),
+  latest_order_intent: zDemoOrderIntentSnapshot.nullable(),
+  latest_risk_decision: zDemoRiskDecisionSnapshot.nullable(),
+  technical_health: zDemoTechnicalHealth,
+  provenance: zDemoSnapshotProvenance,
+});
+
+export const zDemoRunSnapshotResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.demo_run_snapshot.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zDemoRunSnapshot,
+  boundaries: zDemoSnapshotBoundaries,
+});
+
 export const zBacktestParameters = z.object({
   trade_size: z.string().min(1),
   fast_period: z.int().gte(1),
@@ -806,6 +959,15 @@ export const zGetRunPath = z.object({
  * Run 详情
  */
 export const zGetRunResponse = zRunDetailResponse;
+
+export const zGetDemoRunSnapshotPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * Demo Run 严格只读快照
+ */
+export const zGetDemoRunSnapshotResponse = zDemoRunSnapshotResponse;
 
 export const zGetRunMetricsPath = z.object({
   run_id: zRunId,

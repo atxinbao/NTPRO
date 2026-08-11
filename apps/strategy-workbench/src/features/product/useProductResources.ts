@@ -25,6 +25,8 @@ export const productQueryKeys = {
   runs: (strategyId: string, versionId: string) =>
     ["product", "runs", { strategyId, versionId }] as const,
   run: (runId: string) => ["product", "runs", runId] as const,
+  demoSnapshot: (runId: string) =>
+    ["product", "runs", runId, "demo-snapshot"] as const,
   runMetrics: (runId: string) => ["product", "runs", runId, "metrics"] as const,
   runReport: (runId: string) => ["product", "runs", runId, "report"] as const,
   runAnalysis: (runId: string) =>
@@ -58,6 +60,9 @@ export function useCreateDemoRun() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: productQueryKeys.allRuns }),
         queryClient.invalidateQueries({
+          queryKey: productQueryKeys.demoSnapshot(response.data.run_id),
+        }),
+        queryClient.invalidateQueries({
           queryKey: productQueryKeys.run(response.data.run_id),
         }),
       ]);
@@ -74,6 +79,9 @@ export function useDemoRunAction() {
     onSuccess: async (response) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: productQueryKeys.allRuns }),
+        queryClient.invalidateQueries({
+          queryKey: productQueryKeys.demoSnapshot(response.data.run_id),
+        }),
         queryClient.setQueryData(productQueryKeys.run(response.data.run_id), {
           schema_version: "ntpro.product_api.run_detail.response.v1",
           contract_version: response.contract_version,
@@ -207,6 +215,18 @@ export function useRunMetrics(runId?: string, enabled = false) {
   });
 }
 
+export function useDemoRunSnapshot(runId?: string, enabled = false) {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.demoSnapshot(runId ?? ""),
+    queryFn: ({ signal }) =>
+      productApi.getDemoRunSnapshot({ run_id: runId! }, signal),
+    enabled: Boolean(runId && enabled),
+    refetchInterval: (query) =>
+      query.state.data?.data.snapshot_status === "running" ? 2_000 : false,
+  });
+}
+
 export function useRunReport(runId?: string, enabled = false) {
   return useQuery({
     ...productQueryPolicy,
@@ -307,6 +327,8 @@ export function useRunProductContext(runId?: string) {
   const versionId = run.data?.data.strategy_version_id;
   const strategy = useStrategy(strategyId);
   const version = useStrategyVersion(strategyId, versionId);
+  const expectsDemoSnapshot = run.data?.data.environment === "sandbox";
+  const demoSnapshot = useDemoRunSnapshot(runId, expectsDemoSnapshot);
   const expectsMetrics = Boolean(
     run.data?.data.environment === "backtest" &&
     run.data.data.lifecycle === "completed" &&
@@ -325,7 +347,12 @@ export function useRunProductContext(runId?: string) {
     expectsMetrics && run.data?.data.result.reproduction_ref,
   );
   const reproduction = useRunReproductionProof(runId, expectsReproductionProof);
-  const error = run.error ?? strategy.error ?? version.error ?? metrics.error;
+  const error =
+    run.error ??
+    strategy.error ??
+    version.error ??
+    metrics.error ??
+    demoSnapshot.error;
   const isVerifying = Boolean(
     runId &&
     (run.isPending ||
@@ -335,6 +362,9 @@ export function useRunProductContext(runId?: string) {
           strategy.isFetching ||
           version.isPending ||
           version.isFetching ||
+          (expectsDemoSnapshot &&
+            (demoSnapshot.isPending ||
+              (!demoSnapshot.data && demoSnapshot.isFetching))) ||
           (expectsMetrics && (metrics.isPending || metrics.isFetching))))),
   );
   const isReady = Boolean(
@@ -344,6 +374,7 @@ export function useRunProductContext(runId?: string) {
     run.data &&
     strategy.data &&
     version.data &&
+    (!expectsDemoSnapshot || demoSnapshot.data) &&
     (!expectsMetrics || metrics.data),
   );
 
@@ -354,6 +385,8 @@ export function useRunProductContext(runId?: string) {
     run: isReady ? run.data?.data : undefined,
     strategy: isReady ? strategy.data?.data : undefined,
     version: isReady ? version.data?.data : undefined,
+    demoSnapshot:
+      isReady && expectsDemoSnapshot ? demoSnapshot.data?.data : undefined,
     metrics: isReady ? metrics.data?.data : undefined,
     report: isReady && expectsReport ? report.data?.data : undefined,
     reportError: isReady && expectsReport ? report.error : null,

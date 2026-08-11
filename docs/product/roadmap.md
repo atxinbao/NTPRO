@@ -2,7 +2,7 @@
 
 Canonical repository path: `docs/product/roadmap.md`.
 
-Date: 2026-08-05
+Date: 2026-08-11
 Executor: Codex
 
 ## 当前正确北极星
@@ -65,9 +65,12 @@ SWB-002 已交付首个业务纵向切片：策略总览读取 Strategy、默认
 BacktestEngine 的不可变结果接入 `/runs/{run_id}/metrics`；S1-BT-002 已交付机构用户
 专用的 Backtest 创建入口。S1-BT-003 已把同一次引擎执行产生的交易、持仓与账户权益
 明细接入 `/runs/{run_id}/report`；S1-BT-004 已合并，通过 `/runs/{run_id}/analysis` 交付
-风险、回撤、结构化运行记录和不可变来源链。S1-BT-005 正在交付 2 至 4 个 Run 的可信比较、
-兼容性判断和用户显式确定性复现。这些入口只创建和读取模拟回测，不开放 Demo、Live、停止、
-自动重试或交易操作。
+风险、回撤、结构化运行记录和不可变来源链。S1-BT-005 已交付 2 至 4 个 Run 的可信比较、
+兼容性判断和用户显式确定性复现，S1 退出条件已满足。
+
+S2-DM-001 已交付 Demo Run 创建、不可变 StrategyVersion 绑定和 Supervisor 显式 start/stop
+生命周期。S2-DM-002 正在交付真实策略工件驱动的 Demo 实时状态与冻结结果；当前不包含
+模拟成交、持仓、资金曲线或 Backtest/Demo 比较，因此 S2 退出条件仍保持开放。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -81,7 +84,9 @@ FEA-001 前端架构文档
   -> S1-BT-002 工作台创建 Backtest Run 与服务端生命周期（DONE）
   -> S1-BT-003 Backtest 交易、持仓与收益明细（DONE）
   -> S1-BT-004 Backtest 风险、回撤、运行记录与来源明细（DONE）
-  -> S1-BT-005 Backtest 多 Run 比较与确定性复现（DONE_ON_MERGE）
+  -> S1-BT-005 Backtest 多 Run 比较与确定性复现（DONE）
+  -> S2-DM-001 Demo Run 创建与 Supervisor 生命周期（DONE）
+  -> S2-DM-002 Demo 实时状态与运行结果（REVIEW_REQUIRED）
   -> S1-S4 三模式产品闭环
 ```
 
