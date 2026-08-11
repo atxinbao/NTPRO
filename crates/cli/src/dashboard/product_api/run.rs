@@ -2202,11 +2202,12 @@ fn validate_strategy_records(
         })
         || intents.iter().any(|value| {
             value.schema_version != "ntpro.v09_order_intent.v1"
-                || value.intent_id.trim().is_empty()
+                || validate_identifier("demo_order_intent_id", &value.intent_id).is_err()
                 || value.symbol.trim().is_empty()
                 || value.side.trim().is_empty()
                 || value.order_type.trim().is_empty()
                 || value.source_signal.trim().is_empty()
+                || value.submission_status.trim().is_empty()
                 || !value.quantity.is_finite()
                 || value.quantity <= 0.0
                 || !value.confidence.is_finite()
@@ -2218,11 +2219,12 @@ fn validate_strategy_records(
         })
         || risk_decisions.iter().any(|value| {
             value.schema_version != "ntpro.v09_risk_decision.v1"
-                || value.decision_id.trim().is_empty()
-                || value.intent_id.trim().is_empty()
+                || validate_identifier("demo_risk_decision_id", &value.decision_id).is_err()
+                || validate_identifier("demo_risk_intent_id", &value.intent_id).is_err()
                 || value.symbol.trim().is_empty()
                 || value.decision.trim().is_empty()
                 || value.reasons.is_empty()
+                || value.reasons.iter().any(|reason| reason.trim().is_empty())
                 || value.mode.trim().is_empty()
                 || value.order_submission.trim().is_empty()
                 || value.account_state.trim().is_empty()
@@ -2384,6 +2386,70 @@ mod strategy_record_validation_tests {
         )
         .expect_err("a forbidden earlier intent must not be hidden by a safe latest intent");
         assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+
+        let invalid_contract_intents = parse_jsonl::<StoredStrategyOrderIntent>(
+            br#"
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"demo-run","strategy_id":"ema-cross","intent_id":"bad/intent","symbol":"BTCUSDT.BINANCE","side":"buy","order_type":"market","quantity":1.0,"source_signal":"buy","confidence":0.8,"market_event_seq":1,"signal_generated_at":"early","created_at":"early","created_at_unix_ms":1,"submission_allowed":false,"submission_status":""}
+{"schema_version":"ntpro.v09_order_intent.v1","session_id":"demo-run","strategy_id":"ema-cross","intent_id":"intent-latest","symbol":"BTCUSDT.BINANCE","side":"sell","order_type":"market","quantity":1.0,"source_signal":"sell","confidence":0.7,"market_event_seq":2,"signal_generated_at":"latest","created_at":"latest","created_at_unix_ms":2,"submission_allowed":false,"submission_status":"blocked"}
+"#,
+            "demo_order_intent",
+        )
+        .expect("contract-negative order intents should parse");
+        let invalid_contract_summary = StoredStrategySummary {
+            schema_version: "ntpro.v09_strategy_session_summary.v1".to_string(),
+            session_id: "demo-run".to_string(),
+            strategy_id: "ema-cross".to_string(),
+            state: StrategySessionState::Running,
+            event_count: 1,
+            market_event_count: 0,
+            signal_count: 0,
+            intent_count: 2,
+            risk_decision_count: 0,
+            rejection_count: 0,
+            actual_submission_count: 0,
+            updated_at_unix_ms: 2,
+        };
+        let error = validate_strategy_records(
+            "demo-run",
+            "ema-cross",
+            StrategySessionState::Running,
+            &market,
+            &invalid_contract_summary,
+            &events,
+            &[],
+            &[],
+            &invalid_contract_intents,
+            &[],
+        )
+        .expect_err("an invalid early intent contract must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+
+        let invalid_risk_decisions = parse_jsonl::<StoredStrategyRiskDecision>(
+            br#"
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"demo-run","strategy_id":"ema-cross","decision_id":"bad/decision","intent_id":"bad/intent","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":[""],"mode":"sandbox","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"sandbox","market_state":"fresh","actual_submission":false,"evaluated_at":"early","evaluated_at_unix_ms":1}
+{"schema_version":"ntpro.v09_risk_decision.v1","session_id":"demo-run","strategy_id":"ema-cross","decision_id":"decision-latest","intent_id":"intent-latest","symbol":"BTCUSDT.BINANCE","decision":"rejected","reasons":["blocked"],"mode":"sandbox","order_submission":"disabled","kill_switch_enabled":true,"kill_switch_active":false,"account_state":"sandbox","market_state":"fresh","actual_submission":false,"evaluated_at":"latest","evaluated_at_unix_ms":2}
+"#,
+            "demo_risk_decision",
+        )
+        .expect("contract-negative risk decisions should parse");
+        let error = validate_strategy_records(
+            "demo-run",
+            "ema-cross",
+            StrategySessionState::Running,
+            &market,
+            &StoredStrategySummary {
+                intent_count: 0,
+                risk_decision_count: 2,
+                ..invalid_contract_summary
+            },
+            &events,
+            &[],
+            &[],
+            &[],
+            &invalid_risk_decisions,
+        )
+        .expect_err("invalid early risk IDs and reasons must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
 
         let invalid_market = StoredStrategyMarketStatus {
             event_count: 1,
