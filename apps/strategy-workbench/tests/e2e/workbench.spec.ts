@@ -519,6 +519,7 @@ const comparisonResponse = {
     compatibility: {
       same_strategy: true,
       same_strategy_version: true,
+      same_parameters: true,
       same_data: true,
       same_instrument: true,
       same_currency: true,

@@ -2447,6 +2447,10 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
     assert_eq!(frozen_snapshot["data"]["snapshot_status"], "frozen");
     assert_eq!(frozen_snapshot["data"]["session"]["state"], "stopped");
     assert_eq!(
+        frozen_snapshot["data"]["provenance"]["source_refs"][1],
+        "artifact://supervisor-nodes/mvp-node-001/strategy/manifest.json"
+    );
+    assert_eq!(
         frozen_snapshot["data"]["provenance"]["result_ref"],
         format!("artifact://demo-runs/{run_id}/demo-result.json")
     );
@@ -2480,12 +2484,23 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
     assert_eq!(comparison["data"]["items"][0]["environment"], "backtest");
     assert_eq!(comparison["data"]["items"][1]["environment"], "sandbox");
     assert_eq!(
+        comparison["data"]["items"][1]["config_sha256"],
+        sha256_bytes_ref(
+            &fs::read(run_directory.join("request.json"))
+                .expect("Demo request should remain readable")
+        )
+    );
+    assert_eq!(
         comparison["data"]["compatibility"]["same_environment"],
         false
     );
     assert_eq!(
+        comparison["data"]["compatibility"]["same_parameters"],
+        false
+    );
+    assert_eq!(
         comparison["data"]["compatibility"]["behaviorally_comparable"],
-        true
+        false
     );
     assert_eq!(
         comparison["data"]["compatibility"]["directly_comparable"],
@@ -3208,6 +3223,7 @@ async fn institution_can_compare_and_explicitly_reproduce_verified_backtests() {
     );
     assert_eq!(comparison["data"]["compatibility"]["same_strategy"], true);
     assert_eq!(comparison["data"]["compatibility"]["same_data"], false);
+    assert_eq!(comparison["data"]["compatibility"]["same_parameters"], true);
     assert_eq!(comparison["data"]["compatibility"]["same_instrument"], true);
     assert_eq!(
         comparison["data"]["compatibility"]["directly_comparable"],
@@ -3385,6 +3401,15 @@ async fn comparison_and_reproduction_use_each_runs_immutable_strategy_version_sn
     assert_eq!(comparison["data"]["compatibility"]["same_strategy"], true);
     assert_eq!(
         comparison["data"]["compatibility"]["same_strategy_version"],
+        false
+    );
+    assert_eq!(comparison["data"]["compatibility"]["same_parameters"], true);
+    assert_eq!(
+        comparison["data"]["compatibility"]["behaviorally_comparable"],
+        false
+    );
+    assert_eq!(
+        comparison["data"]["compatibility"]["directly_comparable"],
         false
     );
 

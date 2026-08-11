@@ -383,6 +383,36 @@ describe("product API generated client", () => {
     expect(request.method).toBe("GET");
   });
 
+  it.each([
+    {
+      name: "different StrategyVersion",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.items[1].strategy_version_id = "ema-cross@v2";
+        payload.data.compatibility.same_strategy_version = false;
+        payload.data.compatibility.behaviorally_comparable = false;
+        payload.data.compatibility.directly_comparable = false;
+      },
+    },
+    {
+      name: "different strategy",
+      mutate: (payload: Record<string, any>) => {
+        payload.data.items[1].strategy_id = "mean-reversion";
+        payload.data.compatibility.same_strategy = false;
+        payload.data.compatibility.behaviorally_comparable = false;
+        payload.data.compatibility.directly_comparable = false;
+      },
+    },
+  ])("accepts a comparison for $name as view-only", async ({ mutate }) => {
+    const runIds = ["backtest-001", "backtest-created-001"];
+    const payload = structuredClone(
+      backtestComparisonResponse(runIds),
+    ) as unknown as Record<string, any>;
+    mutate(payload);
+    await expect(
+      createProductApiClient({ fetch: jsonFetch(payload) }).compareRuns(runIds),
+    ).resolves.toEqual(payload);
+  });
+
   it("creates and verifies an explicit deterministic reproduction", async () => {
     const sourceRunId = "backtest-created-001";
     const createFetch = jsonFetch(backtestReproductionResponse, 201);
@@ -426,6 +456,23 @@ describe("product API generated client", () => {
       payload: () => {
         const value = backtestComparisonResponse();
         value.data.compatibility.same_data = false;
+        return value;
+      },
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).compareRuns([
+          "backtest-001",
+          "backtest-created-001",
+        ]),
+      field: "run_comparison.data.compatibility",
+    },
+    {
+      name: "parameter compatibility contradicts the compared items",
+      payload: () => {
+        const value = backtestComparisonResponse();
+        value.data.items[1].parameters = {
+          ...value.data.items[1].parameters,
+          trade_size: "2.000000",
+        };
         return value;
       },
       invoke: (fetch: typeof globalThis.fetch) =>

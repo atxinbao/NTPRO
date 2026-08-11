@@ -2230,6 +2230,7 @@
         "required": [
           "same_strategy",
           "same_strategy_version",
+          "same_parameters",
           "same_data",
           "same_instrument",
           "same_currency",
@@ -2240,6 +2241,7 @@
         "properties": {
           "same_strategy": { "type": "boolean" },
           "same_strategy_version": { "type": "boolean" },
+          "same_parameters": { "type": "boolean" },
           "same_data": { "type": "boolean" },
           "same_instrument": { "type": "boolean" },
           "same_currency": { "type": "boolean" },

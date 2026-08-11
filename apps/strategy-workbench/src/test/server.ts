@@ -479,6 +479,7 @@ export function backtestComparisonResponse(
       compatibility: {
         same_strategy: true as const,
         same_strategy_version: true,
+        same_parameters: true,
         same_data: true,
         same_instrument: true,
         same_currency: true,

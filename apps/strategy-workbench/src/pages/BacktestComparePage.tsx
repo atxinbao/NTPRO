@@ -251,7 +251,9 @@ function CompatibilityBand({
   compatibility,
 }: {
   compatibility: {
+    same_strategy: boolean;
     same_strategy_version: boolean;
+    same_parameters: boolean;
     same_data: boolean;
     same_instrument: boolean;
     same_currency: boolean;
@@ -279,7 +281,9 @@ function CompatibilityBand({
               : "结果仅可并列查看"}
         </strong>
         <span>
-          版本 {yesNo(compatibility.same_strategy_version)} · 数据{" "}
+          策略 {yesNo(compatibility.same_strategy)} · 版本{" "}
+          {yesNo(compatibility.same_strategy_version)} · 参数{" "}
+          {yesNo(compatibility.same_parameters)} · 数据{" "}
           {yesNo(compatibility.same_data)}
           {" · "}标的 {yesNo(compatibility.same_instrument)} · 币种{" "}
           {yesNo(compatibility.same_currency)} · 环境{" "}

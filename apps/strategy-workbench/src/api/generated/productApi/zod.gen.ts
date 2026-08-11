@@ -773,6 +773,7 @@ export const zRunComparisonItem = z.object({
 export const zRunComparisonCompatibility = z.object({
   same_strategy: z.boolean(),
   same_strategy_version: z.boolean(),
+  same_parameters: z.boolean(),
   same_data: z.boolean(),
   same_instrument: z.boolean(),
   same_currency: z.boolean(),

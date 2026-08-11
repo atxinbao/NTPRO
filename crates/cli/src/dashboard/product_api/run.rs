@@ -1181,6 +1181,7 @@ struct RunComparisonProvenance {
 struct RunComparisonCompatibility {
     same_strategy: bool,
     same_strategy_version: bool,
+    same_parameters: bool,
     same_data: bool,
     same_instrument: bool,
     same_currency: bool,
@@ -2016,8 +2017,8 @@ fn build_demo_snapshot_from_record(
             source_refs: vec![
                 format!("artifact://demo-runs/{}/run-manifest.json", run.run_id),
                 format!(
-                    "artifact://demo-runs/{}/strategy-session/manifest.json",
-                    run.run_id
+                    "artifact://supervisor-nodes/{}/strategy/manifest.json",
+                    record.node_id
                 ),
             ],
             manifest_sha256: Some(strategy.manifest_sha256),
@@ -3421,6 +3422,27 @@ fn demo_run_manifest_sha256(
     read_backtest_result_bytes(&run_root.join("run-manifest.json")).map(|raw| sha256_ref(&raw))
 }
 
+fn demo_run_request_sha256(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<String, ProductError> {
+    let run_root = canonical_demo_artifact_root(state, false)?.join(run_id);
+    let manifest_raw = read_backtest_result_bytes(&run_root.join("run-manifest.json"))?;
+    let request_raw = read_backtest_result_bytes(&run_root.join("request.json"))?;
+    let manifest: DynamicDemoRunManifest = strict_json(&manifest_raw, "demo_manifest")?;
+    if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
+        || manifest.config.run_id != run_id
+        || !is_sha256_ref(&manifest.request_sha256)
+        || sha256_ref(&request_raw) != manifest.request_sha256
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_request_sha256",
+        ));
+    }
+    Ok(manifest.request_sha256)
+}
+
 pub(crate) fn shutdown_active_demo_run(
     registry_path: &Path,
     stop_timeout: Duration,
@@ -4499,7 +4521,7 @@ pub(in crate::dashboard) async fn run_comparison_api(
                         strategy_version_id: run.strategy_version_id.clone(),
                         data_ref: run.data_ref.clone(),
                         data_sha256: simulation.summary.data_sha256.clone(),
-                        config_sha256: demo_run_manifest_sha256(&state, run_id)?,
+                        config_sha256: demo_run_request_sha256(&state, run_id)?,
                         instrument_id: simulation.summary.instrument_id.clone(),
                         parameters: BacktestParameters {
                             trade_size: simulation.summary.parameters.trade_size.clone(),
@@ -4537,6 +4559,7 @@ pub(in crate::dashboard) async fn run_comparison_api(
         let same_strategy_version = items
             .iter()
             .all(|item| item.strategy_version_id == first.strategy_version_id);
+        let same_parameters = items.iter().all(|item| item.parameters == first.parameters);
         let same_data = items
             .iter()
             .all(|item| item.data_sha256 == first.data_sha256);
@@ -4552,8 +4575,11 @@ pub(in crate::dashboard) async fn run_comparison_api(
         let same_environment = items
             .iter()
             .all(|item| item.environment == first.environment);
-        let behaviorally_comparable =
-            same_strategy && same_strategy_version && same_instrument && same_currency;
+        let behaviorally_comparable = same_strategy
+            && same_strategy_version
+            && same_parameters
+            && same_instrument
+            && same_currency;
         Ok(RunComparisonResponse {
             schema_version: RUN_COMPARISON_SCHEMA_VERSION.to_string(),
             contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
@@ -4565,6 +4591,7 @@ pub(in crate::dashboard) async fn run_comparison_api(
                 compatibility: RunComparisonCompatibility {
                     same_strategy,
                     same_strategy_version,
+                    same_parameters,
                     same_data,
                     same_instrument,
                     same_currency,

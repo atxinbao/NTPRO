@@ -467,15 +467,56 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           payload.data.items.length === runIds.length &&
           payload.data.items.every(
             (item, index) => item.run_id === runIds[index],
-          ) &&
-          payload.data.compatibility.same_strategy,
+          ),
         "run_comparison.data.identity",
       );
+      const baseline = payload.data.items[0];
+      if (baseline === undefined) {
+        throw new ProductApiContractError("run_comparison.data.items");
+      }
+      const sameStrategy = payload.data.items.every(
+        (item) => item.strategy_id === baseline.strategy_id,
+      );
+      const sameStrategyVersion = payload.data.items.every(
+        (item) => item.strategy_version_id === baseline.strategy_version_id,
+      );
+      const sameParameters = payload.data.items.every(
+        (item) =>
+          item.parameters.trade_size === baseline.parameters.trade_size &&
+          item.parameters.fast_period === baseline.parameters.fast_period &&
+          item.parameters.slow_period === baseline.parameters.slow_period,
+      );
+      const sameData = payload.data.items.every(
+        (item) => item.data_sha256 === baseline.data_sha256,
+      );
+      const sameInstrument = payload.data.items.every(
+        (item) => item.instrument_id === baseline.instrument_id,
+      );
+      const sameCurrency = payload.data.items.every(
+        (item) => item.risk.currency === baseline.risk.currency,
+      );
+      const sameEnvironment = payload.data.items.every(
+        (item) => item.environment === baseline.environment,
+      );
+      const behaviorallyComparable =
+        sameStrategy &&
+        sameStrategyVersion &&
+        sameParameters &&
+        sameInstrument &&
+        sameCurrency;
       assertIdentity(
-        payload.data.compatibility.directly_comparable ===
-          (payload.data.compatibility.same_data &&
-            payload.data.compatibility.same_instrument &&
-            payload.data.compatibility.same_currency),
+        payload.data.compatibility.same_strategy === sameStrategy &&
+          payload.data.compatibility.same_strategy_version ===
+            sameStrategyVersion &&
+          payload.data.compatibility.same_parameters === sameParameters &&
+          payload.data.compatibility.same_data === sameData &&
+          payload.data.compatibility.same_instrument === sameInstrument &&
+          payload.data.compatibility.same_currency === sameCurrency &&
+          payload.data.compatibility.same_environment === sameEnvironment &&
+          payload.data.compatibility.behaviorally_comparable ===
+            behaviorallyComparable &&
+          payload.data.compatibility.directly_comparable ===
+            (behaviorallyComparable && sameData),
         "run_comparison.data.compatibility",
       );
       assertReadOnlyBoundaries(payload.boundaries, "run_comparison.boundaries");

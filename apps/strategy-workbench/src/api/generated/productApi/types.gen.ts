@@ -723,6 +723,7 @@ export type RunComparisonItem = {
 export type RunComparisonCompatibility = {
   same_strategy: boolean;
   same_strategy_version: boolean;
+  same_parameters: boolean;
   same_data: boolean;
   same_instrument: boolean;
   same_currency: boolean;

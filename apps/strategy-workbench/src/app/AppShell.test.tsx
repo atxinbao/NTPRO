@@ -292,6 +292,10 @@ describe("strategy workbench product slice", () => {
       data_ref: stoppedDemo.data_ref,
       data_sha256:
         "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      parameters: {
+        ...comparison.data.items[1].parameters,
+        trade_size: "1.000000",
+      },
       metrics: {
         market_event_count: 12,
         fill_count: 1,
@@ -311,8 +315,9 @@ describe("strategy workbench product slice", () => {
     comparison.data.compatibility = {
       ...comparison.data.compatibility,
       same_data: false,
+      same_parameters: false,
       same_environment: false,
-      behaviorally_comparable: true,
+      behaviorally_comparable: false,
       directly_comparable: false,
     };
     server.use(
@@ -326,7 +331,7 @@ describe("strategy workbench product slice", () => {
 
     expect(
       await screen.findByRole("region", { name: "比较兼容性" }),
-    ).toHaveTextContent("策略行为可比较，数据范围不同");
+    ).toHaveTextContent("结果仅可并列查看");
     expect(
       screen.getByRole("region", { name: "Run 比较结果" }),
     ).toHaveTextContent(stoppedDemo.run_id);
