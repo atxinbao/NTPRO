@@ -713,10 +713,16 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       );
       const hasRuntimeData =
         snapshot.market !== null && snapshot.session !== null;
+      const hasNoRuntimeData =
+        snapshot.market === null &&
+        snapshot.session === null &&
+        snapshot.latest_signal === null &&
+        snapshot.latest_order_intent === null &&
+        snapshot.latest_risk_decision === null;
       assertIdentity(
         (snapshot.snapshot_status === "not_started" &&
           snapshot.lifecycle === "created" &&
-          !hasRuntimeData &&
+          hasNoRuntimeData &&
           snapshot.provenance.result_ref === null &&
           snapshot.provenance.result_sha256 === null) ||
           (snapshot.snapshot_status === "running" &&

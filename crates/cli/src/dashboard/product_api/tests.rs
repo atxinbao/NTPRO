@@ -2253,6 +2253,14 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
         running_snapshot["data"]["provenance"]["result_sha256"],
         Value::Null
     );
+    assert!(
+        running_snapshot["data"]["observed_at_unix_ms"]
+            .as_u64()
+            .unwrap()
+            >= running_snapshot["data"]["market"]["updated_at_unix_ms"]
+                .as_u64()
+                .unwrap()
+    );
     validate_openapi_instance("DemoRunSnapshotResponse", &running_snapshot);
 
     let mut stale_contract = fixture.read_status_contract();
@@ -2844,7 +2852,7 @@ async fn demo_execution_failures_use_demo_specific_error_contract() {
 
 #[cfg(unix)]
 #[tokio::test]
-async fn invalid_runtime_after_demo_start_is_stopped_and_terminalized() {
+async fn invalid_runtime_after_demo_start_stops_without_trusting_a_terminal_result() {
     let fixture = Fixture::new("demo-start-runtime-invalid");
     let node = write_demo_fixture_node_with_forbidden_metrics(&fixture.root);
     let router = dashboard_router(fixture.registry_path.clone(), node);
@@ -2886,20 +2894,13 @@ async fn invalid_runtime_after_demo_start_is_stopped_and_terminalized() {
         record.last_known_status.lifecycle_state,
         nautilus_live::status::LifecycleStatus::Stopped
     );
-    let terminal: Value = serde_json::from_slice(
-        &fs::read(
-            fixture
-                .root
-                .join("artifacts/demo-runs")
-                .join(run_id)
-                .join("terminal-state.json"),
-        )
-        .expect("failed Demo start should publish terminal state"),
-    )
-    .expect("terminal state should be valid JSON");
-    assert_eq!(terminal["lifecycle"], "failed");
-    assert_eq!(terminal["runtime"]["process_state"], "stopped");
-    assert_eq!(terminal["runtime"]["lifecycle_state"], "stopped");
+    let run_root = fixture.root.join("artifacts/demo-runs").join(run_id);
+    assert!(!run_root.join("terminal-state.json").exists());
+    assert!(!run_root.join("demo-result.json").exists());
+    assert!(
+        record.run_ownership[run_id].terminal.is_none(),
+        "a forbidden runtime must stop without publishing or anchoring a trusted result"
+    );
 }
 
 #[cfg(unix)]

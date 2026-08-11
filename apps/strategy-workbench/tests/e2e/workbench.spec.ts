@@ -659,6 +659,16 @@ test.beforeEach(async ({ page }) => {
 test("Demo page creates a Run and explicitly controls Supervisor lifecycle", async ({
   page,
 }, testInfo) => {
+  let demoSnapshotRequests = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "GET" &&
+      new URL(request.url()).pathname ===
+        "/api/product/v1/runs/demo-browser-001/demo-snapshot"
+    ) {
+      demoSnapshotRequests += 1;
+    }
+  });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("demo");
   await expect(
@@ -686,6 +696,10 @@ test("Demo page creates a Run and explicitly controls Supervisor lifecycle", asy
   await expect(
     page.getByRole("region", { name: "Demo 运行结果" }),
   ).toContainText("sell");
+  const requestsBeforePolling = demoSnapshotRequests;
+  await expect
+    .poll(() => demoSnapshotRequests, { timeout: 3_500 })
+    .toBeGreaterThan(requestsBeforePolling);
   await page.getByRole("button", { name: "停止" }).click();
   await expect(
     page.getByRole("region", { name: "Demo 生命周期" }),
@@ -696,6 +710,10 @@ test("Demo page creates a Run and explicitly controls Supervisor lifecycle", asy
   await expect(
     page.getByRole("region", { name: "Demo 运行结果" }),
   ).toContainText("sha256:2222");
+  await page.waitForTimeout(100);
+  const terminalRequestCount = demoSnapshotRequests;
+  await page.waitForTimeout(2_200);
+  expect(demoSnapshotRequests).toBe(terminalRequestCount);
   await expect(
     page.getByRole("button", { name: /下单|撤单|改单|平仓/ }),
   ).toHaveCount(0);

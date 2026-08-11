@@ -331,6 +331,32 @@ describe("product API generated client", () => {
         payload.data.run_id = "demo-other";
       },
     ],
+    [
+      "partial not-started market",
+      (payload: Record<string, any>) => {
+        payload.data.market = {
+          connection: "connected",
+          state: "exhausted",
+          source: "fixture",
+          event_count: 0,
+          last_event_at_unix_ms: null,
+          updated_at_unix_ms: 1,
+          latest_event: null,
+        };
+      },
+    ],
+    [
+      "partial not-started signal",
+      (payload: Record<string, any>) => {
+        payload.data.latest_signal = {
+          symbol: "BTCUSDT.BINANCE",
+          signal: "sell",
+          confidence: 0.5,
+          market_event_seq: 1,
+          generated_at_unix_ms: 1,
+        };
+      },
+    ],
   ])("fails closed for Demo snapshot %s", async (_, mutate) => {
     const payload = structuredClone(demoSnapshotResponse(createdDemo));
     mutate(payload);
