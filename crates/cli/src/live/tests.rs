@@ -13835,9 +13835,9 @@ async fn run_ntpro_node_hosts_strategy_session_artifacts() {
     assert_eq!(status.execution_connection, ConnectionStatus::NotConfigured);
     assert!(!status.external_venue_connection);
     assert!(!status.real_orders_submitted);
-    assert_eq!(status.risk.command_count.value, Some(2));
-    assert_eq!(status.risk.event_count.value, Some(2));
-    assert_eq!(status.risk.rejections_total.value, Some(2));
+    assert_eq!(status.risk.command_count.value, Some(4));
+    assert_eq!(status.risk.event_count.value, Some(4));
+    assert_eq!(status.risk.rejections_total.value, Some(4));
 
     let session_status: serde_json::Value = serde_json::from_str(
         &fs::read_to_string(output_dir.join("strategy").join("session_status.json")).unwrap(),
@@ -13881,8 +13881,8 @@ async fn run_ntpro_node_hosts_strategy_session_artifacts() {
     assert_eq!(metrics.node_id, "btc-ema-shadow-001");
     assert_eq!(metrics.lifecycle_state, LifecycleStatus::Stopped);
     assert_eq!(metrics.process_mode, ProcessMode::SpawnedProcess);
-    assert_eq!(metrics.strategy_signal_count.value, Some(2));
-    assert_eq!(metrics.strategy_rejection_count.value, Some(2));
+    assert_eq!(metrics.strategy_signal_count.value, Some(4));
+    assert_eq!(metrics.strategy_rejection_count.value, Some(4));
     assert!(!metrics.external_venue_connection);
     assert!(!metrics.real_orders_submitted);
 }
@@ -13914,11 +13914,11 @@ async fn run_ntpro_node_keeps_strategy_session_running_until_shutdown() {
                     let node_metrics: NodeMetrics =
                         serde_json::from_str(&fs::read_to_string(&node_metrics_path)?)?;
                     if node_status.lifecycle_state == LifecycleStatus::Running
-                        && node_status.risk.command_count.value == Some(2)
-                        && node_status.risk.event_count.value == Some(2)
-                        && node_status.risk.rejections_total.value == Some(2)
-                        && node_metrics.strategy_signal_count.value == Some(2)
-                        && node_metrics.strategy_rejection_count.value == Some(2)
+                        && node_status.risk.command_count.value == Some(4)
+                        && node_status.risk.event_count.value == Some(4)
+                        && node_status.risk.rejections_total.value == Some(4)
+                        && node_metrics.strategy_signal_count.value == Some(4)
+                        && node_metrics.strategy_rejection_count.value == Some(4)
                     {
                         fs::write(&stop_file_writer, "stop\n")?;
                         return Ok::<_, anyhow::Error>(());

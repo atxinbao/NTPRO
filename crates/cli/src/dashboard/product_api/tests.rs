@@ -1794,7 +1794,7 @@ async fn institution_creates_one_immutable_demo_run_bound_to_supervisor() {
     assert_eq!(status, StatusCode::OK, "{snapshot}");
     assert_eq!(
         snapshot["schema_version"],
-        "ntpro.product_api.demo_run_snapshot.response.v1"
+        "ntpro.product_api.demo_run_snapshot.response.v2"
     );
     assert_eq!(snapshot["data"]["run_id"], run_id);
     assert_eq!(snapshot["data"]["lifecycle"], "created");
@@ -2060,6 +2060,123 @@ async fn demo_resigned_artifacts_and_forbidden_capabilities_fail_closed() {
     assert_eq!(error["error"]["field"], "run_capabilities");
 }
 
+#[test]
+fn demo_simulation_artifact_boundaries_fail_closed() {
+    let valid = json!({
+        "summary": {
+            "schema_version": "ntpro.demo_simulation_summary.v1",
+            "session_id": "demo-boundary-001",
+            "strategy_id": "ema-cross",
+            "instrument_id": "BTCUSDT.BINANCE",
+            "engine": "nautilus_backtest::engine::BacktestEngine",
+            "execution_mode": "simulated",
+            "data_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "parameters": {
+                "trade_size": "1.000000",
+                "fast_period": 3,
+                "slow_period": 5
+            },
+            "fill_count": 1,
+            "position_count": 1,
+            "equity_point_count": 1,
+            "boundaries": {
+                "simulation_only": true,
+                "external_venue_connection": false,
+                "order_submission_allowed": false,
+                "order_mutation_allowed": false,
+                "automatic_retry_allowed": false,
+                "automatic_remediation_allowed": false,
+                "real_orders_submitted": false,
+                "trading_controls_enabled": false
+            }
+        },
+        "fills": [{
+            "schema_version": "ntpro.demo_simulated_fill.v1",
+            "session_id": "demo-boundary-001",
+            "strategy_id": "ema-cross",
+            "simulation_only": true,
+            "trade_id": "trade-demo-001",
+            "client_order_id": "order-demo-001",
+            "venue_order_id": "simulated-001",
+            "position_id": "position-demo-001",
+            "side": "SELL",
+            "order_type": "MARKET",
+            "quantity": "1.000000",
+            "price": "100.50",
+            "currency": "USDT",
+            "liquidity_side": "TAKER",
+            "commission": "0.10050000 USDT",
+            "ts_event": "1767225600000000000"
+        }],
+        "positions": [{
+            "schema_version": "ntpro.demo_simulated_position.v1",
+            "session_id": "demo-boundary-001",
+            "strategy_id": "ema-cross",
+            "simulation_only": true,
+            "position_id": "position-demo-001",
+            "account_id": "BINANCE-001",
+            "side": "SHORT",
+            "entry_side": "SELL",
+            "peak_quantity": "1.000000",
+            "buy_quantity": "0.000000",
+            "sell_quantity": "1.000000",
+            "avg_price_open": "100.5",
+            "avg_price_close": null,
+            "realized_return": "0",
+            "realized_pnl": null,
+            "trade_count": 1,
+            "ts_opened": "1767225600000000000",
+            "ts_closed": null,
+            "duration_ns": "0"
+        }],
+        "equity_curve": [{
+            "schema_version": "ntpro.demo_equity_point.v1",
+            "session_id": "demo-boundary-001",
+            "strategy_id": "ema-cross",
+            "simulation_only": true,
+            "account_id": "BINANCE-001",
+            "currency": "USDT",
+            "total": "1000000.00000000 USDT",
+            "free": "1000000.00000000 USDT",
+            "locked": "0.00000000 USDT",
+            "ts_event": "1767225600000000000"
+        }]
+    });
+
+    for (name, pointer, expected_field) in [
+        (
+            "summary",
+            "/summary/boundaries/simulation_only",
+            "demo_simulation_boundaries",
+        ),
+        (
+            "fill",
+            "/fills/0/simulation_only",
+            "demo_simulated_fill_boundary",
+        ),
+        (
+            "position",
+            "/positions/0/simulation_only",
+            "demo_simulated_position_boundary",
+        ),
+        (
+            "equity",
+            "/equity_curve/0/simulation_only",
+            "demo_equity_point_boundary",
+        ),
+    ] {
+        let mut tampered = valid.clone();
+        *tampered
+            .pointer_mut(pointer)
+            .expect("boundary fixture pointer should exist") = json!(false);
+        let error =
+            validate_demo_simulation_value_for_test("demo-boundary-001", "ema-cross", tampered)
+                .expect_err("non-simulation Demo artifact must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::BoundaryViolation, "{name}");
+        assert_eq!(error.field, expected_field, "{name}");
+    }
+}
+
 #[cfg(any(unix, windows))]
 #[tokio::test]
 async fn demo_artifact_file_and_directory_symlinks_fail_closed() {
@@ -2238,6 +2355,24 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
     assert_eq!(running_snapshot["data"]["session"]["signal_count"], 1);
     assert_eq!(running_snapshot["data"]["session"]["intent_count"], 1);
     assert_eq!(
+        running_snapshot["data"]["simulation"]["fills"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        running_snapshot["data"]["simulation"]["positions"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
+        running_snapshot["data"]["simulation"]["equity_curve"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
+    );
+    assert_eq!(
         running_snapshot["data"]["session"]["actual_submission_count"],
         0
     );
@@ -2312,6 +2447,10 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
     assert_eq!(frozen_snapshot["data"]["snapshot_status"], "frozen");
     assert_eq!(frozen_snapshot["data"]["session"]["state"], "stopped");
     assert_eq!(
+        frozen_snapshot["data"]["provenance"]["source_refs"][1],
+        "artifact://supervisor-nodes/mvp-node-001/strategy/manifest.json"
+    );
+    assert_eq!(
         frozen_snapshot["data"]["provenance"]["result_ref"],
         format!("artifact://demo-runs/{run_id}/demo-result.json")
     );
@@ -2334,6 +2473,40 @@ async fn demo_actions_drive_the_real_supervisor_process_lifecycle() {
         result_sha256
     );
     validate_openapi_instance("DemoRunSnapshotResponse", &frozen_snapshot);
+
+    let comparison_path = format!("/api/product/v1/run-comparisons?run_ids=backtest-001,{run_id}");
+    let (status, comparison) = router_json(&router, Method::GET, &comparison_path).await;
+    assert_eq!(status, StatusCode::OK, "{comparison}");
+    assert_eq!(
+        comparison["schema_version"],
+        "ntpro.product_api.run_comparison.response.v2"
+    );
+    assert_eq!(comparison["data"]["items"][0]["environment"], "backtest");
+    assert_eq!(comparison["data"]["items"][1]["environment"], "sandbox");
+    assert_eq!(
+        comparison["data"]["items"][1]["config_sha256"],
+        sha256_bytes_ref(
+            &fs::read(run_directory.join("request.json"))
+                .expect("Demo request should remain readable")
+        )
+    );
+    assert_eq!(
+        comparison["data"]["compatibility"]["same_environment"],
+        false
+    );
+    assert_eq!(
+        comparison["data"]["compatibility"]["same_parameters"],
+        false
+    );
+    assert_eq!(
+        comparison["data"]["compatibility"]["behaviorally_comparable"],
+        false
+    );
+    assert_eq!(
+        comparison["data"]["compatibility"]["directly_comparable"],
+        false
+    );
+    validate_openapi_instance("RunComparisonResponse", &comparison);
 
     let (status, terminal_restart) =
         router_json_body(&router, Method::POST, &action_path, &start).await;
@@ -3037,7 +3210,7 @@ async fn institution_can_compare_and_explicitly_reproduce_verified_backtests() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(
         comparison["schema_version"],
-        "ntpro.product_api.run_comparison.response.v1"
+        "ntpro.product_api.run_comparison.response.v2"
     );
     assert_eq!(comparison["data"]["baseline_run_id"], "backtest-001");
     assert_eq!(
@@ -3050,6 +3223,7 @@ async fn institution_can_compare_and_explicitly_reproduce_verified_backtests() {
     );
     assert_eq!(comparison["data"]["compatibility"]["same_strategy"], true);
     assert_eq!(comparison["data"]["compatibility"]["same_data"], false);
+    assert_eq!(comparison["data"]["compatibility"]["same_parameters"], true);
     assert_eq!(comparison["data"]["compatibility"]["same_instrument"], true);
     assert_eq!(
         comparison["data"]["compatibility"]["directly_comparable"],
@@ -3227,6 +3401,15 @@ async fn comparison_and_reproduction_use_each_runs_immutable_strategy_version_sn
     assert_eq!(comparison["data"]["compatibility"]["same_strategy"], true);
     assert_eq!(
         comparison["data"]["compatibility"]["same_strategy_version"],
+        false
+    );
+    assert_eq!(comparison["data"]["compatibility"]["same_parameters"], true);
+    assert_eq!(
+        comparison["data"]["compatibility"]["behaviorally_comparable"],
+        false
+    );
+    assert_eq!(
+        comparison["data"]["compatibility"]["directly_comparable"],
         false
     );
 
@@ -4758,7 +4941,7 @@ write_strategy_artifacts() {
     reason="user_stop"
   fi
   cat > "$output/strategy/session_status.json" <<EOF
-{"schema_version":"ntpro.v09_strategy_session_status.v1","session_id":"$node_id","strategy_id":"ema-cross","state":"$lifecycle","reason":"$reason","updated_at_unix_ms":$now_ms,"artifacts":{"session_status":"$output/strategy/session_status.json","events":"$output/strategy/events.jsonl","market_status":"$output/strategy/market_status.json","market_events":"$output/strategy/market_events.jsonl","signal":"$output/strategy/signal.jsonl","order_intent":"$output/strategy/order_intent.jsonl","risk_decision":"$output/strategy/risk_decision.jsonl","summary":"$output/strategy/summary.json","manifest":"$output/strategy/manifest.json"}}
+{"schema_version":"ntpro.v09_strategy_session_status.v1","session_id":"$node_id","strategy_id":"ema-cross","state":"$lifecycle","reason":"$reason","updated_at_unix_ms":$now_ms,"artifacts":{"session_status":"$output/strategy/session_status.json","events":"$output/strategy/events.jsonl","market_status":"$output/strategy/market_status.json","market_events":"$output/strategy/market_events.jsonl","signal":"$output/strategy/signal.jsonl","order_intent":"$output/strategy/order_intent.jsonl","risk_decision":"$output/strategy/risk_decision.jsonl","summary":"$output/strategy/summary.json","simulation_summary":"$output/strategy/simulation_summary.json","simulated_fills":"$output/strategy/simulated_fills.jsonl","simulated_positions":"$output/strategy/simulated_positions.jsonl","equity_curve":"$output/strategy/equity_curve.jsonl","manifest":"$output/strategy/manifest.json"}}
 EOF
   cat > "$output/strategy/events.jsonl" <<EOF
 {"schema_version":"ntpro.v09_strategy_session_event.v1","event_type":"fixture","session_id":"$node_id","strategy_id":"ema-cross","previous_state":null,"state":"$lifecycle","reason":"$reason","occurred_at_unix_ms":$now_ms}
@@ -4781,6 +4964,18 @@ EOF
   cat > "$output/strategy/summary.json" <<EOF
 {"schema_version":"ntpro.v09_strategy_session_summary.v1","session_id":"$node_id","strategy_id":"ema-cross","state":"$lifecycle","event_count":1,"market_event_count":1,"signal_count":1,"intent_count":1,"risk_decision_count":1,"rejection_count":1,"actual_submission_count":0,"updated_at_unix_ms":$artifact_now_ms}
 EOF
+  cat > "$output/strategy/simulation_summary.json" <<EOF
+{"schema_version":"ntpro.demo_simulation_summary.v1","session_id":"$node_id","strategy_id":"ema-cross","instrument_id":"BTCUSDT.BINANCE","engine":"nautilus_backtest::engine::BacktestEngine","execution_mode":"simulated","data_sha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","parameters":{"trade_size":"1.000000","fast_period":3,"slow_period":5},"fill_count":1,"position_count":1,"equity_point_count":1,"boundaries":{"simulation_only":true,"external_venue_connection":false,"order_submission_allowed":false,"order_mutation_allowed":false,"automatic_retry_allowed":false,"automatic_remediation_allowed":false,"real_orders_submitted":false,"trading_controls_enabled":false}}
+EOF
+  cat > "$output/strategy/simulated_fills.jsonl" <<EOF
+{"schema_version":"ntpro.demo_simulated_fill.v1","session_id":"$node_id","strategy_id":"ema-cross","simulation_only":true,"trade_id":"trade-demo-001","client_order_id":"order-demo-001","venue_order_id":"simulated-001","position_id":"position-demo-001","side":"SELL","order_type":"MARKET","quantity":"1.000000","price":"100.50","currency":"USDT","liquidity_side":"TAKER","commission":"0.10050000 USDT","ts_event":"${now_ms}000000"}
+EOF
+  cat > "$output/strategy/simulated_positions.jsonl" <<EOF
+{"schema_version":"ntpro.demo_simulated_position.v1","session_id":"$node_id","strategy_id":"ema-cross","simulation_only":true,"position_id":"position-demo-001","account_id":"BINANCE-001","side":"SHORT","entry_side":"SELL","peak_quantity":"1.000000","buy_quantity":"0.000000","sell_quantity":"1.000000","avg_price_open":"100.5","avg_price_close":null,"realized_return":"0","realized_pnl":null,"trade_count":1,"ts_opened":"${now_ms}000000","ts_closed":null,"duration_ns":"0"}
+EOF
+  cat > "$output/strategy/equity_curve.jsonl" <<EOF
+{"schema_version":"ntpro.demo_equity_point.v1","session_id":"$node_id","strategy_id":"ema-cross","simulation_only":true,"account_id":"BINANCE-001","currency":"USDT","total":"1000000.00000000 USDT","free":"1000000.00000000 USDT","locked":"0.00000000 USDT","ts_event":"${now_ms}000000"}
+EOF
   cat > "$output/strategy/manifest.json.tmp" <<EOF
 {"schema_version":"ntpro.v091_strategy_session_manifest.v1","session_id":"$node_id","strategy_id":"ema-cross","state":"$lifecycle","created_at_unix_ms":$now_ms,"updated_at_unix_ms":$now_ms,"artifacts":[
 {"name":"session_status","path":"$output/strategy/session_status.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/session_status.json"),"checksum":"$(checksum "$output/strategy/session_status.json")"},
@@ -4790,7 +4985,11 @@ EOF
 {"name":"signal","path":"$output/strategy/signal.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/signal.jsonl"),"checksum":"$(checksum "$output/strategy/signal.jsonl")"},
 {"name":"order_intent","path":"$output/strategy/order_intent.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/order_intent.jsonl"),"checksum":"$(checksum "$output/strategy/order_intent.jsonl")"},
 {"name":"risk_decision","path":"$output/strategy/risk_decision.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/risk_decision.jsonl"),"checksum":"$(checksum "$output/strategy/risk_decision.jsonl")"},
-{"name":"summary","path":"$output/strategy/summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/summary.json"),"checksum":"$(checksum "$output/strategy/summary.json")"}]}
+{"name":"summary","path":"$output/strategy/summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/summary.json"),"checksum":"$(checksum "$output/strategy/summary.json")"},
+{"name":"simulation_summary","path":"$output/strategy/simulation_summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/simulation_summary.json"),"checksum":"$(checksum "$output/strategy/simulation_summary.json")"},
+{"name":"simulated_fills","path":"$output/strategy/simulated_fills.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/simulated_fills.jsonl"),"checksum":"$(checksum "$output/strategy/simulated_fills.jsonl")"},
+{"name":"simulated_positions","path":"$output/strategy/simulated_positions.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/simulated_positions.jsonl"),"checksum":"$(checksum "$output/strategy/simulated_positions.jsonl")"},
+{"name":"equity_curve","path":"$output/strategy/equity_curve.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/equity_curve.jsonl"),"checksum":"$(checksum "$output/strategy/equity_curve.jsonl")"}]}
 EOF
   mv "$output/strategy/manifest.json.tmp" "$output/strategy/manifest.json"
 }

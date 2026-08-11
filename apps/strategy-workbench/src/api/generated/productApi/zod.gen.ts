@@ -418,6 +418,102 @@ export const zDemoRiskDecisionSnapshot = z.object({
   evaluated_at_unix_ms: z.int().gte(1),
 });
 
+export const zDemoSimulationParameters = z.object({
+  trade_size: z.string().min(1),
+  fast_period: z.literal(3),
+  slow_period: z.literal(5),
+});
+
+export const zDemoSimulationArtifactBoundaries = z.object({
+  simulation_only: z.literal(true),
+  external_venue_connection: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  order_mutation_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  real_orders_submitted: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zDemoSimulationSummary = z.object({
+  schema_version: z.literal("ntpro.demo_simulation_summary.v1"),
+  session_id: zRunId,
+  strategy_id: zStrategyId,
+  instrument_id: z.literal("BTCUSDT.BINANCE"),
+  engine: z.literal("nautilus_backtest::engine::BacktestEngine"),
+  execution_mode: z.literal("simulated"),
+  data_sha256: zContentHash,
+  parameters: zDemoSimulationParameters,
+  fill_count: z.int().gte(1),
+  position_count: z.int().gte(1),
+  equity_point_count: z.int().gte(1),
+  boundaries: zDemoSimulationArtifactBoundaries,
+});
+
+export const zDemoSimulatedFill = z.object({
+  schema_version: z.literal("ntpro.demo_simulated_fill.v1"),
+  session_id: zRunId,
+  strategy_id: zStrategyId,
+  simulation_only: z.literal(true),
+  trade_id: z.string().min(1),
+  client_order_id: z.string().min(1),
+  venue_order_id: z.string().min(1),
+  position_id: z.string().min(1).nullable(),
+  side: z.string().min(1),
+  order_type: z.string().min(1),
+  quantity: z.string().min(1),
+  price: z.string().min(1),
+  currency: z.string().min(1),
+  liquidity_side: z.string().min(1),
+  commission: z.string().min(1).nullable(),
+  ts_event: z.string().regex(/^[1-9][0-9]*$/),
+});
+
+export const zDemoSimulatedPosition = z.object({
+  schema_version: z.literal("ntpro.demo_simulated_position.v1"),
+  session_id: zRunId,
+  strategy_id: zStrategyId,
+  simulation_only: z.literal(true),
+  position_id: z.string().min(1),
+  account_id: z.string().min(1),
+  side: z.string().min(1),
+  entry_side: z.string().min(1),
+  peak_quantity: z.string().min(1),
+  buy_quantity: z.string().min(1),
+  sell_quantity: z.string().min(1),
+  avg_price_open: z.string().min(1),
+  avg_price_close: z.string().min(1).nullable(),
+  realized_return: z.string().min(1),
+  realized_pnl: z.string().min(1).nullable(),
+  trade_count: z.int().gte(1),
+  ts_opened: z.string().regex(/^[1-9][0-9]*$/),
+  ts_closed: z
+    .string()
+    .regex(/^[1-9][0-9]*$/)
+    .nullable(),
+  duration_ns: z.string().regex(/^[0-9]+$/),
+});
+
+export const zDemoEquityPoint = z.object({
+  schema_version: z.literal("ntpro.demo_equity_point.v1"),
+  session_id: zRunId,
+  strategy_id: zStrategyId,
+  simulation_only: z.literal(true),
+  account_id: z.string().min(1),
+  currency: z.string().min(1),
+  total: z.string().min(1),
+  free: z.string().min(1),
+  locked: z.string().min(1),
+  ts_event: z.string().regex(/^[1-9][0-9]*$/),
+});
+
+export const zDemoSimulation = z.object({
+  summary: zDemoSimulationSummary,
+  fills: z.array(zDemoSimulatedFill).min(1),
+  positions: z.array(zDemoSimulatedPosition).min(1),
+  equity_curve: z.array(zDemoEquityPoint).min(1),
+});
+
 export const zDemoTechnicalHealth = z.object({
   status: z.enum(["healthy", "blocked"]),
   diagnostics: z.array(z.string().min(1)),
@@ -431,7 +527,7 @@ export const zDemoSnapshotProvenance = z.object({
 });
 
 export const zDemoRunSnapshot = z.object({
-  schema_version: z.literal("ntpro.product_api.demo_run_result.v1"),
+  schema_version: z.literal("ntpro.product_api.demo_run_result.v2"),
   run_id: zRunId,
   strategy_id: zStrategyId,
   strategy_version_id: zStrategyVersionId,
@@ -444,12 +540,13 @@ export const zDemoRunSnapshot = z.object({
   latest_signal: zDemoSignalSnapshot.nullable(),
   latest_order_intent: zDemoOrderIntentSnapshot.nullable(),
   latest_risk_decision: zDemoRiskDecisionSnapshot.nullable(),
+  simulation: zDemoSimulation.nullable(),
   technical_health: zDemoTechnicalHealth,
   provenance: zDemoSnapshotProvenance,
 });
 
 export const zDemoRunSnapshotResponse = z.object({
-  schema_version: z.literal("ntpro.product_api.demo_run_snapshot.response.v1"),
+  schema_version: z.literal("ntpro.product_api.demo_run_snapshot.response.v2"),
   contract_version: z.literal("ntpro.product_api.v1"),
   request_id: zRequestId,
   data: zDemoRunSnapshot,
@@ -635,34 +732,61 @@ export const zBacktestAnalysis = z.object({
   boundaries: zBacktestResultBoundaries,
 });
 
-export const zBacktestComparisonItem = z.object({
+export const zRunComparisonMetrics = z.object({
+  market_event_count: z.int().gte(1),
+  fill_count: z.int().gte(0),
+  position_count: z.int().gte(0),
+});
+
+export const zRunComparisonRisk = z.object({
+  currency: z.string().min(1),
+  starting_equity: z.string().min(1),
+  ending_equity: z.string().min(1),
+  max_drawdown_rate: z.string().min(1),
+  open_positions: z.int().gte(0),
+  closed_positions: z.int().gte(0),
+});
+
+export const zRunComparisonProvenance = z.object({
+  engine: z.string().min(1),
+  data_ref: z.string().min(1),
+  data_sha256: zContentHash,
+  source_refs: z.array(z.string().min(1)).min(1),
+});
+
+export const zRunComparisonItem = z.object({
   run_id: zRunId,
+  environment: z.enum(["backtest", "sandbox"]),
+  strategy_id: zStrategyId,
   strategy_version_id: zStrategyVersionId,
   data_ref: z.string().min(1).max(512),
   data_sha256: zContentHash,
   config_sha256: zContentHash,
   instrument_id: z.string().min(1).max(128),
   parameters: zBacktestParameters,
-  metrics: zBacktestMetrics,
-  risk: zBacktestRiskSummary,
-  provenance: zBacktestAnalysisProvenance,
+  metrics: zRunComparisonMetrics,
+  risk: zRunComparisonRisk,
+  provenance: zRunComparisonProvenance,
   reproduction_ref: z.string().min(1).max(512).nullable(),
 });
 
-export const zBacktestComparisonCompatibility = z.object({
-  same_strategy: z.literal(true),
+export const zRunComparisonCompatibility = z.object({
+  same_strategy: z.boolean(),
   same_strategy_version: z.boolean(),
+  same_parameters: z.boolean(),
   same_data: z.boolean(),
   same_instrument: z.boolean(),
   same_currency: z.boolean(),
+  same_environment: z.boolean(),
+  behaviorally_comparable: z.boolean(),
   directly_comparable: z.boolean(),
 });
 
-export const zBacktestComparison = z.object({
+export const zRunComparison = z.object({
   baseline_run_id: zRunId,
   run_ids: z.array(zRunId).min(2).max(4),
-  items: z.array(zBacktestComparisonItem).min(2).max(4),
-  compatibility: zBacktestComparisonCompatibility,
+  items: z.array(zRunComparisonItem).min(2).max(4),
+  compatibility: zRunComparisonCompatibility,
 });
 
 export const zBacktestReproductionProof = z.object({
@@ -787,10 +911,10 @@ export const zRunAnalysisResponse = z.object({
 });
 
 export const zRunComparisonResponse = z.object({
-  schema_version: z.literal("ntpro.product_api.run_comparison.response.v1"),
+  schema_version: z.literal("ntpro.product_api.run_comparison.response.v2"),
   contract_version: z.literal("ntpro.product_api.v1"),
   request_id: zRequestId,
-  data: zBacktestComparison,
+  data: zRunComparison,
   boundaries: zReadOnlyBoundaries,
 });
 
@@ -942,14 +1066,14 @@ export const zActOnDemoRunPath = z.object({
  */
 export const zActOnDemoRunResponse = zDemoRunActionResponse;
 
-export const zCompareBacktestRunsQuery = z.object({
+export const zCompareRunsQuery = z.object({
   run_ids: z.string().min(3).max(515),
 });
 
 /**
- * 可信 Backtest 比较结果
+ * 可信跨环境 Run 比较结果
  */
-export const zCompareBacktestRunsResponse = zRunComparisonResponse;
+export const zCompareRunsResponse = zRunComparisonResponse;
 
 export const zGetRunPath = z.object({
   run_id: zRunId,

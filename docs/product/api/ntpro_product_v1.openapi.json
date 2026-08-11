@@ -478,8 +478,8 @@
     },
     "/run-comparisons": {
       "get": {
-        "operationId": "compareBacktestRuns",
-        "summary": "比较 2 至 4 个已完成 Backtest Run",
+        "operationId": "compareRuns",
+        "summary": "比较 2 至 4 个已冻结 Backtest 或 Demo Run",
         "security": [
           { "InstitutionCookie": [] },
           { "OperatorCookie": [] }
@@ -499,7 +499,7 @@
         ],
         "responses": {
           "200": {
-            "description": "可信 Backtest 比较结果",
+            "description": "可信跨环境 Run 比较结果",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/RunComparisonResponse" }
@@ -1597,6 +1597,127 @@
           "evaluated_at_unix_ms": { "type": "integer", "minimum": 1 }
         }
       },
+      "DemoSimulationParameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["trade_size", "fast_period", "slow_period"],
+        "properties": {
+          "trade_size": { "type": "string", "minLength": 1 },
+          "fast_period": { "const": 3 },
+          "slow_period": { "const": 5 }
+        }
+      },
+      "DemoSimulationArtifactBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["simulation_only", "external_venue_connection", "order_submission_allowed", "order_mutation_allowed", "automatic_retry_allowed", "automatic_remediation_allowed", "real_orders_submitted", "trading_controls_enabled"],
+        "properties": {
+          "simulation_only": { "const": true },
+          "external_venue_connection": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "order_mutation_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
+        }
+      },
+      "DemoSimulationSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "session_id", "strategy_id", "instrument_id", "engine", "execution_mode", "data_sha256", "parameters", "fill_count", "position_count", "equity_point_count", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.demo_simulation_summary.v1" },
+          "session_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "instrument_id": { "const": "BTCUSDT.BINANCE" },
+          "engine": { "const": "nautilus_backtest::engine::BacktestEngine" },
+          "execution_mode": { "const": "simulated" },
+          "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "parameters": { "$ref": "#/components/schemas/DemoSimulationParameters" },
+          "fill_count": { "type": "integer", "minimum": 1 },
+          "position_count": { "type": "integer", "minimum": 1 },
+          "equity_point_count": { "type": "integer", "minimum": 1 },
+          "boundaries": { "$ref": "#/components/schemas/DemoSimulationArtifactBoundaries" }
+        }
+      },
+      "DemoSimulatedFill": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "session_id", "strategy_id", "simulation_only", "trade_id", "client_order_id", "venue_order_id", "position_id", "side", "order_type", "quantity", "price", "currency", "liquidity_side", "commission", "ts_event"],
+        "properties": {
+          "schema_version": { "const": "ntpro.demo_simulated_fill.v1" },
+          "session_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "simulation_only": { "const": true },
+          "trade_id": { "type": "string", "minLength": 1 },
+          "client_order_id": { "type": "string", "minLength": 1 },
+          "venue_order_id": { "type": "string", "minLength": 1 },
+          "position_id": { "type": ["string", "null"], "minLength": 1 },
+          "side": { "type": "string", "minLength": 1 },
+          "order_type": { "type": "string", "minLength": 1 },
+          "quantity": { "type": "string", "minLength": 1 },
+          "price": { "type": "string", "minLength": 1 },
+          "currency": { "type": "string", "minLength": 1 },
+          "liquidity_side": { "type": "string", "minLength": 1 },
+          "commission": { "type": ["string", "null"], "minLength": 1 },
+          "ts_event": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+        }
+      },
+      "DemoSimulatedPosition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "session_id", "strategy_id", "simulation_only", "position_id", "account_id", "side", "entry_side", "peak_quantity", "buy_quantity", "sell_quantity", "avg_price_open", "avg_price_close", "realized_return", "realized_pnl", "trade_count", "ts_opened", "ts_closed", "duration_ns"],
+        "properties": {
+          "schema_version": { "const": "ntpro.demo_simulated_position.v1" },
+          "session_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "simulation_only": { "const": true },
+          "position_id": { "type": "string", "minLength": 1 },
+          "account_id": { "type": "string", "minLength": 1 },
+          "side": { "type": "string", "minLength": 1 },
+          "entry_side": { "type": "string", "minLength": 1 },
+          "peak_quantity": { "type": "string", "minLength": 1 },
+          "buy_quantity": { "type": "string", "minLength": 1 },
+          "sell_quantity": { "type": "string", "minLength": 1 },
+          "avg_price_open": { "type": "string", "minLength": 1 },
+          "avg_price_close": { "type": ["string", "null"], "minLength": 1 },
+          "realized_return": { "type": "string", "minLength": 1 },
+          "realized_pnl": { "type": ["string", "null"], "minLength": 1 },
+          "trade_count": { "type": "integer", "minimum": 1 },
+          "ts_opened": { "type": "string", "pattern": "^[1-9][0-9]*$" },
+          "ts_closed": { "type": ["string", "null"], "pattern": "^[1-9][0-9]*$" },
+          "duration_ns": { "type": "string", "pattern": "^[0-9]+$" }
+        }
+      },
+      "DemoEquityPoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "session_id", "strategy_id", "simulation_only", "account_id", "currency", "total", "free", "locked", "ts_event"],
+        "properties": {
+          "schema_version": { "const": "ntpro.demo_equity_point.v1" },
+          "session_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "simulation_only": { "const": true },
+          "account_id": { "type": "string", "minLength": 1 },
+          "currency": { "type": "string", "minLength": 1 },
+          "total": { "type": "string", "minLength": 1 },
+          "free": { "type": "string", "minLength": 1 },
+          "locked": { "type": "string", "minLength": 1 },
+          "ts_event": { "type": "string", "pattern": "^[1-9][0-9]*$" }
+        }
+      },
+      "DemoSimulation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["summary", "fills", "positions", "equity_curve"],
+        "properties": {
+          "summary": { "$ref": "#/components/schemas/DemoSimulationSummary" },
+          "fills": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/DemoSimulatedFill" } },
+          "positions": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/DemoSimulatedPosition" } },
+          "equity_curve": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/DemoEquityPoint" } }
+        }
+      },
       "DemoTechnicalHealth": {
         "type": "object",
         "additionalProperties": false,
@@ -1630,9 +1751,9 @@
       "DemoRunSnapshot": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schema_version", "run_id", "strategy_id", "strategy_version_id", "observed_at_unix_ms", "lifecycle", "snapshot_status", "runtime", "market", "session", "latest_signal", "latest_order_intent", "latest_risk_decision", "technical_health", "provenance"],
+        "required": ["schema_version", "run_id", "strategy_id", "strategy_version_id", "observed_at_unix_ms", "lifecycle", "snapshot_status", "runtime", "market", "session", "latest_signal", "latest_order_intent", "latest_risk_decision", "simulation", "technical_health", "provenance"],
         "properties": {
-          "schema_version": { "const": "ntpro.product_api.demo_run_result.v1" },
+          "schema_version": { "const": "ntpro.product_api.demo_run_result.v2" },
           "run_id": { "$ref": "#/components/schemas/RunId" },
           "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
           "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
@@ -1645,6 +1766,7 @@
           "latest_signal": { "oneOf": [{ "$ref": "#/components/schemas/DemoSignalSnapshot" }, { "type": "null" }] },
           "latest_order_intent": { "oneOf": [{ "$ref": "#/components/schemas/DemoOrderIntentSnapshot" }, { "type": "null" }] },
           "latest_risk_decision": { "oneOf": [{ "$ref": "#/components/schemas/DemoRiskDecisionSnapshot" }, { "type": "null" }] },
+          "simulation": { "oneOf": [{ "$ref": "#/components/schemas/DemoSimulation" }, { "type": "null" }] },
           "technical_health": { "$ref": "#/components/schemas/DemoTechnicalHealth" },
           "provenance": { "$ref": "#/components/schemas/DemoSnapshotProvenance" }
         }
@@ -1654,7 +1776,7 @@
         "additionalProperties": false,
         "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
         "properties": {
-          "schema_version": { "const": "ntpro.product_api.demo_run_snapshot.response.v1" },
+          "schema_version": { "const": "ntpro.product_api.demo_run_snapshot.response.v2" },
           "contract_version": { "const": "ntpro.product_api.v1" },
           "request_id": { "$ref": "#/components/schemas/RequestId" },
           "data": { "$ref": "#/components/schemas/DemoRunSnapshot" },
@@ -2030,11 +2152,47 @@
           "boundaries": { "$ref": "#/components/schemas/BacktestResultBoundaries" }
         }
       },
-      "BacktestComparisonItem": {
+      "RunComparisonMetrics": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["market_event_count", "fill_count", "position_count"],
+        "properties": {
+          "market_event_count": { "type": "integer", "minimum": 1 },
+          "fill_count": { "type": "integer", "minimum": 0 },
+          "position_count": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "RunComparisonRisk": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["currency", "starting_equity", "ending_equity", "max_drawdown_rate", "open_positions", "closed_positions"],
+        "properties": {
+          "currency": { "type": "string", "minLength": 1 },
+          "starting_equity": { "type": "string", "minLength": 1 },
+          "ending_equity": { "type": "string", "minLength": 1 },
+          "max_drawdown_rate": { "type": "string", "minLength": 1 },
+          "open_positions": { "type": "integer", "minimum": 0 },
+          "closed_positions": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "RunComparisonProvenance": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["engine", "data_ref", "data_sha256", "source_refs"],
+        "properties": {
+          "engine": { "type": "string", "minLength": 1 },
+          "data_ref": { "type": "string", "minLength": 1 },
+          "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "source_refs": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      },
+      "RunComparisonItem": {
         "type": "object",
         "additionalProperties": false,
         "required": [
           "run_id",
+          "environment",
+          "strategy_id",
           "strategy_version_id",
           "data_ref",
           "data_sha256",
@@ -2048,15 +2206,17 @@
         ],
         "properties": {
           "run_id": { "$ref": "#/components/schemas/RunId" },
+          "environment": { "type": "string", "enum": ["backtest", "sandbox"] },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
           "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
           "data_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
           "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
           "config_sha256": { "$ref": "#/components/schemas/ContentHash" },
           "instrument_id": { "type": "string", "minLength": 1, "maxLength": 128 },
           "parameters": { "$ref": "#/components/schemas/BacktestParameters" },
-          "metrics": { "$ref": "#/components/schemas/BacktestMetrics" },
-          "risk": { "$ref": "#/components/schemas/BacktestRiskSummary" },
-          "provenance": { "$ref": "#/components/schemas/BacktestAnalysisProvenance" },
+          "metrics": { "$ref": "#/components/schemas/RunComparisonMetrics" },
+          "risk": { "$ref": "#/components/schemas/RunComparisonRisk" },
+          "provenance": { "$ref": "#/components/schemas/RunComparisonProvenance" },
           "reproduction_ref": {
             "type": ["string", "null"],
             "minLength": 1,
@@ -2064,27 +2224,33 @@
           }
         }
       },
-      "BacktestComparisonCompatibility": {
+      "RunComparisonCompatibility": {
         "type": "object",
         "additionalProperties": false,
         "required": [
           "same_strategy",
           "same_strategy_version",
+          "same_parameters",
           "same_data",
           "same_instrument",
           "same_currency",
+          "same_environment",
+          "behaviorally_comparable",
           "directly_comparable"
         ],
         "properties": {
-          "same_strategy": { "const": true },
+          "same_strategy": { "type": "boolean" },
           "same_strategy_version": { "type": "boolean" },
+          "same_parameters": { "type": "boolean" },
           "same_data": { "type": "boolean" },
           "same_instrument": { "type": "boolean" },
           "same_currency": { "type": "boolean" },
+          "same_environment": { "type": "boolean" },
+          "behaviorally_comparable": { "type": "boolean" },
           "directly_comparable": { "type": "boolean" }
         }
       },
-      "BacktestComparison": {
+      "RunComparison": {
         "type": "object",
         "additionalProperties": false,
         "required": ["baseline_run_id", "run_ids", "items", "compatibility"],
@@ -2101,9 +2267,9 @@
             "type": "array",
             "minItems": 2,
             "maxItems": 4,
-            "items": { "$ref": "#/components/schemas/BacktestComparisonItem" }
+            "items": { "$ref": "#/components/schemas/RunComparisonItem" }
           },
-          "compatibility": { "$ref": "#/components/schemas/BacktestComparisonCompatibility" }
+          "compatibility": { "$ref": "#/components/schemas/RunComparisonCompatibility" }
         }
       },
       "BacktestReproductionProof": {
@@ -2435,10 +2601,10 @@
         "additionalProperties": false,
         "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
         "properties": {
-          "schema_version": { "const": "ntpro.product_api.run_comparison.response.v1" },
+          "schema_version": { "const": "ntpro.product_api.run_comparison.response.v2" },
           "contract_version": { "const": "ntpro.product_api.v1" },
           "request_id": { "$ref": "#/components/schemas/RequestId" },
-          "data": { "$ref": "#/components/schemas/BacktestComparison" },
+          "data": { "$ref": "#/components/schemas/RunComparison" },
           "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
         }
       },

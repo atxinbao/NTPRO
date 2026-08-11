@@ -22,7 +22,12 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use crate::artifacts::{atomic_write_json, atomic_write_text};
+use crate::{
+    artifacts::{atomic_write_json, atomic_write_text},
+    backtest::{
+        DemoSimulationInput, ProductDemoSimulationArtifacts, execute_product_demo_simulation,
+    },
+};
 
 const STRATEGY_SESSION_STATUS_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_status.v1";
 const STRATEGY_SESSION_EVENT_SCHEMA_VERSION: &str = "ntpro.v09_strategy_session_event.v1";
@@ -88,6 +93,10 @@ pub struct StrategySessionArtifactPaths {
     pub order_intent: String,
     pub risk_decision: String,
     pub summary: String,
+    pub simulation_summary: String,
+    pub simulated_fills: String,
+    pub simulated_positions: String,
+    pub equity_curve: String,
     pub manifest: String,
 }
 
@@ -113,6 +122,10 @@ pub struct StrategySessionArtifacts {
     pub order_intent: PathBuf,
     pub risk_decision: PathBuf,
     pub summary: PathBuf,
+    pub simulation_summary: PathBuf,
+    pub simulated_fills: PathBuf,
+    pub simulated_positions: PathBuf,
+    pub equity_curve: PathBuf,
     pub manifest: PathBuf,
 }
 
@@ -128,6 +141,10 @@ impl StrategySessionArtifacts {
             order_intent: strategy_root.join("order_intent.jsonl"),
             risk_decision: strategy_root.join("risk_decision.jsonl"),
             summary: strategy_root.join("summary.json"),
+            simulation_summary: strategy_root.join("simulation_summary.json"),
+            simulated_fills: strategy_root.join("simulated_fills.jsonl"),
+            simulated_positions: strategy_root.join("simulated_positions.jsonl"),
+            equity_curve: strategy_root.join("equity_curve.jsonl"),
             manifest: strategy_root.join("manifest.json"),
         }
     }
@@ -142,6 +159,10 @@ impl StrategySessionArtifacts {
             order_intent: self.order_intent.display().to_string(),
             risk_decision: self.risk_decision.display().to_string(),
             summary: self.summary.display().to_string(),
+            simulation_summary: self.simulation_summary.display().to_string(),
+            simulated_fills: self.simulated_fills.display().to_string(),
+            simulated_positions: self.simulated_positions.display().to_string(),
+            equity_curve: self.equity_curve.display().to_string(),
             manifest: self.manifest.display().to_string(),
         }
     }
@@ -414,6 +435,10 @@ pub struct DemoStrategyRuntimeSummary {
     pub risk_decision_count: u64,
     pub risk_decision_artifact: String,
     pub summary_artifact: String,
+    pub simulated_fill_count: u64,
+    pub simulated_position_count: u64,
+    pub equity_point_count: u64,
+    pub simulation_summary_artifact: String,
     pub order_submission_allowed: bool,
     pub counters: StrategyRuntimeCounters,
 }
@@ -442,6 +467,7 @@ pub struct StrategySession {
     order_intents: Vec<StrategyOrderIntent>,
     risk_decisions: Vec<StrategyRiskDecision>,
     summary: Option<StrategySessionSummary>,
+    demo_simulation: Option<ProductDemoSimulationArtifacts>,
     risk_controls: StrategyRiskControls,
     artifacts: StrategySessionArtifacts,
 }
@@ -491,6 +517,7 @@ impl StrategySession {
             order_intents: Vec::new(),
             risk_decisions: Vec::new(),
             summary: None,
+            demo_simulation: None,
             risk_controls: StrategyRiskControls::default(),
             artifacts,
         };
@@ -698,6 +725,23 @@ impl StrategySession {
         }
         self.generate_order_intents_from_signals();
         self.evaluate_shadow_risk_decisions();
+        let demo_simulation = execute_product_demo_simulation(
+            &self.status.session_id,
+            &self.status.strategy_id,
+            &bars
+                .iter()
+                .map(|bar| DemoSimulationInput {
+                    price: bar.close,
+                    observed_at_unix_ms: bar.closed_at_unix_ms,
+                })
+                .collect::<Vec<_>>(),
+        )?;
+        let simulated_fill_count = u64::try_from(demo_simulation.fill_count).unwrap_or(u64::MAX);
+        let simulated_position_count =
+            u64::try_from(demo_simulation.position_count).unwrap_or(u64::MAX);
+        let equity_point_count =
+            u64::try_from(demo_simulation.equity_point_count).unwrap_or(u64::MAX);
+        self.demo_simulation = Some(demo_simulation);
 
         self.record_summary();
         self.persist()?;
@@ -716,6 +760,10 @@ impl StrategySession {
             risk_decision_count: counters.risk_decision_count,
             risk_decision_artifact: self.artifacts.risk_decision.display().to_string(),
             summary_artifact: self.artifacts.summary.display().to_string(),
+            simulated_fill_count,
+            simulated_position_count,
+            equity_point_count,
+            simulation_summary_artifact: self.artifacts.simulation_summary.display().to_string(),
             order_submission_allowed: false,
             counters,
         })
@@ -962,6 +1010,29 @@ impl StrategySession {
         if let Some(summary) = &self.summary {
             atomic_write_json(&self.artifacts.summary, summary)?;
         }
+        if let Some(simulation) = &self.demo_simulation {
+            atomic_write_text(
+                &self.artifacts.simulation_summary,
+                std::str::from_utf8(&simulation.summary)
+                    .map_err(|error| anyhow::anyhow!("simulation summary is not UTF-8: {error}"))?,
+            )?;
+            atomic_write_text(
+                &self.artifacts.simulated_fills,
+                std::str::from_utf8(&simulation.fills)
+                    .map_err(|error| anyhow::anyhow!("simulated fills are not UTF-8: {error}"))?,
+            )?;
+            atomic_write_text(
+                &self.artifacts.simulated_positions,
+                std::str::from_utf8(&simulation.positions).map_err(|error| {
+                    anyhow::anyhow!("simulated positions are not UTF-8: {error}")
+                })?,
+            )?;
+            atomic_write_text(
+                &self.artifacts.equity_curve,
+                std::str::from_utf8(&simulation.equity_curve)
+                    .map_err(|error| anyhow::anyhow!("equity curve is not UTF-8: {error}"))?,
+            )?;
+        }
         let manifest = self.manifest()?;
         atomic_write_json(&self.artifacts.manifest, &manifest)?;
         Ok(())
@@ -1022,6 +1093,36 @@ impl StrategySession {
                 "json",
                 &self.artifacts.summary,
                 self.summary.as_ref().map(|_| 1),
+            )?,
+            manifest_artifact(
+                "simulation_summary",
+                "json",
+                &self.artifacts.simulation_summary,
+                self.demo_simulation.as_ref().map(|_| 1),
+            )?,
+            manifest_artifact(
+                "simulated_fills",
+                "jsonl",
+                &self.artifacts.simulated_fills,
+                self.demo_simulation
+                    .as_ref()
+                    .map(|simulation| u64::try_from(simulation.fill_count).unwrap_or(u64::MAX)),
+            )?,
+            manifest_artifact(
+                "simulated_positions",
+                "jsonl",
+                &self.artifacts.simulated_positions,
+                self.demo_simulation
+                    .as_ref()
+                    .map(|simulation| u64::try_from(simulation.position_count).unwrap_or(u64::MAX)),
+            )?,
+            manifest_artifact(
+                "equity_curve",
+                "jsonl",
+                &self.artifacts.equity_curve,
+                self.demo_simulation.as_ref().map(|simulation| {
+                    u64::try_from(simulation.equity_point_count).unwrap_or(u64::MAX)
+                }),
             )?,
         ];
 
@@ -1284,16 +1385,18 @@ fn jsonl_record_count(bytes: &[u8]) -> u64 {
 
 pub fn ema_cross_demo_fixture_bars(symbol: &str) -> Vec<StrategyMarketBar> {
     let base_ts = 1_725_000_000_000;
-    [100.0, 99.0, 98.0, 99.5, 101.0, 103.5, 102.0, 100.5]
-        .into_iter()
-        .enumerate()
-        .map(|(index, close)| StrategyMarketBar {
-            seq: u64::try_from(index + 1).unwrap_or(u64::MAX),
-            symbol: symbol.to_string(),
-            close,
-            closed_at_unix_ms: base_ts + u64::try_from(index).unwrap_or(0) * 60_000,
-        })
-        .collect()
+    [
+        100.0, 99.0, 98.0, 99.5, 101.0, 103.5, 102.0, 100.5, 98.0, 96.0, 99.0, 102.0,
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, close)| StrategyMarketBar {
+        seq: u64::try_from(index + 1).unwrap_or(u64::MAX),
+        symbol: symbol.to_string(),
+        close,
+        closed_at_unix_ms: base_ts + u64::try_from(index).unwrap_or(0) * 60_000,
+    })
+    .collect()
 }
 
 fn validate_fixture_bars(bars: &[StrategyMarketBar]) -> anyhow::Result<()> {
@@ -1640,7 +1743,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(summary.strategy, "ema_cross_demo");
-        assert_eq!(summary.processed_events, 8);
+        assert_eq!(summary.processed_events, 12);
         assert!(summary.signal_count >= 1);
         assert_eq!(summary.order_intent_count, summary.signal_count);
         assert!(
@@ -1780,7 +1883,7 @@ mod tests {
         assert_eq!(manifest["session_id"], "session-004");
         assert_eq!(manifest["strategy_id"], "ema-cross-demo");
         assert_eq!(manifest["state"], "running");
-        assert_eq!(manifest["artifacts"].as_array().unwrap().len(), 8);
+        assert_eq!(manifest["artifacts"].as_array().unwrap().len(), 12);
         assert!(!manifest.to_string().contains("exchange_order_id"));
         assert!(!manifest.to_string().contains("venue_order_id"));
 

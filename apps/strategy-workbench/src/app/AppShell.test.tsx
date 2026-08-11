@@ -14,13 +14,15 @@ import runReportFixture from "../test/product-api-fixtures/run-report.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
 import {
+  backtestComparisonResponse,
   createdBacktestResponse,
   createdDemoResponse,
   demoActionResponse,
+  demoSnapshotResponse,
   server,
 } from "../test/server";
 import { createAppRouter } from "./router";
-import type { Run } from "../api/generated/productApi";
+import type { Run, RunComparisonResponse } from "../api/generated/productApi";
 
 function renderWorkbench(path: string) {
   window.history.replaceState({}, "", `/strategy-workbench${path}`);
@@ -70,6 +72,9 @@ describe("strategy workbench product slice", () => {
           data: currentDemo,
         }),
       ),
+      http.get("/api/product/v1/runs/:runId/demo-snapshot", () =>
+        HttpResponse.json(demoSnapshotResponse(currentDemo)),
+      ),
       http.post(
         "/api/product/v1/demo-runs/:runId/actions",
         async ({ request }) => {
@@ -114,6 +119,15 @@ describe("strategy workbench product slice", () => {
         screen.getByRole("region", { name: "Demo 生命周期" }),
       ).toHaveTextContent("running"),
     );
+    expect(
+      await screen.findByRole("region", { name: "Demo 模拟 成交明细" }),
+    ).toHaveTextContent("trade-demo-001");
+    expect(
+      screen.getByRole("region", { name: "Demo 模拟 持仓明细" }),
+    ).toHaveTextContent("position-demo-001");
+    expect(
+      screen.getByRole("region", { name: "Demo 模拟 资金曲线" }),
+    ).toHaveTextContent("999999.89950000 USDT");
     expect(actionPosts).toBe(1);
     expect(actionBody).toEqual({
       run_id: "demo-created-001",
@@ -194,7 +208,7 @@ describe("strategy workbench product slice", () => {
     });
   });
 
-  it("compares Backtest Runs and creates a user-confirmed reproduction", async () => {
+  it("compares frozen Runs and creates a user-confirmed Backtest reproduction", async () => {
     const list = {
       ...structuredClone(runListFixture),
       data: [
@@ -214,14 +228,14 @@ describe("strategy workbench product slice", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "多 Run 对比与确定性复现",
+        name: "Backtest 与 Demo 行为对比",
       }),
     ).toBeInTheDocument();
     expect(
       await screen.findByRole("region", { name: "比较兼容性" }),
     ).toHaveTextContent("结果可直接比较");
     expect(
-      screen.getByRole("region", { name: "Backtest 比较结果" }),
+      screen.getByRole("region", { name: "Run 比较结果" }),
     ).toHaveTextContent("backtest-created-001");
 
     await userEvent.click(
@@ -239,6 +253,91 @@ describe("strategy workbench product slice", () => {
     expect(
       await screen.findByRole("region", { name: "Backtest 确定性复现证明" }),
     ).toHaveTextContent("输入与输出均等价");
+  });
+
+  it("compares a verified Backtest with a stopped Demo without enabling reproduction", async () => {
+    const stoppedDemo: Run = {
+      ...structuredClone(createdDemoResponse.data),
+      lifecycle: "stopped",
+      started_at_unix_ms: 1_786_400_000_000,
+      completed_at_unix_ms: 1_786_400_001_000,
+      runtime: {
+        ...structuredClone(createdDemoResponse.data.runtime!),
+        process_state: "stopped",
+        lifecycle_state: "stopped",
+      },
+    };
+    const list = {
+      ...structuredClone(runListFixture),
+      data: [
+        structuredClone(
+          runListFixture.data.find((run) => run.run_id === "backtest-001")!,
+        ),
+        stoppedDemo,
+      ],
+      page: {
+        ...structuredClone(runListFixture.page),
+        returned_count: 2,
+      },
+    };
+    const comparison = structuredClone(
+      backtestComparisonResponse(["backtest-001", stoppedDemo.run_id]),
+    ) as unknown as RunComparisonResponse;
+    comparison.data.items[1] = {
+      ...comparison.data.items[1],
+      run_id: stoppedDemo.run_id,
+      environment: "sandbox",
+      strategy_id: stoppedDemo.strategy_id,
+      strategy_version_id: stoppedDemo.strategy_version_id,
+      data_ref: stoppedDemo.data_ref,
+      data_sha256:
+        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      parameters: {
+        ...comparison.data.items[1].parameters,
+        trade_size: "1.000000",
+      },
+      metrics: {
+        market_event_count: 12,
+        fill_count: 1,
+        position_count: 1,
+      },
+      provenance: {
+        engine: "nautilus_backtest::engine::BacktestEngine",
+        data_ref: stoppedDemo.data_ref,
+        data_sha256:
+          "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        source_refs: [
+          `artifact://demo-runs/${stoppedDemo.run_id}/run-manifest.json`,
+        ],
+      },
+      reproduction_ref: null,
+    };
+    comparison.data.compatibility = {
+      ...comparison.data.compatibility,
+      same_data: false,
+      same_parameters: false,
+      same_environment: false,
+      behaviorally_comparable: false,
+      directly_comparable: false,
+    };
+    server.use(
+      http.get("/api/product/v1/runs", () => HttpResponse.json(list)),
+      http.get("/api/product/v1/run-comparisons", () =>
+        HttpResponse.json(comparison),
+      ),
+    );
+
+    renderWorkbench("/backtests/compare");
+
+    expect(
+      await screen.findByRole("region", { name: "比较兼容性" }),
+    ).toHaveTextContent("结果仅可并列查看");
+    expect(
+      screen.getByRole("region", { name: "Run 比较结果" }),
+    ).toHaveTextContent(stoppedDemo.run_id);
+    expect(
+      screen.getByRole("button", { name: new RegExp(stoppedDemo.run_id) }),
+    ).toBeDisabled();
   });
 
   it("never retries a failed deterministic reproduction automatically", async () => {
@@ -329,12 +428,12 @@ describe("strategy workbench product slice", () => {
     expect(
       screen.getByRole("img", { name: "账户权益随回测时间变化" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "交易明细" })).toHaveTextContent(
-      "T-1",
-    );
-    expect(screen.getByRole("region", { name: "持仓明细" })).toHaveTextContent(
-      "P-1",
-    );
+    expect(
+      screen.getByRole("region", { name: "Backtest 成交明细" }),
+    ).toHaveTextContent("T-1");
+    expect(
+      screen.getByRole("region", { name: "Backtest 持仓明细" }),
+    ).toHaveTextContent("P-1");
     expect(
       screen.getByRole("img", { name: "账户权益回撤随回测时间变化" }),
     ).toBeInTheDocument();

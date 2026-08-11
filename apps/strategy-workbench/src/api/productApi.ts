@@ -1,7 +1,7 @@
 import { createClient } from "./generated/productApi/client";
 import {
   actOnDemoRun,
-  compareBacktestRuns,
+  compareRuns,
   createBacktestRun,
   createDemoRun,
   getDemoRunSnapshot,
@@ -16,7 +16,7 @@ import {
   listStrategies,
   listStrategyVersions,
   reproduceBacktestRun,
-  type CompareBacktestRunsData,
+  type CompareRunsData,
   type CreateBacktestRunRequest,
   type CreateDemoRunRequest,
   type DemoRunAction,
@@ -440,7 +440,7 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       return payload;
     },
 
-    async compareBacktestRuns(
+    async compareRuns(
       runIds: string[],
       signal?: AbortSignal,
     ): Promise<RunComparisonResponse> {
@@ -450,11 +450,11 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           new Set(runIds).size === runIds.length,
         "run_comparison.request.run_ids",
       );
-      const query: CompareBacktestRunsData["query"] = {
+      const query: CompareRunsData["query"] = {
         run_ids: runIds.join(","),
       };
       const payload = await resolveResponse(
-        compareBacktestRuns({ client, query, signal }),
+        compareRuns({ client, query, signal }),
         zRunComparisonResponse,
         "run_comparison",
       );
@@ -467,15 +467,56 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           payload.data.items.length === runIds.length &&
           payload.data.items.every(
             (item, index) => item.run_id === runIds[index],
-          ) &&
-          payload.data.compatibility.same_strategy,
+          ),
         "run_comparison.data.identity",
       );
+      const baseline = payload.data.items[0];
+      if (baseline === undefined) {
+        throw new ProductApiContractError("run_comparison.data.items");
+      }
+      const sameStrategy = payload.data.items.every(
+        (item) => item.strategy_id === baseline.strategy_id,
+      );
+      const sameStrategyVersion = payload.data.items.every(
+        (item) => item.strategy_version_id === baseline.strategy_version_id,
+      );
+      const sameParameters = payload.data.items.every(
+        (item) =>
+          item.parameters.trade_size === baseline.parameters.trade_size &&
+          item.parameters.fast_period === baseline.parameters.fast_period &&
+          item.parameters.slow_period === baseline.parameters.slow_period,
+      );
+      const sameData = payload.data.items.every(
+        (item) => item.data_sha256 === baseline.data_sha256,
+      );
+      const sameInstrument = payload.data.items.every(
+        (item) => item.instrument_id === baseline.instrument_id,
+      );
+      const sameCurrency = payload.data.items.every(
+        (item) => item.risk.currency === baseline.risk.currency,
+      );
+      const sameEnvironment = payload.data.items.every(
+        (item) => item.environment === baseline.environment,
+      );
+      const behaviorallyComparable =
+        sameStrategy &&
+        sameStrategyVersion &&
+        sameParameters &&
+        sameInstrument &&
+        sameCurrency;
       assertIdentity(
-        payload.data.compatibility.directly_comparable ===
-          (payload.data.compatibility.same_data &&
-            payload.data.compatibility.same_instrument &&
-            payload.data.compatibility.same_currency),
+        payload.data.compatibility.same_strategy === sameStrategy &&
+          payload.data.compatibility.same_strategy_version ===
+            sameStrategyVersion &&
+          payload.data.compatibility.same_parameters === sameParameters &&
+          payload.data.compatibility.same_data === sameData &&
+          payload.data.compatibility.same_instrument === sameInstrument &&
+          payload.data.compatibility.same_currency === sameCurrency &&
+          payload.data.compatibility.same_environment === sameEnvironment &&
+          payload.data.compatibility.behaviorally_comparable ===
+            behaviorallyComparable &&
+          payload.data.compatibility.directly_comparable ===
+            (behaviorallyComparable && sameData),
         "run_comparison.data.compatibility",
       );
       assertReadOnlyBoundaries(payload.boundaries, "run_comparison.boundaries");
@@ -718,7 +759,19 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
         snapshot.session === null &&
         snapshot.latest_signal === null &&
         snapshot.latest_order_intent === null &&
-        snapshot.latest_risk_decision === null;
+        snapshot.latest_risk_decision === null &&
+        snapshot.simulation === null;
+      const hasSimulation =
+        snapshot.simulation !== null &&
+        snapshot.simulation.fills.length > 0 &&
+        snapshot.simulation.positions.length > 0 &&
+        snapshot.simulation.equity_curve.length > 0 &&
+        snapshot.simulation.summary.fill_count ===
+          snapshot.simulation.fills.length &&
+        snapshot.simulation.summary.position_count ===
+          snapshot.simulation.positions.length &&
+        snapshot.simulation.summary.equity_point_count ===
+          snapshot.simulation.equity_curve.length;
       assertIdentity(
         (snapshot.snapshot_status === "not_started" &&
           snapshot.lifecycle === "created" &&
@@ -728,11 +781,13 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
           (snapshot.snapshot_status === "running" &&
             ["running", "paused", "stopping"].includes(snapshot.lifecycle) &&
             hasRuntimeData &&
+            hasSimulation &&
             snapshot.technical_health.status === "healthy" &&
             snapshot.provenance.result_ref === null &&
             snapshot.provenance.result_sha256 === null) ||
           (snapshot.snapshot_status === "frozen" &&
             ["stopped", "failed"].includes(snapshot.lifecycle) &&
+            (snapshot.lifecycle === "failed" || hasSimulation) &&
             snapshot.provenance.result_ref !== null &&
             snapshot.provenance.result_sha256 !== null),
         "demo_run_snapshot.data.state",
@@ -740,7 +795,17 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       assertIdentity(
         (snapshot.session?.actual_submission_count ?? 0) === 0 &&
           !snapshot.latest_order_intent?.submission_allowed &&
-          !snapshot.latest_risk_decision?.actual_submission,
+          !snapshot.latest_risk_decision?.actual_submission &&
+          (snapshot.simulation === null ||
+            snapshot.simulation.summary.boundaries.simulation_only) &&
+          !snapshot.simulation?.summary.boundaries.external_venue_connection &&
+          !snapshot.simulation?.summary.boundaries.order_submission_allowed &&
+          !snapshot.simulation?.summary.boundaries.order_mutation_allowed &&
+          !snapshot.simulation?.summary.boundaries.automatic_retry_allowed &&
+          !snapshot.simulation?.summary.boundaries
+            .automatic_remediation_allowed &&
+          !snapshot.simulation?.summary.boundaries.real_orders_submitted &&
+          !snapshot.simulation?.summary.boundaries.trading_controls_enabled,
         "demo_run_snapshot.data.submission",
       );
       return payload;

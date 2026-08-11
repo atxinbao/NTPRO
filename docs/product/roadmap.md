@@ -69,8 +69,10 @@ BacktestEngine 的不可变结果接入 `/runs/{run_id}/metrics`；S1-BT-002 已
 兼容性判断和用户显式确定性复现，S1 退出条件已满足。
 
 S2-DM-001 已交付 Demo Run 创建、不可变 StrategyVersion 绑定和 Supervisor 显式 start/stop
-生命周期。S2-DM-002 正在交付真实策略工件驱动的 Demo 实时状态与冻结结果；当前不包含
-模拟成交、持仓、资金曲线或 Backtest/Demo 比较，因此 S2 退出条件仍保持开放。
+生命周期。S2-DM-002 已交付真实策略工件驱动的 Demo 实时状态与冻结结果。S2-DM-003
+已完成本地实现与自动验证：复用现有模拟执行引擎，交付模拟成交、持仓、资金曲线和
+Backtest/Demo 统一比较。S2 产品退出条件已具备，等待独立审查、hosted checks 与合并后
+正式收口。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -86,7 +88,8 @@ FEA-001 前端架构文档
   -> S1-BT-004 Backtest 风险、回撤、运行记录与来源明细（DONE）
   -> S1-BT-005 Backtest 多 Run 比较与确定性复现（DONE）
   -> S2-DM-001 Demo Run 创建与 Supervisor 生命周期（DONE）
-  -> S2-DM-002 Demo 实时状态与运行结果（REVIEW_REQUIRED）
+  -> S2-DM-002 Demo 实时状态与运行结果（DONE）
+  -> S2-DM-003 Demo 模拟执行结果与跨环境比较（REVIEW_REQUIRED）
   -> S1-S4 三模式产品闭环
 ```
 

@@ -48,7 +48,7 @@ const BACKTEST_RESULT_SCHEMA_VERSION: &str = "ntpro.backtest_result.v1";
 const BACKTEST_DETAILS_SCHEMA_VERSION: &str = "ntpro.backtest_details.v1";
 const BACKTEST_ANALYSIS_SCHEMA_VERSION: &str = "ntpro.backtest_analysis.v1";
 const RUN_ANALYSIS_SCHEMA_VERSION: &str = "ntpro.product_api.run_analysis.response.v1";
-const RUN_COMPARISON_SCHEMA_VERSION: &str = "ntpro.product_api.run_comparison.response.v1";
+const RUN_COMPARISON_SCHEMA_VERSION: &str = "ntpro.product_api.run_comparison.response.v2";
 const RUN_REPRODUCTION_SCHEMA_VERSION: &str = "ntpro.product_api.run_reproduction.response.v1";
 const RUN_REPRODUCTION_PROOF_SCHEMA_VERSION: &str =
     "ntpro.product_api.run_reproduction_proof.response.v1";
@@ -56,8 +56,8 @@ const BACKTEST_REPRODUCTION_PROOF_SCHEMA_VERSION: &str = "ntpro.backtest_reprodu
 const DEMO_RUN_CREATE_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_create.response.v1";
 const DEMO_RUN_ACTION_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_action.response.v1";
 const DEMO_RUN_MANIFEST_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_manifest.v1";
-const DEMO_RUN_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_snapshot.response.v1";
-const DEMO_RUN_RESULT_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_result.v1";
+const DEMO_RUN_SNAPSHOT_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_snapshot.response.v2";
+const DEMO_RUN_RESULT_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_result.v2";
 const DEMO_RUN_TERMINAL_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.demo_run_terminal_state.v2";
 const RUN_CURSOR_PREFIX: &str = "run-v1-";
 static RUN_MANIFEST_TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
@@ -522,6 +522,113 @@ struct DemoRiskDecisionSnapshot {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
+struct DemoSimulationParameters {
+    trade_size: String,
+    fast_period: usize,
+    slow_period: usize,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSimulationArtifactBoundaries {
+    simulation_only: bool,
+    external_venue_connection: bool,
+    order_submission_allowed: bool,
+    order_mutation_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_remediation_allowed: bool,
+    real_orders_submitted: bool,
+    trading_controls_enabled: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSimulationSummarySnapshot {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    instrument_id: String,
+    engine: String,
+    execution_mode: String,
+    data_sha256: String,
+    parameters: DemoSimulationParameters,
+    fill_count: usize,
+    position_count: usize,
+    equity_point_count: usize,
+    boundaries: DemoSimulationArtifactBoundaries,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSimulatedFillSnapshot {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    simulation_only: bool,
+    trade_id: String,
+    client_order_id: String,
+    venue_order_id: String,
+    position_id: Option<String>,
+    side: String,
+    order_type: String,
+    quantity: String,
+    price: String,
+    currency: String,
+    liquidity_side: String,
+    commission: Option<String>,
+    ts_event: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSimulatedPositionSnapshot {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    simulation_only: bool,
+    position_id: String,
+    account_id: String,
+    side: String,
+    entry_side: String,
+    peak_quantity: String,
+    buy_quantity: String,
+    sell_quantity: String,
+    avg_price_open: String,
+    avg_price_close: Option<String>,
+    realized_return: String,
+    realized_pnl: Option<String>,
+    trade_count: usize,
+    ts_opened: String,
+    ts_closed: Option<String>,
+    duration_ns: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoEquityPointSnapshot {
+    schema_version: String,
+    session_id: String,
+    strategy_id: String,
+    simulation_only: bool,
+    account_id: String,
+    currency: String,
+    total: String,
+    free: String,
+    locked: String,
+    ts_event: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct DemoSimulationSnapshot {
+    summary: DemoSimulationSummarySnapshot,
+    fills: Vec<DemoSimulatedFillSnapshot>,
+    positions: Vec<DemoSimulatedPositionSnapshot>,
+    equity_curve: Vec<DemoEquityPointSnapshot>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
 struct DemoTechnicalHealth {
     status: DemoTechnicalHealthStatus,
     diagnostics: Vec<String>,
@@ -552,6 +659,7 @@ struct DemoRunSnapshotData {
     latest_signal: Option<DemoSignalSnapshot>,
     latest_order_intent: Option<DemoOrderIntentSnapshot>,
     latest_risk_decision: Option<DemoRiskDecisionSnapshot>,
+    simulation: Option<DemoSimulationSnapshot>,
     technical_health: DemoTechnicalHealth,
     provenance: DemoSnapshotProvenance,
 }
@@ -619,6 +727,10 @@ struct StoredStrategyArtifactPaths {
     order_intent: String,
     risk_decision: String,
     summary: String,
+    simulation_summary: String,
+    simulated_fills: String,
+    simulated_positions: String,
+    equity_curve: String,
     manifest: String,
 }
 
@@ -1024,36 +1136,66 @@ pub(in crate::dashboard) struct RunAnalysisResponse {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-struct BacktestComparisonItem {
+struct RunComparisonItem {
     run_id: String,
+    environment: RunEnvironment,
+    strategy_id: String,
     strategy_version_id: String,
     data_ref: String,
     data_sha256: String,
     config_sha256: String,
     instrument_id: String,
     parameters: BacktestParameters,
-    metrics: BacktestMetrics,
-    risk: BacktestRiskSummary,
-    provenance: BacktestAnalysisProvenance,
+    metrics: RunComparisonMetrics,
+    risk: RunComparisonRisk,
+    provenance: RunComparisonProvenance,
     reproduction_ref: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-struct BacktestComparisonCompatibility {
+struct RunComparisonMetrics {
+    market_event_count: usize,
+    fill_count: usize,
+    position_count: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct RunComparisonRisk {
+    currency: String,
+    starting_equity: String,
+    ending_equity: String,
+    max_drawdown_rate: String,
+    open_positions: usize,
+    closed_positions: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct RunComparisonProvenance {
+    engine: String,
+    data_ref: String,
+    data_sha256: String,
+    source_refs: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct RunComparisonCompatibility {
     same_strategy: bool,
     same_strategy_version: bool,
+    same_parameters: bool,
     same_data: bool,
     same_instrument: bool,
     same_currency: bool,
+    same_environment: bool,
+    behaviorally_comparable: bool,
     directly_comparable: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-struct BacktestComparison {
+struct RunComparison {
     baseline_run_id: String,
     run_ids: Vec<String>,
-    items: Vec<BacktestComparisonItem>,
-    compatibility: BacktestComparisonCompatibility,
+    items: Vec<RunComparisonItem>,
+    compatibility: RunComparisonCompatibility,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1061,7 +1203,7 @@ pub(in crate::dashboard) struct RunComparisonResponse {
     schema_version: String,
     contract_version: String,
     request_id: String,
-    data: BacktestComparison,
+    data: RunComparison,
     boundaries: ProductReadOnlyBoundaries,
 }
 
@@ -1733,6 +1875,7 @@ fn load_demo_snapshot_by_id(
             latest_signal: None,
             latest_order_intent: None,
             latest_risk_decision: None,
+            simulation: None,
             technical_health: DemoTechnicalHealth {
                 status: DemoTechnicalHealthStatus::Blocked,
                 diagnostics: vec!["demo_not_started".to_string()],
@@ -1865,6 +2008,7 @@ fn build_demo_snapshot_from_record(
         latest_signal: strategy.latest_signal,
         latest_order_intent: strategy.latest_order_intent,
         latest_risk_decision: strategy.latest_risk_decision,
+        simulation: Some(strategy.simulation),
         technical_health: DemoTechnicalHealth {
             status: DemoTechnicalHealthStatus::Healthy,
             diagnostics: Vec::new(),
@@ -1873,8 +2017,8 @@ fn build_demo_snapshot_from_record(
             source_refs: vec![
                 format!("artifact://demo-runs/{}/run-manifest.json", run.run_id),
                 format!(
-                    "artifact://demo-runs/{}/strategy-session/manifest.json",
-                    run.run_id
+                    "artifact://supervisor-nodes/{}/strategy/manifest.json",
+                    record.node_id
                 ),
             ],
             manifest_sha256: Some(strategy.manifest_sha256),
@@ -1892,6 +2036,7 @@ struct LoadedStrategySnapshot {
     latest_signal: Option<DemoSignalSnapshot>,
     latest_order_intent: Option<DemoOrderIntentSnapshot>,
     latest_risk_decision: Option<DemoRiskDecisionSnapshot>,
+    simulation: DemoSimulationSnapshot,
     manifest_sha256: String,
 }
 
@@ -1916,7 +2061,7 @@ fn load_strategy_snapshot(
         || manifest.strategy_id != strategy_id
         || manifest.created_at_unix_ms == 0
         || manifest.updated_at_unix_ms < manifest.created_at_unix_ms
-        || manifest.artifacts.len() != 8
+        || manifest.artifacts.len() != 12
     {
         return Err(product_error(
             ProductErrorKind::SourceInvalid,
@@ -1932,6 +2077,10 @@ fn load_strategy_snapshot(
         ("order_intent", "order_intent.jsonl", "jsonl"),
         ("risk_decision", "risk_decision.jsonl", "jsonl"),
         ("summary", "summary.json", "json"),
+        ("simulation_summary", "simulation_summary.json", "json"),
+        ("simulated_fills", "simulated_fills.jsonl", "jsonl"),
+        ("simulated_positions", "simulated_positions.jsonl", "jsonl"),
+        ("equity_curve", "equity_curve.jsonl", "jsonl"),
     ];
     let mut artifacts = BTreeMap::new();
     for (name, file_name, format) in expected {
@@ -1978,18 +2127,18 @@ fn load_strategy_snapshot(
             ));
         }
     }
-    let status: StoredStrategySessionStatus = strict_json(
-        artifacts.get("session_status").expect("required artifact"),
-        "demo_session_status",
-    )?;
-    let market: StoredStrategyMarketStatus = strict_json(
-        artifacts.get("market_status").expect("required artifact"),
-        "demo_market_status",
-    )?;
-    let summary: StoredStrategySummary = strict_json(
-        artifacts.get("summary").expect("required artifact"),
-        "demo_session_summary",
-    )?;
+    let required_artifact = |name: &str| {
+        artifacts
+            .get(name)
+            .map(Vec::as_slice)
+            .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_strategy_artifact"))
+    };
+    let status: StoredStrategySessionStatus =
+        strict_json(required_artifact("session_status")?, "demo_session_status")?;
+    let market: StoredStrategyMarketStatus =
+        strict_json(required_artifact("market_status")?, "demo_market_status")?;
+    let summary: StoredStrategySummary =
+        strict_json(required_artifact("summary")?, "demo_session_summary")?;
     validate_strategy_identity(&status.session_id, &status.strategy_id, run_id, strategy_id)?;
     validate_strategy_identity(&market.session_id, &market.strategy_id, run_id, strategy_id)?;
     validate_strategy_identity(
@@ -2022,26 +2171,37 @@ fn load_strategy_snapshot(
     }
     validate_strategy_artifact_paths(&status.artifacts, &strategy_root)?;
     let events = parse_jsonl::<StoredStrategySessionEvent>(
-        artifacts.get("events").ok_or_else(|| {
-            product_error(ProductErrorKind::SourceInvalid, "demo_strategy_artifact")
-        })?,
+        required_artifact("events")?,
         "demo_session_event",
     )?;
     let market_events = parse_jsonl::<StoredStrategyMarketEvent>(
-        artifacts.get("market_events").expect("required artifact"),
+        required_artifact("market_events")?,
         "demo_market_event",
     )?;
-    let signals = parse_jsonl::<StoredStrategySignal>(
-        artifacts.get("signal").expect("required artifact"),
-        "demo_signal",
-    )?;
+    let signals = parse_jsonl::<StoredStrategySignal>(required_artifact("signal")?, "demo_signal")?;
     let intents = parse_jsonl::<StoredStrategyOrderIntent>(
-        artifacts.get("order_intent").expect("required artifact"),
+        required_artifact("order_intent")?,
         "demo_order_intent",
     )?;
     let risk_decisions = parse_jsonl::<StoredStrategyRiskDecision>(
-        artifacts.get("risk_decision").expect("required artifact"),
+        required_artifact("risk_decision")?,
         "demo_risk_decision",
+    )?;
+    let simulation_summary = strict_json::<DemoSimulationSummarySnapshot>(
+        required_artifact("simulation_summary")?,
+        "demo_simulation_summary",
+    )?;
+    let simulated_fills = parse_jsonl::<DemoSimulatedFillSnapshot>(
+        required_artifact("simulated_fills")?,
+        "demo_simulated_fill",
+    )?;
+    let simulated_positions = parse_jsonl::<DemoSimulatedPositionSnapshot>(
+        required_artifact("simulated_positions")?,
+        "demo_simulated_position",
+    )?;
+    let equity_curve = parse_jsonl::<DemoEquityPointSnapshot>(
+        required_artifact("equity_curve")?,
+        "demo_equity_point",
     )?;
     validate_strategy_records(
         run_id,
@@ -2055,6 +2215,20 @@ fn load_strategy_snapshot(
         &intents,
         &risk_decisions,
     )?;
+    validate_demo_simulation_records(
+        run_id,
+        strategy_id,
+        &simulation_summary,
+        &simulated_fills,
+        &simulated_positions,
+        &equity_curve,
+    )?;
+    let simulation = DemoSimulationSnapshot {
+        summary: simulation_summary,
+        fills: simulated_fills,
+        positions: simulated_positions,
+        equity_curve,
+    };
     let latest_market = market_events.into_iter().last();
     let latest_signal = signals.into_iter().last();
     let latest_intent = intents.into_iter().last();
@@ -2124,6 +2298,7 @@ fn load_strategy_snapshot(
             actual_submission: value.actual_submission,
             evaluated_at_unix_ms: value.evaluated_at_unix_ms,
         }),
+        simulation,
         manifest_sha256: sha256_ref(&manifest_raw),
     })
 }
@@ -2255,6 +2430,205 @@ fn validate_strategy_records(
         ));
     }
     Ok(())
+}
+
+fn validate_demo_simulation_records(
+    run_id: &str,
+    strategy_id: &str,
+    summary: &DemoSimulationSummarySnapshot,
+    fills: &[DemoSimulatedFillSnapshot],
+    positions: &[DemoSimulatedPositionSnapshot],
+    equity_curve: &[DemoEquityPointSnapshot],
+) -> Result<(), ProductError> {
+    validate_strategy_identity(
+        &summary.session_id,
+        &summary.strategy_id,
+        run_id,
+        strategy_id,
+    )?;
+    let boundaries = &summary.boundaries;
+    if summary.schema_version != "ntpro.demo_simulation_summary.v1"
+        || summary.instrument_id != "BTCUSDT.BINANCE"
+        || summary.engine != "nautilus_backtest::engine::BacktestEngine"
+        || summary.execution_mode != "simulated"
+        || !is_sha256_ref(&summary.data_sha256)
+        || summary.parameters.trade_size.parse::<Quantity>().is_err()
+        || summary.parameters.fast_period != 3
+        || summary.parameters.slow_period != 5
+        || summary.fill_count != fills.len()
+        || summary.position_count != positions.len()
+        || summary.equity_point_count != equity_curve.len()
+        || fills.is_empty()
+        || positions.is_empty()
+        || equity_curve.is_empty()
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_simulation_summary",
+        ));
+    }
+    if !boundaries.simulation_only
+        || boundaries.external_venue_connection
+        || boundaries.order_submission_allowed
+        || boundaries.order_mutation_allowed
+        || boundaries.automatic_retry_allowed
+        || boundaries.automatic_remediation_allowed
+        || boundaries.real_orders_submitted
+        || boundaries.trading_controls_enabled
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "demo_simulation_boundaries",
+        ));
+    }
+
+    for fill in fills {
+        validate_strategy_identity(&fill.session_id, &fill.strategy_id, run_id, strategy_id)?;
+        if !fill.simulation_only {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "demo_simulated_fill_boundary",
+            ));
+        }
+        if fill.schema_version != "ntpro.demo_simulated_fill.v1"
+            || fill.trade_id.trim().is_empty()
+            || fill.client_order_id.trim().is_empty()
+            || fill.venue_order_id.trim().is_empty()
+            || fill.side.trim().is_empty()
+            || fill.order_type.trim().is_empty()
+            || fill.quantity.parse::<Quantity>().is_err()
+            || fill.price.parse::<Decimal>().is_err()
+            || fill.currency.trim().is_empty()
+            || fill.liquidity_side.trim().is_empty()
+            || fill
+                .commission
+                .as_deref()
+                .is_some_and(|value| value.parse::<Money>().is_err())
+            || !positive_timestamp_text(&fill.ts_event)
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_simulated_fill",
+            ));
+        }
+    }
+    for position in positions {
+        validate_strategy_identity(
+            &position.session_id,
+            &position.strategy_id,
+            run_id,
+            strategy_id,
+        )?;
+        if !position.simulation_only {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "demo_simulated_position_boundary",
+            ));
+        }
+        if position.schema_version != "ntpro.demo_simulated_position.v1"
+            || position.position_id.trim().is_empty()
+            || position.account_id.trim().is_empty()
+            || position.side.trim().is_empty()
+            || position.entry_side.trim().is_empty()
+            || position.peak_quantity.parse::<Quantity>().is_err()
+            || position.buy_quantity.parse::<Quantity>().is_err()
+            || position.sell_quantity.parse::<Quantity>().is_err()
+            || position.avg_price_open.parse::<Decimal>().is_err()
+            || position
+                .avg_price_close
+                .as_deref()
+                .is_some_and(|value| value.parse::<Decimal>().is_err())
+            || position.realized_return.parse::<Decimal>().is_err()
+            || position
+                .realized_pnl
+                .as_deref()
+                .is_some_and(|value| value.parse::<Money>().is_err())
+            || position.trade_count == 0
+            || !positive_timestamp_text(&position.ts_opened)
+            || position
+                .ts_closed
+                .as_deref()
+                .is_some_and(|value| !positive_timestamp_text(value))
+            || position.duration_ns.parse::<u64>().is_err()
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_simulated_position",
+            ));
+        }
+    }
+    for point in equity_curve {
+        validate_strategy_identity(&point.session_id, &point.strategy_id, run_id, strategy_id)?;
+        let total = point.total.parse::<Money>();
+        let free = point.free.parse::<Money>();
+        let locked = point.locked.parse::<Money>();
+        if !point.simulation_only {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "demo_equity_point_boundary",
+            ));
+        }
+        if point.schema_version != "ntpro.demo_equity_point.v1"
+            || point.account_id.trim().is_empty()
+            || point.currency.trim().is_empty()
+            || total.as_ref().is_err()
+            || free.as_ref().is_err()
+            || locked.as_ref().is_err()
+            || total
+                .as_ref()
+                .is_ok_and(|value| value.currency.to_string() != point.currency)
+            || free
+                .as_ref()
+                .is_ok_and(|value| value.currency.to_string() != point.currency)
+            || locked
+                .as_ref()
+                .is_ok_and(|value| value.currency.to_string() != point.currency)
+            || !positive_timestamp_text(&point.ts_event)
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_equity_point",
+            ));
+        }
+    }
+    if fills
+        .windows(2)
+        .any(|pair| pair[0].ts_event > pair[1].ts_event)
+        || positions
+            .windows(2)
+            .any(|pair| pair[0].ts_opened > pair[1].ts_opened)
+        || equity_curve
+            .windows(2)
+            .any(|pair| pair[0].ts_event > pair[1].ts_event)
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_simulation_ordering",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+pub(super) fn validate_demo_simulation_value_for_test(
+    run_id: &str,
+    strategy_id: &str,
+    value: serde_json::Value,
+) -> Result<(), ProductError> {
+    let snapshot: DemoSimulationSnapshot = serde_json::from_value(value)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_simulation_fixture"))?;
+    validate_demo_simulation_records(
+        run_id,
+        strategy_id,
+        &snapshot.summary,
+        &snapshot.fills,
+        &snapshot.positions,
+        &snapshot.equity_curve,
+    )
+}
+
+fn positive_timestamp_text(value: &str) -> bool {
+    value.parse::<u64>().is_ok_and(|timestamp| timestamp > 0)
 }
 
 fn strict_json<T: serde::de::DeserializeOwned>(
@@ -2512,6 +2886,10 @@ fn validate_strategy_artifact_paths(
         (&paths.order_intent, "order_intent.jsonl"),
         (&paths.risk_decision, "risk_decision.jsonl"),
         (&paths.summary, "summary.json"),
+        (&paths.simulation_summary, "simulation_summary.json"),
+        (&paths.simulated_fills, "simulated_fills.jsonl"),
+        (&paths.simulated_positions, "simulated_positions.jsonl"),
+        (&paths.equity_curve, "equity_curve.jsonl"),
         (&paths.manifest, "manifest.json"),
     ] {
         if !strategy_artifact_path_matches(actual, &root.join(name)) {
@@ -2853,6 +3231,7 @@ fn failed_demo_snapshot(run: &ProductRun, observed_at_unix_ms: u64) -> DemoRunSn
         latest_signal: None,
         latest_order_intent: None,
         latest_risk_decision: None,
+        simulation: None,
         technical_health: DemoTechnicalHealth {
             status: DemoTechnicalHealthStatus::Blocked,
             diagnostics: vec!["demo_runtime_validation_failed".to_string()],
@@ -3041,6 +3420,27 @@ fn demo_run_manifest_sha256(
 ) -> Result<String, ProductError> {
     let run_root = canonical_demo_artifact_root(state, false)?.join(run_id);
     read_backtest_result_bytes(&run_root.join("run-manifest.json")).map(|raw| sha256_ref(&raw))
+}
+
+fn demo_run_request_sha256(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<String, ProductError> {
+    let run_root = canonical_demo_artifact_root(state, false)?.join(run_id);
+    let manifest_raw = read_backtest_result_bytes(&run_root.join("run-manifest.json"))?;
+    let request_raw = read_backtest_result_bytes(&run_root.join("request.json"))?;
+    let manifest: DynamicDemoRunManifest = strict_json(&manifest_raw, "demo_manifest")?;
+    if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
+        || manifest.config.run_id != run_id
+        || !is_sha256_ref(&manifest.request_sha256)
+        || sha256_ref(&request_raw) != manifest.request_sha256
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_request_sha256",
+        ));
+    }
+    Ok(manifest.request_sha256)
 }
 
 pub(crate) fn shutdown_active_demo_run(
@@ -3994,6 +4394,58 @@ pub(in crate::dashboard) async fn run_analysis_api(
         .map_err(|error| product_error_response(&error, &request_id))
 }
 
+fn demo_comparison_risk(
+    simulation: &DemoSimulationSnapshot,
+) -> Result<RunComparisonRisk, ProductError> {
+    let first = simulation
+        .equity_curve
+        .first()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_equity_curve"))?;
+    let last = simulation
+        .equity_curve
+        .last()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_equity_curve"))?;
+    let starting = first
+        .total
+        .parse::<Money>()
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_equity_curve"))?;
+    let ending = last
+        .total
+        .parse::<Money>()
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_equity_curve"))?;
+    let mut peak = starting.as_decimal();
+    let mut max_drawdown_rate = Decimal::ZERO;
+    for point in &simulation.equity_curve {
+        let equity = point
+            .total
+            .parse::<Money>()
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "demo_equity_curve"))?;
+        if equity.currency != starting.currency {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_equity_currency",
+            ));
+        }
+        peak = peak.max(equity.as_decimal());
+        if peak > Decimal::ZERO {
+            max_drawdown_rate = max_drawdown_rate.max((peak - equity.as_decimal()) / peak);
+        }
+    }
+    let open_positions = simulation
+        .positions
+        .iter()
+        .filter(|position| position.ts_closed.is_none())
+        .count();
+    Ok(RunComparisonRisk {
+        currency: starting.currency.to_string(),
+        starting_equity: starting.to_string(),
+        ending_equity: ending.to_string(),
+        max_drawdown_rate: canonical_analysis_decimal(max_drawdown_rate),
+        open_positions,
+        closed_positions: simulation.positions.len().saturating_sub(open_positions),
+    })
+}
+
 pub(in crate::dashboard) async fn run_comparison_api(
     State(state): State<DashboardServerState>,
     RawQuery(raw_query): RawQuery,
@@ -4001,22 +4453,105 @@ pub(in crate::dashboard) async fn run_comparison_api(
     let request_id = product_request_id();
     let result = parse_run_comparison_query(raw_query.as_deref()).and_then(|run_ids| {
         let source = load_product_source(&state, unix_time_ms())?;
+        let runs = load_product_runs(&state, unix_time_ms())?;
         let mut items = Vec::with_capacity(run_ids.len());
         for run_id in &run_ids {
-            let bundle = load_verified_backtest_bundle(&state, &source, run_id)?;
-            items.push(BacktestComparisonItem {
-                run_id: bundle.run.run_id,
-                strategy_version_id: bundle.run.strategy_version_id,
-                data_ref: bundle.summary.data_ref.clone(),
-                data_sha256: bundle.summary.data_sha256.clone(),
-                config_sha256: bundle.summary.config_sha256.clone(),
-                instrument_id: bundle.summary.instrument_id.clone(),
-                parameters: bundle.summary.parameters.clone(),
-                metrics: bundle.summary.metrics.clone(),
-                risk: bundle.analysis.risk.clone(),
-                provenance: bundle.analysis.provenance.clone(),
-                reproduction_ref: bundle.run.result.reproduction_ref,
-            });
+            let run = runs
+                .iter()
+                .find(|run| run.run_id == *run_id)
+                .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "run_ids"))?;
+            match run.environment {
+                RunEnvironment::Backtest => {
+                    let bundle = load_verified_backtest_bundle(&state, &source, run_id)?;
+                    items.push(RunComparisonItem {
+                        run_id: bundle.run.run_id,
+                        environment: RunEnvironment::Backtest,
+                        strategy_id: bundle.run.strategy_id,
+                        strategy_version_id: bundle.run.strategy_version_id,
+                        data_ref: bundle.summary.data_ref.clone(),
+                        data_sha256: bundle.summary.data_sha256.clone(),
+                        config_sha256: bundle.summary.config_sha256.clone(),
+                        instrument_id: bundle.summary.instrument_id.clone(),
+                        parameters: bundle.summary.parameters.clone(),
+                        metrics: RunComparisonMetrics {
+                            market_event_count: bundle.summary.metrics.quotes,
+                            fill_count: bundle.details.trades.len(),
+                            position_count: bundle.details.positions.len(),
+                        },
+                        risk: RunComparisonRisk {
+                            currency: bundle.analysis.risk.currency.clone(),
+                            starting_equity: bundle.analysis.risk.starting_equity.clone(),
+                            ending_equity: bundle.analysis.risk.ending_equity.clone(),
+                            max_drawdown_rate: bundle.analysis.risk.max_drawdown_rate.clone(),
+                            open_positions: bundle.analysis.risk.open_positions,
+                            closed_positions: bundle.analysis.risk.closed_positions,
+                        },
+                        provenance: RunComparisonProvenance {
+                            engine: bundle.analysis.provenance.generator.clone(),
+                            data_ref: bundle.analysis.provenance.data_ref.clone(),
+                            data_sha256: bundle.analysis.provenance.data_sha256.clone(),
+                            source_refs: vec![
+                                bundle.analysis.provenance.summary_ref.clone(),
+                                bundle.analysis.provenance.details_ref.clone(),
+                                bundle.analysis.analysis_ref.clone(),
+                            ],
+                        },
+                        reproduction_ref: bundle.run.result.reproduction_ref,
+                    });
+                }
+                RunEnvironment::Sandbox if run.lifecycle == RunLifecycle::Stopped => {
+                    let snapshot = load_demo_snapshot_by_id(&state, run_id, unix_time_ms())?;
+                    if snapshot.snapshot_status != DemoSnapshotStatus::Frozen {
+                        return Err(product_error(
+                            ProductErrorKind::SourceInvalid,
+                            "demo_comparison_snapshot",
+                        ));
+                    }
+                    let simulation = snapshot.simulation.ok_or_else(|| {
+                        product_error(
+                            ProductErrorKind::SourceInvalid,
+                            "demo_comparison_simulation",
+                        )
+                    })?;
+                    let risk = demo_comparison_risk(&simulation)?;
+                    items.push(RunComparisonItem {
+                        run_id: run.run_id.clone(),
+                        environment: RunEnvironment::Sandbox,
+                        strategy_id: run.strategy_id.clone(),
+                        strategy_version_id: run.strategy_version_id.clone(),
+                        data_ref: run.data_ref.clone(),
+                        data_sha256: simulation.summary.data_sha256.clone(),
+                        config_sha256: demo_run_request_sha256(&state, run_id)?,
+                        instrument_id: simulation.summary.instrument_id.clone(),
+                        parameters: BacktestParameters {
+                            trade_size: simulation.summary.parameters.trade_size.clone(),
+                            fast_period: simulation.summary.parameters.fast_period,
+                            slow_period: simulation.summary.parameters.slow_period,
+                        },
+                        metrics: RunComparisonMetrics {
+                            market_event_count: snapshot.session.as_ref().map_or(0, |session| {
+                                usize::try_from(session.market_event_count).unwrap_or(usize::MAX)
+                            }),
+                            fill_count: simulation.fills.len(),
+                            position_count: simulation.positions.len(),
+                        },
+                        risk,
+                        provenance: RunComparisonProvenance {
+                            engine: simulation.summary.engine.clone(),
+                            data_ref: run.data_ref.clone(),
+                            data_sha256: simulation.summary.data_sha256.clone(),
+                            source_refs: snapshot.provenance.source_refs,
+                        },
+                        reproduction_ref: None,
+                    });
+                }
+                _ => {
+                    return Err(product_error(
+                        ProductErrorKind::RunNotFound,
+                        "run_comparison",
+                    ));
+                }
+            }
         }
         let first = items
             .first()
@@ -4024,6 +4559,7 @@ pub(in crate::dashboard) async fn run_comparison_api(
         let same_strategy_version = items
             .iter()
             .all(|item| item.strategy_version_id == first.strategy_version_id);
+        let same_parameters = items.iter().all(|item| item.parameters == first.parameters);
         let same_data = items
             .iter()
             .all(|item| item.data_sha256 == first.data_sha256);
@@ -4033,21 +4569,35 @@ pub(in crate::dashboard) async fn run_comparison_api(
         let same_currency = items
             .iter()
             .all(|item| item.risk.currency == first.risk.currency);
+        let same_strategy = items
+            .iter()
+            .all(|item| item.strategy_id == first.strategy_id);
+        let same_environment = items
+            .iter()
+            .all(|item| item.environment == first.environment);
+        let behaviorally_comparable = same_strategy
+            && same_strategy_version
+            && same_parameters
+            && same_instrument
+            && same_currency;
         Ok(RunComparisonResponse {
             schema_version: RUN_COMPARISON_SCHEMA_VERSION.to_string(),
             contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
             request_id: request_id.clone(),
-            data: BacktestComparison {
+            data: RunComparison {
                 baseline_run_id: run_ids[0].clone(),
                 run_ids,
                 items,
-                compatibility: BacktestComparisonCompatibility {
-                    same_strategy: true,
+                compatibility: RunComparisonCompatibility {
+                    same_strategy,
                     same_strategy_version,
+                    same_parameters,
                     same_data,
                     same_instrument,
                     same_currency,
-                    directly_comparable: same_data && same_instrument && same_currency,
+                    same_environment,
+                    behaviorally_comparable,
+                    directly_comparable: behaviorally_comparable && same_data,
                 },
             },
             boundaries: ProductReadOnlyBoundaries::enforced(),

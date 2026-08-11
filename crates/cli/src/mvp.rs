@@ -1911,7 +1911,7 @@ write_strategy_artifacts() {
   : > "$output/strategy/order_intent.jsonl"
   : > "$output/strategy/risk_decision.jsonl"
   cat > "$output/strategy/session_status.json" <<EOF
-{"schema_version":"ntpro.v09_strategy_session_status.v1","session_id":"$node_id","strategy_id":"$strategy_id","state":"$state","reason":"fixture_runtime","updated_at_unix_ms":$now_ms,"artifacts":{"session_status":"$output/strategy/session_status.json","events":"$output/strategy/events.jsonl","market_status":"$output/strategy/market_status.json","market_events":"$output/strategy/market_events.jsonl","signal":"$output/strategy/signal.jsonl","order_intent":"$output/strategy/order_intent.jsonl","risk_decision":"$output/strategy/risk_decision.jsonl","summary":"$output/strategy/summary.json","manifest":"$output/strategy/manifest.json"}}
+{"schema_version":"ntpro.v09_strategy_session_status.v1","session_id":"$node_id","strategy_id":"$strategy_id","state":"$state","reason":"fixture_runtime","updated_at_unix_ms":$now_ms,"artifacts":{"session_status":"$output/strategy/session_status.json","events":"$output/strategy/events.jsonl","market_status":"$output/strategy/market_status.json","market_events":"$output/strategy/market_events.jsonl","signal":"$output/strategy/signal.jsonl","order_intent":"$output/strategy/order_intent.jsonl","risk_decision":"$output/strategy/risk_decision.jsonl","summary":"$output/strategy/summary.json","simulation_summary":"$output/strategy/simulation_summary.json","simulated_fills":"$output/strategy/simulated_fills.jsonl","simulated_positions":"$output/strategy/simulated_positions.jsonl","equity_curve":"$output/strategy/equity_curve.jsonl","manifest":"$output/strategy/manifest.json"}}
 EOF
   cat > "$output/strategy/events.jsonl" <<EOF
 {"schema_version":"ntpro.v09_strategy_session_event.v1","event_type":"fixture","session_id":"$node_id","strategy_id":"$strategy_id","previous_state":null,"state":"$state","reason":"fixture_runtime","occurred_at_unix_ms":$now_ms}
@@ -1922,6 +1922,18 @@ EOF
   cat > "$output/strategy/summary.json" <<EOF
 {"schema_version":"ntpro.v09_strategy_session_summary.v1","session_id":"$node_id","strategy_id":"$strategy_id","state":"$state","event_count":1,"market_event_count":0,"signal_count":0,"intent_count":0,"risk_decision_count":0,"rejection_count":0,"actual_submission_count":0,"updated_at_unix_ms":$artifact_now_ms}
 EOF
+  cat > "$output/strategy/simulation_summary.json" <<EOF
+{"schema_version":"ntpro.demo_simulation_summary.v1","session_id":"$node_id","strategy_id":"$strategy_id","instrument_id":"BTCUSDT.BINANCE","engine":"nautilus_backtest::engine::BacktestEngine","execution_mode":"simulated","data_sha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","parameters":{"trade_size":"1.000000","fast_period":3,"slow_period":5},"fill_count":1,"position_count":1,"equity_point_count":1,"boundaries":{"simulation_only":true,"external_venue_connection":false,"order_submission_allowed":false,"order_mutation_allowed":false,"automatic_retry_allowed":false,"automatic_remediation_allowed":false,"real_orders_submitted":false,"trading_controls_enabled":false}}
+EOF
+  cat > "$output/strategy/simulated_fills.jsonl" <<EOF
+{"schema_version":"ntpro.demo_simulated_fill.v1","session_id":"$node_id","strategy_id":"$strategy_id","simulation_only":true,"trade_id":"trade-demo-001","client_order_id":"order-demo-001","venue_order_id":"simulated-001","position_id":"position-demo-001","side":"SELL","order_type":"MARKET","quantity":"1.000000","price":"100.50","currency":"USDT","liquidity_side":"TAKER","commission":"0.10050000 USDT","ts_event":"${now_ms}000000"}
+EOF
+  cat > "$output/strategy/simulated_positions.jsonl" <<EOF
+{"schema_version":"ntpro.demo_simulated_position.v1","session_id":"$node_id","strategy_id":"$strategy_id","simulation_only":true,"position_id":"position-demo-001","account_id":"BINANCE-001","side":"SHORT","entry_side":"SELL","peak_quantity":"1.000000","buy_quantity":"0.000000","sell_quantity":"1.000000","avg_price_open":"100.5","avg_price_close":null,"realized_return":"0","realized_pnl":null,"trade_count":1,"ts_opened":"${now_ms}000000","ts_closed":null,"duration_ns":"0"}
+EOF
+  cat > "$output/strategy/equity_curve.jsonl" <<EOF
+{"schema_version":"ntpro.demo_equity_point.v1","session_id":"$node_id","strategy_id":"$strategy_id","simulation_only":true,"account_id":"BINANCE-001","currency":"USDT","total":"1000000.00000000 USDT","free":"1000000.00000000 USDT","locked":"0.00000000 USDT","ts_event":"${now_ms}000000"}
+EOF
   cat > "$output/strategy/manifest.json.tmp" <<EOF
 {"schema_version":"ntpro.v091_strategy_session_manifest.v1","session_id":"$node_id","strategy_id":"$strategy_id","state":"$state","created_at_unix_ms":$now_ms,"updated_at_unix_ms":$now_ms,"artifacts":[
 {"name":"session_status","path":"$output/strategy/session_status.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/session_status.json"),"checksum":"$(checksum "$output/strategy/session_status.json")"},
@@ -1931,7 +1943,11 @@ EOF
 {"name":"signal","path":"$output/strategy/signal.jsonl","format":"jsonl","present":true,"record_count":0,"byte_len":$(byte_len "$output/strategy/signal.jsonl"),"checksum":"$(checksum "$output/strategy/signal.jsonl")"},
 {"name":"order_intent","path":"$output/strategy/order_intent.jsonl","format":"jsonl","present":true,"record_count":0,"byte_len":$(byte_len "$output/strategy/order_intent.jsonl"),"checksum":"$(checksum "$output/strategy/order_intent.jsonl")"},
 {"name":"risk_decision","path":"$output/strategy/risk_decision.jsonl","format":"jsonl","present":true,"record_count":0,"byte_len":$(byte_len "$output/strategy/risk_decision.jsonl"),"checksum":"$(checksum "$output/strategy/risk_decision.jsonl")"},
-{"name":"summary","path":"$output/strategy/summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/summary.json"),"checksum":"$(checksum "$output/strategy/summary.json")"}]}
+{"name":"summary","path":"$output/strategy/summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/summary.json"),"checksum":"$(checksum "$output/strategy/summary.json")"},
+{"name":"simulation_summary","path":"$output/strategy/simulation_summary.json","format":"json","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/simulation_summary.json"),"checksum":"$(checksum "$output/strategy/simulation_summary.json")"},
+{"name":"simulated_fills","path":"$output/strategy/simulated_fills.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/simulated_fills.jsonl"),"checksum":"$(checksum "$output/strategy/simulated_fills.jsonl")"},
+{"name":"simulated_positions","path":"$output/strategy/simulated_positions.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/simulated_positions.jsonl"),"checksum":"$(checksum "$output/strategy/simulated_positions.jsonl")"},
+{"name":"equity_curve","path":"$output/strategy/equity_curve.jsonl","format":"jsonl","present":true,"record_count":1,"byte_len":$(byte_len "$output/strategy/equity_curve.jsonl"),"checksum":"$(checksum "$output/strategy/equity_curve.jsonl")"}]}
 EOF
   mv "$output/strategy/manifest.json.tmp" "$output/strategy/manifest.json"
 }
