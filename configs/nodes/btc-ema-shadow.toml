@@ -124,6 +124,32 @@ venue = "BINANCE_TESTNET"
 order_submission = "disabled"
 external_venue_connection = false
 
+[live_admission]
+schema_version = "ntpro.live_admission.config.v1"
+strategy_version_id = "ema_cross_btcusdt_v1@v1"
+venue_id = "BINANCE"
+product_type = "spot"
+production_http_base_url = "https://api.binance.com"
+production_websocket_base_url = "wss://stream.binance.com:9443/ws"
+market_data_adapter_ref = "adapter://binance/spot/production-market-data"
+execution_adapter_ref = "adapter://binance/spot/production-execution"
+account_ref = "account://live/binance/primary"
+credential_provider = "environment"
+api_key_env = "NTPRO_BINANCE_LIVE_API_KEY"
+api_secret_env = "NTPRO_BINANCE_LIVE_API_SECRET"
+owner_approval = false
+production_network_allowed = false
+authenticated_account_read_allowed = false
+live_run_creation_allowed = false
+order_submission_allowed = false
+cancel_order_allowed = false
+replace_order_allowed = false
+fill_reconciliation_allowed = false
+automatic_retry_allowed = false
+automatic_remediation_allowed = false
+automatic_recovery_allowed = false
+manual_stop_required = true
+
 [testnet_order]
 enabled = false
 mode = "disabled"

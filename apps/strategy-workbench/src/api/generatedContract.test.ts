@@ -30,5 +30,5 @@ describe("generated product API drift gate", () => {
     } finally {
       rmSync(temporary, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 });

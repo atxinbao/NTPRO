@@ -24,6 +24,9 @@ import type {
   GetDemoRunSnapshotData,
   GetDemoRunSnapshotErrors,
   GetDemoRunSnapshotResponses,
+  GetLiveAdmissionData,
+  GetLiveAdmissionErrors,
+  GetLiveAdmissionResponses,
   GetRunAnalysisData,
   GetRunAnalysisErrors,
   GetRunAnalysisResponses,
@@ -190,6 +193,37 @@ export const getStrategyVersion = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/strategies/{strategy_id}/versions/{version_id}",
+    ...options,
+  });
+
+/**
+ * 读取 Live 独立准入状态
+ */
+export const getLiveAdmission = <ThrowOnError extends boolean = false>(
+  options: Options<GetLiveAdmissionData, ThrowOnError>,
+): RequestResult<
+  GetLiveAdmissionResponses,
+  GetLiveAdmissionErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetLiveAdmissionResponses,
+    GetLiveAdmissionErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/strategies/{strategy_id}/versions/{version_id}/live-admission",
     ...options,
   });
 

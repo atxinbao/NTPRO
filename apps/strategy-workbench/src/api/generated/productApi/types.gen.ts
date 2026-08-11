@@ -815,6 +815,95 @@ export type StrategyVersionDetailResponse = {
   boundaries: ReadOnlyBoundaries;
 };
 
+export type LiveAdmissionResponse = {
+  schema_version: "ntpro.product_api.live_admission.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: LiveAdmission;
+  boundaries: LiveAdmissionBoundaries;
+};
+
+export type LiveAdmission = {
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  environment: "live";
+  admission_status: "blocked";
+  evaluated_at_unix_ms: number;
+  venue: LiveVenueAdmission;
+  account: LiveAccountAdmission;
+  credentials: LiveCredentialAdmission;
+  order_lifecycle: LiveOrderLifecycleAdmission;
+  blockers: Array<
+    | "independent_owner_approval_missing"
+    | "production_network_not_authorized"
+    | "authenticated_account_read_not_authorized"
+    | "live_run_creation_not_authorized"
+    | "order_lifecycle_not_authorized"
+    | "automatic_recovery_not_authorized"
+    | "api_key_missing"
+    | "api_secret_missing"
+  >;
+  source_refs: [string, string];
+};
+
+export type LiveVenueAdmission = {
+  venue_id: "BINANCE";
+  product_type: "spot";
+  environment: "production";
+  production_http_base_url: "https://api.binance.com";
+  production_websocket_base_url: "wss://stream.binance.com:9443/ws";
+  market_data_adapter_ref: "adapter://binance/spot/production-market-data";
+  execution_adapter_ref: "adapter://binance/spot/production-execution";
+  connection_state: "not_attempted";
+};
+
+export type LiveAccountAdmission = {
+  account_ref: "account://live/binance/primary";
+  binding_status: "configured_not_authorized";
+  authenticated_read_state: "blocked";
+};
+
+export type LiveCredentialAdmission = {
+  provider: "environment";
+  api_key_ref: "env://NTPRO_BINANCE_LIVE_API_KEY";
+  api_secret_ref: "env://NTPRO_BINANCE_LIVE_API_SECRET";
+  api_key_presence: "missing" | "present";
+  api_secret_presence: "missing" | "present";
+  secret_values_exposed: false;
+};
+
+export type LiveOrderLifecycleAdmission = {
+  submit: "blocked";
+  cancel: "blocked";
+  replace: "blocked";
+  fill_reconciliation: "blocked";
+  manual_stop_required: true;
+};
+
+export type LiveAdmissionBoundaries = {
+  read_only: true;
+  independent_live_admission_required: true;
+  owner_approval_granted: false;
+  inherited_from_backtest: false;
+  inherited_from_demo: false;
+  external_venue_connection: false;
+  production_venue_connection: false;
+  production_network_allowed: false;
+  external_network_attempted: false;
+  authenticated_account_read_allowed: false;
+  live_run_creation_allowed: false;
+  order_submission_allowed: false;
+  cancel_order_allowed: false;
+  replace_order_allowed: false;
+  order_mutation_allowed: false;
+  fill_reconciliation_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  automatic_recovery_allowed: false;
+  real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
 export type RunListResponse = {
   schema_version: "ntpro.product_api.run_list.response.v1";
   contract_version: "ntpro.product_api.v1";
@@ -1111,6 +1200,56 @@ export type GetStrategyVersionResponses = {
 
 export type GetStrategyVersionResponse =
   GetStrategyVersionResponses[keyof GetStrategyVersionResponses];
+
+export type GetLiveAdmissionData = {
+  body?: never;
+  path: {
+    strategy_id: StrategyId;
+    version_id: StrategyVersionId;
+  };
+  query?: never;
+  url: "/strategies/{strategy_id}/versions/{version_id}/live-admission";
+};
+
+export type GetLiveAdmissionErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type GetLiveAdmissionError =
+  GetLiveAdmissionErrors[keyof GetLiveAdmissionErrors];
+
+export type GetLiveAdmissionResponses = {
+  /**
+   * Live 独立准入、凭证存在性和订单生命周期边界
+   */
+  200: LiveAdmissionResponse;
+};
+
+export type GetLiveAdmissionResponse =
+  GetLiveAdmissionResponses[keyof GetLiveAdmissionResponses];
 
 export type ListRunsData = {
   body?: never;

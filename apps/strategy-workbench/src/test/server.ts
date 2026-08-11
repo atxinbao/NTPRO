@@ -4,6 +4,7 @@ import { setupServer } from "msw/node";
 import type { DemoRunSnapshotResponse, Run } from "../api/generated/productApi";
 
 import { validStatusPayload } from "./fixtures";
+import liveAdmissionFixture from "./product-api-fixtures/live-admission.json";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
 import runAnalysisFixture from "./product-api-fixtures/run-analysis.json";
 import runListFixture from "./product-api-fixtures/run-list.json";
@@ -531,6 +532,10 @@ export const server = setupServer(
   ),
   http.get("/api/product/v1/strategies/:strategyId/versions", () =>
     HttpResponse.json(strategyVersionListFixture),
+  ),
+  http.get(
+    "/api/product/v1/strategies/:strategyId/versions/:versionId/live-admission",
+    () => HttpResponse.json(liveAdmissionFixture),
   ),
   http.get("/api/product/v1/strategies/:strategyId/versions/:versionId", () =>
     HttpResponse.json(strategyVersionDetailFixture),

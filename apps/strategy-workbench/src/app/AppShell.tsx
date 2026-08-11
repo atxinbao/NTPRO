@@ -43,6 +43,7 @@ interface NavigationItem {
     | "/backtests"
     | "/backtests/compare"
     | "/demo"
+    | "/live"
     | "/system-status";
   disabledReason?: string;
 }
@@ -57,7 +58,7 @@ const navigation: NavigationItem[] = [
   { label: "Backtest", icon: FlaskConical, to: "/backtests" },
   { label: "运行对比", icon: GitCompareArrows, to: "/backtests/compare" },
   { label: "Demo", icon: Radio, to: "/demo" },
-  { label: "Live", icon: Activity, disabledReason: "等待 S3 独立准入" },
+  { label: "Live", icon: Activity, to: "/live" },
   { label: "运行", icon: ListTree, disabledReason: "从策略总览进入 Run 详情" },
   { label: "数据", icon: Database, disabledReason: "等待数据产品合同" },
   { label: "风险", icon: ShieldCheck, disabledReason: "等待风险产品合同" },

@@ -16,6 +16,7 @@ function readProductFixture(name: string): Record<string, unknown> {
 }
 
 const errorFixture = readProductFixture("error");
+const liveAdmissionFixture = readProductFixture("live-admission");
 const runDetailFixture = readProductFixture("run-detail");
 const runAnalysisFixture = readProductFixture("run-analysis");
 const runListFixture = readProductFixture("run-list");
@@ -562,6 +563,12 @@ function productFixtureForPath(path: string): Record<string, unknown> {
   if (path === "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1") {
     return strategyVersionDetailFixture;
   }
+  if (
+    path ===
+    "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/live-admission"
+  ) {
+    return liveAdmissionFixture;
+  }
   if (path === "/api/product/v1/runs") {
     return {
       ...runListFixture,
@@ -837,6 +844,27 @@ test.beforeEach(async ({ page }) => {
       contentType: "application/json",
       body: JSON.stringify(productFixtureForPath(path)),
     });
+  });
+});
+
+test("Live page exposes independent admission and no trading actions", async ({
+  page,
+}, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("live");
+  await expect(
+    page.getByRole("heading", { name: "真实交易独立准入" }),
+  ).toBeVisible();
+  await expect(page.getByText("尚未获得 Live 独立审批")).toBeVisible();
+  await expect(page.getByText("自动恢复尚未授权")).toBeVisible();
+  await expect(page.getByText("生产 API Key 尚未配置")).toBeVisible();
+  await expect(page.getByText("生产 API Secret 尚未配置")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: testInfo.outputPath("live-admission-1440.png"),
+    fullPage: true,
   });
 });
 

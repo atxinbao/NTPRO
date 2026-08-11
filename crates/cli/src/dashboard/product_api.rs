@@ -51,11 +51,13 @@ use crate::{
 
 use super::{ApiResult, DashboardServerState};
 
+mod live_admission;
 mod run;
 mod strategy_version;
 #[cfg(test)]
 mod tests;
 
+pub(super) use live_admission::live_admission_api;
 pub(crate) use run::shutdown_active_demo_run;
 pub(super) use run::{
     demo_run_action_api, demo_run_create_api, demo_run_snapshot_api, run_analysis_api,

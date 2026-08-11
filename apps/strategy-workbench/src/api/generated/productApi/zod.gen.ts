@@ -869,6 +869,103 @@ export const zStrategyVersionDetailResponse = z.object({
   boundaries: zReadOnlyBoundaries,
 });
 
+export const zLiveVenueAdmission = z.object({
+  venue_id: z.literal("BINANCE"),
+  product_type: z.literal("spot"),
+  environment: z.literal("production"),
+  production_http_base_url: z.literal("https://api.binance.com"),
+  production_websocket_base_url: z.literal("wss://stream.binance.com:9443/ws"),
+  market_data_adapter_ref: z.literal(
+    "adapter://binance/spot/production-market-data",
+  ),
+  execution_adapter_ref: z.literal(
+    "adapter://binance/spot/production-execution",
+  ),
+  connection_state: z.literal("not_attempted"),
+});
+
+export const zLiveAccountAdmission = z.object({
+  account_ref: z.literal("account://live/binance/primary"),
+  binding_status: z.literal("configured_not_authorized"),
+  authenticated_read_state: z.literal("blocked"),
+});
+
+export const zLiveCredentialAdmission = z.object({
+  provider: z.literal("environment"),
+  api_key_ref: z.literal("env://NTPRO_BINANCE_LIVE_API_KEY"),
+  api_secret_ref: z.literal("env://NTPRO_BINANCE_LIVE_API_SECRET"),
+  api_key_presence: z.enum(["missing", "present"]),
+  api_secret_presence: z.enum(["missing", "present"]),
+  secret_values_exposed: z.literal(false),
+});
+
+export const zLiveOrderLifecycleAdmission = z.object({
+  submit: z.literal("blocked"),
+  cancel: z.literal("blocked"),
+  replace: z.literal("blocked"),
+  fill_reconciliation: z.literal("blocked"),
+  manual_stop_required: z.literal(true),
+});
+
+export const zLiveAdmission = z.object({
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  environment: z.literal("live"),
+  admission_status: z.literal("blocked"),
+  evaluated_at_unix_ms: z.int().gte(1),
+  venue: zLiveVenueAdmission,
+  account: zLiveAccountAdmission,
+  credentials: zLiveCredentialAdmission,
+  order_lifecycle: zLiveOrderLifecycleAdmission,
+  blockers: z
+    .array(
+      z.enum([
+        "independent_owner_approval_missing",
+        "production_network_not_authorized",
+        "authenticated_account_read_not_authorized",
+        "live_run_creation_not_authorized",
+        "order_lifecycle_not_authorized",
+        "automatic_recovery_not_authorized",
+        "api_key_missing",
+        "api_secret_missing",
+      ]),
+    )
+    .min(6),
+  source_refs: z.tuple([z.string().min(1), z.string().min(1)]),
+});
+
+export const zLiveAdmissionBoundaries = z.object({
+  read_only: z.literal(true),
+  independent_live_admission_required: z.literal(true),
+  owner_approval_granted: z.literal(false),
+  inherited_from_backtest: z.literal(false),
+  inherited_from_demo: z.literal(false),
+  external_venue_connection: z.literal(false),
+  production_venue_connection: z.literal(false),
+  production_network_allowed: z.literal(false),
+  external_network_attempted: z.literal(false),
+  authenticated_account_read_allowed: z.literal(false),
+  live_run_creation_allowed: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  cancel_order_allowed: z.literal(false),
+  replace_order_allowed: z.literal(false),
+  order_mutation_allowed: z.literal(false),
+  fill_reconciliation_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  automatic_recovery_allowed: z.literal(false),
+  real_orders_submitted: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zLiveAdmissionResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.live_admission.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zLiveAdmission,
+  boundaries: zLiveAdmissionBoundaries,
+});
+
 export const zRunListResponse = z.object({
   schema_version: z.literal("ntpro.product_api.run_list.response.v1"),
   contract_version: z.literal("ntpro.product_api.v1"),
@@ -1021,6 +1118,16 @@ export const zGetStrategyVersionPath = z.object({
  * 不可变策略版本详情
  */
 export const zGetStrategyVersionResponse = zStrategyVersionDetailResponse;
+
+export const zGetLiveAdmissionPath = z.object({
+  strategy_id: zStrategyId,
+  version_id: zStrategyVersionId,
+});
+
+/**
+ * Live 独立准入、凭证存在性和订单生命周期边界
+ */
+export const zGetLiveAdmissionResponse = zLiveAdmissionResponse;
 
 export const zListRunsQuery = z.object({
   limit: z.int().gte(1).lte(100).optional().default(20),
