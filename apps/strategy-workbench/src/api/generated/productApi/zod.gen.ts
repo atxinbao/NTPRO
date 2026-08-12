@@ -869,6 +869,168 @@ export const zStrategyVersionDetailResponse = z.object({
   boundaries: zReadOnlyBoundaries,
 });
 
+export const zCreateLiveRunCandidateRequest = z.object({
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  environment: z.literal("live"),
+  account_ref: z.literal("account://live/binance/primary"),
+  venue_ref: z.literal("venue://live/BINANCE"),
+  user_confirmed: z.literal(true),
+});
+
+export const zLiveRunCandidateAction = z.enum(["preflight", "stop"]);
+
+export const zLiveRunCandidateActionRequest = z.object({
+  run_id: zRunId,
+  action: zLiveRunCandidateAction,
+  user_confirmed: z.literal(true),
+});
+
+export const zLiveRunCandidateLifecycle = z.enum([
+  "created",
+  "preflight_ready",
+  "stopped",
+]);
+
+export const zLiveOrderAdmissionSnapshot = z.object({
+  status: z.literal("blocked"),
+  submit: z.literal("blocked"),
+  cancel: z.literal("blocked"),
+  replace: z.literal("blocked"),
+  fill_reconciliation: z.literal("blocked"),
+  blockers: z.tuple([
+    z.literal("production_order_authority_not_granted"),
+    z.literal("execution_adapter_send_not_enabled"),
+    z.literal("fill_reconciliation_not_enabled"),
+  ]),
+});
+
+export const zLiveRunCandidate = z.intersection(
+  z.union([
+    z.object({
+      lifecycle: z.literal("created").optional(),
+      preflight_at_unix_ms: z.null().optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(false).optional(),
+      account_can_trade_verified: z.literal(false).optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("preflight_ready").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("stopped").optional(),
+      preflight_at_unix_ms: z.null().optional(),
+      stopped_at_unix_ms: z.int().gte(1).optional(),
+      account_connected: z.literal(false).optional(),
+      account_can_trade_verified: z.literal(false).optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("stopped").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.int().gte(1).optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+    }),
+  ]),
+  z.object({
+    run_id: zRunId,
+    strategy_id: zStrategyId,
+    strategy_version_id: zStrategyVersionId,
+    environment: z.literal("live"),
+    account_ref: z.literal("account://live/binance/primary"),
+    venue_ref: z.literal("venue://live/BINANCE"),
+    lifecycle: zLiveRunCandidateLifecycle,
+    created_at_unix_ms: z.int().gte(1),
+    preflight_at_unix_ms: z.int().gte(1).nullable(),
+    stopped_at_unix_ms: z.int().gte(1).nullable(),
+    account_connected: z.boolean(),
+    account_can_trade_verified: z.boolean(),
+    runtime_started: z.literal(false),
+    order_admission: zLiveOrderAdmissionSnapshot,
+    source_refs: z.tuple([
+      z.string().regex(/^node-config:[^#]+#live_admission$/),
+      z.string().regex(/^node-config:[^#]+#risk$/),
+      z.string().regex(/^risk-config-sha256:[a-f0-9]{64}$/),
+      zContentHash,
+    ]),
+  }),
+);
+
+export const zLiveRunCandidateBoundaries = z.object({
+  candidate_creation_allowed: z.literal(true),
+  explicit_preflight_allowed: z.literal(true),
+  manual_stop_allowed: z.literal(true),
+  live_runtime_start_allowed: z.literal(false),
+  external_market_data_connection_allowed: z.literal(false),
+  order_endpoint_access_allowed: z.literal(false),
+  order_submission_allowed: z.literal(false),
+  cancel_order_allowed: z.literal(false),
+  replace_order_allowed: z.literal(false),
+  fill_reconciliation_allowed: z.literal(false),
+  automatic_retry_allowed: z.literal(false),
+  automatic_remediation_allowed: z.literal(false),
+  automatic_recovery_allowed: z.literal(false),
+  execution_adapter_send_attempted: z.literal(false),
+  real_orders_submitted: z.literal(false),
+  trading_controls_enabled: z.literal(false),
+});
+
+export const zLiveRunCandidateGateRefs = z.tuple([
+  z.literal("NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE"),
+  z.literal("NTPRO_S3_LIVE_RUN_OWNER_APPROVED"),
+  z.literal("NTPRO_S3_LIVE_RUN_NO_ORDER_SEND"),
+  z.literal("NTPRO_S3_LIVE_RUN_MANUAL_STOP"),
+  z.literal("NTPRO_S3_LIVE_RUN_RISK_APPROVED"),
+]);
+
+export const zLiveRunCandidateListResponse = z.object({
+  schema_version: z.literal(
+    "ntpro.product_api.live_run_candidate_list.response.v1",
+  ),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: z.array(zLiveRunCandidate).max(1),
+  runtime_gate_refs: zLiveRunCandidateGateRefs,
+  boundaries: zLiveRunCandidateBoundaries,
+});
+
+export const zLiveRunCandidateResponse = z.object({
+  schema_version: z.string(),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: zLiveRunCandidate,
+  runtime_gate_refs: zLiveRunCandidateGateRefs,
+  boundaries: zLiveRunCandidateBoundaries,
+});
+
+export const zLiveRunCandidateCreateResponse = zLiveRunCandidateResponse.and(
+  z.object({
+    schema_version: z
+      .literal("ntpro.product_api.live_run_candidate_create.response.v1")
+      .optional(),
+  }),
+);
+
+export const zLiveRunCandidateDetailResponse = zLiveRunCandidateResponse.and(
+  z.object({
+    schema_version: z
+      .literal("ntpro.product_api.live_run_candidate_detail.response.v1")
+      .optional(),
+  }),
+);
+
+export const zLiveRunCandidateActionResponse = zLiveRunCandidateResponse.and(
+  z.object({
+    schema_version: z
+      .literal("ntpro.product_api.live_run_candidate_action.response.v1")
+      .optional(),
+  }),
+);
+
 export const zLiveVenueAdmission = z.object({
   venue_id: z.literal("BINANCE"),
   product_type: z.literal("spot"),
@@ -1186,6 +1348,8 @@ export const zProductError = z.object({
     "backtest_execution_failed",
     "demo_run_conflict",
     "demo_execution_failed",
+    "live_run_candidate_conflict",
+    "live_run_preflight_failed",
     "strategy_not_found",
     "strategy_version_not_found",
     "run_not_found",
@@ -1284,6 +1448,38 @@ export const zRefreshLiveAccountPath = z.object({
  * 生产账户只读刷新结果；阻断和连接失败也返回脱敏状态
  */
 export const zRefreshLiveAccountResponse = zLiveAccountRefreshResponse;
+
+/**
+ * 当前未停止候选列表，最多一项
+ */
+export const zListLiveRunCandidatesResponse = zLiveRunCandidateListResponse;
+
+export const zCreateLiveRunCandidateBody = zCreateLiveRunCandidateRequest;
+
+/**
+ * Live Run 候选已创建；真实 runtime 和订单发送仍关闭
+ */
+export const zCreateLiveRunCandidateResponse = zLiveRunCandidateCreateResponse;
+
+export const zGetLiveRunCandidatePath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * Live Run 候选只读详情
+ */
+export const zGetLiveRunCandidateResponse = zLiveRunCandidateDetailResponse;
+
+export const zActOnLiveRunCandidateBody = zLiveRunCandidateActionRequest;
+
+export const zActOnLiveRunCandidatePath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * Live Run 候选生命周期动作已完成
+ */
+export const zActOnLiveRunCandidateResponse = zLiveRunCandidateActionResponse;
 
 export const zListRunsQuery = z.object({
   limit: z.int().gte(1).lte(100).optional().default(20),

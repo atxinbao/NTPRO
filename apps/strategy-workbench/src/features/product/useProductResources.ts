@@ -4,7 +4,9 @@ import { productApi } from "../../api/productApi";
 import type {
   CreateBacktestRunRequest,
   CreateDemoRunRequest,
+  CreateLiveRunCandidateRequest,
   DemoRunAction,
+  LiveRunCandidateAction,
 } from "../../api/generated/productApi";
 
 const productQueryPolicy = {
@@ -44,6 +46,7 @@ export const productQueryKeys = {
       versionId,
       "live-admission",
     ] as const,
+  liveRunCandidates: ["product", "live-run-candidates"] as const,
 };
 
 export function useCreateBacktestRun() {
@@ -76,6 +79,50 @@ export function useCreateDemoRun() {
         }),
       ]);
     },
+  });
+}
+
+export function useCreateLiveRunCandidate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (request: CreateLiveRunCandidateRequest) =>
+      productApi.createLiveRunCandidate(request),
+    retry: false,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: productQueryKeys.liveRunCandidates,
+        refetchType: "active",
+      });
+    },
+  });
+}
+
+export function useLiveRunCandidateAction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      runId,
+      action,
+    }: {
+      runId: string;
+      action: LiveRunCandidateAction;
+    }) => productApi.actOnLiveRunCandidate(runId, action),
+    retry: false,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: productQueryKeys.liveRunCandidates,
+        refetchType: "active",
+      });
+    },
+  });
+}
+
+export function useLiveRunCandidates() {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.liveRunCandidates,
+    queryFn: ({ signal }) => productApi.listLiveRunCandidates(signal),
+    retry: false,
   });
 }
 

@@ -6,6 +6,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import liveRunCandidateFixture from "../test/product-api-fixtures/live-run-candidate.json";
 import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import runListFixture from "../test/product-api-fixtures/run-list.json";
@@ -414,7 +415,9 @@ describe("strategy workbench product slice", () => {
       await screen.findByRole("heading", { name: "Live 连接与独立准入" }),
     ).toBeInTheDocument();
     expect(screen.getByText("未准入")).toBeInTheDocument();
-    expect(screen.getByText("尚未获得 Live 独立审批")).toBeInTheDocument();
+    expect(
+      screen.getByText("真实 Live Runtime 启动尚未授权"),
+    ).toBeInTheDocument();
     expect(screen.getByText("自动恢复尚未授权")).toBeInTheDocument();
     expect(screen.getByText("生产 API Key 尚未配置")).toBeInTheDocument();
     expect(screen.getByText("生产 API Secret 尚未配置")).toBeInTheDocument();
@@ -440,6 +443,83 @@ describe("strategy workbench product slice", () => {
     expect(
       screen.queryByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("creates, preflights and manually stops a Live Run candidate", async () => {
+    let currentCandidate: Record<string, any> | null = null;
+    let listGets = 0;
+    server.use(
+      http.get("/api/product/v1/live-run-candidates", () => {
+        listGets += 1;
+        const response: Record<string, any> = structuredClone(
+          liveRunCandidateFixture,
+        );
+        response.schema_version =
+          "ntpro.product_api.live_run_candidate_list.response.v1";
+        response.data =
+          currentCandidate?.data.lifecycle === "stopped"
+            ? []
+            : currentCandidate
+              ? [currentCandidate.data]
+              : [];
+        return HttpResponse.json(response);
+      }),
+      http.post("/api/product/v1/live-run-candidates", () => {
+        currentCandidate = structuredClone(liveRunCandidateFixture);
+        return HttpResponse.json(currentCandidate, { status: 201 });
+      }),
+      http.post(
+        "/api/product/v1/live-run-candidates/:runId/actions",
+        async ({ request }) => {
+          const body = (await request.json()) as {
+            action: "preflight" | "stop";
+          };
+          currentCandidate ??= structuredClone(liveRunCandidateFixture);
+          currentCandidate.schema_version =
+            "ntpro.product_api.live_run_candidate_action.response.v1";
+          if (body.action === "preflight") {
+            currentCandidate.data.lifecycle = "preflight_ready";
+            currentCandidate.data.preflight_at_unix_ms = 1786406401000;
+            currentCandidate.data.account_connected = true;
+            currentCandidate.data.account_can_trade_verified = true;
+          } else {
+            currentCandidate.data.lifecycle = "stopped";
+            currentCandidate.data.stopped_at_unix_ms = 1786406402000;
+          }
+          return HttpResponse.json(currentCandidate);
+        },
+      ),
+    );
+    renderWorkbench("/live");
+    await screen.findByRole("heading", { name: "Live 连接与独立准入" });
+    await userEvent.click(screen.getByRole("button", { name: "检查账户连接" }));
+    const region = screen.getByRole("region", { name: "Live Run 候选" });
+    await within(region).findByText(/先显式检查生产账户/);
+    await userEvent.click(within(region).getByRole("checkbox"));
+    await userEvent.click(
+      within(region).getByRole("button", { name: "创建 Live Run 候选" }),
+    );
+    expect(await within(region).findByText("created")).toBeInTheDocument();
+    expect(within(region).getByText("真实 Runtime")).toBeInTheDocument();
+    expect(within(region).getByText("未启动")).toBeInTheDocument();
+    await userEvent.click(
+      within(region).getByRole("button", { name: "执行启动前检查" }),
+    );
+    expect(
+      await within(region).findByText("preflight_ready"),
+    ).toBeInTheDocument();
+    const listGetsBeforeStop = listGets;
+    await userEvent.click(
+      within(region).getByRole("button", { name: "人工停止候选" }),
+    );
+    expect(
+      await within(region).findByText(/先显式检查生产账户/),
+    ).toBeInTheDocument();
+    expect(
+      within(region).getByRole("button", { name: "创建 Live Run 候选" }),
+    ).toBeInTheDocument();
+    expect(within(region).queryByText("stopped")).not.toBeInTheDocument();
+    expect(listGets).toBeGreaterThan(listGetsBeforeStop);
   });
 
   it("renders real Backtest metrics only for an available Backtest Run", async () => {

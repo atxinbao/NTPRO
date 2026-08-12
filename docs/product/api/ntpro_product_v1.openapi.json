@@ -406,7 +406,137 @@
           "400": { "$ref": "#/components/responses/ProductError" },
           "403": { "$ref": "#/components/responses/ProductError" },
           "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductCommandMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/live-run-candidates": {
+      "get": {
+        "operationId": "listLiveRunCandidates",
+        "summary": "读取当前未停止的 Live Run 候选",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "responses": {
+          "200": {
+            "description": "当前未停止候选列表，最多一项",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LiveRunCandidateListResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductRunMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      },
+      "post": {
+        "operationId": "createLiveRunCandidate",
+        "summary": "创建独立 Live Run 候选",
+        "security": [{ "InstitutionCookie": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateLiveRunCandidateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Live Run 候选已创建；真实 runtime 和订单发送仍关闭",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LiveRunCandidateCreateResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductRunMethodNotAllowed" },
+          "409": { "$ref": "#/components/responses/ProductError" },
+          "422": { "$ref": "#/components/responses/ProductError" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/live-run-candidates/{run_id}": {
+      "get": {
+        "operationId": "getLiveRunCandidate",
+        "summary": "读取 Live Run 候选与订单准入状态",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live Run 候选只读详情",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LiveRunCandidateDetailResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
           "405": { "$ref": "#/components/responses/ProductMethodNotAllowed" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/live-run-candidates/{run_id}/actions": {
+      "post": {
+        "operationId": "actOnLiveRunCandidate",
+        "summary": "显式执行 Live 启动前检查或人工停止",
+        "security": [{ "InstitutionCookie": [] }],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LiveRunCandidateActionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Live Run 候选生命周期动作已完成",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LiveRunCandidateActionResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductCommandMethodNotAllowed" },
+          "409": { "$ref": "#/components/responses/ProductError" },
+          "422": { "$ref": "#/components/responses/ProductError" },
           "500": { "$ref": "#/components/responses/ProductError" },
           "503": { "$ref": "#/components/responses/ProductError" }
         }
@@ -897,6 +1027,25 @@
             "schema": {
               "type": "string",
               "const": "GET"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProductErrorResponse"
+            }
+          }
+        }
+      },
+      "ProductCommandMethodNotAllowed": {
+        "description": "产品命令 API 仅允许 POST",
+        "headers": {
+          "Allow": {
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "POST"
             }
           }
         },
@@ -2620,6 +2769,213 @@
           }
         }
       },
+      "CreateLiveRunCandidateRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "user_confirmed"],
+        "properties": {
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "environment": { "const": "live" },
+          "account_ref": { "const": "account://live/binance/primary" },
+          "venue_ref": { "const": "venue://live/BINANCE" },
+          "user_confirmed": { "const": true }
+        }
+      },
+      "LiveRunCandidateAction": {
+        "type": "string",
+        "enum": ["preflight", "stop"]
+      },
+      "LiveRunCandidateActionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "action", "user_confirmed"],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "action": { "$ref": "#/components/schemas/LiveRunCandidateAction" },
+          "user_confirmed": { "const": true }
+        }
+      },
+      "LiveRunCandidateLifecycle": {
+        "type": "string",
+        "enum": ["created", "preflight_ready", "stopped"]
+      },
+      "LiveOrderAdmissionSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "submit", "cancel", "replace", "fill_reconciliation", "blockers"],
+        "properties": {
+          "status": { "const": "blocked" },
+          "submit": { "const": "blocked" },
+          "cancel": { "const": "blocked" },
+          "replace": { "const": "blocked" },
+          "fill_reconciliation": { "const": "blocked" },
+          "blockers": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "prefixItems": [
+              { "const": "production_order_authority_not_granted" },
+              { "const": "execution_adapter_send_not_enabled" },
+              { "const": "fill_reconciliation_not_enabled" }
+            ],
+            "items": false
+          }
+        }
+      },
+      "LiveRunCandidate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "order_admission", "source_refs"],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "environment": { "const": "live" },
+          "account_ref": { "const": "account://live/binance/primary" },
+          "venue_ref": { "const": "venue://live/BINANCE" },
+          "lifecycle": { "$ref": "#/components/schemas/LiveRunCandidateLifecycle" },
+          "created_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "preflight_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 },
+          "stopped_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 },
+          "account_connected": { "type": "boolean" },
+          "account_can_trade_verified": { "type": "boolean" },
+          "runtime_started": { "const": false },
+          "order_admission": { "$ref": "#/components/schemas/LiveOrderAdmissionSnapshot" },
+          "source_refs": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "prefixItems": [
+              { "type": "string", "pattern": "^node-config:[^#]+#live_admission$" },
+              { "type": "string", "pattern": "^node-config:[^#]+#risk$" },
+              { "type": "string", "pattern": "^risk-config-sha256:[a-f0-9]{64}$" },
+              { "$ref": "#/components/schemas/ContentHash" }
+            ],
+            "items": false
+          }
+        },
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "lifecycle": { "const": "created" },
+                  "preflight_at_unix_ms": { "type": "null" },
+                  "stopped_at_unix_ms": { "type": "null" },
+                  "account_connected": { "const": false },
+                  "account_can_trade_verified": { "const": false }
+                }
+              },
+              {
+                "properties": {
+                  "lifecycle": { "const": "preflight_ready" },
+                  "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "stopped_at_unix_ms": { "type": "null" },
+                  "account_connected": { "const": true },
+                  "account_can_trade_verified": { "const": true }
+                }
+              },
+              {
+                "properties": {
+                  "lifecycle": { "const": "stopped" },
+                  "preflight_at_unix_ms": { "type": "null" },
+                  "stopped_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "account_connected": { "const": false },
+                  "account_can_trade_verified": { "const": false }
+                }
+              },
+              {
+                "properties": {
+                  "lifecycle": { "const": "stopped" },
+                  "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "stopped_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "account_connected": { "const": true },
+                  "account_can_trade_verified": { "const": true }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "LiveRunCandidateBoundaries": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["candidate_creation_allowed", "explicit_preflight_allowed", "manual_stop_allowed", "live_runtime_start_allowed", "external_market_data_connection_allowed", "order_endpoint_access_allowed", "order_submission_allowed", "cancel_order_allowed", "replace_order_allowed", "fill_reconciliation_allowed", "automatic_retry_allowed", "automatic_remediation_allowed", "automatic_recovery_allowed", "execution_adapter_send_attempted", "real_orders_submitted", "trading_controls_enabled"],
+        "properties": {
+          "candidate_creation_allowed": { "const": true },
+          "explicit_preflight_allowed": { "const": true },
+          "manual_stop_allowed": { "const": true },
+          "live_runtime_start_allowed": { "const": false },
+          "external_market_data_connection_allowed": { "const": false },
+          "order_endpoint_access_allowed": { "const": false },
+          "order_submission_allowed": { "const": false },
+          "cancel_order_allowed": { "const": false },
+          "replace_order_allowed": { "const": false },
+          "fill_reconciliation_allowed": { "const": false },
+          "automatic_retry_allowed": { "const": false },
+          "automatic_remediation_allowed": { "const": false },
+          "automatic_recovery_allowed": { "const": false },
+          "execution_adapter_send_attempted": { "const": false },
+          "real_orders_submitted": { "const": false },
+          "trading_controls_enabled": { "const": false }
+        }
+      },
+      "LiveRunCandidateCreateResponse": {
+        "allOf": [{ "$ref": "#/components/schemas/LiveRunCandidateResponse" }],
+        "properties": { "schema_version": { "const": "ntpro.product_api.live_run_candidate_create.response.v1" } }
+      },
+      "LiveRunCandidateListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "runtime_gate_refs", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.live_run_candidate_list.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": {
+            "type": "array",
+            "maxItems": 1,
+            "items": { "$ref": "#/components/schemas/LiveRunCandidate" }
+          },
+          "runtime_gate_refs": { "$ref": "#/components/schemas/LiveRunCandidateGateRefs" },
+          "boundaries": { "$ref": "#/components/schemas/LiveRunCandidateBoundaries" }
+        }
+      },
+      "LiveRunCandidateDetailResponse": {
+        "allOf": [{ "$ref": "#/components/schemas/LiveRunCandidateResponse" }],
+        "properties": { "schema_version": { "const": "ntpro.product_api.live_run_candidate_detail.response.v1" } }
+      },
+      "LiveRunCandidateActionResponse": {
+        "allOf": [{ "$ref": "#/components/schemas/LiveRunCandidateResponse" }],
+        "properties": { "schema_version": { "const": "ntpro.product_api.live_run_candidate_action.response.v1" } }
+      },
+      "LiveRunCandidateResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "runtime_gate_refs", "boundaries"],
+        "properties": {
+          "schema_version": { "type": "string" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/LiveRunCandidate" },
+          "runtime_gate_refs": { "$ref": "#/components/schemas/LiveRunCandidateGateRefs" },
+          "boundaries": { "$ref": "#/components/schemas/LiveRunCandidateBoundaries" }
+        }
+      },
+      "LiveRunCandidateGateRefs": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 5,
+            "prefixItems": [
+              { "const": "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE" },
+              { "const": "NTPRO_S3_LIVE_RUN_OWNER_APPROVED" },
+              { "const": "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND" },
+              { "const": "NTPRO_S3_LIVE_RUN_MANUAL_STOP" },
+              { "const": "NTPRO_S3_LIVE_RUN_RISK_APPROVED" }
+            ],
+            "items": false
+      },
       "LiveAdmissionResponse": {
         "type": "object",
         "additionalProperties": false,
@@ -3315,6 +3671,8 @@
               "backtest_execution_failed",
               "demo_run_conflict",
               "demo_execution_failed",
+              "live_run_candidate_conflict",
+              "live_run_preflight_failed",
               "strategy_not_found",
               "strategy_version_not_found",
               "run_not_found",

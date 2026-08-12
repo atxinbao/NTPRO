@@ -1,11 +1,15 @@
 import { createClient } from "./generated/productApi/client";
 import {
   actOnDemoRun,
+  actOnLiveRunCandidate,
   compareRuns,
   createBacktestRun,
   createDemoRun,
+  createLiveRunCandidate,
   getDemoRunSnapshot,
   getLiveAdmission,
+  getLiveRunCandidate,
+  listLiveRunCandidates,
   getRunReproductionProof,
   getRunAnalysis,
   getRun,
@@ -25,6 +29,7 @@ import {
   type DemoRunActionResponse,
   type DemoRunCreateResponse,
   type DemoRunSnapshotResponse,
+  type CreateLiveRunCandidateRequest,
   type GetDemoRunSnapshotData,
   type GetLiveAdmissionData,
   type GetRunData,
@@ -39,6 +44,12 @@ import {
   type ListStrategyVersionsData,
   type LiveAdmissionResponse,
   type LiveAccountRefreshResponse,
+  type LiveRunCandidateAction,
+  type LiveRunCandidateActionResponse,
+  type LiveRunCandidate,
+  type LiveRunCandidateCreateResponse,
+  type LiveRunCandidateDetailResponse,
+  type LiveRunCandidateListResponse,
   type ProductErrorResponse,
   type RefreshLiveAccountData,
   type ReproduceBacktestRunRequest,
@@ -62,6 +73,10 @@ import {
   zDemoRunSnapshotResponse,
   zLiveAdmissionResponse,
   zLiveAccountRefreshResponse,
+  zLiveRunCandidateActionResponse,
+  zLiveRunCandidateCreateResponse,
+  zLiveRunCandidateDetailResponse,
+  zLiveRunCandidateListResponse,
   zProductErrorResponse,
   zRunCreateResponse,
   zRunAnalysisResponse,
@@ -372,6 +387,97 @@ function assertDemoRun(
   );
 }
 
+function assertLiveRunCandidate(
+  payload: {
+    data: LiveRunCandidate;
+    boundaries: LiveRunCandidateCreateResponse["boundaries"];
+    runtime_gate_refs: string[];
+  },
+  field: string,
+): void {
+  const candidate = payload.data;
+  const boundaries = payload.boundaries;
+  const preflightReady = candidate.lifecycle === "preflight_ready";
+  const stopped = candidate.lifecycle === "stopped";
+  const hasPreflight = candidate.preflight_at_unix_ms !== null;
+  const lifecycleFieldsValid =
+    (candidate.lifecycle === "created" &&
+      !hasPreflight &&
+      candidate.stopped_at_unix_ms === null &&
+      !candidate.account_connected &&
+      !candidate.account_can_trade_verified) ||
+    (preflightReady &&
+      hasPreflight &&
+      candidate.stopped_at_unix_ms === null &&
+      candidate.account_connected &&
+      candidate.account_can_trade_verified) ||
+    (stopped &&
+      candidate.stopped_at_unix_ms !== null &&
+      candidate.account_connected === hasPreflight &&
+      candidate.account_can_trade_verified === hasPreflight);
+  const lifecycleTimesValid =
+    (candidate.preflight_at_unix_ms === null ||
+      candidate.preflight_at_unix_ms >= candidate.created_at_unix_ms) &&
+    (candidate.stopped_at_unix_ms === null ||
+      candidate.stopped_at_unix_ms >=
+        (candidate.preflight_at_unix_ms ?? candidate.created_at_unix_ms));
+  assertIdentity(
+    candidate.environment === "live" &&
+      candidate.account_ref === "account://live/binance/primary" &&
+      candidate.venue_ref === "venue://live/BINANCE" &&
+      !candidate.runtime_started &&
+      lifecycleFieldsValid &&
+      lifecycleTimesValid &&
+      candidate.order_admission.status === "blocked" &&
+      candidate.order_admission.submit === "blocked" &&
+      candidate.order_admission.cancel === "blocked" &&
+      candidate.order_admission.replace === "blocked" &&
+      candidate.order_admission.fill_reconciliation === "blocked" &&
+      boundaries.candidate_creation_allowed &&
+      boundaries.explicit_preflight_allowed &&
+      boundaries.manual_stop_allowed &&
+      !boundaries.live_runtime_start_allowed &&
+      !boundaries.external_market_data_connection_allowed &&
+      !boundaries.order_endpoint_access_allowed &&
+      !boundaries.order_submission_allowed &&
+      !boundaries.cancel_order_allowed &&
+      !boundaries.replace_order_allowed &&
+      !boundaries.fill_reconciliation_allowed &&
+      !boundaries.automatic_retry_allowed &&
+      !boundaries.automatic_remediation_allowed &&
+      !boundaries.automatic_recovery_allowed &&
+      !boundaries.execution_adapter_send_attempted &&
+      !boundaries.real_orders_submitted &&
+      !boundaries.trading_controls_enabled,
+    field,
+  );
+  assertUniqueIds(payload.runtime_gate_refs, `${field}.runtime_gate_refs`);
+  assertUniqueIds(candidate.source_refs, `${field}.source_refs`);
+}
+
+function assertLiveRunCandidateList(
+  payload: LiveRunCandidateListResponse,
+): void {
+  assertIdentity(
+    payload.data.length <= 1,
+    "live_run_candidate_list.cardinality",
+  );
+  assertUniqueIds(
+    payload.data.map((candidate) => candidate.run_id),
+    "live_run_candidate_list.data.run_id",
+  );
+  for (const candidate of payload.data) {
+    assertLiveRunCandidate(
+      { ...payload, data: candidate },
+      "live_run_candidate_list",
+    );
+    assertIdentity(
+      candidate.lifecycle !== "stopped",
+      "live_run_candidate_list.lifecycle",
+    );
+  }
+}
+
 async function resolveResponse<T>(
   request: Promise<RequestFields>,
   schema: z.ZodType<T>,
@@ -415,6 +521,82 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
   });
 
   return {
+    async listLiveRunCandidates(
+      signal?: AbortSignal,
+    ): Promise<LiveRunCandidateListResponse> {
+      const payload = await resolveResponse(
+        listLiveRunCandidates({ client, signal }),
+        zLiveRunCandidateListResponse,
+        "live_run_candidate_list",
+      );
+      assertLiveRunCandidateList(payload);
+      return payload;
+    },
+
+    async createLiveRunCandidate(
+      body: CreateLiveRunCandidateRequest,
+      signal?: AbortSignal,
+    ): Promise<LiveRunCandidateCreateResponse> {
+      const payload = await resolveResponse(
+        createLiveRunCandidate({ client, body, signal }),
+        zLiveRunCandidateCreateResponse,
+        "live_run_candidate_create",
+      );
+      assertIdentity(
+        payload.data.strategy_id === body.strategy_id &&
+          payload.data.strategy_version_id === body.strategy_version_id &&
+          payload.data.account_ref === body.account_ref &&
+          payload.data.venue_ref === body.venue_ref &&
+          payload.data.lifecycle === "created",
+        "live_run_candidate_create.identity",
+      );
+      assertLiveRunCandidate(payload, "live_run_candidate_create");
+      return payload;
+    },
+
+    async getLiveRunCandidate(
+      runId: string,
+      signal?: AbortSignal,
+    ): Promise<LiveRunCandidateDetailResponse> {
+      const payload = await resolveResponse(
+        getLiveRunCandidate({ client, path: { run_id: runId }, signal }),
+        zLiveRunCandidateDetailResponse,
+        "live_run_candidate_detail",
+      );
+      assertIdentity(
+        payload.data.run_id === runId,
+        "live_run_candidate_detail.identity",
+      );
+      assertLiveRunCandidate(payload, "live_run_candidate_detail");
+      return payload;
+    },
+
+    async actOnLiveRunCandidate(
+      runId: string,
+      action: LiveRunCandidateAction,
+      signal?: AbortSignal,
+    ): Promise<LiveRunCandidateActionResponse> {
+      const payload = await resolveResponse(
+        actOnLiveRunCandidate({
+          client,
+          path: { run_id: runId },
+          body: { run_id: runId, action, user_confirmed: true },
+          signal,
+        }),
+        zLiveRunCandidateActionResponse,
+        "live_run_candidate_action",
+      );
+      assertIdentity(
+        payload.data.run_id === runId &&
+          (action === "preflight"
+            ? payload.data.lifecycle === "preflight_ready"
+            : payload.data.lifecycle === "stopped"),
+        "live_run_candidate_action.identity",
+      );
+      assertLiveRunCandidate(payload, "live_run_candidate_action");
+      return payload;
+    },
+
     async createDemoRun(
       body: CreateDemoRunRequest,
       signal?: AbortSignal,

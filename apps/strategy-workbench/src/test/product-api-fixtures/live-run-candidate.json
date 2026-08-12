@@ -1,0 +1,63 @@
+{
+  "schema_version": "ntpro.product_api.live_run_candidate_create.response.v1",
+  "contract_version": "ntpro.product_api.v1",
+  "request_id": "product-0000000000000001-0000000000000001",
+  "data": {
+    "run_id": "live-candidate-0000000000000001-0000000000000001",
+    "strategy_id": "ema-cross",
+    "strategy_version_id": "ema-cross@v1",
+    "environment": "live",
+    "account_ref": "account://live/binance/primary",
+    "venue_ref": "venue://live/BINANCE",
+    "lifecycle": "created",
+    "created_at_unix_ms": 1786406400000,
+    "preflight_at_unix_ms": null,
+    "stopped_at_unix_ms": null,
+    "account_connected": false,
+    "account_can_trade_verified": false,
+    "runtime_started": false,
+    "order_admission": {
+      "status": "blocked",
+      "submit": "blocked",
+      "cancel": "blocked",
+      "replace": "blocked",
+      "fill_reconciliation": "blocked",
+      "blockers": [
+        "production_order_authority_not_granted",
+        "execution_adapter_send_not_enabled",
+        "fill_reconciliation_not_enabled"
+      ]
+    },
+    "source_refs": [
+      "node-config:node.toml#live_admission",
+      "node-config:node.toml#risk",
+      "risk-config-sha256:8a92f596c7f51574c25979022b59358cfd6807ec3470ef7b21301fb133d4c1ac",
+      "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    ]
+  },
+  "runtime_gate_refs": [
+    "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE",
+    "NTPRO_S3_LIVE_RUN_OWNER_APPROVED",
+    "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND",
+    "NTPRO_S3_LIVE_RUN_MANUAL_STOP",
+    "NTPRO_S3_LIVE_RUN_RISK_APPROVED"
+  ],
+  "boundaries": {
+    "candidate_creation_allowed": true,
+    "explicit_preflight_allowed": true,
+    "manual_stop_allowed": true,
+    "live_runtime_start_allowed": false,
+    "external_market_data_connection_allowed": false,
+    "order_endpoint_access_allowed": false,
+    "order_submission_allowed": false,
+    "cancel_order_allowed": false,
+    "replace_order_allowed": false,
+    "fill_reconciliation_allowed": false,
+    "automatic_retry_allowed": false,
+    "automatic_remediation_allowed": false,
+    "automatic_recovery_allowed": false,
+    "execution_adapter_send_attempted": false,
+    "real_orders_submitted": false,
+    "trading_controls_enabled": false
+  }
+}

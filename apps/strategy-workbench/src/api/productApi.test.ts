@@ -4,6 +4,7 @@ import errorFixture from "../test/product-api-fixtures/error.json";
 import liveAccountRefreshConnectedFixture from "../test/product-api-fixtures/live-account-refresh-connected.json";
 import liveAccountRefreshFixture from "../test/product-api-fixtures/live-account-refresh.json";
 import liveAdmissionFixture from "../test/product-api-fixtures/live-admission.json";
+import liveRunCandidateFixture from "../test/product-api-fixtures/live-run-candidate.json";
 import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
 import runListFixture from "../test/product-api-fixtures/run-list.json";
@@ -48,6 +49,15 @@ const createDemoBody = {
   supervisor_node_id: "mvp-node-001",
   account_ref: "account://sandbox/acct-sandbox-001",
   venue_ref: "venue://sandbox/BINANCE",
+  user_confirmed: true as const,
+};
+
+const createLiveRunCandidateBody = {
+  strategy_id: "ema-cross",
+  strategy_version_id: "ema-cross@v1",
+  environment: "live" as const,
+  account_ref: "account://live/binance/primary" as const,
+  venue_ref: "venue://live/BINANCE" as const,
   user_confirmed: true as const,
 };
 
@@ -99,6 +109,114 @@ function jsonFetch(payload: unknown, status = 200) {
 }
 
 describe("product API generated client", () => {
+  it("creates and reads a fail-closed Live Run candidate", async () => {
+    const createFetch = jsonFetch(liveRunCandidateFixture, 201);
+    const created = await createProductApiClient({
+      fetch: createFetch,
+    }).createLiveRunCandidate(createLiveRunCandidateBody);
+    expect(created.data.lifecycle).toBe("created");
+    expect(created.data.runtime_started).toBe(false);
+    expect(created.data.order_admission.status).toBe("blocked");
+    expect(createFetch).toHaveBeenCalledTimes(1);
+
+    const detail = structuredClone(liveRunCandidateFixture);
+    detail.schema_version =
+      "ntpro.product_api.live_run_candidate_detail.response.v1";
+    const result = await createProductApiClient({
+      fetch: jsonFetch(detail),
+    }).getLiveRunCandidate(detail.data.run_id);
+    expect(result.data.run_id).toBe(detail.data.run_id);
+
+    const list: Record<string, any> = structuredClone(liveRunCandidateFixture);
+    list.schema_version =
+      "ntpro.product_api.live_run_candidate_list.response.v1";
+    list.data = [list.data];
+    const listed = await createProductApiClient({
+      fetch: jsonFetch(list),
+    }).listLiveRunCandidates();
+    expect(listed.data).toHaveLength(1);
+    expect(listed.data[0]?.lifecycle).toBe("created");
+  });
+
+  it("accepts explicit preflight and stop without opening order mutation", async () => {
+    const preflight: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    preflight.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    preflight.data.lifecycle = "preflight_ready";
+    preflight.data.preflight_at_unix_ms = 1786406401000;
+    preflight.data.account_connected = true;
+    preflight.data.account_can_trade_verified = true;
+    const client = createProductApiClient({ fetch: jsonFetch(preflight) });
+    const result = await client.actOnLiveRunCandidate(
+      preflight.data.run_id,
+      "preflight",
+    );
+    expect(result.data.lifecycle).toBe("preflight_ready");
+    expect(result.boundaries.order_submission_allowed).toBe(false);
+  });
+
+  it.each([
+    [
+      "runtime started",
+      (value: Record<string, any>) => (value.data.runtime_started = true),
+    ],
+    [
+      "order submit opened",
+      (value: Record<string, any>) =>
+        (value.boundaries.order_submission_allowed = true),
+    ],
+    [
+      "order admission opened",
+      (value: Record<string, any>) =>
+        (value.data.order_admission.submit = "ready"),
+    ],
+    [
+      "identity drift",
+      (value: Record<string, any>) =>
+        (value.data.account_ref = "account://live/binance/other"),
+    ],
+    [
+      "unknown field",
+      (value: Record<string, any>) => (value.data.secret = "leak"),
+    ],
+    [
+      "missing risk content source",
+      (value: Record<string, any>) => value.data.source_refs.splice(2, 1),
+    ],
+    [
+      "malformed risk content source",
+      (value: Record<string, any>) =>
+        (value.data.source_refs[2] = "risk-config-sha256:not-a-hash"),
+    ],
+    [
+      "created lifecycle with preflight facts",
+      (value: Record<string, any>) => {
+        value.data.preflight_at_unix_ms = 1786406401000;
+        value.data.account_connected = true;
+        value.data.account_can_trade_verified = true;
+      },
+    ],
+    [
+      "preflight timestamp before creation",
+      (value: Record<string, any>) => {
+        value.data.lifecycle = "preflight_ready";
+        value.data.preflight_at_unix_ms = value.data.created_at_unix_ms - 1;
+        value.data.account_connected = true;
+        value.data.account_can_trade_verified = true;
+      },
+    ],
+  ])("rejects Live candidate %s", async (_, mutate) => {
+    const payload = structuredClone(liveRunCandidateFixture);
+    mutate(payload);
+    await expect(
+      createProductApiClient({
+        fetch: jsonFetch(payload, 201),
+      }).createLiveRunCandidate(createLiveRunCandidateBody),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
+  });
+
   const sandboxRunListFixture = structuredClone(runListFixture);
   sandboxRunListFixture.data = sandboxRunListFixture.data.filter(
     (run) => run.environment === "sandbox",

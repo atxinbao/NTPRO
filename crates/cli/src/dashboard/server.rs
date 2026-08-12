@@ -47,11 +47,12 @@ use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
 use super::product_api::{
     demo_run_action_api, demo_run_create_api, demo_run_snapshot_api, live_account_refresh_api,
-    live_admission_api, product_access_denied_response, product_command_method_not_allowed,
-    product_method_not_allowed, product_run_method_not_allowed, run_analysis_api,
-    run_comparison_api, run_create_api, run_detail_api, run_list_api, run_metrics_api,
-    run_report_api, run_reproduce_api, run_reproduction_proof_api, strategy_detail_api,
-    strategy_list_api, strategy_version_detail_api, strategy_version_list_api,
+    live_admission_api, live_run_candidate_action_api, live_run_candidate_create_api,
+    live_run_candidate_detail_api, live_run_candidate_list_api, product_access_denied_response,
+    product_command_method_not_allowed, product_method_not_allowed, product_run_method_not_allowed,
+    run_analysis_api, run_comparison_api, run_create_api, run_detail_api, run_list_api,
+    run_metrics_api, run_report_api, run_reproduce_api, run_reproduction_proof_api,
+    strategy_detail_api, strategy_list_api, strategy_version_detail_api, strategy_version_list_api,
 };
 use super::trader_terminal_api::{
     audit_entries_api, backend_closure_status_api, deployment_state_api, permission_snapshot_api,
@@ -332,6 +333,25 @@ fn dashboard_router_with_workflow_root(
         .route(
             "/api/product/v1/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh",
             post(live_account_refresh_api)
+                .head(product_command_method_not_allowed)
+                .fallback(product_command_method_not_allowed),
+        )
+        .route(
+            "/api/product/v1/live-run-candidates",
+            get(live_run_candidate_list_api)
+                .post(live_run_candidate_create_api)
+                .head(product_run_method_not_allowed)
+                .fallback(product_run_method_not_allowed),
+        )
+        .route(
+            "/api/product/v1/live-run-candidates/{run_id}",
+            get(live_run_candidate_detail_api)
+                .head(product_method_not_allowed)
+                .fallback(product_method_not_allowed),
+        )
+        .route(
+            "/api/product/v1/live-run-candidates/{run_id}/actions",
+            post(live_run_candidate_action_api)
                 .head(product_command_method_not_allowed)
                 .fallback(product_command_method_not_allowed),
         )

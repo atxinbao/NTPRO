@@ -20,6 +20,7 @@ const liveAccountRefreshFixture = readProductFixture(
   "live-account-refresh-connected",
 );
 const liveAdmissionFixture = readProductFixture("live-admission");
+const liveRunCandidateFixture = readProductFixture("live-run-candidate");
 const runDetailFixture = readProductFixture("run-detail");
 const runAnalysisFixture = readProductFixture("run-analysis");
 const runListFixture = readProductFixture("run-list");
@@ -714,6 +715,7 @@ function productFixtureForPath(path: string): Record<string, unknown> {
 
 test.beforeEach(async ({ page }) => {
   let currentDemo: Record<string, unknown> | undefined;
+  let currentLiveCandidate: Record<string, any> | undefined;
   await page.route("**/api/mvp/v1/status", async (route) => {
     await route.fulfill({
       status: 200,
@@ -724,6 +726,28 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/product/v1/**", async (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname);
     if (
+      route.request().method() === "GET" &&
+      path === "/api/product/v1/live-run-candidates"
+    ) {
+      const response: Record<string, any> = structuredClone(
+        liveRunCandidateFixture,
+      );
+      response.schema_version =
+        "ntpro.product_api.live_run_candidate_list.response.v1";
+      response.data =
+        currentLiveCandidate?.data.lifecycle === "stopped"
+          ? []
+          : currentLiveCandidate
+            ? [currentLiveCandidate.data]
+            : [];
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(response),
+      });
+      return;
+    }
+    if (
       route.request().method() === "POST" &&
       path ===
         "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/live-account/actions/refresh"
@@ -733,6 +757,46 @@ test.beforeEach(async ({ page }) => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(liveAccountRefreshFixture),
+      });
+      return;
+    }
+    if (
+      route.request().method() === "POST" &&
+      path === "/api/product/v1/live-run-candidates"
+    ) {
+      currentLiveCandidate = structuredClone(liveRunCandidateFixture);
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify(currentLiveCandidate),
+      });
+      return;
+    }
+    if (
+      route.request().method() === "POST" &&
+      path.endsWith(
+        "/live-run-candidates/live-candidate-0000000000000001-0000000000000001/actions",
+      )
+    ) {
+      const body = route.request().postDataJSON() as {
+        action: "preflight" | "stop";
+      };
+      currentLiveCandidate ??= structuredClone(liveRunCandidateFixture);
+      currentLiveCandidate.schema_version =
+        "ntpro.product_api.live_run_candidate_action.response.v1";
+      if (body.action === "preflight") {
+        currentLiveCandidate.data.lifecycle = "preflight_ready";
+        currentLiveCandidate.data.preflight_at_unix_ms = 1786406401000;
+        currentLiveCandidate.data.account_connected = true;
+        currentLiveCandidate.data.account_can_trade_verified = true;
+      } else {
+        currentLiveCandidate.data.lifecycle = "stopped";
+        currentLiveCandidate.data.stopped_at_unix_ms = 1786406402000;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(currentLiveCandidate),
       });
       return;
     }
@@ -873,14 +937,20 @@ test("Live page exposes independent admission and no trading actions", async ({
   page,
 }, testInfo) => {
   let liveAccountRefreshRequests = 0;
+  let liveCandidateListRequests = 0;
   page.on("request", (request) => {
+    const path = decodeURIComponent(new URL(request.url()).pathname);
     if (
       request.method() === "POST" &&
-      decodeURIComponent(new URL(request.url()).pathname).endsWith(
-        "/live-account/actions/refresh",
-      )
+      path.endsWith("/live-account/actions/refresh")
     ) {
       liveAccountRefreshRequests += 1;
+    }
+    if (
+      request.method() === "GET" &&
+      path === "/api/product/v1/live-run-candidates"
+    ) {
+      liveCandidateListRequests += 1;
     }
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -888,7 +958,7 @@ test("Live page exposes independent admission and no trading actions", async ({
   await expect(
     page.getByRole("heading", { name: "Live 连接与独立准入" }),
   ).toBeVisible();
-  await expect(page.getByText("尚未获得 Live 独立审批")).toBeVisible();
+  await expect(page.getByText("真实 Live Runtime 启动尚未授权")).toBeVisible();
   await expect(page.getByText("自动恢复尚未授权")).toBeVisible();
   await expect(page.getByText("生产 API Key 尚未配置")).toBeVisible();
   await expect(page.getByText("生产 API Secret 尚未配置")).toBeVisible();
@@ -918,6 +988,44 @@ test("Live page exposes independent admission and no trading actions", async ({
   await expect(
     page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }),
   ).toHaveCount(0);
+  const liveCandidate = page.getByRole("region", { name: "Live Run 候选" });
+  await liveCandidate.getByRole("checkbox").check();
+  await liveCandidate
+    .getByRole("button", { name: "创建 Live Run 候选" })
+    .click();
+  await expect(
+    liveCandidate.getByText("created", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    liveCandidate.getByText("未启动", { exact: true }),
+  ).toBeVisible();
+  await liveCandidate.getByRole("button", { name: "执行启动前检查" }).click();
+  await expect(
+    liveCandidate.getByText("preflight_ready", { exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  const recoveredCandidate = page.getByRole("region", {
+    name: "Live Run 候选",
+  });
+  await expect(
+    recoveredCandidate.getByText("preflight_ready", { exact: true }),
+  ).toBeVisible();
+  const listRequestsBeforeStop = liveCandidateListRequests;
+  await recoveredCandidate
+    .getByRole("button", { name: "人工停止候选" })
+    .click();
+  await expect(
+    recoveredCandidate.getByText(/先显式检查生产账户/),
+  ).toBeVisible();
+  await expect(
+    recoveredCandidate.getByRole("button", { name: "创建 Live Run 候选" }),
+  ).toBeVisible();
+  await expect(
+    recoveredCandidate.getByText("stopped", { exact: true }),
+  ).toHaveCount(0);
+  await expect
+    .poll(() => liveCandidateListRequests)
+    .toBeGreaterThan(listRequestsBeforeStop);
   await page.screenshot({
     path: testInfo.outputPath("live-admission-1440.png"),
     fullPage: true,

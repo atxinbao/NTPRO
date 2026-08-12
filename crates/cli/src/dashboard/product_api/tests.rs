@@ -2373,6 +2373,225 @@ async fn institution_can_create_a_real_immutable_backtest_run() {
 }
 
 #[tokio::test]
+async fn live_run_candidate_http_surface_fails_closed_without_independent_gates() {
+    let fixture = Fixture::new("live-candidate-http-blocked");
+    let router = fixture.router();
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "live",
+        "account_ref": "account://live/binance/primary",
+        "venue_ref": "venue://live/BINANCE",
+        "user_confirmed": true
+    });
+    let (status, error) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/live-run-candidates",
+        &request,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{error}");
+    assert_eq!(error["error"]["code"], "live_run_preflight_failed");
+    assert_eq!(error["error"]["field"], "live_candidate_admission");
+    assert!(!fixture.root.join("artifacts/live-runs").exists());
+    validate_openapi_instance("ProductErrorResponse", &error);
+
+    let (status, candidates) =
+        router_json(&router, Method::GET, "/api/product/v1/live-run-candidates").await;
+    assert_eq!(status, StatusCode::OK, "{candidates}");
+    assert_eq!(candidates["data"], json!([]));
+    validate_openapi_instance("LiveRunCandidateListResponse", &candidates);
+
+    for method in [Method::PUT, Method::DELETE, Method::PATCH] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri("/api/product/v1/live-run-candidates")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
+}
+
+#[tokio::test]
+async fn live_run_candidate_mutations_require_institution_role() {
+    let fixture = Fixture::new("live-candidate-role");
+    let router = dashboard_router_with_access(
+        fixture.registry_path.clone(),
+        PathBuf::from("missing-ntpro-node"),
+        "institution-token",
+        "operator-token",
+    );
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "live",
+        "account_ref": "account://live/binance/primary",
+        "venue_ref": "venue://live/BINANCE",
+        "user_confirmed": true
+    });
+    let response = router
+        .oneshot(
+            Request::builder()
+                .method(Method::POST)
+                .uri("/api/product/v1/live-run-candidates")
+                .header("cookie", "ntpro_mvp_operator_access=operator-token")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn live_run_candidate_detail_revalidates_current_source_bindings() {
+    let fixture = Fixture::new("live-candidate-source-binding");
+    let run_id = "live-candidate-source-binding";
+    let directory = fixture.root.join(format!("artifacts/live-runs/{run_id}"));
+    fs::create_dir_all(&directory).expect("Live candidate directory should be created");
+    let version_hash = fixture
+        .identity
+        .identities
+        .strategy_version_content_hash
+        .clone();
+    let write_candidate = |strategy_id: &str, risk_ref: &str| {
+        let request = json!({
+            "strategy_id": strategy_id,
+            "strategy_version_id": "ema-cross@v1",
+            "environment": "live",
+            "account_ref": "account://live/binance/primary",
+            "venue_ref": "venue://live/BINANCE",
+            "user_confirmed": true
+        });
+        let request_raw =
+            serde_json::to_vec_pretty(&request).expect("Live candidate request should serialize");
+        let mut source_refs = vec![
+            "node-config:node.toml#live_admission".to_string(),
+            "node-config:node.toml#risk".to_string(),
+            risk_ref.to_string(),
+            version_hash.clone(),
+        ];
+        source_refs.sort();
+        let created_at_unix_ms = unix_time_ms();
+        let manifest = json!({
+            "schema_version": "ntpro.product_api.live_run_candidate_manifest.v1",
+            "request_sha256": sha256_bytes_ref(&request_raw),
+            "strategy_version_content_hash": version_hash.clone(),
+            "run_id": run_id,
+            "strategy_id": strategy_id,
+            "strategy_version_id": "ema-cross@v1",
+            "environment": "live",
+            "account_ref": "account://live/binance/primary",
+            "venue_ref": "venue://live/BINANCE",
+            "created_at_unix_ms": created_at_unix_ms,
+            "source_refs": source_refs
+        });
+        fs::write(directory.join("request.json"), request_raw)
+            .expect("Live candidate request should be written");
+        let manifest_raw =
+            serde_json::to_vec_pretty(&manifest).expect("Live candidate manifest should serialize");
+        fs::write(directory.join("run-manifest.json"), &manifest_raw)
+            .expect("Live candidate manifest should be written");
+        let state_raw = serde_json::to_vec_pretty(&json!({
+            "schema_version": "ntpro.product_api.live_run_state.v1",
+            "run_id": run_id,
+            "source_manifest_sha256": sha256_bytes_ref(&manifest_raw),
+            "revision": 0,
+            "previous_state_sha256": null,
+            "lifecycle": "created",
+            "preflight_sha256": null,
+            "stop_sha256": null,
+            "updated_at_unix_ms": created_at_unix_ms
+        }))
+        .expect("Live candidate state should serialize");
+        fs::write(
+            directory.join("state-00000000000000000000.json"),
+            &state_raw,
+        )
+        .expect("Live candidate state should be written");
+        let commit_directory = fixture.root.join("artifacts/live-run-state-commits");
+        fs::create_dir_all(&commit_directory)
+            .expect("Live candidate state commit directory should be created");
+        let commit_raw = serde_json::to_vec_pretty(&json!({
+            "schema_version": "ntpro.product_api.live_run_state_commit.v1",
+            "run_id": run_id,
+            "revision": 0,
+            "state_sha256": sha256_bytes_ref(&state_raw),
+            "previous_commit_sha256": null,
+            "committed_at_unix_ms": created_at_unix_ms
+        }))
+        .expect("Live candidate state commit should serialize");
+        fs::write(
+            commit_directory.join(format!("{run_id}.state.00000000000000000000.json")),
+            &commit_raw,
+        )
+        .expect("Live candidate state commit should be written");
+        fs::write(
+            directory.join("state-head.json"),
+            serde_json::to_vec_pretty(&json!({
+                "schema_version": "ntpro.product_api.live_run_state_head.v1",
+                "run_id": run_id,
+                "revision": 0,
+                "state_sha256": sha256_bytes_ref(&state_raw),
+                "commit_sha256": sha256_bytes_ref(&commit_raw),
+                "updated_at_unix_ms": created_at_unix_ms
+            }))
+            .expect("Live candidate state head should serialize"),
+        )
+        .expect("Live candidate state head should be written");
+    };
+
+    let ready_risk_ref =
+        "risk-config-sha256:8a92f596c7f51574c25979022b59358cfd6807ec3470ef7b21301fb133d4c1ac";
+    write_candidate("ema-cross", ready_risk_ref);
+    let router = fixture.router();
+    let (status, candidate) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/live-run-candidates/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{candidate}");
+    assert_eq!(candidate["data"]["strategy_id"], "ema-cross");
+    assert_eq!(candidate["data"]["runtime_started"], false);
+    validate_openapi_instance("LiveRunCandidateDetailResponse", &candidate);
+
+    write_candidate(
+        "ema-cross",
+        "risk-config-sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    );
+    let (status, error) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/live-run-candidates/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{error}");
+    assert_eq!(error["error"]["code"], "product_boundary_violation");
+    assert_eq!(error["error"]["field"], "live_candidate_source_binding");
+
+    write_candidate("ema-other", ready_risk_ref);
+    let (status, error) = router_json(
+        &router,
+        Method::GET,
+        &format!("/api/product/v1/live-run-candidates/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{error}");
+    assert_eq!(error["error"]["code"], "product_boundary_violation");
+    assert_eq!(error["error"]["field"], "live_candidate_strategy_version");
+    validate_openapi_instance("ProductErrorResponse", &error);
+}
+
+#[tokio::test]
 async fn institution_creates_one_immutable_demo_run_bound_to_supervisor() {
     let fixture = Fixture::new("create-demo-run");
     let router = fixture.router();
@@ -5302,6 +5521,9 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
         [
             "/demo-runs",
             "/demo-runs/{run_id}/actions",
+            "/live-run-candidates",
+            "/live-run-candidates/{run_id}",
+            "/live-run-candidates/{run_id}/actions",
             "/run-comparisons",
             "/runs",
             "/runs/{run_id}",
@@ -5320,19 +5542,22 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
     );
     for (path_name, path) in paths {
         let methods = path.as_object().expect("path item must be an object");
-        let expected_methods =
-            if matches!(path_name.as_str(), "/runs" | "/runs/{run_id}/reproduction") {
-                vec!["get", "post"]
-            } else if matches!(
-                path_name.as_str(),
-                "/demo-runs"
-                    | "/demo-runs/{run_id}/actions"
-                    | "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh"
-            ) {
-                vec!["post"]
-            } else {
-                vec!["get"]
-            };
+        let expected_methods = if matches!(
+            path_name.as_str(),
+            "/runs" | "/runs/{run_id}/reproduction" | "/live-run-candidates"
+        ) {
+            vec!["get", "post"]
+        } else if matches!(
+            path_name.as_str(),
+            "/demo-runs"
+                | "/demo-runs/{run_id}/actions"
+                | "/live-run-candidates/{run_id}/actions"
+                | "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh"
+        ) {
+            vec!["post"]
+        } else {
+            vec!["get"]
+        };
         assert_eq!(
             methods.keys().map(String::as_str).collect::<Vec<_>>(),
             expected_methods
@@ -5346,12 +5571,14 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
                 operation["responses"]["403"]["$ref"],
                 "#/components/responses/ProductError"
             );
-            let method_response =
-                if matches!(path_name.as_str(), "/runs" | "/runs/{run_id}/reproduction") {
-                    "#/components/responses/ProductRunMethodNotAllowed"
-                } else {
-                    "#/components/responses/ProductMethodNotAllowed"
-                };
+            let method_response = if matches!(
+                path_name.as_str(),
+                "/runs" | "/runs/{run_id}/reproduction" | "/live-run-candidates"
+            ) {
+                "#/components/responses/ProductRunMethodNotAllowed"
+            } else {
+                "#/components/responses/ProductMethodNotAllowed"
+            };
             assert_eq!(operation["responses"]["405"]["$ref"], method_response);
         }
         if path_name == "/runs" {
@@ -5366,6 +5593,23 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
         } else if path_name == "/demo-runs/{run_id}/actions" {
             assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
             assert_eq!(path["post"]["operationId"], "actOnDemoRun");
+        } else if path_name == "/live-run-candidates" {
+            assert_eq!(path["get"]["operationId"], "listLiveRunCandidates");
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "createLiveRunCandidate");
+            assert_eq!(
+                path["post"]["responses"]["405"]["$ref"],
+                "#/components/responses/ProductRunMethodNotAllowed"
+            );
+        } else if path_name == "/live-run-candidates/{run_id}" {
+            assert_eq!(path["get"]["operationId"], "getLiveRunCandidate");
+        } else if path_name == "/live-run-candidates/{run_id}/actions" {
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "actOnLiveRunCandidate");
+            assert_eq!(
+                path["post"]["responses"]["405"]["$ref"],
+                "#/components/responses/ProductCommandMethodNotAllowed"
+            );
         } else if path_name
             == "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh"
         {
@@ -5373,7 +5617,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             assert_eq!(path["post"]["operationId"], "refreshLiveAccount");
             assert_eq!(
                 path["post"]["responses"]["405"]["$ref"],
-                "#/components/responses/ProductMethodNotAllowed"
+                "#/components/responses/ProductCommandMethodNotAllowed"
             );
         }
     }
@@ -5481,6 +5725,10 @@ venue = "BINANCE"
 
 [execution]
 venue = "BINANCE"
+
+[risk]
+kill_switch_enabled = true
+kill_switch_active = false
 
 [live_admission]
 schema_version = "ntpro.live_admission.config.v1"
