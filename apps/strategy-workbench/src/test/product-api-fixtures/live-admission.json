@@ -41,7 +41,7 @@
     "blockers": [
       "independent_owner_approval_missing",
       "live_run_creation_not_authorized",
-      "order_lifecycle_not_authorized",
+      "follow_up_order_mutation_not_authorized",
       "automatic_recovery_not_authorized",
       "production_network_not_authorized",
       "authenticated_account_read_not_authorized",

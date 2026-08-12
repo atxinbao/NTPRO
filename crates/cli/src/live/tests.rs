@@ -14622,6 +14622,104 @@ fn production_market_data_config_rejects_execution_or_order_capability() {
     }
 }
 
+fn production_execution_config(node_id: &str) -> String {
+    let runtime_artifact_root = std::env::temp_dir().join("ntpro-s3-lv-007-runtime");
+    let execution = format!(
+        "[live_execution]\n\
+         schema_version = \"ntpro.s3.live_execution_node.v1\"\n\
+         source_manifest_sha256 = \"sha256:1111111111111111111111111111111111111111111111111111111111111111\"\n\
+         execution_admission_sha256 = \"sha256:2222222222222222222222222222222222222222222222222222222222222222\"\n\
+         runtime_artifact_root = \"{}\"\n\
+         risk_policy_ref = \"policy://risk/test-v1\"\n\
+         owner_authority_ref = \"role://institution-owner\"\n\
+         risk_authority_ref = \"policy://risk/test-v1\"\n\
+         operator_authority_ref = \"role://operations-operator\"\n\
+         admission_id = \"admission-001\"\n\
+         strategy_version_id = \"ema_cross_btcusdt_v1@v1\"\n\
+         account_id = \"BINANCE-001\"\n\
+         instrument_id = \"BTCUSDT.BINANCE\"\n\
+         side = \"BUY\"\n\
+         order_type = \"LIMIT\"\n\
+         time_in_force = \"GTC\"\n\
+         price = \"1.00\"\n\
+         quantity = \"0.00001000\"\n\
+         max_notional = \"1.00\"\n\
+         risk_policy_max_notional = \"10.00\"\n\
+         expires_at_unix_ms = {}\n\
+         api_key_env = \"NTPRO_BINANCE_LIVE_API_KEY\"\n\
+         api_secret_env = \"NTPRO_BINANCE_LIVE_API_SECRET\"\n\
+         owner_confirmed = true\n\
+         risk_confirmed = true\n\
+         operator_confirmed = true\n\
+         kill_switch_active = false\n\
+         single_shot = true\n\
+         cancel_order_allowed = false\n\
+         replace_order_allowed = false\n\
+         automatic_retry_allowed = false\n\
+         automatic_recovery_allowed = false\n\n",
+        runtime_artifact_root.display(),
+        current_unix_timestamp_millis() + 60_000,
+    );
+    production_market_data_config(node_id).replace("[shutdown]", &format!("{execution}[shutdown]"))
+}
+
+#[test]
+fn production_execution_config_requires_three_party_single_shot_admission() {
+    let path = write_config(
+        "production-execution",
+        &production_execution_config("live-execution-001"),
+    );
+    let config = load_production_market_data_node_config(&path).unwrap();
+    let execution = config.live_execution.unwrap();
+
+    assert_eq!(execution.instrument_id, "BTCUSDT.BINANCE");
+    assert!(execution.owner_confirmed);
+    assert!(execution.risk_confirmed);
+    assert!(execution.operator_confirmed);
+    assert!(execution.single_shot);
+    assert!(!execution.cancel_order_allowed);
+    assert!(!execution.replace_order_allowed);
+    assert!(!execution.automatic_retry_allowed);
+    assert!(!execution.automatic_recovery_allowed);
+}
+
+#[test]
+fn production_execution_config_fails_closed_when_admission_boundary_drifts() {
+    for (from, to) in [
+        ("owner_confirmed = true", "owner_confirmed = false"),
+        ("risk_confirmed = true", "risk_confirmed = false"),
+        ("operator_confirmed = true", "operator_confirmed = false"),
+        ("kill_switch_active = false", "kill_switch_active = true"),
+        ("single_shot = true", "single_shot = false"),
+        (
+            "cancel_order_allowed = false",
+            "cancel_order_allowed = true",
+        ),
+        (
+            "replace_order_allowed = false",
+            "replace_order_allowed = true",
+        ),
+        (
+            "automatic_retry_allowed = false",
+            "automatic_retry_allowed = true",
+        ),
+        (
+            "automatic_recovery_allowed = false",
+            "automatic_recovery_allowed = true",
+        ),
+    ] {
+        let config = production_execution_config("live-execution-002").replace(from, to);
+        let path = write_config(from, &config);
+        let error = load_production_market_data_node_config(&path)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("three-party single-shot approval"),
+            "{error}"
+        );
+    }
+}
+
 #[test]
 fn production_market_data_actor_records_consumed_quote_and_trade_events() {
     let actor = ProductionMarketDataActor::new(

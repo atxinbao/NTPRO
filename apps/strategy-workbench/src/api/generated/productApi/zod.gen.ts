@@ -881,6 +881,7 @@ export const zCreateLiveRunCandidateRequest = z.object({
 export const zLiveRunCandidateAction = z.enum([
   "preflight",
   "start_market_data",
+  "start_execution",
   "stop",
 ]);
 
@@ -900,17 +901,33 @@ export const zLiveRunCandidateLifecycle = z.enum([
   "failed",
 ]);
 
+export const zLiveExecutionAdmissionRequest = z.object({
+  run_id: zRunId,
+  strategy_version_id: zStrategyVersionId,
+  account_ref: z.literal("account://live/binance/primary"),
+  venue_ref: z.literal("venue://live/BINANCE"),
+  admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
+  side: z.enum(["BUY", "SELL"]),
+  order_type: z.literal("LIMIT"),
+  time_in_force: z.literal("GTC"),
+  price: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  max_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  expires_at_unix_ms: z.int().gte(1),
+  user_confirmed: z.literal(true),
+});
+
 export const zLiveOrderAdmissionSnapshot = z.object({
-  status: z.literal("blocked"),
-  submit: z.literal("blocked"),
+  status: z.enum(["blocked", "authorized_single_shot", "consumed_single_shot"]),
+  submit: z.enum(["blocked", "authorized_single_shot"]),
   cancel: z.literal("blocked"),
   replace: z.literal("blocked"),
-  fill_reconciliation: z.literal("blocked"),
-  blockers: z.tuple([
-    z.literal("production_order_authority_not_granted"),
-    z.literal("execution_adapter_send_not_enabled"),
-    z.literal("fill_reconciliation_not_enabled"),
-  ]),
+  fill_reconciliation: z.enum(["blocked", "runtime_event_projection"]),
+  owner_approved: z.boolean(),
+  risk_approved: z.boolean(),
+  operator_approved: z.boolean(),
+  blockers: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1)]),
 });
 
 export const zLiveRunAuditAnchorSnapshot = z.object({
@@ -923,6 +940,35 @@ export const zLiveRunAuditAnchorSnapshot = z.object({
   anchored_at_unix_ms: z.int().gte(1),
   workspace_snapshot_rollback_detectable: z.literal(true),
   trading_authority_granted: z.literal(false),
+});
+
+export const zLiveExecutionOrderSnapshot = z.object({
+  schema_version: z.literal("ntpro.s3.live_execution_order_state.v1"),
+  admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  strategy_version_id: zStrategyVersionId,
+  instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
+  client_order_id: z.string().min(1).max(128).nullable(),
+  status: z.enum([
+    "waiting_for_instrument",
+    "submission_requested",
+    "submitted",
+    "accepted",
+    "rejected",
+    "denied",
+    "expired",
+    "partially_filled",
+    "filled",
+    "canceled",
+    "submission_failed",
+  ]),
+  terminal: z.boolean(),
+  new_orders_blocked: z.literal(true),
+  actual_submission_attempted: z.boolean(),
+  automatic_retry_attempted: z.literal(false),
+  cancel_attempted: z.literal(false),
+  replace_attempted: z.literal(false),
+  last_error: z.string().min(1).max(512).nullable(),
+  updated_at_unix_ms: z.int().gte(1),
 });
 
 export const zLiveRunCandidate = z.intersection(
@@ -1048,6 +1094,7 @@ export const zLiveRunCandidate = z.intersection(
     runtime_error: z.string().min(1).max(512).nullable(),
     audit_anchor: zLiveRunAuditAnchorSnapshot,
     order_admission: zLiveOrderAdmissionSnapshot,
+    execution_order: zLiveExecutionOrderSnapshot.nullable(),
     source_refs: z.tuple([
       z.string().regex(/^node-config:[^#]+#live_admission$/),
       z.string().regex(/^node-config:[^#]+#risk$/),
@@ -1063,17 +1110,17 @@ export const zLiveRunCandidateBoundaries = z.object({
   manual_stop_allowed: z.literal(true),
   live_runtime_start_allowed: z.literal(true),
   external_market_data_connection_allowed: z.literal(true),
-  order_endpoint_access_allowed: z.literal(false),
-  order_submission_allowed: z.literal(false),
+  order_endpoint_access_allowed: z.boolean(),
+  order_submission_allowed: z.boolean(),
   cancel_order_allowed: z.literal(false),
   replace_order_allowed: z.literal(false),
   fill_reconciliation_allowed: z.literal(false),
   automatic_retry_allowed: z.literal(false),
   automatic_remediation_allowed: z.literal(false),
   automatic_recovery_allowed: z.literal(false),
-  execution_adapter_send_attempted: z.literal(false),
-  real_orders_submitted: z.literal(false),
-  trading_controls_enabled: z.literal(false),
+  execution_adapter_send_attempted: z.boolean(),
+  real_orders_submitted: z.boolean(),
+  trading_controls_enabled: z.boolean(),
 });
 
 export const zLiveRunCandidateGateRefs = z.tuple([
@@ -1082,6 +1129,7 @@ export const zLiveRunCandidateGateRefs = z.tuple([
   z.literal("NTPRO_S3_LIVE_RUN_NO_ORDER_SEND"),
   z.literal("NTPRO_S3_LIVE_RUN_MANUAL_STOP"),
   z.literal("NTPRO_S3_LIVE_RUN_RISK_APPROVED"),
+  z.literal("NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT"),
 ]);
 
 export const zLiveRunAuditAnchorConfigRefs = z.tuple([
@@ -1193,7 +1241,7 @@ export const zLiveAdmission = z.object({
         "production_network_not_authorized",
         "authenticated_account_read_not_authorized",
         "live_run_creation_not_authorized",
-        "order_lifecycle_not_authorized",
+        "follow_up_order_mutation_not_authorized",
         "automatic_recovery_not_authorized",
         "api_key_missing",
         "api_secret_missing",
@@ -1587,6 +1635,43 @@ export const zActOnLiveRunCandidatePath = z.object({
  * Live Run 候选生命周期动作已完成
  */
 export const zActOnLiveRunCandidateResponse = zLiveRunCandidateActionResponse;
+
+export const zApproveLiveExecutionAsOwnerBody = zLiveExecutionAdmissionRequest;
+
+export const zApproveLiveExecutionAsOwnerPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * 负责人审批已锚定；三方审批齐全前仍保持阻断
+ */
+export const zApproveLiveExecutionAsOwnerResponse =
+  zLiveRunCandidateActionResponse;
+
+export const zApproveLiveExecutionAsRiskBody = zLiveExecutionAdmissionRequest;
+
+export const zApproveLiveExecutionAsRiskPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * 风控审批已锚定；三方审批齐全前仍保持阻断
+ */
+export const zApproveLiveExecutionAsRiskResponse =
+  zLiveRunCandidateActionResponse;
+
+export const zApproveLiveExecutionAsOperatorBody =
+  zLiveExecutionAdmissionRequest;
+
+export const zApproveLiveExecutionAsOperatorPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * 操作员审批已锚定；三方审批齐全后建立一次性执行准入
+ */
+export const zApproveLiveExecutionAsOperatorResponse =
+  zLiveRunCandidateActionResponse;
 
 export const zListRunsQuery = z.object({
   limit: z.int().gte(1).lte(100).optional().default(20),

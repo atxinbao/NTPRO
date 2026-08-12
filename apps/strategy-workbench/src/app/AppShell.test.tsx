@@ -557,6 +557,14 @@ describe("strategy workbench product slice", () => {
     expect(
       await within(region).findByText("preflight_ready"),
     ).toBeInTheDocument();
+    expect(
+      within(region).getByRole("form", {
+        name: "单笔真实限价单准入",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(region).getByRole("button", { name: "提交负责人审批" }),
+    ).toBeDisabled();
     await userEvent.click(
       within(region).getByRole("button", { name: "启动生产行情" }),
     );

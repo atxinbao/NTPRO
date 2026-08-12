@@ -21,6 +21,7 @@
 
 use std::{
     fs,
+    net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -47,7 +48,8 @@ use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
 use super::product_api::{
     demo_run_action_api, demo_run_create_api, demo_run_snapshot_api, live_account_refresh_api,
-    live_admission_api, live_run_candidate_action_api, live_run_candidate_create_api,
+    live_admission_api, live_execution_operator_approval_api, live_execution_owner_approval_api,
+    live_execution_risk_approval_api, live_run_candidate_action_api, live_run_candidate_create_api,
     live_run_candidate_detail_api, live_run_candidate_list_api, product_access_denied_response,
     product_command_method_not_allowed, product_method_not_allowed, product_run_method_not_allowed,
     run_analysis_api, run_comparison_api, run_create_api, run_detail_api, run_list_api,
@@ -65,12 +67,14 @@ mod tests;
 
 const ACCESS_TOKEN_QUERY: &str = "access_token";
 const INSTITUTION_ACCESS_COOKIE: &str = "ntpro_mvp_institution_access";
+const RISK_ACCESS_COOKIE: &str = "ntpro_mvp_risk_access";
 const OPERATOR_ACCESS_COOKIE: &str = "ntpro_mvp_operator_access";
 const PORTAL_ACCESS_ERROR_SCHEMA_VERSION: &str = "ntpro.mvp_portal_access.error.v1";
 
 #[derive(Clone)]
 struct PortalAccess {
     institution_token: Arc<str>,
+    risk_token: Arc<str>,
     operator_token: Arc<str>,
     enforced: bool,
 }
@@ -78,6 +82,7 @@ struct PortalAccess {
 #[derive(Clone, Copy)]
 enum PortalRole {
     InstitutionUser,
+    RiskOfficer,
     OperationsOperator,
     SharedRead,
 }
@@ -86,8 +91,9 @@ impl PortalRole {
     const fn label(self) -> &'static str {
         match self {
             Self::InstitutionUser => "institution_user",
+            Self::RiskOfficer => "risk_officer",
             Self::OperationsOperator => "operations_operator",
-            Self::SharedRead => "institution_user_or_operations_operator",
+            Self::SharedRead => "institution_user_or_risk_officer_or_operations_operator",
         }
     }
 }
@@ -96,6 +102,7 @@ impl PortalAccess {
     fn generate() -> anyhow::Result<Self> {
         Ok(Self {
             institution_token: generate_access_token("institution_user")?.into(),
+            risk_token: generate_access_token("risk_officer")?.into(),
             operator_token: generate_access_token("operations_operator")?.into(),
             enforced: true,
         })
@@ -105,6 +112,7 @@ impl PortalAccess {
     fn disabled_for_existing_tests() -> Self {
         Self {
             institution_token: Arc::from("test-institution-access"),
+            risk_token: Arc::from("test-risk-access"),
             operator_token: Arc::from("test-operator-access"),
             enforced: false,
         }
@@ -114,6 +122,7 @@ impl PortalAccess {
     fn enforced_for_test(institution_token: &str, operator_token: &str) -> Self {
         Self {
             institution_token: Arc::from(institution_token),
+            risk_token: Arc::from("test-risk-access"),
             operator_token: Arc::from(operator_token),
             enforced: true,
         }
@@ -122,6 +131,7 @@ impl PortalAccess {
     fn token(&self, role: PortalRole) -> Option<&str> {
         match role {
             PortalRole::InstitutionUser => Some(&self.institution_token),
+            PortalRole::RiskOfficer => Some(&self.risk_token),
             PortalRole::OperationsOperator => Some(&self.operator_token),
             PortalRole::SharedRead => None,
         }
@@ -135,11 +145,15 @@ impl PortalAccess {
             PortalRole::InstitutionUser => {
                 request_cookie_matches(headers, INSTITUTION_ACCESS_COOKIE, &self.institution_token)
             }
+            PortalRole::RiskOfficer => {
+                request_cookie_matches(headers, RISK_ACCESS_COOKIE, &self.risk_token)
+            }
             PortalRole::OperationsOperator => {
                 request_cookie_matches(headers, OPERATOR_ACCESS_COOKIE, &self.operator_token)
             }
             PortalRole::SharedRead => {
                 request_cookie_matches(headers, INSTITUTION_ACCESS_COOKIE, &self.institution_token)
+                    || request_cookie_matches(headers, RISK_ACCESS_COOKIE, &self.risk_token)
                     || request_cookie_matches(headers, OPERATOR_ACCESS_COOKIE, &self.operator_token)
             }
         }
@@ -192,20 +206,13 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
         .local_addr()
         .context("failed to read dashboard server local address")?;
     println!(
-        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard?access_token={} strategy_workbench_url=http://{}/strategy-workbench?access_token={} institution_workbench_url=http://{}/institution-workbench?access_token={} control_center_url=http://{}/control-center?access_token={} portal_access=local_bootstrap external_identity_provider=false",
-        local_addr,
-        registry_path.display(),
-        workflow_root
-            .as_ref()
-            .map_or_else(|| "auto".to_string(), |path| path.display().to_string()),
-        local_addr,
-        access.operator_token,
-        local_addr,
-        access.institution_token,
-        local_addr,
-        access.institution_token,
-        local_addr,
-        access.operator_token,
+        "{}",
+        dashboard_bootstrap_summary(
+            local_addr,
+            &registry_path,
+            workflow_root.as_deref(),
+            &access,
+        )
     );
     axum::serve(
         listener,
@@ -221,6 +228,31 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
     .await
     .context("dashboard HTTP server exited with an error")?;
     Ok(())
+}
+
+fn dashboard_bootstrap_summary(
+    local_addr: SocketAddr,
+    registry_path: &Path,
+    workflow_root: Option<&Path>,
+    access: &PortalAccess,
+) -> String {
+    format!(
+        "dashboard.serve status=ok bind={} registry={} workflow_root={} dashboard_url=http://{}/dashboard?access_token={} strategy_workbench_url=http://{}/strategy-workbench?access_token={} institution_workbench_url=http://{}/institution-workbench?access_token={} control_center_url=http://{}/control-center?access_token={} risk_api_token={} portal_access=local_bootstrap external_identity_provider=false",
+        local_addr,
+        registry_path.display(),
+        workflow_root
+            .as_ref()
+            .map_or_else(|| "auto".to_string(), |path| path.display().to_string()),
+        local_addr,
+        access.operator_token,
+        local_addr,
+        access.institution_token,
+        local_addr,
+        access.institution_token,
+        local_addr,
+        access.operator_token,
+        access.risk_token,
+    )
 }
 
 #[cfg(test)]
@@ -439,6 +471,30 @@ fn dashboard_router_with_workflow_root(
                 .fallback(product_run_method_not_allowed),
         )
         .route_layer(middleware::from_fn(require_product_access));
+    let owner_approval_routes = Router::new()
+        .route(
+            "/api/product/v1/live-run-candidates/{run_id}/execution-approvals/owner",
+            post(live_execution_owner_approval_api)
+                .head(product_command_method_not_allowed)
+                .fallback(product_command_method_not_allowed),
+        )
+        .route_layer(middleware::from_fn(require_institution_access));
+    let risk_approval_routes = Router::new()
+        .route(
+            "/api/product/v1/live-run-candidates/{run_id}/execution-approvals/risk",
+            post(live_execution_risk_approval_api)
+                .head(product_command_method_not_allowed)
+                .fallback(product_command_method_not_allowed),
+        )
+        .route_layer(middleware::from_fn(require_risk_access));
+    let operator_approval_routes = Router::new()
+        .route(
+            "/api/product/v1/live-run-candidates/{run_id}/execution-approvals/operator",
+            post(live_execution_operator_approval_api)
+                .head(product_command_method_not_allowed)
+                .fallback(product_command_method_not_allowed),
+        )
+        .route_layer(middleware::from_fn(require_operator_access));
     let shared_read_routes = Router::new()
         .route(
             "/api/mvp/v1/status",
@@ -520,6 +576,9 @@ fn dashboard_router_with_workflow_root(
     Router::new()
         .merge(public_routes)
         .merge(product_routes)
+        .merge(owner_approval_routes)
+        .merge(risk_approval_routes)
+        .merge(operator_approval_routes)
         .merge(shared_read_routes)
         .merge(operator_routes)
         .with_state(state)
@@ -545,7 +604,8 @@ async fn require_product_access(
     } else {
         PortalRole::SharedRead
     };
-    if access.authorizes(request.headers(), role) {
+    let authorized = access.authorizes(request.headers(), role);
+    if authorized {
         let mut response = next.run(request).await;
         add_private_response_headers(response.headers_mut());
         response
@@ -554,6 +614,22 @@ async fn require_product_access(
         add_private_response_headers(response.headers_mut());
         response
     }
+}
+
+async fn require_institution_access(
+    Extension(access): Extension<PortalAccess>,
+    request: Request,
+    next: Next,
+) -> Response {
+    require_role_access(access, PortalRole::InstitutionUser, request, next).await
+}
+
+async fn require_risk_access(
+    Extension(access): Extension<PortalAccess>,
+    request: Request,
+    next: Next,
+) -> Response {
+    require_role_access(access, PortalRole::RiskOfficer, request, next).await
 }
 
 async fn require_operator_access(
@@ -929,6 +1005,7 @@ fn portal_bootstrap_redirect(
     };
     let cookie_name = match role {
         PortalRole::InstitutionUser => INSTITUTION_ACCESS_COOKIE,
+        PortalRole::RiskOfficer => RISK_ACCESS_COOKIE,
         PortalRole::OperationsOperator => OPERATOR_ACCESS_COOKIE,
         PortalRole::SharedRead => return portal_access_denied(role),
     };

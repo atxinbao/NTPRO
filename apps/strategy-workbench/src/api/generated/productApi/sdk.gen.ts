@@ -15,6 +15,15 @@ import type {
   ActOnLiveRunCandidateData,
   ActOnLiveRunCandidateErrors,
   ActOnLiveRunCandidateResponses,
+  ApproveLiveExecutionAsOperatorData,
+  ApproveLiveExecutionAsOperatorErrors,
+  ApproveLiveExecutionAsOperatorResponses,
+  ApproveLiveExecutionAsOwnerData,
+  ApproveLiveExecutionAsOwnerErrors,
+  ApproveLiveExecutionAsOwnerResponses,
+  ApproveLiveExecutionAsRiskData,
+  ApproveLiveExecutionAsRiskErrors,
+  ApproveLiveExecutionAsRiskResponses,
   CompareRunsData,
   CompareRunsErrors,
   CompareRunsResponses,
@@ -387,6 +396,102 @@ export const actOnLiveRunCandidate = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/live-run-candidates/{run_id}/actions",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 机构负责人独立审批一个单笔真实订单提案
+ */
+export const approveLiveExecutionAsOwner = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ApproveLiveExecutionAsOwnerData, ThrowOnError>,
+): RequestResult<
+  ApproveLiveExecutionAsOwnerResponses,
+  ApproveLiveExecutionAsOwnerErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ApproveLiveExecutionAsOwnerResponses,
+    ApproveLiveExecutionAsOwnerErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates/{run_id}/execution-approvals/owner",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 风控人员独立审批一个单笔真实订单提案
+ */
+export const approveLiveExecutionAsRisk = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ApproveLiveExecutionAsRiskData, ThrowOnError>,
+): RequestResult<
+  ApproveLiveExecutionAsRiskResponses,
+  ApproveLiveExecutionAsRiskErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ApproveLiveExecutionAsRiskResponses,
+    ApproveLiveExecutionAsRiskErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_risk_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates/{run_id}/execution-approvals/risk",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 当班操作员独立审批一个单笔真实订单提案
+ */
+export const approveLiveExecutionAsOperator = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ApproveLiveExecutionAsOperatorData, ThrowOnError>,
+): RequestResult<
+  ApproveLiveExecutionAsOperatorResponses,
+  ApproveLiveExecutionAsOperatorErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ApproveLiveExecutionAsOperatorResponses,
+    ApproveLiveExecutionAsOperatorErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates/{run_id}/execution-approvals/operator",
     ...options,
     headers: {
       "Content-Type": "application/json",

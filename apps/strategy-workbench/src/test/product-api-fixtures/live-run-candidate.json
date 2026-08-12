@@ -37,12 +37,16 @@
       "cancel": "blocked",
       "replace": "blocked",
       "fill_reconciliation": "blocked",
+      "owner_approved": false,
+      "risk_approved": false,
+      "operator_approved": false,
       "blockers": [
         "production_order_authority_not_granted",
         "execution_adapter_send_not_enabled",
         "fill_reconciliation_not_enabled"
       ]
     },
+    "execution_order": null,
     "source_refs": [
       "node-config:node.toml#live_admission",
       "node-config:node.toml#risk",
@@ -55,7 +59,8 @@
     "NTPRO_S3_LIVE_RUN_OWNER_APPROVED",
     "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND",
     "NTPRO_S3_LIVE_RUN_MANUAL_STOP",
-    "NTPRO_S3_LIVE_RUN_RISK_APPROVED"
+    "NTPRO_S3_LIVE_RUN_RISK_APPROVED",
+    "NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT"
   ],
   "audit_anchor_config_refs": [
     "NTPRO_S3_AUDIT_ANCHOR_ENDPOINT",

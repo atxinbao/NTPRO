@@ -78,9 +78,10 @@ S3-LV-001 已交付首个 Live 独立准入合同，S3-LV-002 已交付用户显
 生产账户只读检查，S3-LV-003 已交付账户类型、交易所权限和非零资产余额产品结果。余额保持
 各资产原生单位，不做无价格依据的跨币种估值。S3-LV-004 已交付独立的 Live Run 候选
 生命周期：创建、显式启动前检查和人工停止。S3-LV-005 已完成工作区外单调审计锚点、
-Ed25519 签名回执和完整本地旧快照恢复检测，并于 PR #1297 合并。S3-LV-006 当前建设由
-Supervisor 管理的真实 Live Runtime：用户显式启动 Binance Spot 生产行情会话，节点只注册
-数据客户端，不注册执行客户端。订单 endpoint、下单、撤改、成交对账、自动重试和恢复继续关闭。
+Ed25519 签名回执和完整本地旧快照恢复检测，并于 PR #1297 合并。S3-LV-006 已于 PR #1299
+交付由 Supervisor 管理的真实 Live 生产行情 Runtime。S3-LV-007 当前建设独立锚定的单笔
+`LIMIT/GTC` 真实执行：执行权限不从行情 Runtime 继承，追加订单、撤单、改单、自动重试和
+自动恢复继续关闭。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -103,7 +104,8 @@ FEA-001 前端架构文档
   -> S3-LV-003 Live 账户、资金与资产结果产品化（DONE）
   -> S3-LV-004 Live Run 候选生命周期与订单独立准入边界（DONE）
   -> S3-LV-005 外部不可变审计锚点与控制面合同（DONE）
-  -> S3-LV-006 真实 Live Runtime 启动与生产行情会话生命周期（REVIEW REQUIRED）
+  -> S3-LV-006 真实 Live Runtime 启动与生产行情会话生命周期（DONE）
+  -> S3-LV-007 真实执行适配器、单笔订单生命周期与独立下单准入（REVIEW REQUIRED）
   -> S1-S4 三模式产品闭环
 ```
 

@@ -173,6 +173,11 @@ dashboard_order_controls = false
 [risk]
 kill_switch_enabled = true
 kill_switch_active = false
+live_execution_policy_enabled = true
+max_live_order_notional = "10.00"
+owner_authority_ref = "role://institution-owner"
+risk_authority_ref = "policy://risk/btc-ema-shadow-v1"
+operator_authority_ref = "role://operations-operator"
 
 [shutdown]
 mode = "start-stop"

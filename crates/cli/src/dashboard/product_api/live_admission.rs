@@ -63,11 +63,25 @@ struct LiveAdmissionConfigDocument {
     risk: LiveRiskConfig,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct LiveRiskConfig {
     kill_switch_enabled: bool,
     kill_switch_active: bool,
+    live_execution_policy_enabled: bool,
+    max_live_order_notional: String,
+    owner_authority_ref: String,
+    risk_authority_ref: String,
+    operator_authority_ref: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct LiveExecutionRiskPolicy {
+    pub(super) max_order_notional: String,
+    pub(super) owner_authority_ref: String,
+    pub(super) risk_authority_ref: String,
+    pub(super) operator_authority_ref: String,
+    pub(super) source_ref: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -777,7 +791,7 @@ where
     let credentials_present = api_key_present && api_secret_present;
     let mut blockers = vec![
         "live_run_creation_not_authorized".to_string(),
-        "order_lifecycle_not_authorized".to_string(),
+        "follow_up_order_mutation_not_authorized".to_string(),
         "automatic_recovery_not_authorized".to_string(),
     ];
     if !runtime_gates.owner_approved_read_only {
@@ -956,6 +970,51 @@ fn live_risk_config_ref(risk: &LiveRiskConfig) -> Result<String, ProductError> {
     Ok(value)
 }
 
+pub(super) fn evaluate_live_execution_risk_policy(
+    source: &ValidatedProductSource,
+) -> Result<LiveExecutionRiskPolicy, ProductError> {
+    let document: LiveAdmissionConfigDocument = toml::from_str(&source.raw_config)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_risk_config"))?;
+    let risk = document.risk;
+    let max_order_notional = rust_decimal::Decimal::from_str_exact(&risk.max_live_order_notional)
+        .map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_risk_policy",
+        )
+    })?;
+    let authorities = [
+        risk.owner_authority_ref.as_str(),
+        risk.risk_authority_ref.as_str(),
+        risk.operator_authority_ref.as_str(),
+    ];
+    let authorities_distinct = authorities.iter().all(|value| {
+        !value.trim().is_empty() && !value.contains(['\n', '\r']) && value.len() <= 160
+    }) && authorities
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        == 3;
+    if !risk.kill_switch_enabled
+        || risk.kill_switch_active
+        || !risk.live_execution_policy_enabled
+        || max_order_notional <= rust_decimal::Decimal::ZERO
+        || !authorities_distinct
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_risk_policy",
+        ));
+    }
+    Ok(LiveExecutionRiskPolicy {
+        max_order_notional: risk.max_live_order_notional.clone(),
+        owner_authority_ref: risk.owner_authority_ref.clone(),
+        risk_authority_ref: risk.risk_authority_ref.clone(),
+        operator_authority_ref: risk.operator_authority_ref.clone(),
+        source_ref: live_risk_config_ref(&risk)?,
+    })
+}
+
 fn validate_live_admission_config(
     config: &LiveAdmissionConfig,
     version_id: &str,
@@ -1037,16 +1096,26 @@ mod tests {
         let ready = live_risk_config_ref(&LiveRiskConfig {
             kill_switch_enabled: true,
             kill_switch_active: false,
+            live_execution_policy_enabled: true,
+            max_live_order_notional: "10.00".to_string(),
+            owner_authority_ref: "role://institution-owner".to_string(),
+            risk_authority_ref: "policy://risk/v1".to_string(),
+            operator_authority_ref: "role://operations-operator".to_string(),
         })
         .unwrap();
         let active = live_risk_config_ref(&LiveRiskConfig {
             kill_switch_enabled: true,
             kill_switch_active: true,
+            live_execution_policy_enabled: true,
+            max_live_order_notional: "10.00".to_string(),
+            owner_authority_ref: "role://institution-owner".to_string(),
+            risk_authority_ref: "policy://risk/v1".to_string(),
+            operator_authority_ref: "role://operations-operator".to_string(),
         })
         .unwrap();
         assert_eq!(
             ready,
-            "risk-config-sha256:8a92f596c7f51574c25979022b59358cfd6807ec3470ef7b21301fb133d4c1ac"
+            "risk-config-sha256:bd212bfc481c2216bdbfd12700fefe664a166634905ee4fa86909a3c6c5c1454"
         );
         assert_ne!(ready, active);
     }

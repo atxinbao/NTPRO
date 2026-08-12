@@ -63,8 +63,10 @@ tower-http = { workspace = true }
 toml = { workspace = true }
 url = { workspace = true }
 ustr = { workspace = true }
+uuid = { workspace = true }
 
 [dev-dependencies]
+tempfile = { workspace = true }
 tower = { workspace = true }
 
 [[bin]]

@@ -14,7 +14,7 @@
 // -------------------------------------------------------------------------------------------------
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     fmt::Debug,
     fs::{self, OpenOptions},
     io::{Read, Write},
@@ -31,8 +31,8 @@ use nautilus_binance::{
         credential::SigningCredential,
         enums::{BinanceEnvironment, BinanceProductType},
     },
-    config::BinanceDataClientConfig,
-    factories::BinanceDataClientFactory,
+    config::{BinanceDataClientConfig, BinanceExecClientConfig},
+    factories::{BinanceDataClientFactory, BinanceExecutionClientFactory},
 };
 use nautilus_common::{
     actor::{DataActor, DataActorCore, data_actor::DataActorConfig},
@@ -41,6 +41,7 @@ use nautilus_common::{
 };
 use nautilus_core::string::urlencoding;
 use nautilus_live::{
+    config::LiveRiskEngineConfig,
     node::{LiveNode, NodeState},
     status::{
         ConnectionStatus, ExecutionStatus, LifecycleStatus, NodeStatus, ProcessMode, SnapshotValue,
@@ -48,10 +49,21 @@ use nautilus_live::{
 };
 use nautilus_model::{
     data::{QuoteTick, TradeTick},
-    identifiers::{AccountId, ClientId, InstrumentId, TraderId, Venue},
-    types::Money,
+    enums::{OrderSide, TimeInForce},
+    events::{
+        OrderAccepted, OrderCanceled, OrderDenied, OrderExpired, OrderFilled, OrderRejected,
+        OrderSubmitted,
+    },
+    identifiers::{AccountId, ClientId, ClientOrderId, InstrumentId, StrategyId, TraderId, Venue},
+    instruments::{Instrument, InstrumentAny},
+    orders::Order,
+    types::{Money, Price, Quantity},
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
+use nautilus_trading::{
+    nautilus_strategy,
+    strategy::{Strategy, StrategyConfig, StrategyCore},
+};
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::json;
@@ -100,7 +112,10 @@ use crate::{
 };
 
 mod command;
+mod execution_strategy;
 mod node_runtime;
+
+use execution_strategy::ProductionSingleShotExecutionStrategy;
 
 use node_runtime::{
     run_live_run_with_command, run_production_market_data_node_with_command,
@@ -112,6 +127,7 @@ pub(crate) use command::run_live_command;
 const LIVE_INIT_SMOKE_MODE: &str = "live-init-smoke";
 const PRODUCTION_MARKET_DATA_MODE: &str = "production-market-data";
 const PRODUCTION_MARKET_DATA_SCHEMA_VERSION: &str = "ntpro.live_market_data_node.v1";
+const PRODUCTION_EXECUTION_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_node.v1";
 const LIVE_ENVIRONMENT: &str = "live";
 const BINANCE_SPOT_PRODUCT_TYPE: &str = "spot";
 const STRATEGY_SESSION_SHADOW_MODE: &str = "shadow";
@@ -375,6 +391,7 @@ struct LiveOutputConfig {
 #[serde(deny_unknown_fields)]
 struct ProductionMarketDataNodeConfig {
     live_market_data: ProductionMarketDataSection,
+    live_execution: Option<ProductionExecutionSection>,
     shutdown: LiveShutdownConfig,
 }
 
@@ -395,6 +412,42 @@ struct ProductionMarketDataSection {
     order_endpoint_access_allowed: bool,
     order_submission_allowed: bool,
     automatic_reconnect_allowed: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionExecutionSection {
+    schema_version: String,
+    source_manifest_sha256: String,
+    execution_admission_sha256: String,
+    runtime_artifact_root: PathBuf,
+    risk_policy_ref: String,
+    owner_authority_ref: String,
+    risk_authority_ref: String,
+    operator_authority_ref: String,
+    admission_id: String,
+    strategy_version_id: String,
+    account_id: String,
+    instrument_id: String,
+    side: String,
+    order_type: String,
+    time_in_force: String,
+    price: String,
+    quantity: String,
+    max_notional: String,
+    risk_policy_max_notional: String,
+    expires_at_unix_ms: u64,
+    api_key_env: String,
+    api_secret_env: String,
+    owner_confirmed: bool,
+    risk_confirmed: bool,
+    operator_confirmed: bool,
+    kill_switch_active: bool,
+    single_shot: bool,
+    cancel_order_allowed: bool,
+    replace_order_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_recovery_allowed: bool,
 }
 
 #[derive(Debug)]
@@ -19722,6 +19775,125 @@ fn validate_production_market_data_node_config(
             "production market data Runtime requires execution, order access, submission and automatic reconnect to remain false"
         );
     }
+    if let Some(execution) = &config.live_execution {
+        validate_exact(
+            "live_execution.schema_version",
+            &execution.schema_version,
+            PRODUCTION_EXECUTION_SCHEMA_VERSION,
+        )?;
+        for (field, value) in [
+            (
+                "live_execution.source_manifest_sha256",
+                execution.source_manifest_sha256.as_str(),
+            ),
+            (
+                "live_execution.execution_admission_sha256",
+                execution.execution_admission_sha256.as_str(),
+            ),
+            (
+                "live_execution.risk_policy_ref",
+                execution.risk_policy_ref.as_str(),
+            ),
+            (
+                "live_execution.owner_authority_ref",
+                execution.owner_authority_ref.as_str(),
+            ),
+            (
+                "live_execution.risk_authority_ref",
+                execution.risk_authority_ref.as_str(),
+            ),
+            (
+                "live_execution.operator_authority_ref",
+                execution.operator_authority_ref.as_str(),
+            ),
+            (
+                "live_execution.admission_id",
+                execution.admission_id.as_str(),
+            ),
+            (
+                "live_execution.strategy_version_id",
+                execution.strategy_version_id.as_str(),
+            ),
+            ("live_execution.account_id", execution.account_id.as_str()),
+            (
+                "live_execution.instrument_id",
+                execution.instrument_id.as_str(),
+            ),
+        ] {
+            validate_non_empty(field, value)?;
+        }
+        if !valid_prefixed_sha256(&execution.source_manifest_sha256)
+            || !valid_prefixed_sha256(&execution.execution_admission_sha256)
+            || !execution.runtime_artifact_root.is_absolute()
+            || execution.owner_authority_ref == execution.risk_authority_ref
+            || execution.owner_authority_ref == execution.operator_authority_ref
+            || execution.risk_authority_ref == execution.operator_authority_ref
+        {
+            anyhow::bail!("live_execution authority binding is invalid");
+        }
+        let instrument_id = InstrumentId::from_str(&execution.instrument_id)
+            .context("invalid live_execution.instrument_id")?;
+        if instrument_id.venue != Venue::from("BINANCE")
+            || !market.symbols.contains(&execution.instrument_id)
+        {
+            anyhow::bail!(
+                "live_execution.instrument_id must be one of the admitted Binance market symbols"
+            );
+        }
+        validate_exact("live_execution.order_type", &execution.order_type, "LIMIT")?;
+        validate_exact(
+            "live_execution.time_in_force",
+            &execution.time_in_force,
+            "GTC",
+        )?;
+        if !matches!(execution.side.as_str(), "BUY" | "SELL") {
+            anyhow::bail!("live_execution.side must be BUY or SELL");
+        }
+        let price = Decimal::from_str_exact(&execution.price)
+            .context("live_execution.price must be a decimal")?;
+        let quantity = Decimal::from_str_exact(&execution.quantity)
+            .context("live_execution.quantity must be a decimal")?;
+        let max_notional = Decimal::from_str_exact(&execution.max_notional)
+            .context("live_execution.max_notional must be a decimal")?;
+        let risk_policy_max_notional = Decimal::from_str_exact(&execution.risk_policy_max_notional)
+            .context("live_execution.risk_policy_max_notional must be a decimal")?;
+        if price <= Decimal::ZERO
+            || quantity <= Decimal::ZERO
+            || max_notional <= Decimal::ZERO
+            || risk_policy_max_notional <= Decimal::ZERO
+            || price * quantity > max_notional
+            || max_notional > risk_policy_max_notional
+        {
+            anyhow::bail!("live_execution order must be positive and within max_notional");
+        }
+        if execution.expires_at_unix_ms <= current_unix_timestamp_millis() {
+            anyhow::bail!("live_execution admission has expired");
+        }
+        validate_exact(
+            "live_execution.api_key_env",
+            &execution.api_key_env,
+            "NTPRO_BINANCE_LIVE_API_KEY",
+        )?;
+        validate_exact(
+            "live_execution.api_secret_env",
+            &execution.api_secret_env,
+            "NTPRO_BINANCE_LIVE_API_SECRET",
+        )?;
+        if !execution.owner_confirmed
+            || !execution.risk_confirmed
+            || !execution.operator_confirmed
+            || execution.kill_switch_active
+            || !execution.single_shot
+            || execution.cancel_order_allowed
+            || execution.replace_order_allowed
+            || execution.automatic_retry_allowed
+            || execution.automatic_recovery_allowed
+        {
+            anyhow::bail!(
+                "live_execution requires three-party single-shot approval with kill switch clear and all follow-up mutations disabled"
+            );
+        }
+    }
     validate_exact("shutdown.mode", &config.shutdown.mode, START_STOP_SHUTDOWN)?;
     if config.shutdown.connection_timeout_secs == 0
         || config.shutdown.disconnection_timeout_secs == 0
@@ -19729,6 +19901,22 @@ fn validate_production_market_data_node_config(
         anyhow::bail!("production market data connection timeouts must be greater than zero");
     }
     Ok(())
+}
+
+fn current_unix_timestamp_millis() -> u64 {
+    u64::try_from(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis(),
+    )
+    .unwrap_or(u64::MAX)
+}
+
+fn valid_prefixed_sha256(value: &str) -> bool {
+    value
+        .strip_prefix("sha256:")
+        .is_some_and(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
 pub(crate) fn validate_minimal_live_config_file(path: &Path) -> anyhow::Result<()> {

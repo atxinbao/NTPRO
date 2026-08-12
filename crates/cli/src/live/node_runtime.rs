@@ -21,6 +21,37 @@
 
 use super::*;
 
+const EXECUTION_STATE_HEAD_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_head.v2";
+const EXECUTION_CONTROL_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state.v2";
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExecutionControlStateHead {
+    schema_version: String,
+    run_id: String,
+    revision: u64,
+    state_sha256: String,
+    commit_sha256: String,
+    anchor_receipt_sha256: String,
+    updated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ExecutionControlState {
+    schema_version: String,
+    run_id: String,
+    source_manifest_sha256: String,
+    revision: u64,
+    previous_state_sha256: Option<String>,
+    lifecycle: String,
+    preflight_sha256: Option<String>,
+    execution_admission_sha256: Option<String>,
+    execution_runtime_config_sha256: Option<String>,
+    stop_sha256: Option<String>,
+    updated_at_unix_ms: u64,
+}
+
 struct ProductionMarketDataRuntimeContext<'a> {
     config_path: &'a Path,
     output_dir: &'a Path,
@@ -31,6 +62,7 @@ struct ProductionMarketDataRuntimeContext<'a> {
     stdout_log_path: &'a Path,
     stderr_log_path: &'a Path,
     events_log_path: &'a Path,
+    execution_enabled: bool,
 }
 
 pub(super) async fn run_production_market_data_node_with_command(
@@ -60,6 +92,9 @@ pub(super) async fn run_production_market_data_node_with_command(
         Path::to_path_buf,
     );
     fs::create_dir_all(output_dir.join("logs"))?;
+    if let Some(execution) = &config.live_execution {
+        validate_execution_runtime_authority(config_path, &output_dir, run_id, execution)?;
+    }
     let status_path = output_dir.join("status.json");
     let metrics_path = output_dir.join("metrics.json");
     let stdout_log_path = output_dir.join("logs/stdout.log");
@@ -75,6 +110,7 @@ pub(super) async fn run_production_market_data_node_with_command(
         stdout_log_path: &stdout_log_path,
         stderr_log_path: &stderr_log_path,
         events_log_path: &events_log_path,
+        execution_enabled: config.live_execution.is_some(),
     };
 
     let trader_id = TraderId::from(market.trader_id.as_str());
@@ -93,9 +129,9 @@ pub(super) async fn run_production_market_data_node_with_command(
         .collect::<Result<Vec<_>, _>>()?;
     let actor = ProductionMarketDataActor::new(ClientId::from("BINANCE"), instrument_ids);
     let (quote_count, trade_count, last_event_unix_ms) = actor.counters();
-    let mut node = LiveNode::builder(trader_id, Environment::Live)?
+    let mut builder = LiveNode::builder(trader_id, Environment::Live)?
         .with_name(run_id)
-        .with_reconciliation(false)
+        .with_reconciliation(config.live_execution.is_some())
         .with_shutdown_on_data_disconnect(true)
         .with_timeout_connection(config.shutdown.connection_timeout_secs)
         .with_timeout_disconnection_secs(config.shutdown.disconnection_timeout_secs)
@@ -104,10 +140,44 @@ pub(super) async fn run_production_market_data_node_with_command(
             Some("BINANCE".to_string()),
             Box::new(BinanceDataClientFactory::new()),
             Box::new(data_config),
-        )?
-        .build()?;
+        )?;
+    if let Some(execution) = &config.live_execution {
+        builder = builder.with_risk_engine_config(LiveRiskEngineConfig {
+            max_notional_per_order: HashMap::from([(
+                execution.instrument_id.clone(),
+                execution.max_notional.clone(),
+            )]),
+            ..Default::default()
+        });
+        let exec_api_key = std::env::var(&execution.api_key_env)
+            .with_context(|| format!("{} is required", execution.api_key_env))?;
+        let exec_api_secret = std::env::var(&execution.api_secret_env)
+            .with_context(|| format!("{} is required", execution.api_secret_env))?;
+        if exec_api_key.trim().is_empty() || exec_api_secret.trim().is_empty() {
+            anyhow::bail!("production execution credentials must not be empty");
+        }
+        builder = builder.add_exec_client(
+            Some("BINANCE".to_string()),
+            Box::new(BinanceExecutionClientFactory::new()),
+            Box::new(BinanceExecClientConfig {
+                trader_id,
+                account_id: AccountId::from(execution.account_id.as_str()),
+                product_types: vec![BinanceProductType::Spot],
+                environment: BinanceEnvironment::Live,
+                api_key: Some(exec_api_key),
+                api_secret: Some(exec_api_secret),
+                ..Default::default()
+            }),
+        )?;
+    }
+    let mut node = builder.build()?;
     node.add_actor(actor)?;
-    if !node.kernel().exec_engine.borrow().client_ids().is_empty() {
+    if let Some(execution) = &config.live_execution {
+        node.add_strategy(ProductionSingleShotExecutionStrategy::from_config(
+            execution,
+            &output_dir,
+        )?)?;
+    } else if !node.kernel().exec_engine.borrow().client_ids().is_empty() {
         anyhow::bail!("production market data Runtime must not register execution clients");
     }
 
@@ -139,7 +209,11 @@ pub(super) async fn run_production_market_data_node_with_command(
                     )?;
                     atomic_write_text(
                         &events_log_path,
-                        "phase=start status=ok environment=live data_connection=connected execution_connection=not_configured subscriptions=quotes,trades order_endpoint_access=false real_orders_submitted=false\n",
+                        if context.execution_enabled {
+                            "phase=start status=ok environment=live data_connection=connected execution_connection=connected subscriptions=quotes,trades order_endpoint_access=true single_shot=true automatic_retry=false\n"
+                        } else {
+                            "phase=start status=ok environment=live data_connection=connected execution_connection=not_configured subscriptions=quotes,trades order_endpoint_access=false real_orders_submitted=false\n"
+                        },
                     )?;
                     started_at = Some(observed_at);
                     started_instant = Some(observed_instant);
@@ -201,20 +275,227 @@ pub(super) async fn run_production_market_data_node_with_command(
     atomic_write_text(
         &output_dir.join("summary.txt"),
         &format!(
-            "status={}\nmode=production-market-data\nrun_id={run_id}\nenvironment=live\nvenue=BINANCE\nproduct_type=spot\nsymbols={}\nquote_events={}\ntrade_events={}\nlast_market_event_unix_ms={}\ndata_connection=disconnected\nexecution_connection=not_configured\nexecution_client_enabled=false\norder_endpoint_access_allowed=false\norder_submission_allowed=false\nautomatic_reconnect_allowed=false\nreal_orders_submitted=false\nshutdown_reason={}\n",
+            "status={}\nmode={}\nrun_id={run_id}\nenvironment=live\nvenue=BINANCE\nproduct_type=spot\nsymbols={}\nquote_events={}\ntrade_events={}\nlast_market_event_unix_ms={}\ndata_connection=disconnected\nexecution_connection={}\nexecution_client_enabled={}\norder_endpoint_access_allowed={}\norder_submission_allowed={}\nsingle_shot={}\nreal_orders_submitted={}\ncancel_order_allowed=false\nreplace_order_allowed=false\nautomatic_retry_allowed=false\nautomatic_reconnect_allowed=false\nshutdown_reason={}\n",
             if runtime_error.is_some() {
                 "error"
             } else {
                 "ok"
             },
+            if context.execution_enabled {
+                "production-single-shot-execution"
+            } else {
+                "production-market-data"
+            },
             market.symbols.join(","),
             quote_count.load(std::sync::atomic::Ordering::Acquire),
             trade_count.load(std::sync::atomic::Ordering::Acquire),
             last_event_unix_ms.load(std::sync::atomic::Ordering::Acquire),
+            if context.execution_enabled {
+                "disconnected"
+            } else {
+                "not_configured"
+            },
+            context.execution_enabled,
+            context.execution_enabled,
+            context.execution_enabled,
+            context.execution_enabled,
+            status.real_orders_submitted,
             shutdown_reason.map_or("runtime-error", |reason| reason.label()),
         ),
     )?;
     runtime_result
+}
+
+fn validate_execution_runtime_authority(
+    config_path: &Path,
+    output_dir: &Path,
+    run_id: &str,
+    execution: &ProductionExecutionSection,
+) -> anyhow::Result<()> {
+    let config_metadata = fs::symlink_metadata(config_path)?;
+    if !config_metadata.is_file() || config_metadata.file_type().is_symlink() {
+        anyhow::bail!("live execution config must be a regular non-symlink file");
+    }
+    let config_raw = read_bounded_execution_authority_file(config_path)?;
+    let candidate_root = config_path
+        .parent()
+        .context("live execution config must have a candidate root")?;
+    let head_raw = read_bounded_execution_authority_file(&candidate_root.join("state-head.json"))?;
+    let head: ExecutionControlStateHead = serde_json::from_slice(&head_raw)
+        .context("live execution control state head is invalid")?;
+    let state_path = candidate_root.join(format!("state-{:020}.json", head.revision));
+    let state_raw = read_bounded_execution_authority_file(&state_path)?;
+    let state: ExecutionControlState =
+        serde_json::from_slice(&state_raw).context("live execution control state is invalid")?;
+    let receipt_raw = read_bounded_execution_authority_file(
+        &candidate_root.join(format!("anchor-receipt-{:020}.json", head.revision)),
+    )?;
+    let expected_output = fs::canonicalize(&execution.runtime_artifact_root)
+        .context("live execution admitted Runtime artifact root is unavailable")?;
+    let actual_output = fs::canonicalize(output_dir)
+        .context("live execution Runtime artifact root is unavailable")?;
+    let config_sha256 = execution_sha256_ref(&config_raw);
+    let valid = head.schema_version == EXECUTION_STATE_HEAD_SCHEMA_VERSION
+        && head.run_id == run_id
+        && head.state_sha256 == execution_sha256_ref(&state_raw)
+        && head.updated_at_unix_ms == state.updated_at_unix_ms
+        && state.schema_version == EXECUTION_CONTROL_STATE_SCHEMA_VERSION
+        && state.run_id == run_id
+        && state.revision == head.revision
+        && state.previous_state_sha256.is_some()
+        && state.lifecycle == "starting"
+        && state.source_manifest_sha256 == execution.source_manifest_sha256
+        && state.preflight_sha256.is_some()
+        && state.execution_admission_sha256.as_deref()
+            == Some(execution.execution_admission_sha256.as_str())
+        && state.execution_runtime_config_sha256.as_deref() == Some(config_sha256.as_str())
+        && state.stop_sha256.is_none()
+        && expected_output == actual_output;
+    if !valid {
+        anyhow::bail!("live execution Runtime authority does not match the anchored control plane");
+    }
+    crate::dashboard::product_api::live_run_anchor::validate_runtime_authority(
+        run_id,
+        state.revision,
+        &state_raw,
+        &head.commit_sha256,
+        &receipt_raw,
+        &head.anchor_receipt_sha256,
+        state.updated_at_unix_ms,
+    )?;
+    crate::dashboard::product_api::live_run_anchor::claim_runtime_authority(
+        &crate::dashboard::product_api::live_run_anchor::LiveExecutionRuntimeClaim {
+            candidate_root,
+            run_id,
+            control_state_revision: state.revision,
+            starting_receipt_raw: &receipt_raw,
+            expected_starting_receipt_sha256: &head.anchor_receipt_sha256,
+            source_manifest_sha256: &execution.source_manifest_sha256,
+            execution_admission_sha256: &execution.execution_admission_sha256,
+            runtime_config_sha256: &config_sha256,
+            runtime_artifact_root: output_dir,
+            claimed_at_unix_ms: current_unix_timestamp_millis(),
+        },
+    )?;
+    Ok(())
+}
+
+fn read_bounded_execution_authority_file(path: &Path) -> anyhow::Result<Vec<u8>> {
+    let metadata = fs::symlink_metadata(path)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 64 * 1024 {
+        anyhow::bail!("live execution authority artifact must be a bounded regular file");
+    }
+    fs::read(path).map_err(Into::into)
+}
+
+fn execution_sha256_ref(raw: &[u8]) -> String {
+    let value = aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, raw);
+    let mut encoded = String::with_capacity(value.as_ref().len() * 2 + 7);
+    encoded.push_str("sha256:");
+    for byte in value.as_ref() {
+        encoded.push_str(&format!("{byte:02x}"));
+    }
+    encoded
+}
+
+#[cfg(test)]
+mod execution_authority_tests {
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn tampered_runtime_config_is_rejected_before_execution_client_registration() {
+        let temp = tempdir().unwrap();
+        let candidate = temp.path().join("candidate");
+        let output = temp.path().join("runtime");
+        fs::create_dir_all(&candidate).unwrap();
+        fs::create_dir_all(&output).unwrap();
+        let config_path = candidate.join("live-market-data-node.toml");
+        fs::write(&config_path, b"original-config").unwrap();
+        let config_sha = execution_sha256_ref(b"original-config");
+        let state = serde_json::json!({
+            "schema_version": EXECUTION_CONTROL_STATE_SCHEMA_VERSION,
+            "run_id": "live-candidate-authority-test",
+            "source_manifest_sha256": format!("sha256:{}", "1".repeat(64)),
+            "revision": 3,
+            "previous_state_sha256": format!("sha256:{}", "2".repeat(64)),
+            "lifecycle": "starting",
+            "preflight_sha256": format!("sha256:{}", "3".repeat(64)),
+            "execution_admission_sha256": format!("sha256:{}", "4".repeat(64)),
+            "execution_runtime_config_sha256": config_sha,
+            "stop_sha256": null,
+            "updated_at_unix_ms": 1
+        });
+        let state_raw = serde_json::to_vec(&state).unwrap();
+        fs::write(
+            candidate.join("state-00000000000000000003.json"),
+            &state_raw,
+        )
+        .unwrap();
+        fs::write(
+            candidate.join("anchor-receipt-00000000000000000003.json"),
+            b"{}",
+        )
+        .unwrap();
+        fs::write(
+            candidate.join("state-head.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "schema_version": EXECUTION_STATE_HEAD_SCHEMA_VERSION,
+                "run_id": "live-candidate-authority-test",
+                "revision": 3,
+                "state_sha256": execution_sha256_ref(&state_raw),
+                "commit_sha256": format!("sha256:{}", "5".repeat(64)),
+                "anchor_receipt_sha256": format!("sha256:{}", "6".repeat(64)),
+                "updated_at_unix_ms": 1
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        fs::write(&config_path, b"tampered-config").unwrap();
+        let execution = ProductionExecutionSection {
+            schema_version: PRODUCTION_EXECUTION_SCHEMA_VERSION.to_string(),
+            source_manifest_sha256: format!("sha256:{}", "1".repeat(64)),
+            execution_admission_sha256: format!("sha256:{}", "4".repeat(64)),
+            runtime_artifact_root: output.clone(),
+            risk_policy_ref: format!("risk-config-sha256:{}", "7".repeat(64)),
+            owner_authority_ref: "role://institution-owner".to_string(),
+            risk_authority_ref: "policy://risk/test-v1".to_string(),
+            operator_authority_ref: "role://operations-operator".to_string(),
+            admission_id: "admission-authority-test".to_string(),
+            strategy_version_id: "ema-cross@v1".to_string(),
+            account_id: "BINANCE-001".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            side: "BUY".to_string(),
+            order_type: "LIMIT".to_string(),
+            time_in_force: "GTC".to_string(),
+            price: "1.00".to_string(),
+            quantity: "0.01".to_string(),
+            max_notional: "1.00".to_string(),
+            risk_policy_max_notional: "10.00".to_string(),
+            expires_at_unix_ms: u64::MAX,
+            api_key_env: "NTPRO_BINANCE_LIVE_API_KEY".to_string(),
+            api_secret_env: "NTPRO_BINANCE_LIVE_API_SECRET".to_string(),
+            owner_confirmed: true,
+            risk_confirmed: true,
+            operator_confirmed: true,
+            kill_switch_active: false,
+            single_shot: true,
+            cancel_order_allowed: false,
+            replace_order_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_recovery_allowed: false,
+        };
+        let error = validate_execution_runtime_authority(
+            &config_path,
+            &output,
+            "live-candidate-authority-test",
+            &execution,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("does not match the anchored control plane"));
+    }
 }
 
 fn requested_production_market_data_shutdown(
@@ -283,12 +564,24 @@ fn production_market_data_status(
         _ => LifecycleStatus::Starting,
     };
     status.data_connection = data_connection;
-    status.execution_connection = ConnectionStatus::NotConfigured;
+    status.execution_connection = if context.execution_enabled {
+        data_connection
+    } else {
+        ConnectionStatus::NotConfigured
+    };
     status.execution = ExecutionStatus {
-        gateway_id: SnapshotValue::not_configured(),
-        connection: ConnectionStatus::NotConfigured,
-        started: SnapshotValue::available(false),
-        account_ref: SnapshotValue::not_configured(),
+        gateway_id: if context.execution_enabled {
+            SnapshotValue::available("BINANCE".to_string())
+        } else {
+            SnapshotValue::not_configured()
+        },
+        connection: status.execution_connection,
+        started: SnapshotValue::available(context.execution_enabled && state == NodeState::Running),
+        account_ref: if context.execution_enabled {
+            SnapshotValue::available("env://NTPRO_BINANCE_LIVE_API_KEY".to_string())
+        } else {
+            SnapshotValue::not_configured()
+        },
         orders_open: SnapshotValue::available(0),
         orders_inflight: SnapshotValue::available(0),
         orders_closed: SnapshotValue::available(0),
@@ -304,8 +597,34 @@ fn production_market_data_status(
     });
     status.last_transition_at = SnapshotValue::available(generated_at);
     status.external_venue_connection = data_connection == ConnectionStatus::Connected;
-    status.real_orders_submitted = false;
+    status.real_orders_submitted = context.execution_enabled
+        && execution_order_state(context.output_dir).is_some_and(|state| {
+            matches!(
+                state.status.as_str(),
+                "submitted"
+                    | "accepted"
+                    | "rejected"
+                    | "expired"
+                    | "partially_filled"
+                    | "filled"
+                    | "canceled"
+            )
+        });
     status
+}
+
+#[derive(Deserialize)]
+struct RuntimeExecutionOrderStatus {
+    status: String,
+}
+
+fn execution_order_state(output_dir: &Path) -> Option<RuntimeExecutionOrderStatus> {
+    let path = output_dir.join("execution-order-state.json");
+    let metadata = fs::symlink_metadata(&path).ok()?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 64 * 1024 {
+        return None;
+    }
+    serde_json::from_slice(&fs::read(path).ok()?).ok()
 }
 
 fn write_production_market_data_metrics(

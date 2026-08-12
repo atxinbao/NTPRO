@@ -166,6 +166,186 @@ describe("product API generated client", () => {
     expect(result.boundaries.order_submission_allowed).toBe(false);
   });
 
+  it("authorizes exactly one anchored Live order while cancel and replace remain blocked", async () => {
+    const authorized: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    authorized.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    authorized.data.lifecycle = "preflight_ready";
+    authorized.data.preflight_at_unix_ms = 1786406401000;
+    authorized.data.account_connected = true;
+    authorized.data.account_can_trade_verified = true;
+    authorized.data.order_admission = {
+      status: "authorized_single_shot",
+      submit: "authorized_single_shot",
+      cancel: "blocked",
+      replace: "blocked",
+      fill_reconciliation: "runtime_event_projection",
+      owner_approved: true,
+      risk_approved: true,
+      operator_approved: true,
+      blockers: [
+        "additional_orders_blocked",
+        "cancel_not_scoped",
+        "replace_not_scoped",
+      ],
+    };
+    authorized.data.audit_anchor.revision = 2;
+    authorized.data.audit_anchor.workspace_revision = 2;
+    authorized.data.audit_anchor.receipt_ref = `sha256:${"7".repeat(64)}`;
+    authorized.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+    authorized.boundaries.order_endpoint_access_allowed = true;
+    authorized.boundaries.order_submission_allowed = true;
+    authorized.boundaries.trading_controls_enabled = true;
+
+    const body = {
+      run_id: authorized.data.run_id,
+      strategy_version_id: authorized.data.strategy_version_id,
+      account_ref: "account://live/binance/primary" as const,
+      venue_ref: "venue://live/BINANCE" as const,
+      admission_id: "manual-001",
+      instrument_id: "BTCUSDT.BINANCE",
+      side: "BUY" as const,
+      order_type: "LIMIT" as const,
+      time_in_force: "GTC" as const,
+      price: "1.00",
+      quantity: "0.00001000",
+      max_notional: "1.00",
+      expires_at_unix_ms: 1786406700000,
+      user_confirmed: true as const,
+    };
+    const result = await createProductApiClient({
+      fetch: jsonFetch(authorized),
+    }).approveLiveExecutionAsOwner(authorized.data.run_id, body);
+    expect(result.data.order_admission.status).toBe("authorized_single_shot");
+    expect(result.boundaries.order_submission_allowed).toBe(true);
+    expect(result.boundaries.cancel_order_allowed).toBe(false);
+    expect(result.boundaries.replace_order_allowed).toBe(false);
+    expect(result.boundaries.automatic_retry_allowed).toBe(false);
+  });
+
+  it("projects an exchange-accepted single order without reopening follow-up controls", async () => {
+    const running: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    running.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    running.data.lifecycle = "market_data_running";
+    running.data.preflight_at_unix_ms = 1786406401000;
+    running.data.account_connected = true;
+    running.data.account_can_trade_verified = true;
+    running.data.runtime_started = true;
+    running.data.market_data_connected = true;
+    running.data.runtime_node_id = running.data.run_id;
+    running.data.runtime_process_state = "running";
+    running.data.order_admission = {
+      status: "consumed_single_shot",
+      submit: "blocked",
+      cancel: "blocked",
+      replace: "blocked",
+      fill_reconciliation: "runtime_event_projection",
+      owner_approved: true,
+      risk_approved: true,
+      operator_approved: true,
+      blockers: [
+        "single_shot_admission_consumed",
+        "additional_orders_blocked",
+        "manual_review_required_for_follow_up",
+      ],
+    };
+    running.data.execution_order = {
+      schema_version: "ntpro.s3.live_execution_order_state.v1",
+      admission_id: "manual-001",
+      strategy_version_id: running.data.strategy_version_id,
+      instrument_id: "BTCUSDT.BINANCE",
+      client_order_id: "S3LV007-001",
+      status: "accepted",
+      terminal: false,
+      new_orders_blocked: true,
+      actual_submission_attempted: true,
+      automatic_retry_attempted: false,
+      cancel_attempted: false,
+      replace_attempted: false,
+      last_error: null,
+      updated_at_unix_ms: 1786406403000,
+    };
+    running.data.audit_anchor.revision = 4;
+    running.data.audit_anchor.workspace_revision = 4;
+    running.data.audit_anchor.receipt_ref = `sha256:${"8".repeat(64)}`;
+    running.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+    running.boundaries.execution_adapter_send_attempted = true;
+    running.boundaries.real_orders_submitted = true;
+
+    const result = await createProductApiClient({
+      fetch: jsonFetch(running),
+    }).actOnLiveRunCandidate(running.data.run_id, "start_execution");
+    expect(result.data.execution_order?.status).toBe("accepted");
+    expect(result.boundaries.execution_adapter_send_attempted).toBe(true);
+    expect(result.boundaries.real_orders_submitted).toBe(true);
+    expect(result.boundaries.order_submission_allowed).toBe(false);
+    expect(result.boundaries.cancel_order_allowed).toBe(false);
+    expect(result.boundaries.replace_order_allowed).toBe(false);
+  });
+
+  it("accepts an expired admission that failed before any adapter send", async () => {
+    const failed: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    failed.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    failed.data.lifecycle = "market_data_running";
+    failed.data.preflight_at_unix_ms = 1786406401000;
+    failed.data.account_connected = true;
+    failed.data.account_can_trade_verified = true;
+    failed.data.runtime_started = true;
+    failed.data.market_data_connected = true;
+    failed.data.runtime_node_id = failed.data.run_id;
+    failed.data.runtime_process_state = "running";
+    failed.data.order_admission = {
+      status: "consumed_single_shot",
+      submit: "blocked",
+      cancel: "blocked",
+      replace: "blocked",
+      fill_reconciliation: "runtime_event_projection",
+      owner_approved: true,
+      risk_approved: true,
+      operator_approved: true,
+      blockers: [
+        "single_shot_admission_consumed",
+        "additional_orders_blocked",
+        "manual_review_required_for_follow_up",
+      ],
+    };
+    failed.data.execution_order = {
+      schema_version: "ntpro.s3.live_execution_order_state.v1",
+      admission_id: "manual-001",
+      strategy_version_id: failed.data.strategy_version_id,
+      instrument_id: "BTCUSDT.BINANCE",
+      client_order_id: null,
+      status: "submission_failed",
+      terminal: true,
+      new_orders_blocked: true,
+      actual_submission_attempted: false,
+      automatic_retry_attempted: false,
+      cancel_attempted: false,
+      replace_attempted: false,
+      last_error: "execution admission expired before submission",
+      updated_at_unix_ms: 1786406403000,
+    };
+    failed.data.audit_anchor.revision = 4;
+    failed.data.audit_anchor.workspace_revision = 4;
+    failed.data.audit_anchor.receipt_ref = `sha256:${"9".repeat(64)}`;
+    failed.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+
+    const result = await createProductApiClient({
+      fetch: jsonFetch(failed),
+    }).actOnLiveRunCandidate(failed.data.run_id, "start_execution");
+    expect(result.data.execution_order?.status).toBe("submission_failed");
+    expect(result.boundaries.execution_adapter_send_attempted).toBe(false);
+    expect(result.boundaries.real_orders_submitted).toBe(false);
+  });
+
   it("accepts an explicitly started production market-data Runtime with orders blocked", async () => {
     const running: Record<string, any> = structuredClone(
       liveRunCandidateFixture,
