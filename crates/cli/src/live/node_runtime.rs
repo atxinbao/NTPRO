@@ -21,6 +21,301 @@
 
 use super::*;
 
+struct ProductionMarketDataRuntimeContext<'a> {
+    config_path: &'a Path,
+    output_dir: &'a Path,
+    run_id: &'a str,
+    process_mode: ProcessMode,
+    status_path: &'a Path,
+    metrics_path: &'a Path,
+    stdout_log_path: &'a Path,
+    stderr_log_path: &'a Path,
+    events_log_path: &'a Path,
+}
+
+pub(super) async fn run_production_market_data_node_with_command(
+    config_path: &Path,
+    requested_run_id: Option<&str>,
+    output: Option<&Path>,
+    stop_file: Option<&Path>,
+    shutdown_controls: NtproNodeRunControls,
+) -> anyhow::Result<()> {
+    let config = load_production_market_data_node_config(config_path)?;
+    let market = &config.live_market_data;
+    let run_id = requested_run_id.unwrap_or(&market.node_id);
+    validate_non_empty("run_id", run_id)?;
+    if run_id != market.node_id {
+        anyhow::bail!("production market data run_id must match live_market_data.node_id");
+    }
+    let api_key = std::env::var(&market.api_key_env)
+        .with_context(|| format!("{} is required", market.api_key_env))?;
+    let api_secret = std::env::var(&market.api_secret_env)
+        .with_context(|| format!("{} is required", market.api_secret_env))?;
+    if api_key.trim().is_empty() || api_secret.trim().is_empty() {
+        anyhow::bail!("production market data credentials must not be empty");
+    }
+
+    let output_dir = output.map_or_else(
+        || PathBuf::from("artifacts/live-market-data").join(run_id),
+        Path::to_path_buf,
+    );
+    fs::create_dir_all(output_dir.join("logs"))?;
+    let status_path = output_dir.join("status.json");
+    let metrics_path = output_dir.join("metrics.json");
+    let stdout_log_path = output_dir.join("logs/stdout.log");
+    let stderr_log_path = output_dir.join("logs/stderr.log");
+    let events_log_path = output_dir.join("logs/events.log");
+    let context = ProductionMarketDataRuntimeContext {
+        config_path,
+        output_dir: &output_dir,
+        run_id,
+        process_mode: ProcessMode::SpawnedProcess,
+        status_path: &status_path,
+        metrics_path: &metrics_path,
+        stdout_log_path: &stdout_log_path,
+        stderr_log_path: &stderr_log_path,
+        events_log_path: &events_log_path,
+    };
+
+    let trader_id = TraderId::from(market.trader_id.as_str());
+    let data_config = BinanceDataClientConfig {
+        product_types: vec![BinanceProductType::Spot],
+        environment: BinanceEnvironment::Live,
+        api_key: Some(api_key),
+        api_secret: Some(api_secret),
+        ..Default::default()
+    };
+    let mut node = LiveNode::builder(trader_id, Environment::Live)?
+        .with_name(run_id)
+        .with_reconciliation(false)
+        .with_timeout_connection(config.shutdown.connection_timeout_secs)
+        .with_timeout_disconnection_secs(config.shutdown.disconnection_timeout_secs)
+        .with_delay_post_stop_secs(config.shutdown.post_stop_delay_secs)
+        .add_data_client(
+            Some("BINANCE".to_string()),
+            Box::new(BinanceDataClientFactory::new()),
+            Box::new(data_config),
+        )?
+        .build()?;
+    if !node.kernel().exec_engine.borrow().client_ids().is_empty() {
+        anyhow::bail!("production market data Runtime must not register execution clients");
+    }
+
+    node.start().await?;
+    let started_at = now_millis();
+    let started_instant = Instant::now();
+    let data_connected = production_data_clients_connected(&node);
+    if node.state() != NodeState::Running || !data_connected {
+        if node.state() == NodeState::Running {
+            let _ = node.stop().await;
+        }
+        anyhow::bail!("production market data Runtime did not reach connected running state");
+    }
+    write_production_market_data_heartbeat(&context, &started_at, started_instant, true)?;
+    atomic_write_text(
+        &events_log_path,
+        "phase=start status=ok environment=live data_connection=connected execution_connection=not_configured order_endpoint_access=false real_orders_submitted=false\n",
+    )?;
+
+    let shutdown_result = wait_for_production_market_data_shutdown(
+        &context,
+        &node,
+        stop_file,
+        shutdown_controls,
+        &started_at,
+        started_instant,
+    )
+    .await;
+    let stop_result = timeout(shutdown_controls.shutdown_timeout, node.stop())
+        .await
+        .context("production market data Runtime shutdown timed out")?;
+    stop_result.context("production market data Runtime shutdown failed")?;
+    let shutdown_reason = shutdown_result?;
+    let stopped_at = now_millis();
+    let status = production_market_data_status(
+        &context,
+        NodeState::Stopped,
+        ConnectionStatus::Disconnected,
+        &started_at,
+        Some(&stopped_at),
+    );
+    write_status(&status_path, &status)?;
+    write_production_market_data_metrics(
+        &context,
+        &status,
+        NodeMetricCounts {
+            uptime_ms: Some(millis_to_u64(started_instant.elapsed().as_millis())),
+            starts_total: 1,
+            stops_total: 1,
+            state_transitions_total: 2,
+        },
+    )?;
+    atomic_write_text(
+        &output_dir.join("summary.txt"),
+        &format!(
+            "status=ok\nmode=production-market-data\nrun_id={run_id}\nenvironment=live\nvenue=BINANCE\nproduct_type=spot\ndata_connection=disconnected\nexecution_connection=not_configured\nexecution_client_enabled=false\norder_endpoint_access_allowed=false\norder_submission_allowed=false\nautomatic_reconnect_allowed=false\nreal_orders_submitted=false\nshutdown_reason={}\n",
+            shutdown_reason.label()
+        ),
+    )?;
+    Ok(())
+}
+
+async fn wait_for_production_market_data_shutdown(
+    context: &ProductionMarketDataRuntimeContext<'_>,
+    node: &LiveNode,
+    stop_file: Option<&Path>,
+    controls: NtproNodeRunControls,
+    started_at: &str,
+    started_instant: Instant,
+) -> anyhow::Result<ShutdownReason> {
+    let Some(stop_file) = stop_file else {
+        return Ok(ShutdownReason::StartStop);
+    };
+    let shutdown_signal = wait_for_shutdown_signal();
+    tokio::pin!(shutdown_signal);
+    let mut last_heartbeat: Option<Instant> = None;
+    loop {
+        if stop_file.exists() {
+            return Ok(ShutdownReason::StopFile);
+        }
+        if let Some(parent_pid) = controls.parent_pid
+            && !process_is_alive(parent_pid)
+        {
+            return Ok(ShutdownReason::ParentExited);
+        }
+        if let Some(max_runtime) = controls.max_runtime
+            && started_instant.elapsed() >= max_runtime
+        {
+            return Ok(ShutdownReason::MaxRuntime);
+        }
+        if last_heartbeat.is_none_or(|last| last.elapsed() >= controls.heartbeat_interval) {
+            let connected = production_data_clients_connected(node);
+            write_production_market_data_heartbeat(
+                context,
+                started_at,
+                started_instant,
+                connected,
+            )?;
+            if !connected {
+                anyhow::bail!("production market data Runtime lost its data client connection");
+            }
+            last_heartbeat = Some(Instant::now());
+        }
+        tokio::select! {
+            result = &mut shutdown_signal => return result,
+            () = sleep(SHUTDOWN_POLL_INTERVAL) => {}
+        }
+    }
+}
+
+fn production_data_clients_connected(node: &LiveNode) -> bool {
+    data_client_statuses_connected(
+        node.kernel()
+            .data_client_connection_status()
+            .into_iter()
+            .map(|(_, connected)| connected),
+    )
+}
+
+pub(super) fn data_client_statuses_connected(statuses: impl IntoIterator<Item = bool>) -> bool {
+    let mut registered = false;
+    for connected in statuses {
+        registered = true;
+        if !connected {
+            return false;
+        }
+    }
+    registered
+}
+
+fn write_production_market_data_heartbeat(
+    context: &ProductionMarketDataRuntimeContext<'_>,
+    started_at: &str,
+    started_instant: Instant,
+    connected: bool,
+) -> anyhow::Result<()> {
+    let connection = if connected {
+        ConnectionStatus::Connected
+    } else {
+        ConnectionStatus::Disconnected
+    };
+    let status =
+        production_market_data_status(context, NodeState::Running, connection, started_at, None);
+    write_status(context.status_path, &status)?;
+    write_production_market_data_metrics(
+        context,
+        &status,
+        NodeMetricCounts {
+            uptime_ms: Some(millis_to_u64(started_instant.elapsed().as_millis())),
+            starts_total: 1,
+            stops_total: 0,
+            state_transitions_total: 1,
+        },
+    )
+}
+
+fn production_market_data_status(
+    context: &ProductionMarketDataRuntimeContext<'_>,
+    state: NodeState,
+    data_connection: ConnectionStatus,
+    started_at: &str,
+    stopped_at: Option<&str>,
+) -> NodeStatus {
+    let mut status = NodeStatus::from_node_state(context.run_id, state);
+    let generated_at = now_millis();
+    status.process_mode = context.process_mode;
+    status.config_path = SnapshotValue::available(context.config_path.display().to_string());
+    status.artifact_root = SnapshotValue::available(context.output_dir.display().to_string());
+    status.previous_lifecycle_state = match state {
+        NodeState::Stopped => LifecycleStatus::Running,
+        _ => LifecycleStatus::Starting,
+    };
+    status.data_connection = data_connection;
+    status.execution_connection = ConnectionStatus::NotConfigured;
+    status.execution = ExecutionStatus {
+        gateway_id: SnapshotValue::not_configured(),
+        connection: ConnectionStatus::NotConfigured,
+        started: SnapshotValue::available(false),
+        account_ref: SnapshotValue::not_configured(),
+        orders_open: SnapshotValue::available(0),
+        orders_inflight: SnapshotValue::available(0),
+        orders_closed: SnapshotValue::available(0),
+        last_report_at: SnapshotValue::not_configured(),
+        last_reconciliation_at: SnapshotValue::not_configured(),
+        last_error: None,
+    };
+    status.risk.trading_state = nautilus_live::status::RiskTradingState::Halted;
+    status.generated_at = SnapshotValue::available(generated_at.clone());
+    status.started_at = SnapshotValue::available(started_at.to_string());
+    status.stopped_at = stopped_at.map_or_else(SnapshotValue::unknown, |value| {
+        SnapshotValue::available(value.to_string())
+    });
+    status.last_transition_at = SnapshotValue::available(generated_at);
+    status.external_venue_connection = data_connection == ConnectionStatus::Connected;
+    status.real_orders_submitted = false;
+    status
+}
+
+fn write_production_market_data_metrics(
+    context: &ProductionMarketDataRuntimeContext<'_>,
+    status: &NodeStatus,
+    counts: NodeMetricCounts,
+) -> anyhow::Result<()> {
+    let artifacts = NodeMetricArtifacts {
+        status_path: context.status_path.to_path_buf(),
+        stdout_log_path: context.stdout_log_path.to_path_buf(),
+        stderr_log_path: context.stderr_log_path.to_path_buf(),
+        events_log_path: context.events_log_path.to_path_buf(),
+        kill_switch_approval_artifact_path: context
+            .output_dir
+            .join("kill-switch-not-configured.json"),
+    };
+    write_node_metrics_artifact(
+        context.metrics_path,
+        &NodeMetrics::from_status(status, &artifacts, counts),
+    )
+}
+
 pub(super) async fn run_live_run_with_command(
     opt: &LiveRunOpt,
     command_name: &str,

@@ -87,7 +87,7 @@ export function LivePage() {
         <div>
           <span className="eyebrow">Live</span>
           <h1>Live 连接与独立准入</h1>
-          <p>生产账户只读连接独立授权，真实订单生命周期继续关闭。</p>
+          <p>生产行情 Runtime 独立启动，真实订单生命周期继续关闭。</p>
         </div>
         <span className={styles.readOnlyBadge}>
           <ShieldAlert aria-hidden="true" /> 只读边界
@@ -183,7 +183,7 @@ export function LivePage() {
             }
             enabled={boundaries.authenticated_account_read_allowed}
           />
-          <Boundary label="真实 Runtime 启动" value="关闭" />
+          <Boundary label="行情 Runtime 启动" value="可显式启动" enabled />
           <Boundary label="订单提交" value="关闭" />
           <Boundary label="撤单与改单" value="关闭" />
           <Boundary label="自动恢复" value="关闭" />
@@ -304,7 +304,7 @@ export function LivePage() {
         <header>
           <div>
             <span className="eyebrow">Live Run</span>
-            <h2>启动前检查与人工停止</h2>
+            <h2>生产行情 Runtime 与人工停止</h2>
           </div>
           <span className={styles.readOnlyBadge}>订单发送关闭</span>
         </header>
@@ -321,7 +321,22 @@ export function LivePage() {
                 label="交易权限"
                 value={liveRun.account_can_trade_verified ? "已验证" : "待检查"}
               />
-              <Detail label="真实 Runtime" value="未启动" />
+              <Detail
+                label="真实 Runtime"
+                value={liveRun.runtime_started ? "运行中" : "未运行"}
+              />
+              <Detail
+                label="生产行情"
+                value={liveRun.market_data_connected ? "已连接" : "未连接"}
+              />
+              <Detail
+                label="Runtime 进程"
+                value={liveRun.runtime_process_state}
+              />
+              <Detail
+                label="Runtime 错误"
+                value={liveRun.runtime_error ?? "无"}
+              />
               <Detail label="订单准入" value="已阻断" />
               <Detail
                 label="外部审计锚点"
@@ -350,7 +365,7 @@ export function LivePage() {
               <p className={styles.formError}>{liveRunAction.error.message}</p>
             ) : null}
             <div className={styles.runActions}>
-              <span>检查通过只代表候选就绪，不会连接行情或发送订单。</span>
+              <span>行情 Runtime 只连接生产市场数据，不注册执行客户端。</span>
               {liveRun.lifecycle === "created" ? (
                 <button
                   type="button"
@@ -365,7 +380,23 @@ export function LivePage() {
                   执行启动前检查
                 </button>
               ) : null}
-              {liveRun.lifecycle !== "stopped" ? (
+              {liveRun.lifecycle === "preflight_ready" ? (
+                <button
+                  type="button"
+                  disabled={liveRunAction.isPending}
+                  onClick={() =>
+                    liveRunAction.mutate({
+                      runId: liveRun.run_id,
+                      action: "start_market_data",
+                    })
+                  }
+                >
+                  启动生产行情
+                </button>
+              ) : null}
+              {["created", "preflight_ready", "market_data_running"].includes(
+                liveRun.lifecycle,
+              ) ? (
                 <button
                   type="button"
                   disabled={liveRunAction.isPending}
@@ -395,7 +426,7 @@ export function LivePage() {
                 onChange={(event) => setLiveRunConfirmed(event.target.checked)}
               />
               <span>
-                我确认创建 Live Run 候选；当前不会启动 runtime 或发送订单。
+                我确认创建 Live Run 候选；创建不会自动启动行情或发送订单。
               </span>
             </label>
             {createLiveRun.error ? (

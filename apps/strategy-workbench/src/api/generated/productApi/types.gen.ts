@@ -824,7 +824,7 @@ export type CreateLiveRunCandidateRequest = {
   user_confirmed: true;
 };
 
-export type LiveRunCandidateAction = "preflight" | "stop";
+export type LiveRunCandidateAction = "preflight" | "start_market_data" | "stop";
 
 export type LiveRunCandidateActionRequest = {
   run_id: RunId;
@@ -833,7 +833,13 @@ export type LiveRunCandidateActionRequest = {
 };
 
 export type LiveRunCandidateLifecycle =
-  "created" | "preflight_ready" | "stopped";
+  | "created"
+  | "preflight_ready"
+  | "starting"
+  | "market_data_running"
+  | "stopping"
+  | "stopped"
+  | "failed";
 
 export type LiveOrderAdmissionSnapshot = {
   status: "blocked";
@@ -889,6 +895,13 @@ export type LiveRunCandidate = (
       account_connected?: true;
       account_can_trade_verified?: true;
     }
+  | {
+      lifecycle?: "starting" | "market_data_running" | "stopping" | "failed";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+    }
 ) & {
   run_id: RunId;
   strategy_id: StrategyId;
@@ -902,7 +915,12 @@ export type LiveRunCandidate = (
   stopped_at_unix_ms: number | null;
   account_connected: boolean;
   account_can_trade_verified: boolean;
-  runtime_started: false;
+  runtime_started: boolean;
+  market_data_connected: boolean;
+  runtime_node_id: string | null;
+  runtime_process_state:
+    "not_started" | "running" | "stopped" | "stale" | "unknown" | "unavailable";
+  runtime_error: string | null;
   audit_anchor: LiveRunAuditAnchorSnapshot;
   order_admission: LiveOrderAdmissionSnapshot;
   source_refs: [string, string, string, ContentHash];
@@ -912,8 +930,8 @@ export type LiveRunCandidateBoundaries = {
   candidate_creation_allowed: true;
   explicit_preflight_allowed: true;
   manual_stop_allowed: true;
-  live_runtime_start_allowed: false;
-  external_market_data_connection_allowed: false;
+  live_runtime_start_allowed: true;
+  external_market_data_connection_allowed: true;
   order_endpoint_access_allowed: false;
   order_submission_allowed: false;
   cancel_order_allowed: false;

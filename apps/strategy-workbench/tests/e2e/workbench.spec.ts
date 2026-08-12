@@ -1005,7 +1005,10 @@ test("Live page exposes independent admission and no trading actions", async ({
     liveCandidate.getByText("created", { exact: true }),
   ).toBeVisible();
   await expect(
-    liveCandidate.getByText("未启动", { exact: true }),
+    liveCandidate.getByText("未运行", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    liveCandidate.getByText("not_started", { exact: true }),
   ).toBeVisible();
   await liveCandidate.getByRole("button", { name: "执行启动前检查" }).click();
   await expect(

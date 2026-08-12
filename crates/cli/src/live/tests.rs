@@ -14549,3 +14549,71 @@ fn rejects_external_venue_connection() {
 
     assert!(error.contains("execution.external_venue_connection must be false"));
 }
+
+fn production_market_data_config(node_id: &str) -> String {
+    format!(
+        "[live_market_data]\n\
+         schema_version = \"ntpro.live_market_data_node.v1\"\n\
+         mode = \"production-market-data\"\n\
+         environment = \"live\"\n\
+         node_id = \"{node_id}\"\n\
+         trader_id = \"TRADER-001\"\n\
+         venue = \"BINANCE\"\n\
+         product_type = \"spot\"\n\
+         api_key_env = \"NTPRO_BINANCE_LIVE_API_KEY\"\n\
+         api_secret_env = \"NTPRO_BINANCE_LIVE_API_SECRET\"\n\
+         execution_client_enabled = false\n\
+         order_endpoint_access_allowed = false\n\
+         order_submission_allowed = false\n\
+         automatic_reconnect_allowed = false\n\n\
+         [shutdown]\n\
+         mode = \"start-stop\"\n\
+         post_stop_delay_secs = 0\n\
+         connection_timeout_secs = 10\n\
+         disconnection_timeout_secs = 10\n"
+    )
+}
+
+#[test]
+fn production_market_data_config_is_live_data_only() {
+    let path = write_config(
+        "production-market-data",
+        &production_market_data_config("live-market-data-001"),
+    );
+    let config = load_production_market_data_node_config(&path).unwrap();
+
+    assert_eq!(config.live_market_data.environment, "live");
+    assert_eq!(config.live_market_data.venue, "BINANCE");
+    assert!(!config.live_market_data.execution_client_enabled);
+    assert!(!config.live_market_data.order_endpoint_access_allowed);
+    assert!(!config.live_market_data.order_submission_allowed);
+    assert!(!config.live_market_data.automatic_reconnect_allowed);
+}
+
+#[test]
+fn production_market_data_config_rejects_execution_or_order_capability() {
+    for field in [
+        "execution_client_enabled",
+        "order_endpoint_access_allowed",
+        "order_submission_allowed",
+        "automatic_reconnect_allowed",
+    ] {
+        let config = production_market_data_config("live-market-data-002")
+            .replace(&format!("{field} = false"), &format!("{field} = true"));
+        let path = write_config(field, &config);
+        let error = load_production_market_data_node_config(&path)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(
+            "requires execution, order access, submission and automatic reconnect to remain false"
+        ));
+    }
+}
+
+#[test]
+fn production_market_data_connection_requires_a_registered_connected_client() {
+    assert!(!node_runtime::data_client_statuses_connected([]));
+    assert!(node_runtime::data_client_statuses_connected([true]));
+    assert!(node_runtime::data_client_statuses_connected([true, true]));
+    assert!(!node_runtime::data_client_statuses_connected([true, false]));
+}

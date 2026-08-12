@@ -166,6 +166,40 @@ describe("product API generated client", () => {
     expect(result.boundaries.order_submission_allowed).toBe(false);
   });
 
+  it("accepts an explicitly started production market-data Runtime with orders blocked", async () => {
+    const running: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    running.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    running.data.lifecycle = "market_data_running";
+    running.data.preflight_at_unix_ms = 1786406401000;
+    running.data.account_connected = true;
+    running.data.account_can_trade_verified = true;
+    running.data.runtime_started = true;
+    running.data.market_data_connected = true;
+    running.data.runtime_node_id = running.data.run_id;
+    running.data.runtime_process_state = "running";
+    running.data.runtime_error = null;
+    running.data.audit_anchor.revision = 3;
+    running.data.audit_anchor.workspace_revision = 3;
+    running.data.audit_anchor.receipt_ref = `sha256:${"f".repeat(64)}`;
+    running.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+
+    const result = await createProductApiClient({
+      fetch: jsonFetch(running),
+    }).actOnLiveRunCandidate(running.data.run_id, "start_market_data");
+    expect(result.data.lifecycle).toBe("market_data_running");
+    expect(result.data.market_data_connected).toBe(true);
+    expect(result.data.order_admission.status).toBe("blocked");
+    expect(result.boundaries.live_runtime_start_allowed).toBe(true);
+    expect(result.boundaries.external_market_data_connection_allowed).toBe(
+      true,
+    );
+    expect(result.boundaries.order_submission_allowed).toBe(false);
+    expect(result.boundaries.automatic_retry_allowed).toBe(false);
+  });
+
   it.each([
     [
       "runtime started",

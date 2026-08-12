@@ -2784,7 +2784,7 @@
       },
       "LiveRunCandidateAction": {
         "type": "string",
-        "enum": ["preflight", "stop"]
+        "enum": ["preflight", "start_market_data", "stop"]
       },
       "LiveRunCandidateActionRequest": {
         "type": "object",
@@ -2798,7 +2798,7 @@
       },
       "LiveRunCandidateLifecycle": {
         "type": "string",
-        "enum": ["created", "preflight_ready", "stopped"]
+        "enum": ["created", "preflight_ready", "starting", "market_data_running", "stopping", "stopped", "failed"]
       },
       "LiveOrderAdmissionSnapshot": {
         "type": "object",
@@ -2842,7 +2842,7 @@
       "LiveRunCandidate": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "audit_anchor", "order_admission", "source_refs"],
+        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "market_data_connected", "runtime_node_id", "runtime_process_state", "runtime_error", "audit_anchor", "order_admission", "source_refs"],
         "properties": {
           "run_id": { "$ref": "#/components/schemas/RunId" },
           "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
@@ -2856,7 +2856,11 @@
           "stopped_at_unix_ms": { "type": ["integer", "null"], "minimum": 1 },
           "account_connected": { "type": "boolean" },
           "account_can_trade_verified": { "type": "boolean" },
-          "runtime_started": { "const": false },
+          "runtime_started": { "type": "boolean" },
+          "market_data_connected": { "type": "boolean" },
+          "runtime_node_id": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+          "runtime_process_state": { "enum": ["not_started", "running", "stopped", "stale", "unknown", "unavailable"] },
+          "runtime_error": { "type": ["string", "null"], "minLength": 1, "maxLength": 512 },
           "audit_anchor": { "$ref": "#/components/schemas/LiveRunAuditAnchorSnapshot" },
           "order_admission": { "$ref": "#/components/schemas/LiveOrderAdmissionSnapshot" },
           "source_refs": {
@@ -2910,6 +2914,15 @@
                   "account_connected": { "const": true },
                   "account_can_trade_verified": { "const": true }
                 }
+              },
+              {
+                "properties": {
+                  "lifecycle": { "enum": ["starting", "market_data_running", "stopping", "failed"] },
+                  "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "stopped_at_unix_ms": { "type": "null" },
+                  "account_connected": { "const": true },
+                  "account_can_trade_verified": { "const": true }
+                }
               }
             ]
           }
@@ -2923,8 +2936,8 @@
           "candidate_creation_allowed": { "const": true },
           "explicit_preflight_allowed": { "const": true },
           "manual_stop_allowed": { "const": true },
-          "live_runtime_start_allowed": { "const": false },
-          "external_market_data_connection_allowed": { "const": false },
+          "live_runtime_start_allowed": { "const": true },
+          "external_market_data_connection_allowed": { "const": true },
           "order_endpoint_access_allowed": { "const": false },
           "order_submission_allowed": { "const": false },
           "cancel_order_allowed": { "const": false },
