@@ -525,6 +525,9 @@ pub struct LiveNodeConfig {
     /// The timeout to await pending tasks cancellation during shutdown.
     #[builder(default = Duration::from_secs(5))]
     pub timeout_shutdown: Duration,
+    /// If the node should shut down when any registered data client disconnects.
+    #[builder(default)]
+    pub shutdown_on_data_disconnect: bool,
     /// The cache configuration.
     pub cache: Option<CacheConfig>,
     /// The message bus configuration.

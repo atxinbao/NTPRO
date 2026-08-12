@@ -2143,7 +2143,7 @@
       </nav>
       <a class="nav-link" href="changelog.html">项目变更记录</a>
       <div class="sidebar-note">
-        产品说明只讲策略人员如何完成闭环；技术说明解释引擎、节点和当前边界。Live 是正式目标，但尚未开放真实交易。
+        产品说明只讲策略人员如何完成闭环；技术说明解释引擎、节点和当前边界。Live 生产行情正在建设，真实订单仍未开放。
       </div>
     </aside>
 
@@ -2158,7 +2158,7 @@
           <div class="status-row" aria-label="项目状态">
             <span class="status ok">Backtest：Rust 引擎已存在</span>
             <span class="status ok">Demo：单节点 Sandbox MVP 已冻结</span>
-            <span class="status info">Live：正式产品目标，当前未开放</span>
+            <span class="status info">Live：生产行情可显式启动，订单未开放</span>
             <span class="status info">当前真实订单权限为 false</span>
           </div>
 
@@ -2225,7 +2225,7 @@
           <div class="mvp-principles" aria-label="策略运行模式合同">
             <div class="mvp-principle"><small>BACKTEST</small><strong>历史验证</strong><span>历史数据 + BacktestEngine + 模拟撮合；当前已有 Rust 底层能力，产品闭环待整合。</span></div>
             <div class="mvp-principle"><small>DEMO / SANDBOX</small><strong>实时验证</strong><span>实时或沙盒数据 + LiveNode + 模拟执行；当前单节点 MVP 已完成并冻结。</span></div>
-            <div class="mvp-principle"><small>LIVE</small><strong>真实交易</strong><span>实时数据 + 同一 LiveNode 语义 + 真实适配器和账户；正式目标，当前未开放。</span></div>
+            <div class="mvp-principle"><small>LIVE</small><strong>真实交易</strong><span>实时数据 + 同一 LiveNode 语义 + 真实适配器和账户；生产行情 Runtime 正在建设，执行与订单未开放。</span></div>
           </div>
 
           <div class="handoff-strip" aria-label="策略三模式关系">
@@ -2236,7 +2236,7 @@
 
           <div class="summary-callout">
             <strong>当前状态必须如实显示</strong>
-            产品导航可以出现 Live，但当前必须显示“未开放”，不得渲染真实启动、下单、撤单、改单或平仓入口。Live 产品能力需要在后续高风险任务中独立实现和验收。
+            产品导航可以出现 Live，并提供通过独立准入后的生产行情显式启动和人工停止；不得渲染下单、撤单、改单或平仓入口。真实执行能力必须在后续高风险任务中独立实现和验收。
           </div>
         </section>
 
@@ -2273,7 +2273,7 @@
                 <span data-short="险">风险</span>
                 <span data-short="态">系统状态</span>
               </nav>
-              <div class="product-rail-foot"><span>● Demo 在线</span><small>Live 未开放</small></div>
+              <div class="product-rail-foot"><span>● Demo 在线</span><small>Live 行情受控</small></div>
             </aside>
 
             <div class="product-stage">
@@ -2288,7 +2288,7 @@
               <nav class="product-tabs" aria-label="策略运行模式">
                 <span class="product-tab">Backtest · 已完成</span>
                 <span class="product-tab active"><em></em>Demo · 运行中</span>
-                <span class="product-tab">Live · 未开放</span>
+                <span class="product-tab">Live · 行情受控</span>
                 <span class="product-tab">运行对比</span>
               </nav>
 
@@ -2302,7 +2302,7 @@
                     <div class="product-metric"><span>当前 Run</span><strong>RUN-D-1042</strong><small>运行 03:42:18</small></div>
                     <div class="product-metric"><span>累计收益</span><strong>+8.42%</strong><small>Backtest +11.06%</small></div>
                     <div class="product-metric"><span>最大回撤</span><strong>-2.18%</strong><small>限额 -6.00%</small></div>
-                    <div class="product-metric"><span>Live 准入</span><strong>未开放</strong><small class="warn">真实权限为 false</small></div>
+                    <div class="product-metric"><span>Live 准入</span><strong>行情可启动</strong><small class="warn">订单权限为 false</small></div>
                   </div>
                   <div class="product-grid">
                     <section class="product-panel">
@@ -2314,7 +2314,7 @@
                       <div class="product-priority">
                         <div><strong>Backtest 已完成</strong><span>历史回放、交易明细和风险结果已留证。</span></div>
                         <div class="warning"><strong>Demo 正在观察</strong><span>验证实时数据、订单语义和运行稳定性。</span></div>
-                        <div class="critical"><strong>Live 尚未开放</strong><span>真实适配器、账户、Venue、风控和授权仍待实现。</span></div>
+                        <div class="critical"><strong>Live 订单尚未开放</strong><span>生产行情可由用户显式启动；执行适配器和订单权限仍待独立实现。</span></div>
                       </div>
                     </section>
                   </div>
@@ -2378,7 +2378,7 @@
                 <dt>独立运行</dt><dd>每次 Run 分别记录 Environment、数据、账户、Venue、适配器、权限和结果</dd>
                 <dt>一致语义</dt><dd>订单、成交、持仓、风险和证据格式在三种模式中保持一致</dd>
                 <dt>独立准入</dt><dd>Demo 通过不自动开启 Live；真实订单必须由后续能力单独授权</dd>
-                <dt>如实呈现</dt><dd>当前 Live 显示为未开放，不渲染可执行真实交易控件</dd>
+                <dt>如实呈现</dt><dd>当前 Live 只开放生产行情启动，不渲染可执行真实交易控件</dd>
               </dl>
             </article>
           </div>
@@ -2408,7 +2408,7 @@
 
           <div class="summary-callout">
             <strong>三模式与代码的对应关系</strong>
-            <code>Environment</code> 已定义 Backtest、Sandbox、Live；历史回放由 <code>BacktestEngine</code> 承载，Demo 与 Live 共享 <code>LiveNode</code> 的实时运行语义。当前 CLI 只构建 Sandbox 节点，真实 Live 的适配器、账户、Venue 和订单权限尚未接入。
+            <code>Environment</code> 已定义 Backtest、Sandbox、Live；历史回放由 <code>BacktestEngine</code> 承载，Demo 与 Live 共享 <code>LiveNode</code> 的实时运行语义。当前 CLI 已能构建只含 Binance Spot 生产行情客户端的 Live 节点；执行客户端、订单 endpoint 和真实订单权限尚未接入。
           </div>
 
           <details class="technical-details">
@@ -2665,7 +2665,7 @@
                   <li>建立 Live 独立准入、最小权限、幂等、审计、恢复和回滚证据。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-004 已完成独立准入、生产账户只读结果和 Live Run 候选生命周期。S3-LV-005 已完成工作区外单调审计锚点、签名回执和完整本地旧快照恢复检测的本地实现，当前等待独立审查与远程检查；候选不会启动真实 Runtime，订单接口与真实订单仍保持阻断。</div>
+              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-005 已完成独立准入、生产账户只读结果、Live Run 候选生命周期和外部不可变审计锚点。S3-LV-006 正在接入由 Supervisor 管理的真实 Live 生产行情 Runtime；订单接口、执行客户端与真实订单仍保持阻断。</div>
               <div class="exit-gate"><strong>退出条件</strong>真实账户和 Venue 在独立授权下完成受控端到端交易；异常、断连、重复回报和恢复场景 fail closed，并证明不会由 Demo 自动继承权限。</div>
             </article>
 
@@ -2686,7 +2686,7 @@
           </div>
 
           <div class="decision-grid">
-            <div class="decision"><h3>当前推进 S3</h3><p>S0-S2 已完成；真实账户只读结果已经稳定，当前先建立 Live Run 候选与独立预检，再分别建设真实 Runtime 和订单生命周期。</p></div>
+            <div class="decision"><h3>当前推进 S3</h3><p>S0-S2 与 Live 独立准入/审计基础已完成；当前先交付生产行情 Runtime，再独立建设真实订单生命周期。</p></div>
             <div class="decision"><h3>Live 不是 Sandbox 开关</h3><p>策略代码相同，但真实数据、执行、账户、风控、授权和故障处置必须单独建设。</p></div>
             <div class="decision"><h3>平台化后置</h3><p>多机构、多节点、集中运维和复杂角色治理在策略三模式闭环完成后再独立规划。</p></div>
           </div>
@@ -2813,7 +2813,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 边界与验证</p>
-              <h2>Demo 基线已冻结，Live 目标尚未实现</h2>
+              <h2>Demo 基线已冻结，Live 生产行情正在建设</h2>
               <p class="section-intro">权威边界来自 <code>docs/product/mvp_freeze_manifest.json</code>。当前冻结拓扑为一个 Supervisor、一个节点、一个策略实例、一个账户、一个 Venue 和 sandbox 环境。</p>
             </div>
           </div>
@@ -2822,7 +2822,7 @@
             <span class="status ok">M0-M4 complete / frozen</span>
             <span class="status info">机构工作台只读</span>
             <span class="status info">控制中心仅 start / stop</span>
-            <span class="status info">真实订单与外部 Venue 关闭</span>
+            <span class="status info">生产行情受控，真实订单关闭</span>
             <span class="status info">Live 是 S3 必达目标</span>
             <span class="status info">多节点编排与自动恢复关闭</span>
           </div>
@@ -2918,7 +2918,7 @@
           </ul>
           </details>
 
-          <p class="footer-note">项目说明版本：第十七版 · 更新日期：2026-08-12 · 执行者：Codex · 当前北极星为同一策略的 Backtest / Demo / Live 三模式闭环 · Demo 单节点 MVP M0-M4 已冻结 · Live 账户与原生资产只读结果正在产品化，真实订单尚未开放 · 正式发布基线：v0.33.0</p>
+          <p class="footer-note">项目说明版本：第十八版 · 更新日期：2026-08-12 · 执行者：Codex · 当前北极星为同一策略的 Backtest / Demo / Live 三模式闭环 · Demo 单节点 MVP M0-M4 已冻结 · Live 生产行情 Runtime 正在产品化，真实订单尚未开放 · 正式发布基线：v0.33.0</p>
         </section>
       </div>
     </main>
@@ -3050,7 +3050,7 @@
           head: ['时间', '级别', 'Run', '事件', '结果', '来源'],
           rows: [
             ['20:52:18', '信息', 'RUN-D-1042', '状态刷新', '已接受', '<strong>策略运行投影</strong>'],
-            ['20:51:44', '关注', 'RUN-D-1042', 'Live 准入检查', '未开放', '<strong>冻结边界</strong>'],
+            ['20:51:44', '关注', 'RUN-D-1042', 'Live 准入检查', '订单未开放', '<strong>冻结边界</strong>'],
           ],
         },
       },

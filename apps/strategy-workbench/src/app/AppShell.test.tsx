@@ -470,7 +470,7 @@ describe("strategy workbench product slice", () => {
     ).toBeDisabled();
   });
 
-  it("creates, preflights and manually stops a Live Run candidate", async () => {
+  it("creates, preflights, starts market data and manually stops a Live Run candidate", async () => {
     let currentCandidate: Record<string, any> | null = null;
     let listGets = 0;
     server.use(
@@ -497,7 +497,7 @@ describe("strategy workbench product slice", () => {
         "/api/product/v1/live-run-candidates/:runId/actions",
         async ({ request }) => {
           const body = (await request.json()) as {
-            action: "preflight" | "stop";
+            action: "preflight" | "start_market_data" | "stop";
           };
           currentCandidate ??= structuredClone(liveRunCandidateFixture);
           currentCandidate.schema_version =
@@ -511,13 +511,29 @@ describe("strategy workbench product slice", () => {
             currentCandidate.data.audit_anchor.workspace_revision = 1;
             currentCandidate.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
             currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
+          } else if (body.action === "start_market_data") {
+            currentCandidate.data.lifecycle = "market_data_running";
+            currentCandidate.data.runtime_started = true;
+            currentCandidate.data.market_data_connected = true;
+            currentCandidate.data.runtime_node_id =
+              currentCandidate.data.run_id;
+            currentCandidate.data.runtime_process_state = "running";
+            currentCandidate.data.runtime_error = null;
+            currentCandidate.data.audit_anchor.revision = 3;
+            currentCandidate.data.audit_anchor.workspace_revision = 3;
+            currentCandidate.data.audit_anchor.receipt_ref = `sha256:${"f".repeat(64)}`;
+            currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
           } else {
             currentCandidate.data.lifecycle = "stopped";
-            currentCandidate.data.stopped_at_unix_ms = 1786406402000;
-            currentCandidate.data.audit_anchor.revision = 2;
-            currentCandidate.data.audit_anchor.workspace_revision = 2;
+            currentCandidate.data.stopped_at_unix_ms = 1786406403000;
+            currentCandidate.data.runtime_started = false;
+            currentCandidate.data.market_data_connected = false;
+            currentCandidate.data.runtime_process_state = "stopped";
+            currentCandidate.data.runtime_error = null;
+            currentCandidate.data.audit_anchor.revision = 5;
+            currentCandidate.data.audit_anchor.workspace_revision = 5;
             currentCandidate.data.audit_anchor.receipt_ref = `sha256:${"e".repeat(64)}`;
-            currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+            currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406403000;
           }
           return HttpResponse.json(currentCandidate);
         },
@@ -534,13 +550,24 @@ describe("strategy workbench product slice", () => {
     );
     expect(await within(region).findByText("created")).toBeInTheDocument();
     expect(within(region).getByText("真实 Runtime")).toBeInTheDocument();
-    expect(within(region).getByText("未启动")).toBeInTheDocument();
+    expect(within(region).getByText("未运行")).toBeInTheDocument();
     await userEvent.click(
       within(region).getByRole("button", { name: "执行启动前检查" }),
     );
     expect(
       await within(region).findByText("preflight_ready"),
     ).toBeInTheDocument();
+    await userEvent.click(
+      within(region).getByRole("button", { name: "启动生产行情" }),
+    );
+    expect(
+      await within(region).findByText("market_data_running"),
+    ).toBeInTheDocument();
+    expect(within(region).getByText("运行中")).toBeInTheDocument();
+    expect(within(region).getByText("已连接")).toBeInTheDocument();
+    expect(
+      within(region).queryByRole("button", { name: /下单|撤单|改单|平仓/ }),
+    ).not.toBeInTheDocument();
     const listGetsBeforeStop = listGets;
     await userEvent.click(
       within(region).getByRole("button", { name: "人工停止候选" }),

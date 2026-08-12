@@ -878,7 +878,11 @@ export const zCreateLiveRunCandidateRequest = z.object({
   user_confirmed: z.literal(true),
 });
 
-export const zLiveRunCandidateAction = z.enum(["preflight", "stop"]);
+export const zLiveRunCandidateAction = z.enum([
+  "preflight",
+  "start_market_data",
+  "stop",
+]);
 
 export const zLiveRunCandidateActionRequest = z.object({
   run_id: zRunId,
@@ -889,7 +893,11 @@ export const zLiveRunCandidateActionRequest = z.object({
 export const zLiveRunCandidateLifecycle = z.enum([
   "created",
   "preflight_ready",
+  "starting",
+  "market_data_running",
+  "stopping",
   "stopped",
+  "failed",
 ]);
 
 export const zLiveOrderAdmissionSnapshot = z.object({
@@ -925,6 +933,11 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.null().optional(),
       account_connected: z.literal(false).optional(),
       account_can_trade_verified: z.literal(false).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_node_id: z.null().optional(),
+      runtime_process_state: z.literal("not_started").optional(),
+      runtime_error: z.null().optional(),
     }),
     z.object({
       lifecycle: z.literal("preflight_ready").optional(),
@@ -932,6 +945,11 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.null().optional(),
       account_connected: z.literal(true).optional(),
       account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_node_id: z.null().optional(),
+      runtime_process_state: z.literal("not_started").optional(),
+      runtime_error: z.null().optional(),
     }),
     z.object({
       lifecycle: z.literal("stopped").optional(),
@@ -939,6 +957,9 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.int().gte(1).optional(),
       account_connected: z.literal(false).optional(),
       account_can_trade_verified: z.literal(false).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_error: z.null().optional(),
     }),
     z.object({
       lifecycle: z.literal("stopped").optional(),
@@ -946,6 +967,55 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.int().gte(1).optional(),
       account_connected: z.literal(true).optional(),
       account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_error: z.null().optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("starting").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_error: z.null().optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("market_data_running").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(true).optional(),
+      market_data_connected: z.literal(true).optional(),
+      runtime_node_id: z
+        .string()
+        .regex(/^[A-Za-z0-9._-]{1,128}$/)
+        .optional(),
+      runtime_process_state: z.literal("running").optional(),
+      runtime_error: z.null().optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("stopping").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+      runtime_node_id: z
+        .string()
+        .regex(/^[A-Za-z0-9._-]{1,128}$/)
+        .optional(),
+      runtime_error: z.null().optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("failed").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
     }),
   ]),
   z.object({
@@ -961,7 +1031,21 @@ export const zLiveRunCandidate = z.intersection(
     stopped_at_unix_ms: z.int().gte(1).nullable(),
     account_connected: z.boolean(),
     account_can_trade_verified: z.boolean(),
-    runtime_started: z.literal(false),
+    runtime_started: z.boolean(),
+    market_data_connected: z.boolean(),
+    runtime_node_id: z
+      .string()
+      .regex(/^[A-Za-z0-9._-]{1,128}$/)
+      .nullable(),
+    runtime_process_state: z.enum([
+      "not_started",
+      "running",
+      "stopped",
+      "stale",
+      "unknown",
+      "unavailable",
+    ]),
+    runtime_error: z.string().min(1).max(512).nullable(),
     audit_anchor: zLiveRunAuditAnchorSnapshot,
     order_admission: zLiveOrderAdmissionSnapshot,
     source_refs: z.tuple([
@@ -977,8 +1061,8 @@ export const zLiveRunCandidateBoundaries = z.object({
   candidate_creation_allowed: z.literal(true),
   explicit_preflight_allowed: z.literal(true),
   manual_stop_allowed: z.literal(true),
-  live_runtime_start_allowed: z.literal(false),
-  external_market_data_connection_allowed: z.literal(false),
+  live_runtime_start_allowed: z.literal(true),
+  external_market_data_connection_allowed: z.literal(true),
   order_endpoint_access_allowed: z.literal(false),
   order_submission_allowed: z.literal(false),
   cancel_order_allowed: z.literal(false),

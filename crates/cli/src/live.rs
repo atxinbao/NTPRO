@@ -19,13 +19,26 @@ use std::{
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
+    str::FromStr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use anyhow::Context;
 use aws_lc_rs::digest;
-use nautilus_binance::common::{consts::BINANCE_API_KEY_HEADER, credential::SigningCredential};
-use nautilus_common::enums::Environment;
+use nautilus_binance::{
+    common::{
+        consts::BINANCE_API_KEY_HEADER,
+        credential::SigningCredential,
+        enums::{BinanceEnvironment, BinanceProductType},
+    },
+    config::BinanceDataClientConfig,
+    factories::BinanceDataClientFactory,
+};
+use nautilus_common::{
+    actor::{DataActor, DataActorCore, data_actor::DataActorConfig},
+    enums::Environment,
+    nautilus_actor,
+};
 use nautilus_core::string::urlencoding;
 use nautilus_live::{
     node::{LiveNode, NodeState},
@@ -34,7 +47,8 @@ use nautilus_live::{
     },
 };
 use nautilus_model::{
-    identifiers::{AccountId, TraderId, Venue},
+    data::{QuoteTick, TradeTick},
+    identifiers::{AccountId, ClientId, InstrumentId, TraderId, Venue},
     types::Money,
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
@@ -88,11 +102,18 @@ use crate::{
 mod command;
 mod node_runtime;
 
-use node_runtime::{run_live_run_with_command, run_strategy_session_node_with_command};
+use node_runtime::{
+    run_live_run_with_command, run_production_market_data_node_with_command,
+    run_strategy_session_node_with_command,
+};
 
 pub(crate) use command::run_live_command;
 
 const LIVE_INIT_SMOKE_MODE: &str = "live-init-smoke";
+const PRODUCTION_MARKET_DATA_MODE: &str = "production-market-data";
+const PRODUCTION_MARKET_DATA_SCHEMA_VERSION: &str = "ntpro.live_market_data_node.v1";
+const LIVE_ENVIRONMENT: &str = "live";
+const BINANCE_SPOT_PRODUCT_TYPE: &str = "spot";
 const STRATEGY_SESSION_SHADOW_MODE: &str = "shadow";
 const BUILTIN_STRATEGY_PACKAGE: &str = "builtin";
 const EMA_CROSS_DEMO_STRATEGY: &str = "ema_cross_demo";
@@ -348,6 +369,111 @@ struct LiveShutdownConfig {
 struct LiveOutputConfig {
     dir: Option<PathBuf>,
     write_summary: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionMarketDataNodeConfig {
+    live_market_data: ProductionMarketDataSection,
+    shutdown: LiveShutdownConfig,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionMarketDataSection {
+    schema_version: String,
+    mode: String,
+    environment: String,
+    node_id: String,
+    trader_id: String,
+    venue: String,
+    product_type: String,
+    symbols: Vec<String>,
+    api_key_env: String,
+    api_secret_env: String,
+    execution_client_enabled: bool,
+    order_endpoint_access_allowed: bool,
+    order_submission_allowed: bool,
+    automatic_reconnect_allowed: bool,
+}
+
+#[derive(Debug)]
+struct ProductionMarketDataActor {
+    core: DataActorCore,
+    client_id: ClientId,
+    instrument_ids: Vec<InstrumentId>,
+    quote_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    trade_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    last_event_unix_ms: std::sync::Arc<std::sync::atomic::AtomicU64>,
+}
+
+nautilus_actor!(ProductionMarketDataActor);
+
+impl ProductionMarketDataActor {
+    fn new(client_id: ClientId, instrument_ids: Vec<InstrumentId>) -> Self {
+        Self {
+            core: DataActorCore::new(DataActorConfig::default()),
+            client_id,
+            instrument_ids,
+            quote_count: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            trade_count: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            last_event_unix_ms: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        }
+    }
+
+    fn counters(
+        &self,
+    ) -> (
+        std::sync::Arc<std::sync::atomic::AtomicU64>,
+        std::sync::Arc<std::sync::atomic::AtomicU64>,
+        std::sync::Arc<std::sync::atomic::AtomicU64>,
+    ) {
+        (
+            self.quote_count.clone(),
+            self.trade_count.clone(),
+            self.last_event_unix_ms.clone(),
+        )
+    }
+
+    fn record_quote_event(&self) {
+        self.quote_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.record_market_event_time();
+    }
+
+    fn record_trade_event(&self) {
+        self.trade_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.record_market_event_time();
+    }
+
+    fn record_market_event_time(&self) {
+        let observed_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |duration| millis_to_u64(duration.as_millis()));
+        self.last_event_unix_ms
+            .store(observed_at, std::sync::atomic::Ordering::Release);
+    }
+}
+
+impl DataActor for ProductionMarketDataActor {
+    fn on_start(&mut self) -> anyhow::Result<()> {
+        for instrument_id in self.instrument_ids.clone() {
+            self.subscribe_quotes(instrument_id, Some(self.client_id), None);
+            self.subscribe_trades(instrument_id, Some(self.client_id), None);
+        }
+        Ok(())
+    }
+
+    fn on_quote(&mut self, _quote: &QuoteTick) -> anyhow::Result<()> {
+        self.record_quote_event();
+        Ok(())
+    }
+
+    fn on_trade(&mut self, _trade: &TradeTick) -> anyhow::Result<()> {
+        self.record_trade_event();
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -19473,6 +19599,16 @@ pub(crate) async fn run_ntpro_node_with_controls(
     stop_file: Option<PathBuf>,
     controls: NtproNodeRunControls,
 ) -> anyhow::Result<()> {
+    if is_production_market_data_node_config(&config)? {
+        return run_production_market_data_node_with_command(
+            &config,
+            run_id.as_deref(),
+            output.as_deref(),
+            stop_file.as_deref(),
+            controls,
+        )
+        .await;
+    }
     if is_strategy_session_node_config(&config)? {
         return run_strategy_session_node_with_command(
             &LiveRunOpt {
@@ -19500,6 +19636,99 @@ pub(crate) async fn run_ntpro_node_with_controls(
         controls,
     )
     .await
+}
+
+fn is_production_market_data_node_config(path: &Path) -> anyhow::Result<bool> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read ntpro-node config '{}'", path.display()))?;
+    let value: toml::Value = toml::from_str(&raw)
+        .with_context(|| format!("failed to parse ntpro-node config '{}'", path.display()))?;
+    Ok(value.get("live_market_data").is_some())
+}
+
+fn load_production_market_data_node_config(
+    path: &Path,
+) -> anyhow::Result<ProductionMarketDataNodeConfig> {
+    let raw = fs::read_to_string(path).with_context(|| {
+        format!(
+            "failed to read production market data config '{}'",
+            path.display()
+        )
+    })?;
+    let config: ProductionMarketDataNodeConfig = toml::from_str(&raw).with_context(|| {
+        format!(
+            "failed to parse production market data config '{}'",
+            path.display()
+        )
+    })?;
+    validate_production_market_data_node_config(&config)?;
+    Ok(config)
+}
+
+fn validate_production_market_data_node_config(
+    config: &ProductionMarketDataNodeConfig,
+) -> anyhow::Result<()> {
+    let market = &config.live_market_data;
+    validate_exact(
+        "live_market_data.schema_version",
+        &market.schema_version,
+        PRODUCTION_MARKET_DATA_SCHEMA_VERSION,
+    )?;
+    validate_exact(
+        "live_market_data.mode",
+        &market.mode,
+        PRODUCTION_MARKET_DATA_MODE,
+    )?;
+    validate_exact(
+        "live_market_data.environment",
+        &market.environment,
+        LIVE_ENVIRONMENT,
+    )?;
+    validate_non_empty("live_market_data.node_id", &market.node_id)?;
+    validate_non_empty("live_market_data.trader_id", &market.trader_id)?;
+    validate_exact("live_market_data.venue", &market.venue, "BINANCE")?;
+    validate_exact(
+        "live_market_data.product_type",
+        &market.product_type,
+        BINANCE_SPOT_PRODUCT_TYPE,
+    )?;
+    if market.symbols.is_empty() || market.symbols.len() > 32 {
+        anyhow::bail!("production market data symbols must contain between 1 and 32 entries");
+    }
+    let mut symbols = BTreeSet::new();
+    for symbol in &market.symbols {
+        let instrument_id = InstrumentId::from_str(symbol)
+            .with_context(|| format!("invalid production market data symbol '{symbol}'"))?;
+        if instrument_id.venue != Venue::from("BINANCE") || !symbols.insert(symbol) {
+            anyhow::bail!("production market data symbols must be unique Binance instruments");
+        }
+    }
+    validate_exact(
+        "live_market_data.api_key_env",
+        &market.api_key_env,
+        "NTPRO_BINANCE_LIVE_API_KEY",
+    )?;
+    validate_exact(
+        "live_market_data.api_secret_env",
+        &market.api_secret_env,
+        "NTPRO_BINANCE_LIVE_API_SECRET",
+    )?;
+    if market.execution_client_enabled
+        || market.order_endpoint_access_allowed
+        || market.order_submission_allowed
+        || market.automatic_reconnect_allowed
+    {
+        anyhow::bail!(
+            "production market data Runtime requires execution, order access, submission and automatic reconnect to remain false"
+        );
+    }
+    validate_exact("shutdown.mode", &config.shutdown.mode, START_STOP_SHUTDOWN)?;
+    if config.shutdown.connection_timeout_secs == 0
+        || config.shutdown.disconnection_timeout_secs == 0
+    {
+        anyhow::bail!("production market data connection timeouts must be greater than zero");
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_minimal_live_config_file(path: &Path) -> anyhow::Result<()> {

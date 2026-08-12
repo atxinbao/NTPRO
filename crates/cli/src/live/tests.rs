@@ -25,6 +25,10 @@ use crate::strategy_session::{
 fn live_module_ownership_boundaries_are_explicit() {
     let root = include_str!("../live.rs");
     let runtime = include_str!("node_runtime.rs");
+    let production_runtime = runtime
+        .split("async fn run_live_init_smoke")
+        .next()
+        .expect("production runtime source should precede sandbox smoke");
 
     assert!(root.contains("mod node_runtime;"));
     assert!(root.contains("#[path = \"live/tests.rs\"]"));
@@ -34,6 +38,9 @@ fn live_module_ownership_boundaries_are_explicit() {
     assert!(runtime.contains("//! Live and sandbox node runtime lifecycle."));
     assert!(runtime.contains("pub(super) async fn run_live_run_with_command("));
     assert!(runtime.contains("async fn wait_for_shutdown_signal()"));
+    assert!(production_runtime.contains("let run_future = node.run();"));
+    assert!(production_runtime.contains("node.add_actor(actor)?;"));
+    assert!(!production_runtime.contains("node.start().await"));
 }
 
 #[test]
@@ -14548,4 +14555,85 @@ fn rejects_external_venue_connection() {
         .to_string();
 
     assert!(error.contains("execution.external_venue_connection must be false"));
+}
+
+fn production_market_data_config(node_id: &str) -> String {
+    format!(
+        "[live_market_data]\n\
+         schema_version = \"ntpro.live_market_data_node.v1\"\n\
+         mode = \"production-market-data\"\n\
+         environment = \"live\"\n\
+         node_id = \"{node_id}\"\n\
+         trader_id = \"TRADER-001\"\n\
+         venue = \"BINANCE\"\n\
+         product_type = \"spot\"\n\
+         symbols = [\"BTCUSDT.BINANCE\"]\n\
+         api_key_env = \"NTPRO_BINANCE_LIVE_API_KEY\"\n\
+         api_secret_env = \"NTPRO_BINANCE_LIVE_API_SECRET\"\n\
+         execution_client_enabled = false\n\
+         order_endpoint_access_allowed = false\n\
+         order_submission_allowed = false\n\
+         automatic_reconnect_allowed = false\n\n\
+         [shutdown]\n\
+         mode = \"start-stop\"\n\
+         post_stop_delay_secs = 0\n\
+         connection_timeout_secs = 10\n\
+         disconnection_timeout_secs = 10\n"
+    )
+}
+
+#[test]
+fn production_market_data_config_is_live_data_only() {
+    let path = write_config(
+        "production-market-data",
+        &production_market_data_config("live-market-data-001"),
+    );
+    let config = load_production_market_data_node_config(&path).unwrap();
+
+    assert_eq!(config.live_market_data.environment, "live");
+    assert_eq!(config.live_market_data.venue, "BINANCE");
+    assert_eq!(
+        config.live_market_data.symbols,
+        ["BTCUSDT.BINANCE".to_string()]
+    );
+    assert!(!config.live_market_data.execution_client_enabled);
+    assert!(!config.live_market_data.order_endpoint_access_allowed);
+    assert!(!config.live_market_data.order_submission_allowed);
+    assert!(!config.live_market_data.automatic_reconnect_allowed);
+}
+
+#[test]
+fn production_market_data_config_rejects_execution_or_order_capability() {
+    for field in [
+        "execution_client_enabled",
+        "order_endpoint_access_allowed",
+        "order_submission_allowed",
+        "automatic_reconnect_allowed",
+    ] {
+        let config = production_market_data_config("live-market-data-002")
+            .replace(&format!("{field} = false"), &format!("{field} = true"));
+        let path = write_config(field, &config);
+        let error = load_production_market_data_node_config(&path)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(
+            "requires execution, order access, submission and automatic reconnect to remain false"
+        ));
+    }
+}
+
+#[test]
+fn production_market_data_actor_records_consumed_quote_and_trade_events() {
+    let actor = ProductionMarketDataActor::new(
+        ClientId::from("BINANCE"),
+        vec![InstrumentId::from_str("BTCUSDT.BINANCE").unwrap()],
+    );
+    let (quote_count, trade_count, last_event_unix_ms) = actor.counters();
+
+    actor.record_quote_event();
+    actor.record_trade_event();
+
+    assert_eq!(quote_count.load(std::sync::atomic::Ordering::Acquire), 1);
+    assert_eq!(trade_count.load(std::sync::atomic::Ordering::Acquire), 1);
+    assert!(last_event_unix_ms.load(std::sync::atomic::Ordering::Acquire) > 0);
 }

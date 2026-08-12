@@ -166,6 +166,69 @@ describe("product API generated client", () => {
     expect(result.boundaries.order_submission_allowed).toBe(false);
   });
 
+  it("accepts an explicitly started production market-data Runtime with orders blocked", async () => {
+    const running: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    running.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    running.data.lifecycle = "market_data_running";
+    running.data.preflight_at_unix_ms = 1786406401000;
+    running.data.account_connected = true;
+    running.data.account_can_trade_verified = true;
+    running.data.runtime_started = true;
+    running.data.market_data_connected = true;
+    running.data.runtime_node_id = running.data.run_id;
+    running.data.runtime_process_state = "running";
+    running.data.runtime_error = null;
+    running.data.audit_anchor.revision = 3;
+    running.data.audit_anchor.workspace_revision = 3;
+    running.data.audit_anchor.receipt_ref = `sha256:${"f".repeat(64)}`;
+    running.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+
+    const result = await createProductApiClient({
+      fetch: jsonFetch(running),
+    }).actOnLiveRunCandidate(running.data.run_id, "start_market_data");
+    expect(result.data.lifecycle).toBe("market_data_running");
+    expect(result.data.market_data_connected).toBe(true);
+    expect(result.data.order_admission.status).toBe("blocked");
+    expect(result.boundaries.live_runtime_start_allowed).toBe(true);
+    expect(result.boundaries.external_market_data_connection_allowed).toBe(
+      true,
+    );
+    expect(result.boundaries.order_submission_allowed).toBe(false);
+    expect(result.boundaries.automatic_retry_allowed).toBe(false);
+  });
+
+  it("accepts a running Live Runtime failure anchored at revision four", async () => {
+    const failed: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    failed.schema_version =
+      "ntpro.product_api.live_run_candidate_detail.response.v1";
+    failed.data.lifecycle = "failed";
+    failed.data.preflight_at_unix_ms = 1786406401000;
+    failed.data.account_connected = true;
+    failed.data.account_can_trade_verified = true;
+    failed.data.runtime_started = false;
+    failed.data.market_data_connected = false;
+    failed.data.runtime_node_id = failed.data.run_id;
+    failed.data.runtime_process_state = "stopped";
+    failed.data.runtime_error = "data client disconnected during live run";
+    failed.data.audit_anchor.revision = 4;
+    failed.data.audit_anchor.workspace_revision = 4;
+    failed.data.audit_anchor.receipt_ref = `sha256:${"9".repeat(64)}`;
+    failed.data.audit_anchor.anchored_at_unix_ms = 1786406403000;
+
+    const result = await createProductApiClient({
+      fetch: jsonFetch(failed),
+    }).getLiveRunCandidate(failed.data.run_id);
+    expect(result.data.lifecycle).toBe("failed");
+    expect(result.data.runtime_started).toBe(false);
+    expect(result.data.runtime_error).toContain("disconnected");
+    expect(result.boundaries.order_submission_allowed).toBe(false);
+  });
+
   it.each([
     [
       "runtime started",

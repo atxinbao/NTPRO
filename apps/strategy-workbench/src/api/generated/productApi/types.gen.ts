@@ -824,7 +824,7 @@ export type CreateLiveRunCandidateRequest = {
   user_confirmed: true;
 };
 
-export type LiveRunCandidateAction = "preflight" | "stop";
+export type LiveRunCandidateAction = "preflight" | "start_market_data" | "stop";
 
 export type LiveRunCandidateActionRequest = {
   run_id: RunId;
@@ -833,7 +833,13 @@ export type LiveRunCandidateActionRequest = {
 };
 
 export type LiveRunCandidateLifecycle =
-  "created" | "preflight_ready" | "stopped";
+  | "created"
+  | "preflight_ready"
+  | "starting"
+  | "market_data_running"
+  | "stopping"
+  | "stopped"
+  | "failed";
 
 export type LiveOrderAdmissionSnapshot = {
   status: "blocked";
@@ -867,6 +873,11 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: null;
       account_connected?: false;
       account_can_trade_verified?: false;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_node_id?: null;
+      runtime_process_state?: "not_started";
+      runtime_error?: null;
     }
   | {
       lifecycle?: "preflight_ready";
@@ -874,6 +885,11 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: null;
       account_connected?: true;
       account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_node_id?: null;
+      runtime_process_state?: "not_started";
+      runtime_error?: null;
     }
   | {
       lifecycle?: "stopped";
@@ -881,6 +897,9 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: number;
       account_connected?: false;
       account_can_trade_verified?: false;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_error?: null;
     }
   | {
       lifecycle?: "stopped";
@@ -888,6 +907,49 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: number;
       account_connected?: true;
       account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_error?: null;
+    }
+  | {
+      lifecycle?: "starting";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_error?: null;
+    }
+  | {
+      lifecycle?: "market_data_running";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+      runtime_started?: true;
+      market_data_connected?: true;
+      runtime_node_id?: string;
+      runtime_process_state?: "running";
+      runtime_error?: null;
+    }
+  | {
+      lifecycle?: "stopping";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+      runtime_node_id?: string;
+      runtime_error?: null;
+    }
+  | {
+      lifecycle?: "failed";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
     }
 ) & {
   run_id: RunId;
@@ -902,7 +964,12 @@ export type LiveRunCandidate = (
   stopped_at_unix_ms: number | null;
   account_connected: boolean;
   account_can_trade_verified: boolean;
-  runtime_started: false;
+  runtime_started: boolean;
+  market_data_connected: boolean;
+  runtime_node_id: string | null;
+  runtime_process_state:
+    "not_started" | "running" | "stopped" | "stale" | "unknown" | "unavailable";
+  runtime_error: string | null;
   audit_anchor: LiveRunAuditAnchorSnapshot;
   order_admission: LiveOrderAdmissionSnapshot;
   source_refs: [string, string, string, ContentHash];
@@ -912,8 +979,8 @@ export type LiveRunCandidateBoundaries = {
   candidate_creation_allowed: true;
   explicit_preflight_allowed: true;
   manual_stop_allowed: true;
-  live_runtime_start_allowed: false;
-  external_market_data_connection_allowed: false;
+  live_runtime_start_allowed: true;
+  external_market_data_connection_allowed: true;
   order_endpoint_access_allowed: false;
   order_submission_allowed: false;
   cancel_order_allowed: false;

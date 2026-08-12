@@ -400,6 +400,12 @@ function assertLiveRunCandidate(
   const boundaries = payload.boundaries;
   const preflightReady = candidate.lifecycle === "preflight_ready";
   const stopped = candidate.lifecycle === "stopped";
+  const runtimeLifecycle = [
+    "starting",
+    "market_data_running",
+    "stopping",
+    "failed",
+  ].includes(candidate.lifecycle);
   const hasPreflight = candidate.preflight_at_unix_ms !== null;
   const lifecycleFieldsValid =
     (candidate.lifecycle === "created" &&
@@ -408,6 +414,11 @@ function assertLiveRunCandidate(
       !candidate.account_connected &&
       !candidate.account_can_trade_verified) ||
     (preflightReady &&
+      hasPreflight &&
+      candidate.stopped_at_unix_ms === null &&
+      candidate.account_connected &&
+      candidate.account_can_trade_verified) ||
+    (runtimeLifecycle &&
       hasPreflight &&
       candidate.stopped_at_unix_ms === null &&
       candidate.account_connected &&
@@ -427,12 +438,36 @@ function assertLiveRunCandidate(
       ? 0
       : candidate.lifecycle === "preflight_ready"
         ? 1
-        : candidate.preflight_at_unix_ms === null
-          ? 1
-          : 2;
+        : candidate.lifecycle === "starting"
+          ? 2
+          : candidate.lifecycle === "market_data_running" ||
+              candidate.lifecycle === "failed"
+            ? 3
+            : candidate.lifecycle === "stopping"
+              ? 4
+              : candidate.preflight_at_unix_ms === null
+                ? 1
+                : candidate.runtime_node_id === null
+                  ? 2
+                  : 5;
+  const runtimeBoundaryValid =
+    candidate.lifecycle === "market_data_running"
+      ? candidate.runtime_started &&
+        candidate.market_data_connected &&
+        candidate.runtime_node_id === candidate.run_id &&
+        candidate.runtime_process_state === "running" &&
+        candidate.runtime_error === null
+      : candidate.lifecycle === "stopping"
+        ? candidate.runtime_node_id === candidate.run_id &&
+          (!candidate.runtime_started ||
+            (candidate.market_data_connected &&
+              candidate.runtime_process_state === "running"))
+        : !candidate.runtime_started && !candidate.market_data_connected;
   const auditAnchorValid =
     candidate.audit_anchor.status === "verified_external_monotonic_anchor" &&
-    candidate.audit_anchor.revision === expectedAnchorRevision &&
+    (candidate.lifecycle === "failed"
+      ? [3, 4].includes(candidate.audit_anchor.revision)
+      : candidate.audit_anchor.revision === expectedAnchorRevision) &&
     Number.isSafeInteger(candidate.audit_anchor.workspace_revision) &&
     candidate.audit_anchor.workspace_revision >=
       candidate.audit_anchor.revision &&
@@ -447,7 +482,7 @@ function assertLiveRunCandidate(
     candidate.environment === "live" &&
       candidate.account_ref === "account://live/binance/primary" &&
       candidate.venue_ref === "venue://live/BINANCE" &&
-      !candidate.runtime_started &&
+      runtimeBoundaryValid &&
       lifecycleFieldsValid &&
       lifecycleTimesValid &&
       auditAnchorValid &&
@@ -459,8 +494,8 @@ function assertLiveRunCandidate(
       boundaries.candidate_creation_allowed &&
       boundaries.explicit_preflight_allowed &&
       boundaries.manual_stop_allowed &&
-      !boundaries.live_runtime_start_allowed &&
-      !boundaries.external_market_data_connection_allowed &&
+      boundaries.live_runtime_start_allowed &&
+      boundaries.external_market_data_connection_allowed &&
       !boundaries.order_endpoint_access_allowed &&
       !boundaries.order_submission_allowed &&
       !boundaries.cancel_order_allowed &&
@@ -617,7 +652,9 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
         payload.data.run_id === runId &&
           (action === "preflight"
             ? payload.data.lifecycle === "preflight_ready"
-            : payload.data.lifecycle === "stopped"),
+            : action === "start_market_data"
+              ? payload.data.lifecycle === "market_data_running"
+              : payload.data.lifecycle === "stopped"),
         "live_run_candidate_action.identity",
       );
       assertLiveRunCandidate(payload, "live_run_candidate_action");

@@ -129,12 +129,13 @@ impl BinanceSpotDataClient {
         .ok();
 
         // SBE streams require Ed25519 authentication
-        let ws_client = BinanceSpotWebSocketClient::new(
+        let ws_client = BinanceSpotWebSocketClient::new_with_reconnect_limit(
             config.base_url_ws.clone(),
             creds.as_ref().map(|(k, _)| k.clone()),
             creds.as_ref().map(|(_, s)| s.clone()),
             Some(20), // Heartbeat interval
             config.transport_backend,
+            config.ws_reconnect_max_attempts,
         )?;
         let data_sender = get_data_event_sender();
 
@@ -478,7 +479,7 @@ impl DataClient for BinanceSpotDataClient {
     }
 
     fn is_connected(&self) -> bool {
-        self.is_connected.load(Ordering::Relaxed)
+        self.is_connected.load(Ordering::Relaxed) && self.ws_client.is_active()
     }
 
     fn is_disconnected(&self) -> bool {

@@ -55,6 +55,11 @@ pub struct BinanceDataClientConfig {
     /// WebSocket transport backend (defaults to `Tungstenite`).
     #[builder(default)]
     pub transport_backend: TransportBackend,
+    /// Maximum Spot market-data WebSocket reconnection attempts.
+    ///
+    /// `None` preserves the adapter default of unlimited reconnects. `Some(0)`
+    /// disables reconnect attempts and closes the transport on the first drop.
+    pub ws_reconnect_max_attempts: Option<u32>,
 }
 
 impl Default for BinanceDataClientConfig {

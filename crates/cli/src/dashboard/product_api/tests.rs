@@ -2493,6 +2493,7 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
             "schema_version": "ntpro.product_api.live_run_candidate_manifest.v1",
             "request_sha256": sha256_bytes_ref(&request_raw),
             "strategy_version_content_hash": version_hash.clone(),
+            "data_symbols": ["BTCUSDT.BINANCE"],
             "run_id": run_id,
             "strategy_id": strategy_id,
             "strategy_version_id": "ema-cross@v1",

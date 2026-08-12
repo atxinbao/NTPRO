@@ -1340,6 +1340,9 @@ impl SupervisorRegistryStore {
             .get_mut(node_id)
             .with_context(|| format!("node '{node_id}' is not registered"))?;
         let process_confirmed_exited = match record.process.state {
+            SupervisorProcessState::NotStarted => {
+                record.last_known_status.lifecycle_state == LifecycleStatus::Stopped
+            }
             SupervisorProcessState::Stopped => {
                 record.last_known_status.lifecycle_state == LifecycleStatus::Stopped
             }
@@ -4130,6 +4133,51 @@ done
             LifecycleStatus::Stopped
         );
         assert_eq!(refreshed.status_artifact, RegistryArtifactState::Available);
+    }
+
+    #[test]
+    fn terminal_anchor_accepts_owned_run_that_failed_before_process_start() {
+        let root = temp_root("owned-run-failed-before-start");
+        let store = SupervisorRegistryStore::new(root.join("registry.json"));
+        let config = write_config(&root, "live-run-a");
+        store
+            .register_node(RegisterNodeRequest {
+                node_id: "live-run-a".to_string(),
+                config_path: config,
+                artifact_root: None,
+            })
+            .unwrap();
+        let manifest_sha256 = format!("sha256:{}", "a".repeat(64));
+        store
+            .claim_run_ownership(
+                "live-run-a",
+                SupervisorRunOwnership {
+                    run_id: "live-run-a".to_string(),
+                    manifest_sha256: manifest_sha256.clone(),
+                    claimed_at_unix_ms: 1,
+                    terminal: None,
+                },
+            )
+            .unwrap();
+        let anchored = store
+            .anchor_run_terminal(
+                "live-run-a",
+                "live-run-a",
+                &manifest_sha256,
+                SupervisorRunTerminalAnchor {
+                    lifecycle: "failed".to_string(),
+                    terminal_state_sha256: format!("sha256:{}", "b".repeat(64)),
+                    completed_at_unix_ms: 2,
+                },
+            )
+            .unwrap();
+        assert_eq!(
+            anchored.run_ownership["live-run-a"]
+                .terminal
+                .as_ref()
+                .map(|terminal| terminal.lifecycle.as_str()),
+            Some("failed")
+        );
     }
 
     #[test]
