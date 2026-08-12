@@ -905,6 +905,17 @@ export const zLiveOrderAdmissionSnapshot = z.object({
   ]),
 });
 
+export const zLiveRunAuditAnchorSnapshot = z.object({
+  status: z.literal("verified_external_monotonic_anchor"),
+  namespace: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  revision: z.int().gte(0),
+  receipt_ref: zContentHash,
+  key_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  anchored_at_unix_ms: z.int().gte(1),
+  workspace_snapshot_rollback_detectable: z.literal(true),
+  trading_authority_granted: z.literal(false),
+});
+
 export const zLiveRunCandidate = z.intersection(
   z.union([
     z.object({
@@ -950,6 +961,7 @@ export const zLiveRunCandidate = z.intersection(
     account_connected: z.boolean(),
     account_can_trade_verified: z.boolean(),
     runtime_started: z.literal(false),
+    audit_anchor: zLiveRunAuditAnchorSnapshot,
     order_admission: zLiveOrderAdmissionSnapshot,
     source_refs: z.tuple([
       z.string().regex(/^node-config:[^#]+#live_admission$/),
@@ -987,6 +999,14 @@ export const zLiveRunCandidateGateRefs = z.tuple([
   z.literal("NTPRO_S3_LIVE_RUN_RISK_APPROVED"),
 ]);
 
+export const zLiveRunAuditAnchorConfigRefs = z.tuple([
+  z.literal("NTPRO_S3_AUDIT_ANCHOR_ENDPOINT"),
+  z.literal("NTPRO_S3_AUDIT_ANCHOR_NAMESPACE"),
+  z.literal("NTPRO_S3_AUDIT_ANCHOR_KEY_ID"),
+  z.literal("NTPRO_S3_AUDIT_ANCHOR_PUBLIC_KEY_BASE64"),
+  z.literal("NTPRO_S3_AUDIT_ANCHOR_TOKEN"),
+]);
+
 export const zLiveRunCandidateListResponse = z.object({
   schema_version: z.literal(
     "ntpro.product_api.live_run_candidate_list.response.v1",
@@ -995,6 +1015,7 @@ export const zLiveRunCandidateListResponse = z.object({
   request_id: zRequestId,
   data: z.array(zLiveRunCandidate).max(1),
   runtime_gate_refs: zLiveRunCandidateGateRefs,
+  audit_anchor_config_refs: zLiveRunAuditAnchorConfigRefs,
   boundaries: zLiveRunCandidateBoundaries,
 });
 
@@ -1004,6 +1025,7 @@ export const zLiveRunCandidateResponse = z.object({
   request_id: zRequestId,
   data: zLiveRunCandidate,
   runtime_gate_refs: zLiveRunCandidateGateRefs,
+  audit_anchor_config_refs: zLiveRunAuditAnchorConfigRefs,
   boundaries: zLiveRunCandidateBoundaries,
 });
 

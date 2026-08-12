@@ -789,9 +789,15 @@ test.beforeEach(async ({ page }) => {
         currentLiveCandidate.data.preflight_at_unix_ms = 1786406401000;
         currentLiveCandidate.data.account_connected = true;
         currentLiveCandidate.data.account_can_trade_verified = true;
+        currentLiveCandidate.data.audit_anchor.revision = 1;
+        currentLiveCandidate.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
+        currentLiveCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
       } else {
         currentLiveCandidate.data.lifecycle = "stopped";
         currentLiveCandidate.data.stopped_at_unix_ms = 1786406402000;
+        currentLiveCandidate.data.audit_anchor.revision = 2;
+        currentLiveCandidate.data.audit_anchor.receipt_ref = `sha256:${"e".repeat(64)}`;
+        currentLiveCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
       }
       await route.fulfill({
         status: 200,

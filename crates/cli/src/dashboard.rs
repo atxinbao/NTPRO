@@ -301,6 +301,7 @@ struct DashboardServerState {
     ntpro_node_bin: PathBuf,
     lifecycle_action_lock: Arc<Mutex<()>>,
     backtest_creation_gate: Arc<tokio::sync::Semaphore>,
+    live_run_audit_anchor: Arc<product_api::live_run_anchor::LiveRunAuditAnchorClient>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

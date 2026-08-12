@@ -3453,6 +3453,9 @@ pub(crate) fn shutdown_active_demo_run(
         ntpro_node_bin: PathBuf::new(),
         lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
         backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+        live_run_audit_anchor: std::sync::Arc::new(
+            super::live_run_anchor::LiveRunAuditAnchorClient::from_environment(),
+        ),
     };
     let _guard = state
         .lifecycle_action_lock

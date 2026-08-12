@@ -482,9 +482,15 @@ describe("strategy workbench product slice", () => {
             currentCandidate.data.preflight_at_unix_ms = 1786406401000;
             currentCandidate.data.account_connected = true;
             currentCandidate.data.account_can_trade_verified = true;
+            currentCandidate.data.audit_anchor.revision = 1;
+            currentCandidate.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
+            currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
           } else {
             currentCandidate.data.lifecycle = "stopped";
             currentCandidate.data.stopped_at_unix_ms = 1786406402000;
+            currentCandidate.data.audit_anchor.revision = 2;
+            currentCandidate.data.audit_anchor.receipt_ref = `sha256:${"e".repeat(64)}`;
+            currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
           }
           return HttpResponse.json(currentCandidate);
         },

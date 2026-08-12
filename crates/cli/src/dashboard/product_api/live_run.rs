@@ -26,6 +26,10 @@ use super::{
         LiveRunCreationAdmission, LiveRunPreflightAdmission, evaluate_live_run_creation_admission,
         evaluate_live_run_preflight_admission,
     },
+    live_run_anchor::{
+        LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION, LiveRunAnchorAppendRequest, LiveRunAnchorReceipt,
+        anchor_config_refs,
+    },
     run::{open_absolute_directory_nofollow, write_new_run_file},
     *,
 };
@@ -42,8 +46,8 @@ const LIVE_RUN_CANDIDATE_ACTION_SCHEMA_VERSION: &str =
     "ntpro.product_api.live_run_candidate_action.response.v1";
 const LIVE_RUN_PREFLIGHT_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_preflight.v1";
 const LIVE_RUN_STOP_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_stop.v1";
-const LIVE_RUN_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state.v1";
-const LIVE_RUN_STATE_HEAD_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_head.v1";
+const LIVE_RUN_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state.v2";
+const LIVE_RUN_STATE_HEAD_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_head.v2";
 const LIVE_RUN_ACTIVE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_active.v1";
 const LIVE_RUN_STATE_COMMIT_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_commit.v1";
 const LIVE_RUN_ACTIVE_FILE: &str = ".active-candidate.json";
@@ -172,6 +176,7 @@ struct LiveRunStateHead {
     revision: u64,
     state_sha256: String,
     commit_sha256: String,
+    anchor_receipt_sha256: String,
     updated_at_unix_ms: u64,
 }
 
@@ -236,8 +241,21 @@ struct LiveRunCandidate {
     account_connected: bool,
     account_can_trade_verified: bool,
     runtime_started: bool,
+    audit_anchor: LiveRunAuditAnchorSnapshot,
     order_admission: LiveOrderAdmissionSnapshot,
     source_refs: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveRunAuditAnchorSnapshot {
+    status: String,
+    namespace: String,
+    revision: u64,
+    receipt_ref: String,
+    key_id: String,
+    anchored_at_unix_ms: u64,
+    workspace_snapshot_rollback_detectable: bool,
+    trading_authority_granted: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -290,6 +308,7 @@ pub(in crate::dashboard) struct LiveRunCandidateResponse {
     request_id: String,
     data: LiveRunCandidate,
     runtime_gate_refs: Vec<String>,
+    audit_anchor_config_refs: Vec<String>,
     boundaries: LiveRunCandidateBoundaries,
 }
 
@@ -300,6 +319,7 @@ pub(in crate::dashboard) struct LiveRunCandidateListResponse {
     request_id: String,
     data: Vec<LiveRunCandidate>,
     runtime_gate_refs: Vec<String>,
+    audit_anchor_config_refs: Vec<String>,
     boundaries: LiveRunCandidateBoundaries,
 }
 
@@ -433,6 +453,7 @@ pub(in crate::dashboard) async fn live_run_candidate_list_api(
                 .map(|(candidate, _, _)| candidate)
                 .collect(),
             runtime_gate_refs: LiveRunGateState::refs(),
+            audit_anchor_config_refs: anchor_config_refs(),
             boundaries: LiveRunCandidateBoundaries::enforced(),
         })
     });
@@ -520,6 +541,7 @@ fn response(
         request_id,
         data,
         runtime_gate_refs: LiveRunGateState::refs(),
+        audit_anchor_config_refs: anchor_config_refs(),
         boundaries: LiveRunCandidateBoundaries::enforced(),
     }
 }
@@ -585,7 +607,7 @@ fn create_live_run_candidate(
         cleanup_unpublished_live_run_candidate(state, &run_id);
         return Err(error);
     }
-    Ok(project_candidate(&manifest, None, None))
+    load_live_run_candidate(state, &run_id)
 }
 
 fn cleanup_unpublished_live_run_candidate(state: &DashboardServerState, run_id: &str) {
@@ -874,10 +896,12 @@ fn load_live_run_candidate_snapshot(
         stop.as_ref(),
     )?;
     validate_candidate_directory_entries(&root, &state_history)?;
+    let receipt = load_live_run_anchor_receipt(state, run_id, candidate_state.revision)?;
     let candidate = project_candidate(
         &manifest,
         preflight.as_ref().map(|(value, _)| value),
         stop.as_ref().map(|(value, _)| value),
+        &receipt,
     );
     Ok((candidate, manifest, manifest_raw))
 }
@@ -1015,6 +1039,7 @@ fn project_candidate(
     manifest: &LiveRunCandidateManifest,
     preflight: Option<&LiveRunPreflightArtifact>,
     stop: Option<&LiveRunStopArtifact>,
+    receipt: &LiveRunAnchorReceipt,
 ) -> LiveRunCandidate {
     let lifecycle = if stop.is_some() {
         LiveRunCandidateLifecycle::Stopped
@@ -1037,6 +1062,16 @@ fn project_candidate(
         account_connected: preflight.is_some(),
         account_can_trade_verified: preflight.is_some(),
         runtime_started: false,
+        audit_anchor: LiveRunAuditAnchorSnapshot {
+            status: "verified_external_monotonic_anchor".to_string(),
+            namespace: receipt.namespace.clone(),
+            revision: receipt.revision,
+            receipt_ref: receipt.sha256(),
+            key_id: receipt.key_id.clone(),
+            anchored_at_unix_ms: receipt.anchored_at_unix_ms,
+            workspace_snapshot_rollback_detectable: true,
+            trading_authority_granted: false,
+        },
         order_admission: LiveOrderAdmissionSnapshot::blocked(),
         source_refs: manifest.source_refs.clone(),
     }
@@ -1091,12 +1126,6 @@ fn write_live_run_state(
     let run_directory = open_absolute_directory_nofollow(&run_root)?;
     let state_raw = serde_json::to_vec_pretty(candidate_state)
         .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_run_state"))?;
-    write_new_run_file(
-        &run_directory,
-        &live_run_state_file_name(candidate_state.revision),
-        &state_raw,
-    )?;
-
     let previous_commit_sha256 = if candidate_state.revision == 0 {
         None
     } else {
@@ -1120,17 +1149,55 @@ fn write_live_run_state(
             "live_run_state_commit",
         )
     })?;
+    let previous_receipt_sha256 = if candidate_state.revision == 0 {
+        None
+    } else {
+        Some(
+            load_live_run_anchor_receipt(server_state, run_id, candidate_state.revision - 1)?
+                .sha256(),
+        )
+    };
+    let anchor_request = LiveRunAnchorAppendRequest::new(
+        server_state.live_run_audit_anchor.namespace()?,
+        run_id,
+        candidate_state.revision,
+        sha256_ref(&state_raw),
+        sha256_ref(&commit_raw),
+        previous_receipt_sha256,
+        candidate_state.updated_at_unix_ms,
+    );
+    let receipt = server_state.live_run_audit_anchor.append(&anchor_request)?;
+    server_state
+        .live_run_audit_anchor
+        .validate_receipt(&receipt, &anchor_request)?;
+    let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_run_audit_anchor_receipt",
+        )
+    })?;
+    write_new_run_file(
+        &run_directory,
+        &live_run_state_file_name(candidate_state.revision),
+        &state_raw,
+    )?;
     let commit_directory = open_live_run_state_commit_directory(server_state, true)?;
     write_new_run_file(
         &commit_directory,
         &live_run_state_commit_file_name(run_id, candidate_state.revision),
         &commit_raw,
     )?;
+    write_new_run_file(
+        &run_directory,
+        &live_run_anchor_receipt_file_name(candidate_state.revision),
+        &receipt_raw,
+    )?;
     publish_live_run_state_head(
         &run_directory,
         candidate_state,
         &state_raw,
         &commit_raw,
+        &receipt,
         previous_commit_sha256.as_deref(),
     )?;
 
@@ -1153,6 +1220,7 @@ fn publish_live_run_state_head(
     state: &LiveRunCandidateState,
     state_raw: &[u8],
     commit_raw: &[u8],
+    receipt: &LiveRunAnchorReceipt,
     previous_commit_sha256: Option<&str>,
 ) -> Result<(), ProductError> {
     let head = LiveRunStateHead {
@@ -1161,6 +1229,7 @@ fn publish_live_run_state_head(
         revision: state.revision,
         state_sha256: sha256_ref(state_raw),
         commit_sha256: sha256_ref(commit_raw),
+        anchor_receipt_sha256: receipt.sha256(),
         updated_at_unix_ms: state.updated_at_unix_ms,
     };
     let raw = serde_json::to_vec_pretty(&head)
@@ -1180,6 +1249,8 @@ fn publish_live_run_state_head(
             || current.revision + 1 != state.revision
             || Some(current.state_sha256.as_str()) != state.previous_state_sha256.as_deref()
             || Some(current.commit_sha256.as_str()) != previous_commit_sha256
+            || current.anchor_receipt_sha256
+                != receipt.previous_receipt_sha256.clone().unwrap_or_default()
             || current.updated_at_unix_ms > state.updated_at_unix_ms
         {
             return Err(product_error(
@@ -1276,6 +1347,8 @@ fn load_live_run_state_history(
     let mut history = Vec::with_capacity(revisions.len());
     let mut previous_state_sha256: Option<String> = None;
     let mut previous_commit_sha256: Option<String> = None;
+    let mut previous_receipt_sha256: Option<String> = None;
+    let mut previous_anchored_at_unix_ms: Option<u64> = None;
     for revision in revisions {
         let state_raw = read_live_run_artifact_bytes(
             &run_root.join(live_run_state_file_name(revision)),
@@ -1286,6 +1359,19 @@ fn load_live_run_state_history(
         let commit_raw = load_live_run_state_commit_raw(state, run_id, revision)?;
         let commit: LiveRunStateCommit = serde_json::from_slice(&commit_raw)
             .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_run_state_commit"))?;
+        let receipt = load_live_run_anchor_receipt(state, run_id, revision)?;
+        let anchor_request = LiveRunAnchorAppendRequest::new(
+            state.live_run_audit_anchor.namespace()?,
+            run_id,
+            revision,
+            sha256_ref(&state_raw),
+            sha256_ref(&commit_raw),
+            previous_receipt_sha256.clone(),
+            candidate_state.updated_at_unix_ms,
+        );
+        state
+            .live_run_audit_anchor
+            .validate_receipt(&receipt, &anchor_request)?;
         if candidate_state.schema_version != LIVE_RUN_STATE_SCHEMA_VERSION
             || candidate_state.run_id != run_id
             || candidate_state.source_manifest_sha256 != manifest_sha256
@@ -1298,6 +1384,9 @@ fn load_live_run_state_history(
             || commit.state_sha256 != sha256_ref(&state_raw)
             || commit.previous_commit_sha256 != previous_commit_sha256
             || commit.committed_at_unix_ms != candidate_state.updated_at_unix_ms
+            || receipt.previous_receipt_sha256 != previous_receipt_sha256
+            || previous_anchored_at_unix_ms
+                .is_some_and(|previous| receipt.anchored_at_unix_ms < previous)
         {
             return Err(product_error(
                 ProductErrorKind::BoundaryViolation,
@@ -1314,6 +1403,8 @@ fn load_live_run_state_history(
         }
         previous_state_sha256 = Some(sha256_ref(&state_raw));
         previous_commit_sha256 = Some(sha256_ref(&commit_raw));
+        previous_receipt_sha256 = Some(receipt.sha256());
+        previous_anchored_at_unix_ms = Some(receipt.anchored_at_unix_ms);
         history.push((candidate_state, state_raw));
     }
     let (latest_state, latest_state_raw) = history
@@ -1330,6 +1421,8 @@ fn load_live_run_state_history(
         || head.revision != latest_state.revision
         || head.state_sha256 != sha256_ref(latest_state_raw)
         || Some(head.commit_sha256.as_str()) != previous_commit_sha256.as_deref()
+        || head.anchor_receipt_sha256
+            != load_live_run_anchor_receipt(state, run_id, latest_state.revision)?.sha256()
         || head.updated_at_unix_ms != latest_state.updated_at_unix_ms
     {
         return Err(product_error(
@@ -1337,6 +1430,7 @@ fn load_live_run_state_history(
             "live_run_state_head",
         ));
     }
+    validate_latest_live_run_anchor(state, run_id, latest_state, latest_state_raw)?;
     Ok(history)
 }
 
@@ -1380,6 +1474,77 @@ fn validate_live_run_state_transition(
 
 fn live_run_state_file_name(revision: u64) -> String {
     format!("state-{revision:020}.json")
+}
+
+fn live_run_anchor_receipt_file_name(revision: u64) -> String {
+    format!("anchor-receipt-{revision:020}.json")
+}
+
+fn load_live_run_anchor_receipt(
+    state: &DashboardServerState,
+    run_id: &str,
+    revision: u64,
+) -> Result<LiveRunAnchorReceipt, ProductError> {
+    let raw = read_live_run_artifact_bytes(
+        &canonical_live_run_root(state, false)?
+            .join(run_id)
+            .join(live_run_anchor_receipt_file_name(revision)),
+        "live_run_audit_anchor_receipt",
+    )?;
+    let receipt: LiveRunAnchorReceipt = serde_json::from_slice(&raw).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_run_audit_anchor_receipt",
+        )
+    })?;
+    if receipt.schema_version != LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION
+        || receipt.run_id != run_id
+        || receipt.revision != revision
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_audit_anchor_receipt",
+        ));
+    }
+    Ok(receipt)
+}
+
+fn validate_latest_live_run_anchor(
+    state: &DashboardServerState,
+    run_id: &str,
+    latest_state: &LiveRunCandidateState,
+    latest_state_raw: &[u8],
+) -> Result<(), ProductError> {
+    let local = load_live_run_anchor_receipt(state, run_id, latest_state.revision)?;
+    let commit_raw = load_live_run_state_commit_raw(state, run_id, latest_state.revision)?;
+    let previous_receipt_sha256 = if latest_state.revision == 0 {
+        None
+    } else {
+        Some(load_live_run_anchor_receipt(state, run_id, latest_state.revision - 1)?.sha256())
+    };
+    let request = LiveRunAnchorAppendRequest::new(
+        state.live_run_audit_anchor.namespace()?,
+        run_id,
+        latest_state.revision,
+        sha256_ref(latest_state_raw),
+        sha256_ref(&commit_raw),
+        previous_receipt_sha256,
+        latest_state.updated_at_unix_ms,
+    );
+    state
+        .live_run_audit_anchor
+        .validate_receipt(&local, &request)?;
+    let remote = state.live_run_audit_anchor.latest(run_id)?;
+    state
+        .live_run_audit_anchor
+        .validate_receipt(&remote, &request)?;
+    if remote != local {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_audit_anchor_latest",
+        ));
+    }
+    Ok(())
 }
 
 fn live_run_state_commit_file_name(run_id: &str, revision: u64) -> String {
@@ -1475,6 +1640,7 @@ fn validate_candidate_directory_entries(
     ]);
     for (state, _) in state_history {
         expected.insert(live_run_state_file_name(state.revision));
+        expected.insert(live_run_anchor_receipt_file_name(state.revision));
     }
     let state = state_history
         .last()
@@ -1894,6 +2060,9 @@ mod tests {
                     ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
                     lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
                     backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+                    live_run_audit_anchor: std::sync::Arc::new(
+                        super::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test(),
+                    ),
                 },
                 root,
             }
@@ -1906,6 +2075,7 @@ mod tests {
                 ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
                 lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
                 backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+                live_run_audit_anchor: self.state.live_run_audit_anchor.clone(),
             }
         }
     }
@@ -2530,6 +2700,120 @@ mod tests {
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn external_anchor_detects_complete_workspace_snapshot_rollback() {
+        let fixture = LiveRunFixture::new("complete-workspace-rollback");
+        let created = create_live_run_candidate(
+            &fixture.state,
+            request(),
+            "product-complete-workspace-rollback",
+            unix_time_ms(),
+            admission(),
+            gates(),
+            VERSION_HASH,
+        )
+        .unwrap();
+        run_live_candidate_action_with_preflight(
+            &fixture.state,
+            &created.run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: created.run_id.clone(),
+                action: LiveRunCandidateAction::Preflight,
+                user_confirmed: true,
+            },
+            |_| {
+                Ok(LiveRunPreflightAdmission {
+                    connected: true,
+                    can_trade: true,
+                    evaluated_at_unix_ms: unix_time_ms(),
+                    source_refs: admission().source_refs,
+                })
+            },
+        )
+        .unwrap();
+
+        let run_root = fixture
+            .root
+            .join("artifacts/live-runs")
+            .join(&created.run_id);
+        let snapshot_files = fs::read_dir(&run_root)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (entry.file_name(), fs::read(entry.path()).unwrap())
+            })
+            .collect::<Vec<_>>();
+        let commit_root = fixture.root.join("artifacts/live-run-state-commits");
+        let snapshot_commits = fs::read_dir(&commit_root)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (entry.file_name(), fs::read(entry.path()).unwrap())
+            })
+            .collect::<Vec<_>>();
+        let active_pointer = fs::read(
+            fixture
+                .root
+                .join("artifacts/live-runs/.active-candidate.json"),
+        )
+        .unwrap();
+
+        run_live_candidate_action(
+            &fixture.state,
+            &created.run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: created.run_id.clone(),
+                action: LiveRunCandidateAction::Stop,
+                user_confirmed: true,
+            },
+        )
+        .unwrap();
+
+        fs::remove_dir_all(&run_root).unwrap();
+        fs::create_dir(&run_root).unwrap();
+        for (name, raw) in snapshot_files {
+            fs::write(run_root.join(name), raw).unwrap();
+        }
+        for entry in fs::read_dir(&commit_root).unwrap() {
+            fs::remove_file(entry.unwrap().path()).unwrap();
+        }
+        for (name, raw) in snapshot_commits {
+            fs::write(commit_root.join(name), raw).unwrap();
+        }
+        fs::write(
+            fixture
+                .root
+                .join("artifacts/live-runs/.active-candidate.json"),
+            active_pointer,
+        )
+        .unwrap();
+
+        let error = load_live_run_candidate(&fixture.state, &created.run_id).unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::LiveExecutionFailed);
+        assert_eq!(error.field, "live_run_audit_anchor_receipt");
+    }
+
+    #[test]
+    fn unconfigured_anchor_fails_before_candidate_publication() {
+        let fixture = LiveRunFixture::new("unconfigured-anchor");
+        let mut state = fixture.independent_state();
+        state.live_run_audit_anchor =
+            std::sync::Arc::new(super::live_run_anchor::LiveRunAuditAnchorClient::Unconfigured);
+        let error = create_live_run_candidate(
+            &state,
+            request(),
+            "product-unconfigured-anchor",
+            unix_time_ms(),
+            admission(),
+            gates(),
+            &format!("sha256:{}", "1".repeat(64)),
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::LiveExecutionFailed);
+        assert_eq!(error.field, "live_run_audit_anchor_config");
+        assert!(load_active_live_run_candidates(&state).unwrap().is_empty());
     }
 
     #[test]

@@ -117,6 +117,10 @@ describe("product API generated client", () => {
     expect(created.data.lifecycle).toBe("created");
     expect(created.data.runtime_started).toBe(false);
     expect(created.data.order_admission.status).toBe("blocked");
+    expect(
+      created.data.audit_anchor.workspace_snapshot_rollback_detectable,
+    ).toBe(true);
+    expect(created.data.audit_anchor.trading_authority_granted).toBe(false);
     expect(createFetch).toHaveBeenCalledTimes(1);
 
     const detail = structuredClone(liveRunCandidateFixture);
@@ -148,6 +152,9 @@ describe("product API generated client", () => {
     preflight.data.preflight_at_unix_ms = 1786406401000;
     preflight.data.account_connected = true;
     preflight.data.account_can_trade_verified = true;
+    preflight.data.audit_anchor.revision = 1;
+    preflight.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
+    preflight.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
     const client = createProductApiClient({ fetch: jsonFetch(preflight) });
     const result = await client.actOnLiveRunCandidate(
       preflight.data.run_id,
@@ -206,6 +213,21 @@ describe("product API generated client", () => {
         value.data.account_connected = true;
         value.data.account_can_trade_verified = true;
       },
+    ],
+    [
+      "stale external audit anchor revision",
+      (value: Record<string, any>) => {
+        value.data.lifecycle = "preflight_ready";
+        value.data.preflight_at_unix_ms = 1786406401000;
+        value.data.account_connected = true;
+        value.data.account_can_trade_verified = true;
+        value.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
+      },
+    ],
+    [
+      "audit anchor grants trading authority",
+      (value: Record<string, any>) =>
+        (value.data.audit_anchor.trading_authority_granted = true),
     ],
   ])("rejects Live candidate %s", async (_, mutate) => {
     const payload = structuredClone(liveRunCandidateFixture);

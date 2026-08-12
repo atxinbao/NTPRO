@@ -34,7 +34,9 @@ use super::live_admission::*;
 use super::run::*;
 use super::strategy_version::*;
 use super::*;
-use crate::dashboard::server::{dashboard_router, dashboard_router_with_access};
+use crate::dashboard::server::{
+    dashboard_router, dashboard_router_with_access, dashboard_router_with_audit_anchor,
+};
 
 #[cfg(unix)]
 fn create_file_symlink(original: &Path, link: &Path) -> std::io::Result<()> {
@@ -63,6 +65,7 @@ struct Fixture {
     status_contract_path: PathBuf,
     config_path: PathBuf,
     identity: MvpIdentityContract,
+    live_run_audit_anchor: std::sync::Arc<super::live_run_anchor::LiveRunAuditAnchorClient>,
 }
 
 impl Fixture {
@@ -139,6 +142,9 @@ impl Fixture {
             status_contract_path,
             config_path,
             identity,
+            live_run_audit_anchor: std::sync::Arc::new(
+                super::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test(),
+            ),
         }
     }
 
@@ -149,13 +155,15 @@ impl Fixture {
             ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
             lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
             backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+            live_run_audit_anchor: self.live_run_audit_anchor.clone(),
         }
     }
 
     fn router(&self) -> Router {
-        dashboard_router(
+        dashboard_router_with_audit_anchor(
             self.registry_path.clone(),
             PathBuf::from("missing-ntpro-node"),
+            self.live_run_audit_anchor.clone(),
         )
     }
 
@@ -2501,7 +2509,7 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
         fs::write(directory.join("run-manifest.json"), &manifest_raw)
             .expect("Live candidate manifest should be written");
         let state_raw = serde_json::to_vec_pretty(&json!({
-            "schema_version": "ntpro.product_api.live_run_state.v1",
+            "schema_version": "ntpro.product_api.live_run_state.v2",
             "run_id": run_id,
             "source_manifest_sha256": sha256_bytes_ref(&manifest_raw),
             "revision": 0,
@@ -2534,14 +2542,40 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
             &commit_raw,
         )
         .expect("Live candidate state commit should be written");
+        let receipt_path = directory.join("anchor-receipt-00000000000000000000.json");
+        if !receipt_path.exists() {
+            let anchor_request = super::live_run_anchor::LiveRunAnchorAppendRequest::new(
+                fixture.live_run_audit_anchor.namespace().unwrap(),
+                run_id,
+                0,
+                sha256_bytes_ref(&state_raw),
+                sha256_bytes_ref(&commit_raw),
+                None,
+                created_at_unix_ms,
+            );
+            let receipt = fixture
+                .live_run_audit_anchor
+                .append(&anchor_request)
+                .expect("test audit anchor should accept initial revision");
+            fs::write(
+                &receipt_path,
+                serde_json::to_vec_pretty(&receipt).expect("audit anchor receipt should serialize"),
+            )
+            .expect("audit anchor receipt should be written");
+        }
+        let receipt: super::live_run_anchor::LiveRunAnchorReceipt = serde_json::from_slice(
+            &fs::read(&receipt_path).expect("audit anchor receipt should be readable"),
+        )
+        .expect("audit anchor receipt should parse");
         fs::write(
             directory.join("state-head.json"),
             serde_json::to_vec_pretty(&json!({
-                "schema_version": "ntpro.product_api.live_run_state_head.v1",
+                "schema_version": "ntpro.product_api.live_run_state_head.v2",
                 "run_id": run_id,
                 "revision": 0,
                 "state_sha256": sha256_bytes_ref(&state_raw),
                 "commit_sha256": sha256_bytes_ref(&commit_raw),
+                "anchor_receipt_sha256": receipt.sha256(),
                 "updated_at_unix_ms": created_at_unix_ms
             }))
             .expect("Live candidate state head should serialize"),
@@ -2574,9 +2608,9 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
         &format!("/api/product/v1/live-run-candidates/{run_id}"),
     )
     .await;
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{error}");
-    assert_eq!(error["error"]["code"], "product_boundary_violation");
-    assert_eq!(error["error"]["field"], "live_candidate_source_binding");
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{error}");
+    assert_eq!(error["error"]["code"], "live_run_preflight_failed");
+    assert_eq!(error["error"]["field"], "live_run_audit_anchor_receipt");
 
     write_candidate("ema-other", ready_risk_ref);
     let (status, error) = router_json(
@@ -2585,9 +2619,9 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
         &format!("/api/product/v1/live-run-candidates/{run_id}"),
     )
     .await;
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{error}");
-    assert_eq!(error["error"]["code"], "product_boundary_violation");
-    assert_eq!(error["error"]["field"], "live_candidate_strategy_version");
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{error}");
+    assert_eq!(error["error"]["code"], "live_run_preflight_failed");
+    assert_eq!(error["error"]["field"], "live_run_audit_anchor_receipt");
     validate_openapi_instance("ProductErrorResponse", &error);
 }
 

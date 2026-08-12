@@ -53,6 +53,7 @@ use super::{ApiResult, DashboardServerState};
 
 mod live_admission;
 mod live_run;
+pub(super) mod live_run_anchor;
 mod run;
 mod strategy_version;
 #[cfg(test)]

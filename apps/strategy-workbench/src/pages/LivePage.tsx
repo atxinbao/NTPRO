@@ -315,6 +315,24 @@ export function LivePage() {
               />
               <Detail label="真实 Runtime" value="未启动" />
               <Detail label="订单准入" value="已阻断" />
+              <Detail
+                label="外部审计锚点"
+                value={
+                  liveRun.audit_anchor.status ===
+                  "verified_external_monotonic_anchor"
+                    ? "已验证"
+                    : "已阻断"
+                }
+              />
+              <Detail
+                label="审计 Revision"
+                value={liveRun.audit_anchor.revision.toString()}
+              />
+              <Detail
+                label="回执引用"
+                value={liveRun.audit_anchor.receipt_ref}
+              />
+              <Detail label="审计 Key" value={liveRun.audit_anchor.key_id} />
             </div>
             {liveRunAction.error ? (
               <p className={styles.formError}>{liveRunAction.error.message}</p>
