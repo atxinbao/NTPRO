@@ -75,10 +75,11 @@ S2-DM-001 已交付 Demo Run 创建、不可变 StrategyVersion 绑定和 Superv
 产品能力，且不得从 Demo 自动继承真实交易权限。
 
 S3-LV-001 已交付首个 Live 独立准入合同，S3-LV-002 已交付用户显式触发的 Binance Spot
-生产账户只读检查。S3-LV-003 正在把通过验证的账户类型、交易所权限和非零资产余额投影为
-稳定产品结果：余额保持各资产原生单位，不做无价格依据的跨币种估值。只有源能力、五项
-运行门禁和环境凭证全部满足时才访问一次 `/api/v3/account`；默认环境 blocked 且不触网。
-Live Run、订单 endpoint、下单、撤改、自动重试和恢复仍保持关闭。
+生产账户只读检查，S3-LV-003 已交付账户类型、交易所权限和非零资产余额产品结果。余额保持
+各资产原生单位，不做无价格依据的跨币种估值。S3-LV-004 正在建设独立的 Live Run 候选
+生命周期：创建、显式启动前检查和人工停止。候选检查不会启动真实 Runtime，不会连接实时
+行情，不会访问订单 endpoint；下单、撤改、成交对账、自动重试和恢复继续关闭。真实 Runtime
+或订单准入前必须另行交付外部不可回滚审计锚点，本地文件哈希链不作为 WORM 证明。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -98,7 +99,8 @@ FEA-001 前端架构文档
   -> S2-DM-003 Demo 模拟执行结果与跨环境比较（DONE）
   -> S3-LV-001 Live Venue、账户凭证与独立准入合同（DONE）
   -> S3-LV-002 生产网络连接与认证账户只读接入（DONE）
-  -> S3-LV-003 Live 账户、资金与资产结果产品化（REVIEW_APPROVED）
+  -> S3-LV-003 Live 账户、资金与资产结果产品化（DONE）
+  -> S3-LV-004 Live Run 候选生命周期与订单独立准入边界（IN PROGRESS）
   -> S1-S4 三模式产品闭环
 ```
 

@@ -15,6 +15,7 @@
 
 //! Live 独立准入的只读产品合同。
 
+use aws_lc_rs::digest::{SHA256, digest};
 use axum::{
     Json,
     extract::{
@@ -59,6 +60,14 @@ pub(in crate::dashboard) struct LiveAdmissionPath {
 #[derive(Debug, Deserialize)]
 struct LiveAdmissionConfigDocument {
     live_admission: LiveAdmissionConfig,
+    risk: LiveRiskConfig,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveRiskConfig {
+    kill_switch_enabled: bool,
+    kill_switch_active: bool,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -311,6 +320,23 @@ struct LiveAccountResult {
     can_trade: bool,
     can_withdraw: bool,
     can_deposit: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct LiveRunCreationAdmission {
+    pub(super) account_ref: String,
+    pub(super) venue_id: String,
+    pub(super) ready: bool,
+    pub(super) risk_ready: bool,
+    pub(super) source_refs: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct LiveRunPreflightAdmission {
+    pub(super) connected: bool,
+    pub(super) can_trade: bool,
+    pub(super) evaluated_at_unix_ms: u64,
+    pub(super) source_refs: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -835,6 +861,101 @@ where
     })
 }
 
+pub(super) fn evaluate_live_run_creation_admission(
+    source: &ValidatedProductSource,
+    strategy_id: &str,
+    version_id: &str,
+    evaluated_at_unix_ms: u64,
+) -> Result<LiveRunCreationAdmission, ProductError> {
+    let response = project_live_admission(
+        source,
+        strategy_id,
+        version_id,
+        evaluated_at_unix_ms,
+        product_request_id(),
+        credential_is_present,
+        runtime_gate_is_enabled,
+    )?;
+    let document: LiveAdmissionConfigDocument = toml::from_str(&source.raw_config)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_risk_config"))?;
+    let risk_ready = document.risk.kill_switch_enabled && !document.risk.kill_switch_active;
+    let credentials_present = response.data.credentials.api_key_presence
+        == CredentialPresence::Present
+        && response.data.credentials.api_secret_presence == CredentialPresence::Present;
+    let mut source_refs = response.data.source_refs;
+    source_refs.push(format!("node-config:{}#risk", source.config_name));
+    source_refs.push(live_risk_config_ref(&document.risk)?);
+    source_refs.sort();
+    source_refs.dedup();
+    Ok(LiveRunCreationAdmission {
+        account_ref: response.data.account.account_ref,
+        venue_id: response.data.venue.venue_id,
+        ready: response.data.admission_status == LiveAdmissionStatus::ReadOnlyReady
+            && response.boundaries.owner_approval_granted
+            && response.boundaries.authenticated_account_read_allowed
+            && credentials_present
+            && risk_ready,
+        risk_ready,
+        source_refs,
+    })
+}
+
+pub(super) fn evaluate_live_run_preflight_admission(
+    source: &ValidatedProductSource,
+    strategy_id: &str,
+    version_id: &str,
+    evaluated_at_unix_ms: u64,
+) -> Result<LiveRunPreflightAdmission, ProductError> {
+    let response = project_live_account_refresh(
+        source,
+        strategy_id,
+        version_id,
+        evaluated_at_unix_ms,
+        product_request_id(),
+        credential_is_present,
+        runtime_gate_is_enabled,
+        execute_product_live_account_read,
+    )?;
+    let document: LiveAdmissionConfigDocument = toml::from_str(&source.raw_config)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_risk_config"))?;
+    if !document.risk.kill_switch_enabled || document.risk.kill_switch_active {
+        return Err(product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_risk_gate",
+        ));
+    }
+    let connected = response.data.connection_status == LiveAccountConnectionStatus::Connected
+        && response.data.response_shape_validated
+        && response.data.missing_runtime_gate_refs.is_empty();
+    let can_trade = response
+        .data
+        .account_result
+        .as_ref()
+        .is_some_and(|account| account.can_trade);
+    let mut source_refs = response.data.source_refs;
+    source_refs.push(format!("node-config:{}#risk", source.config_name));
+    source_refs.push(live_risk_config_ref(&document.risk)?);
+    source_refs.sort();
+    source_refs.dedup();
+    Ok(LiveRunPreflightAdmission {
+        connected,
+        can_trade,
+        evaluated_at_unix_ms: response.data.evaluated_at_unix_ms,
+        source_refs,
+    })
+}
+
+fn live_risk_config_ref(risk: &LiveRiskConfig) -> Result<String, ProductError> {
+    let raw = serde_json::to_vec(risk)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_risk_config"))?;
+    let hash = digest(&SHA256, &raw);
+    let mut value = String::from("risk-config-sha256:");
+    for byte in hash.as_ref() {
+        value.push_str(&format!("{byte:02x}"));
+    }
+    Ok(value)
+}
+
 fn validate_live_admission_config(
     config: &LiveAdmissionConfig,
     version_id: &str,
@@ -904,5 +1025,39 @@ const fn credential_presence(present: bool) -> CredentialPresence {
         CredentialPresence::Present
     } else {
         CredentialPresence::Missing
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LiveRiskConfig, live_risk_config_ref};
+
+    #[test]
+    fn live_risk_source_ref_binds_kill_switch_content() {
+        let ready = live_risk_config_ref(&LiveRiskConfig {
+            kill_switch_enabled: true,
+            kill_switch_active: false,
+        })
+        .unwrap();
+        let active = live_risk_config_ref(&LiveRiskConfig {
+            kill_switch_enabled: true,
+            kill_switch_active: true,
+        })
+        .unwrap();
+        assert_eq!(
+            ready,
+            "risk-config-sha256:8a92f596c7f51574c25979022b59358cfd6807ec3470ef7b21301fb133d4c1ac"
+        );
+        assert_ne!(ready, active);
+    }
+
+    #[test]
+    fn live_risk_config_rejects_unbound_unknown_fields() {
+        let raw = "
+kill_switch_enabled = true
+kill_switch_active = false
+max_notional = 1000
+";
+        assert!(toml::from_str::<LiveRiskConfig>(raw).is_err());
     }
 }

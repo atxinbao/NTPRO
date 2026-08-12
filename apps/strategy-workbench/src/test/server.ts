@@ -6,6 +6,7 @@ import type { DemoRunSnapshotResponse, Run } from "../api/generated/productApi";
 import { validStatusPayload } from "./fixtures";
 import liveAccountRefreshFixture from "./product-api-fixtures/live-account-refresh-connected.json";
 import liveAdmissionFixture from "./product-api-fixtures/live-admission.json";
+import liveRunCandidateFixture from "./product-api-fixtures/live-run-candidate.json";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
 import runAnalysisFixture from "./product-api-fixtures/run-analysis.json";
 import runListFixture from "./product-api-fixtures/run-list.json";
@@ -541,6 +542,47 @@ export const server = setupServer(
   http.post(
     "/api/product/v1/strategies/:strategyId/versions/:versionId/live-account/actions/refresh",
     () => HttpResponse.json(liveAccountRefreshFixture),
+  ),
+  http.post("/api/product/v1/live-run-candidates", () =>
+    HttpResponse.json(liveRunCandidateFixture, { status: 201 }),
+  ),
+  http.get("/api/product/v1/live-run-candidates", () => {
+    const response: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    response.schema_version =
+      "ntpro.product_api.live_run_candidate_list.response.v1";
+    response.data = [];
+    return HttpResponse.json(response);
+  }),
+  http.get("/api/product/v1/live-run-candidates/:runId", () => {
+    const response: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    response.schema_version =
+      "ntpro.product_api.live_run_candidate_detail.response.v1";
+    return HttpResponse.json(response);
+  }),
+  http.post(
+    "/api/product/v1/live-run-candidates/:runId/actions",
+    async ({ request }) => {
+      const body = (await request.json()) as { action: "preflight" | "stop" };
+      const response: Record<string, any> = structuredClone(
+        liveRunCandidateFixture,
+      );
+      response.schema_version =
+        "ntpro.product_api.live_run_candidate_action.response.v1";
+      if (body.action === "preflight") {
+        response.data.lifecycle = "preflight_ready";
+        response.data.preflight_at_unix_ms = 1786406401000;
+        response.data.account_connected = true;
+        response.data.account_can_trade_verified = true;
+      } else {
+        response.data.lifecycle = "stopped";
+        response.data.stopped_at_unix_ms = 1786406402000;
+      }
+      return HttpResponse.json(response);
+    },
   ),
   http.get("/api/product/v1/strategies/:strategyId/versions/:versionId", () =>
     HttpResponse.json(strategyVersionDetailFixture),

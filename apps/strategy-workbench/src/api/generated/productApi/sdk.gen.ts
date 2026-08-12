@@ -12,6 +12,9 @@ import type {
   ActOnDemoRunData,
   ActOnDemoRunErrors,
   ActOnDemoRunResponses,
+  ActOnLiveRunCandidateData,
+  ActOnLiveRunCandidateErrors,
+  ActOnLiveRunCandidateResponses,
   CompareRunsData,
   CompareRunsErrors,
   CompareRunsResponses,
@@ -21,12 +24,18 @@ import type {
   CreateDemoRunData,
   CreateDemoRunErrors,
   CreateDemoRunResponses,
+  CreateLiveRunCandidateData,
+  CreateLiveRunCandidateErrors,
+  CreateLiveRunCandidateResponses,
   GetDemoRunSnapshotData,
   GetDemoRunSnapshotErrors,
   GetDemoRunSnapshotResponses,
   GetLiveAdmissionData,
   GetLiveAdmissionErrors,
   GetLiveAdmissionResponses,
+  GetLiveRunCandidateData,
+  GetLiveRunCandidateErrors,
+  GetLiveRunCandidateResponses,
   GetRunAnalysisData,
   GetRunAnalysisErrors,
   GetRunAnalysisResponses,
@@ -48,6 +57,9 @@ import type {
   GetStrategyVersionData,
   GetStrategyVersionErrors,
   GetStrategyVersionResponses,
+  ListLiveRunCandidatesData,
+  ListLiveRunCandidatesErrors,
+  ListLiveRunCandidatesResponses,
   ListRunsData,
   ListRunsErrors,
   ListRunsResponses,
@@ -253,6 +265,128 @@ export const refreshLiveAccount = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 读取当前未停止的 Live Run 候选
+ */
+export const listLiveRunCandidates = <ThrowOnError extends boolean = false>(
+  options?: Options<ListLiveRunCandidatesData, ThrowOnError>,
+): RequestResult<
+  ListLiveRunCandidatesResponses,
+  ListLiveRunCandidatesErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ListLiveRunCandidatesResponses,
+    ListLiveRunCandidatesErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates",
+    ...options,
+  });
+
+/**
+ * 创建独立 Live Run 候选
+ */
+export const createLiveRunCandidate = <ThrowOnError extends boolean = false>(
+  options: Options<CreateLiveRunCandidateData, ThrowOnError>,
+): RequestResult<
+  CreateLiveRunCandidateResponses,
+  CreateLiveRunCandidateErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateLiveRunCandidateResponses,
+    CreateLiveRunCandidateErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 读取 Live Run 候选与订单准入状态
+ */
+export const getLiveRunCandidate = <ThrowOnError extends boolean = false>(
+  options: Options<GetLiveRunCandidateData, ThrowOnError>,
+): RequestResult<
+  GetLiveRunCandidateResponses,
+  GetLiveRunCandidateErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetLiveRunCandidateResponses,
+    GetLiveRunCandidateErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates/{run_id}",
+    ...options,
+  });
+
+/**
+ * 显式执行 Live 启动前检查或人工停止
+ */
+export const actOnLiveRunCandidate = <ThrowOnError extends boolean = false>(
+  options: Options<ActOnLiveRunCandidateData, ThrowOnError>,
+): RequestResult<
+  ActOnLiveRunCandidateResponses,
+  ActOnLiveRunCandidateErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ActOnLiveRunCandidateResponses,
+    ActOnLiveRunCandidateErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates/{run_id}/actions",
     ...options,
     headers: {
       "Content-Type": "application/json",

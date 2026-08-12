@@ -4082,7 +4082,7 @@ fn create_dynamic_run_directory(
         .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "result_root_containment"))
 }
 
-fn write_new_run_file(
+pub(super) fn write_new_run_file(
     directory: &cap_std::fs::Dir,
     name: &str,
     raw: &[u8],

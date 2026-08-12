@@ -5,9 +5,13 @@ import {
   ShieldAlert,
   Unplug,
 } from "lucide-react";
+import { useState } from "react";
 
 import {
   useLiveAdmission,
+  useLiveRunCandidates,
+  useCreateLiveRunCandidate,
+  useLiveRunCandidateAction,
   useOverviewProductContext,
   useRefreshLiveAccount,
 } from "../features/product/useProductResources";
@@ -18,7 +22,7 @@ const blockerLabels: Record<string, string> = {
   independent_owner_approval_missing: "尚未获得 Live 独立审批",
   production_network_not_authorized: "生产网络连接尚未授权",
   authenticated_account_read_not_authorized: "账户只读连接尚未授权",
-  live_run_creation_not_authorized: "Live Run 创建尚未授权",
+  live_run_creation_not_authorized: "真实 Live Runtime 启动尚未授权",
   order_lifecycle_not_authorized: "真实订单生命周期尚未授权",
   automatic_recovery_not_authorized: "自动恢复尚未授权",
   api_key_missing: "生产 API Key 尚未配置",
@@ -26,6 +30,7 @@ const blockerLabels: Record<string, string> = {
 };
 
 export function LivePage() {
+  const [liveRunConfirmed, setLiveRunConfirmed] = useState(false);
   const product = useOverviewProductContext();
   const strategyId = product.isReady
     ? product.strategy?.strategy_id
@@ -34,11 +39,19 @@ export function LivePage() {
     ? product.version?.strategy_version_id
     : undefined;
   const admission = useLiveAdmission(strategyId, versionId);
+  const liveRunCandidates = useLiveRunCandidates();
   const accountRefresh = useRefreshLiveAccount();
-  const error = product.error ?? admission.error;
+  const createLiveRun = useCreateLiveRunCandidate();
+  const liveRunAction = useLiveRunCandidateAction();
+  const error = product.error ?? admission.error ?? liveRunCandidates.error;
 
   if (error) return <ProductErrorState error={error} />;
-  if (product.isVerifying || !product.isReady || admission.isPending) {
+  if (
+    product.isVerifying ||
+    !product.isReady ||
+    admission.isPending ||
+    liveRunCandidates.isPending
+  ) {
     return <ProductLoading label="正在验证 Live 独立准入" />;
   }
   if (!admission.data) {
@@ -48,6 +61,10 @@ export function LivePage() {
   const data = admission.data.data;
   const boundaries = admission.data.boundaries;
   const account = accountRefresh.data?.data;
+  const liveRun = liveRunCandidates.data?.data[0];
+  const canCreateLiveRun =
+    account?.connection_status === "connected" &&
+    account.account_result?.can_trade === true;
   const connectionLabel = account
     ? account.connection_status === "connected"
       ? "已连接"
@@ -158,7 +175,7 @@ export function LivePage() {
             }
             enabled={boundaries.authenticated_account_read_allowed}
           />
-          <Boundary label="Live Run 创建" value="关闭" />
+          <Boundary label="真实 Runtime 启动" value="关闭" />
           <Boundary label="订单提交" value="关闭" />
           <Boundary label="撤单与改单" value="关闭" />
           <Boundary label="自动恢复" value="关闭" />
@@ -273,6 +290,110 @@ export function LivePage() {
             : "账户结果尚未返回；"}
           原始账户响应：不暴露；NTPRO 订单接口：关闭；自动重试：关闭。
         </p>
+      </section>
+
+      <section className={styles.panel} aria-label="Live Run 候选">
+        <header>
+          <div>
+            <span className="eyebrow">Live Run</span>
+            <h2>启动前检查与人工停止</h2>
+          </div>
+          <span className={styles.readOnlyBadge}>订单发送关闭</span>
+        </header>
+        {liveRun ? (
+          <>
+            <div className={styles.detailGrid}>
+              <Detail label="Run ID" value={liveRun.run_id} />
+              <Detail label="生命周期" value={liveRun.lifecycle} />
+              <Detail
+                label="账户连接"
+                value={liveRun.account_connected ? "已验证" : "待检查"}
+              />
+              <Detail
+                label="交易权限"
+                value={liveRun.account_can_trade_verified ? "已验证" : "待检查"}
+              />
+              <Detail label="真实 Runtime" value="未启动" />
+              <Detail label="订单准入" value="已阻断" />
+            </div>
+            {liveRunAction.error ? (
+              <p className={styles.formError}>{liveRunAction.error.message}</p>
+            ) : null}
+            <div className={styles.runActions}>
+              <span>检查通过只代表候选就绪，不会连接行情或发送订单。</span>
+              {liveRun.lifecycle === "created" ? (
+                <button
+                  type="button"
+                  disabled={liveRunAction.isPending}
+                  onClick={() =>
+                    liveRunAction.mutate({
+                      runId: liveRun.run_id,
+                      action: "preflight",
+                    })
+                  }
+                >
+                  执行启动前检查
+                </button>
+              ) : null}
+              {liveRun.lifecycle !== "stopped" ? (
+                <button
+                  type="button"
+                  disabled={liveRunAction.isPending}
+                  onClick={() =>
+                    liveRunAction.mutate({
+                      runId: liveRun.run_id,
+                      action: "stop",
+                    })
+                  }
+                >
+                  人工停止候选
+                </button>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <>
+            <p>
+              先显式检查生产账户。账户连接与交易所交易权限都验证后，才可创建候选。
+            </p>
+            <label className={styles.confirmationRow}>
+              <input
+                type="checkbox"
+                checked={liveRunConfirmed}
+                onChange={(event) => setLiveRunConfirmed(event.target.checked)}
+              />
+              <span>
+                我确认创建 Live Run 候选；当前不会启动 runtime 或发送订单。
+              </span>
+            </label>
+            {createLiveRun.error ? (
+              <p className={styles.formError}>{createLiveRun.error.message}</p>
+            ) : null}
+            <div className={styles.runActions}>
+              <span>独立门禁由服务端再次校验，前端状态不能授权。</span>
+              <button
+                type="button"
+                disabled={
+                  !canCreateLiveRun ||
+                  !liveRunConfirmed ||
+                  createLiveRun.isPending
+                }
+                onClick={() =>
+                  createLiveRun.mutate({
+                    strategy_id: strategyId!,
+                    strategy_version_id: versionId!,
+                    environment: "live",
+                    account_ref: "account://live/binance/primary",
+                    venue_ref: "venue://live/BINANCE",
+                    user_confirmed: true,
+                  })
+                }
+              >
+                创建 Live Run 候选
+              </button>
+            </div>
+          </>
+        )}
       </section>
 
       <section className={styles.panel} aria-label="当前阻断原因">

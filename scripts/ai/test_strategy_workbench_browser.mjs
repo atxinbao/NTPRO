@@ -362,6 +362,7 @@ try {
 
   const liveAccountRefreshPath =
     "/api/product/v1/strategies/ema_cross_btcusdt_v1/versions/ema_cross_btcusdt_v1@v1/live-account/actions/refresh";
+  const liveRunCandidatesPath = "/api/product/v1/live-run-candidates";
   const liveAccountRefreshResponse = await fetch(
     `${baseUrl}${liveAccountRefreshPath}`,
     {
@@ -411,6 +412,57 @@ try {
   ) {
     throw new Error(
       `Live account refresh did not fail closed without runtime gates: status=${liveAccountRefreshResponse.status} body=${JSON.stringify(liveAccountRefresh)}`,
+    );
+  }
+
+  const liveCandidateListResponse = await fetch(
+    `${baseUrl}${liveRunCandidatesPath}`,
+    { headers: { cookie: institutionCookie } },
+  );
+  const liveCandidateList = await liveCandidateListResponse.json();
+  if (
+    liveCandidateListResponse.status !== 200 ||
+    liveCandidateList.schema_version !==
+      "ntpro.product_api.live_run_candidate_list.response.v1" ||
+    liveCandidateList.data?.length !== 0 ||
+    liveCandidateList.runtime_gate_refs?.length !== 5
+  ) {
+    throw new Error(
+      `Live candidate list contract drift: status=${liveCandidateListResponse.status} body=${JSON.stringify(liveCandidateList)}`,
+    );
+  }
+
+  const blockedLiveCandidateResponse = await fetch(
+    `${baseUrl}${liveRunCandidatesPath}`,
+    {
+      method: "POST",
+      headers: {
+        cookie: institutionCookie,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        strategy_id: "ema_cross_btcusdt_v1",
+        strategy_version_id: "ema_cross_btcusdt_v1@v1",
+        environment: "live",
+        account_ref: "account://live/binance/primary",
+        venue_ref: "venue://live/BINANCE",
+        user_confirmed: true,
+      }),
+    },
+  );
+  const blockedLiveCandidate = await blockedLiveCandidateResponse.json();
+  if (
+    blockedLiveCandidateResponse.status !== 422 ||
+    blockedLiveCandidate.error?.code !== "live_run_preflight_failed" ||
+    blockedLiveCandidate.error?.field !== "live_candidate_admission" ||
+    blockedLiveCandidate.error?.retryable !== false ||
+    blockedLiveCandidate.boundaries?.order_submission_allowed !== false ||
+    blockedLiveCandidate.boundaries?.order_mutation_allowed !== false ||
+    blockedLiveCandidate.boundaries?.real_orders_submitted !== false ||
+    fs.existsSync(path.join(workspace, "artifacts", "live-runs"))
+  ) {
+    throw new Error(
+      `Live candidate did not fail closed without independent gates: status=${blockedLiveCandidateResponse.status} body=${JSON.stringify(blockedLiveCandidate)}`,
     );
   }
 
@@ -677,6 +729,9 @@ try {
       "GET",
     ],
     ["GET", liveAccountRefreshPath, 405, "POST"],
+    ["PUT", liveRunCandidatesPath, 405, "GET, POST"],
+    ["POST", `${liveRunCandidatesPath}/missing-live-run`, 405, "GET"],
+    ["GET", `${liveRunCandidatesPath}/missing-live-run/actions`, 405, "POST"],
   ]) {
     const response = await fetch(`${baseUrl}${url}`, {
       method,
@@ -712,6 +767,7 @@ try {
   const productionAssets = new Set();
   let expectedHttpErrorResponses = 0;
   let liveAccountRefreshBrowserRequests = 0;
+  let liveCandidateBrowserRequests = 0;
   page.on("pageerror", (error) => browserErrors.push(error.message));
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
@@ -732,6 +788,14 @@ try {
         liveAccountRefreshPath
     ) {
       liveAccountRefreshBrowserRequests += 1;
+    }
+    if (
+      request.method() === "POST" &&
+      decodeURIComponent(new URL(request.url()).pathname).startsWith(
+        liveRunCandidatesPath,
+      )
+    ) {
+      liveCandidateBrowserRequests += 1;
     }
   });
   let scenario = "valid";
@@ -852,8 +916,11 @@ try {
     .getByRole("heading", { name: "Live 连接与独立准入" })
     .waitFor();
   await page.getByText("尚未获得 Live 独立审批").waitFor();
-  if (liveAccountRefreshBrowserRequests !== 0) {
-    throw new Error("Live page load issued a production account refresh");
+  if (
+    liveAccountRefreshBrowserRequests !== 0 ||
+    liveCandidateBrowserRequests !== 0
+  ) {
+    throw new Error("Live page load issued a production command");
   }
   const liveRefreshResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -882,6 +949,12 @@ try {
   await liveAccountRegion.getByText("已阻断", { exact: true }).waitFor();
   await liveAccountRegion.getByText("0/5").waitFor();
   await liveAccountRegion.getByText("未尝试", { exact: true }).waitFor();
+  const liveCandidateButton = page.getByRole("button", {
+    name: "创建 Live Run 候选",
+  });
+  if (!(await liveCandidateButton.isDisabled()) || liveCandidateBrowserRequests !== 0) {
+    throw new Error("blocked Live account enabled or issued candidate creation");
+  }
   if (
     await page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }).count()
   ) {
@@ -1269,6 +1342,8 @@ writeEvidence({
   drawer: 1,
   live_admission: 1,
   live_account_refresh: 1,
+  live_candidate_default_blocked: 1,
+  live_candidate_page_load_zero_commands: 1,
   bootstrap_url_clean: 1,
 });
 console.log(`strategy_workbench_browser=pass evidence=${evidenceDir}`);

@@ -52,12 +52,17 @@ use crate::{
 use super::{ApiResult, DashboardServerState};
 
 mod live_admission;
+mod live_run;
 mod run;
 mod strategy_version;
 #[cfg(test)]
 mod tests;
 
 pub(super) use live_admission::{live_account_refresh_api, live_admission_api};
+pub(super) use live_run::{
+    live_run_candidate_action_api, live_run_candidate_create_api, live_run_candidate_detail_api,
+    live_run_candidate_list_api,
+};
 pub(crate) use run::shutdown_active_demo_run;
 pub(super) use run::{
     demo_run_action_api, demo_run_create_api, demo_run_snapshot_api, run_analysis_api,
@@ -216,6 +221,8 @@ enum ProductErrorKind {
     DemoConflict,
     ExecutionFailed,
     DemoExecutionFailed,
+    LiveConflict,
+    LiveExecutionFailed,
     Forbidden,
     MethodNotAllowed,
     NotFound,
@@ -1377,6 +1384,18 @@ fn product_error_response(error: &ProductError, request_id: &str) -> (StatusCode
             StatusCode::INTERNAL_SERVER_ERROR,
             "demo_execution_failed",
             "Demo 节点执行或运行记录处理失败",
+            false,
+        ),
+        ProductErrorKind::LiveConflict => (
+            StatusCode::CONFLICT,
+            "live_run_candidate_conflict",
+            "Live Run 候选与当前准入生命周期冲突",
+            false,
+        ),
+        ProductErrorKind::LiveExecutionFailed => (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "live_run_preflight_failed",
+            "Live Run 启动前检查未通过",
             false,
         ),
         ProductErrorKind::Forbidden => (

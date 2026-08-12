@@ -815,6 +815,143 @@ export type StrategyVersionDetailResponse = {
   boundaries: ReadOnlyBoundaries;
 };
 
+export type CreateLiveRunCandidateRequest = {
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  environment: "live";
+  account_ref: "account://live/binance/primary";
+  venue_ref: "venue://live/BINANCE";
+  user_confirmed: true;
+};
+
+export type LiveRunCandidateAction = "preflight" | "stop";
+
+export type LiveRunCandidateActionRequest = {
+  run_id: RunId;
+  action: LiveRunCandidateAction;
+  user_confirmed: true;
+};
+
+export type LiveRunCandidateLifecycle =
+  "created" | "preflight_ready" | "stopped";
+
+export type LiveOrderAdmissionSnapshot = {
+  status: "blocked";
+  submit: "blocked";
+  cancel: "blocked";
+  replace: "blocked";
+  fill_reconciliation: "blocked";
+  blockers: [
+    "production_order_authority_not_granted",
+    "execution_adapter_send_not_enabled",
+    "fill_reconciliation_not_enabled",
+  ];
+};
+
+export type LiveRunCandidate = (
+  | {
+      lifecycle?: "created";
+      preflight_at_unix_ms?: null;
+      stopped_at_unix_ms?: null;
+      account_connected?: false;
+      account_can_trade_verified?: false;
+    }
+  | {
+      lifecycle?: "preflight_ready";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+    }
+  | {
+      lifecycle?: "stopped";
+      preflight_at_unix_ms?: null;
+      stopped_at_unix_ms?: number;
+      account_connected?: false;
+      account_can_trade_verified?: false;
+    }
+  | {
+      lifecycle?: "stopped";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: number;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+    }
+) & {
+  run_id: RunId;
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  environment: "live";
+  account_ref: "account://live/binance/primary";
+  venue_ref: "venue://live/BINANCE";
+  lifecycle: LiveRunCandidateLifecycle;
+  created_at_unix_ms: number;
+  preflight_at_unix_ms: number | null;
+  stopped_at_unix_ms: number | null;
+  account_connected: boolean;
+  account_can_trade_verified: boolean;
+  runtime_started: false;
+  order_admission: LiveOrderAdmissionSnapshot;
+  source_refs: [string, string, string, ContentHash];
+};
+
+export type LiveRunCandidateBoundaries = {
+  candidate_creation_allowed: true;
+  explicit_preflight_allowed: true;
+  manual_stop_allowed: true;
+  live_runtime_start_allowed: false;
+  external_market_data_connection_allowed: false;
+  order_endpoint_access_allowed: false;
+  order_submission_allowed: false;
+  cancel_order_allowed: false;
+  replace_order_allowed: false;
+  fill_reconciliation_allowed: false;
+  automatic_retry_allowed: false;
+  automatic_remediation_allowed: false;
+  automatic_recovery_allowed: false;
+  execution_adapter_send_attempted: false;
+  real_orders_submitted: false;
+  trading_controls_enabled: false;
+};
+
+export type LiveRunCandidateCreateResponse = LiveRunCandidateResponse & {
+  schema_version?: "ntpro.product_api.live_run_candidate_create.response.v1";
+};
+
+export type LiveRunCandidateListResponse = {
+  schema_version: "ntpro.product_api.live_run_candidate_list.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: Array<LiveRunCandidate>;
+  runtime_gate_refs: LiveRunCandidateGateRefs;
+  boundaries: LiveRunCandidateBoundaries;
+};
+
+export type LiveRunCandidateDetailResponse = LiveRunCandidateResponse & {
+  schema_version?: "ntpro.product_api.live_run_candidate_detail.response.v1";
+};
+
+export type LiveRunCandidateActionResponse = LiveRunCandidateResponse & {
+  schema_version?: "ntpro.product_api.live_run_candidate_action.response.v1";
+};
+
+export type LiveRunCandidateResponse = {
+  schema_version: string;
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: LiveRunCandidate;
+  runtime_gate_refs: LiveRunCandidateGateRefs;
+  boundaries: LiveRunCandidateBoundaries;
+};
+
+export type LiveRunCandidateGateRefs = [
+  "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE",
+  "NTPRO_S3_LIVE_RUN_OWNER_APPROVED",
+  "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND",
+  "NTPRO_S3_LIVE_RUN_MANUAL_STOP",
+  "NTPRO_S3_LIVE_RUN_RISK_APPROVED",
+];
+
 export type LiveAdmissionResponse = {
   schema_version: "ntpro.product_api.live_admission.response.v1";
   contract_version: "ntpro.product_api.v1";
@@ -1104,6 +1241,8 @@ export type ProductError = {
     | "backtest_execution_failed"
     | "demo_run_conflict"
     | "demo_execution_failed"
+    | "live_run_candidate_conflict"
+    | "live_run_preflight_failed"
     | "strategy_not_found"
     | "strategy_version_not_found"
     | "run_not_found"
@@ -1401,7 +1540,7 @@ export type RefreshLiveAccountErrors = {
    */
   404: ProductErrorResponse;
   /**
-   * 产品 API 仅允许 GET
+   * 产品命令 API 仅允许 POST
    */
   405: ProductErrorResponse;
   /**
@@ -1426,6 +1565,206 @@ export type RefreshLiveAccountResponses = {
 
 export type RefreshLiveAccountResponse =
   RefreshLiveAccountResponses[keyof RefreshLiveAccountResponses];
+
+export type ListLiveRunCandidatesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/live-run-candidates";
+};
+
+export type ListLiveRunCandidatesErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * Run 集合仅允许 GET 与 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type ListLiveRunCandidatesError =
+  ListLiveRunCandidatesErrors[keyof ListLiveRunCandidatesErrors];
+
+export type ListLiveRunCandidatesResponses = {
+  /**
+   * 当前未停止候选列表，最多一项
+   */
+  200: LiveRunCandidateListResponse;
+};
+
+export type ListLiveRunCandidatesResponse =
+  ListLiveRunCandidatesResponses[keyof ListLiveRunCandidatesResponses];
+
+export type CreateLiveRunCandidateData = {
+  body: CreateLiveRunCandidateRequest;
+  path?: never;
+  query?: never;
+  url: "/live-run-candidates";
+};
+
+export type CreateLiveRunCandidateErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * Run 集合仅允许 GET 与 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  422: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type CreateLiveRunCandidateError =
+  CreateLiveRunCandidateErrors[keyof CreateLiveRunCandidateErrors];
+
+export type CreateLiveRunCandidateResponses = {
+  /**
+   * Live Run 候选已创建；真实 runtime 和订单发送仍关闭
+   */
+  201: LiveRunCandidateCreateResponse;
+};
+
+export type CreateLiveRunCandidateResponse =
+  CreateLiveRunCandidateResponses[keyof CreateLiveRunCandidateResponses];
+
+export type GetLiveRunCandidateData = {
+  body?: never;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/live-run-candidates/{run_id}";
+};
+
+export type GetLiveRunCandidateErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type GetLiveRunCandidateError =
+  GetLiveRunCandidateErrors[keyof GetLiveRunCandidateErrors];
+
+export type GetLiveRunCandidateResponses = {
+  /**
+   * Live Run 候选只读详情
+   */
+  200: LiveRunCandidateDetailResponse;
+};
+
+export type GetLiveRunCandidateResponse =
+  GetLiveRunCandidateResponses[keyof GetLiveRunCandidateResponses];
+
+export type ActOnLiveRunCandidateData = {
+  body: LiveRunCandidateActionRequest;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/live-run-candidates/{run_id}/actions";
+};
+
+export type ActOnLiveRunCandidateErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品命令 API 仅允许 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  422: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type ActOnLiveRunCandidateError =
+  ActOnLiveRunCandidateErrors[keyof ActOnLiveRunCandidateErrors];
+
+export type ActOnLiveRunCandidateResponses = {
+  /**
+   * Live Run 候选生命周期动作已完成
+   */
+  200: LiveRunCandidateActionResponse;
+};
+
+export type ActOnLiveRunCandidateResponse =
+  ActOnLiveRunCandidateResponses[keyof ActOnLiveRunCandidateResponses];
 
 export type ListRunsData = {
   body?: never;
