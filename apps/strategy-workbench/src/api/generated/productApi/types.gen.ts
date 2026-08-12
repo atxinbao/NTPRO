@@ -848,6 +848,18 @@ export type LiveOrderAdmissionSnapshot = {
   ];
 };
 
+export type LiveRunAuditAnchorSnapshot = {
+  status: "verified_external_monotonic_anchor";
+  namespace: string;
+  revision: number;
+  workspace_revision: number;
+  receipt_ref: ContentHash;
+  key_id: string;
+  anchored_at_unix_ms: number;
+  workspace_snapshot_rollback_detectable: true;
+  trading_authority_granted: false;
+};
+
 export type LiveRunCandidate = (
   | {
       lifecycle?: "created";
@@ -891,6 +903,7 @@ export type LiveRunCandidate = (
   account_connected: boolean;
   account_can_trade_verified: boolean;
   runtime_started: false;
+  audit_anchor: LiveRunAuditAnchorSnapshot;
   order_admission: LiveOrderAdmissionSnapshot;
   source_refs: [string, string, string, ContentHash];
 };
@@ -924,6 +937,7 @@ export type LiveRunCandidateListResponse = {
   request_id: RequestId;
   data: Array<LiveRunCandidate>;
   runtime_gate_refs: LiveRunCandidateGateRefs;
+  audit_anchor_config_refs: LiveRunAuditAnchorConfigRefs;
   boundaries: LiveRunCandidateBoundaries;
 };
 
@@ -941,6 +955,7 @@ export type LiveRunCandidateResponse = {
   request_id: RequestId;
   data: LiveRunCandidate;
   runtime_gate_refs: LiveRunCandidateGateRefs;
+  audit_anchor_config_refs: LiveRunAuditAnchorConfigRefs;
   boundaries: LiveRunCandidateBoundaries;
 };
 
@@ -950,6 +965,14 @@ export type LiveRunCandidateGateRefs = [
   "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND",
   "NTPRO_S3_LIVE_RUN_MANUAL_STOP",
   "NTPRO_S3_LIVE_RUN_RISK_APPROVED",
+];
+
+export type LiveRunAuditAnchorConfigRefs = [
+  "NTPRO_S3_AUDIT_ANCHOR_ENDPOINT",
+  "NTPRO_S3_AUDIT_ANCHOR_NAMESPACE",
+  "NTPRO_S3_AUDIT_ANCHOR_KEY_ID",
+  "NTPRO_S3_AUDIT_ANCHOR_PUBLIC_KEY_BASE64",
+  "NTPRO_S3_AUDIT_ANCHOR_TOKEN",
 ];
 
 export type LiveAdmissionResponse = {

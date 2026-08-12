@@ -72,6 +72,10 @@ id = "RUSTSEC-2026-0235"
 reason = "rkyv 0.7.46 is present only as rust_decimal's disabled optional dependency; remove when rust_decimal supports rkyv >=0.8.17 or scanners exclude inactive optional dependencies"
 
 [[IgnoredVulns]]
+id = "RUSTSEC-2026-0253"
+reason = "lru 0.16.4 is pinned by alloy-provider 2.x; affected pop keys are BlockNumber u64 or B256 and cannot panic on Drop; remove when alloy-provider adopts lru >=0.18.2"
+
+[[IgnoredVulns]]
 id = "GHSA-7gcm-g887-7qv7"
 reason = "protobuf JSON recursion DoS, no fix available yet, low risk for internal use (we don't parse untrusted JSON with protobuf)"
 

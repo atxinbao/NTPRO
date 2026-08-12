@@ -2823,10 +2823,26 @@
           }
         }
       },
+      "LiveRunAuditAnchorSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "namespace", "revision", "workspace_revision", "receipt_ref", "key_id", "anchored_at_unix_ms", "workspace_snapshot_rollback_detectable", "trading_authority_granted"],
+        "properties": {
+          "status": { "const": "verified_external_monotonic_anchor" },
+          "namespace": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+          "revision": { "type": "integer", "minimum": 0 },
+          "workspace_revision": { "type": "integer", "minimum": 0 },
+          "receipt_ref": { "$ref": "#/components/schemas/ContentHash" },
+          "key_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+          "anchored_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "workspace_snapshot_rollback_detectable": { "const": true },
+          "trading_authority_granted": { "const": false }
+        }
+      },
       "LiveRunCandidate": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "order_admission", "source_refs"],
+        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "audit_anchor", "order_admission", "source_refs"],
         "properties": {
           "run_id": { "$ref": "#/components/schemas/RunId" },
           "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
@@ -2841,6 +2857,7 @@
           "account_connected": { "type": "boolean" },
           "account_can_trade_verified": { "type": "boolean" },
           "runtime_started": { "const": false },
+          "audit_anchor": { "$ref": "#/components/schemas/LiveRunAuditAnchorSnapshot" },
           "order_admission": { "$ref": "#/components/schemas/LiveOrderAdmissionSnapshot" },
           "source_refs": {
             "type": "array",
@@ -2928,7 +2945,7 @@
       "LiveRunCandidateListResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schema_version", "contract_version", "request_id", "data", "runtime_gate_refs", "boundaries"],
+        "required": ["schema_version", "contract_version", "request_id", "data", "runtime_gate_refs", "audit_anchor_config_refs", "boundaries"],
         "properties": {
           "schema_version": { "const": "ntpro.product_api.live_run_candidate_list.response.v1" },
           "contract_version": { "const": "ntpro.product_api.v1" },
@@ -2939,6 +2956,7 @@
             "items": { "$ref": "#/components/schemas/LiveRunCandidate" }
           },
           "runtime_gate_refs": { "$ref": "#/components/schemas/LiveRunCandidateGateRefs" },
+          "audit_anchor_config_refs": { "$ref": "#/components/schemas/LiveRunAuditAnchorConfigRefs" },
           "boundaries": { "$ref": "#/components/schemas/LiveRunCandidateBoundaries" }
         }
       },
@@ -2953,13 +2971,14 @@
       "LiveRunCandidateResponse": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schema_version", "contract_version", "request_id", "data", "runtime_gate_refs", "boundaries"],
+        "required": ["schema_version", "contract_version", "request_id", "data", "runtime_gate_refs", "audit_anchor_config_refs", "boundaries"],
         "properties": {
           "schema_version": { "type": "string" },
           "contract_version": { "const": "ntpro.product_api.v1" },
           "request_id": { "$ref": "#/components/schemas/RequestId" },
           "data": { "$ref": "#/components/schemas/LiveRunCandidate" },
           "runtime_gate_refs": { "$ref": "#/components/schemas/LiveRunCandidateGateRefs" },
+          "audit_anchor_config_refs": { "$ref": "#/components/schemas/LiveRunAuditAnchorConfigRefs" },
           "boundaries": { "$ref": "#/components/schemas/LiveRunCandidateBoundaries" }
         }
       },
@@ -2973,6 +2992,19 @@
               { "const": "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND" },
               { "const": "NTPRO_S3_LIVE_RUN_MANUAL_STOP" },
               { "const": "NTPRO_S3_LIVE_RUN_RISK_APPROVED" }
+            ],
+            "items": false
+      },
+      "LiveRunAuditAnchorConfigRefs": {
+            "type": "array",
+            "minItems": 5,
+            "maxItems": 5,
+            "prefixItems": [
+              { "const": "NTPRO_S3_AUDIT_ANCHOR_ENDPOINT" },
+              { "const": "NTPRO_S3_AUDIT_ANCHOR_NAMESPACE" },
+              { "const": "NTPRO_S3_AUDIT_ANCHOR_KEY_ID" },
+              { "const": "NTPRO_S3_AUDIT_ANCHOR_PUBLIC_KEY_BASE64" },
+              { "const": "NTPRO_S3_AUDIT_ANCHOR_TOKEN" }
             ],
             "items": false
       },

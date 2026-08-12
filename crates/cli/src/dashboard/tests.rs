@@ -7895,6 +7895,9 @@ async fn dashboard_http_server_rejects_missing_and_stopped_control_actions() {
         ntpro_node_bin: root.join("ntpro-node-missing"),
         lifecycle_action_lock: Arc::new(Mutex::new(())),
         backtest_creation_gate: Arc::new(tokio::sync::Semaphore::new(1)),
+        live_run_audit_anchor: Arc::new(
+            super::product_api::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test(),
+        ),
     };
     let (status, Json(unknown_action)) =
         control_action_response(&state, "sandbox-a", "reboot").unwrap();

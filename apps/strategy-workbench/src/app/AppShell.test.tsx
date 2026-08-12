@@ -445,6 +445,31 @@ describe("strategy workbench product slice", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps the Live page usable but candidate creation blocked without an audit anchor", async () => {
+    const anchorError = structuredClone(errorFixture);
+    anchorError.error.code = "live_run_preflight_failed";
+    anchorError.error.field = "live_run_audit_anchor_config";
+    anchorError.error.summary = "Live Run 启动前检查未通过";
+    server.use(
+      http.get("/api/product/v1/live-run-candidates", () =>
+        HttpResponse.json(anchorError, { status: 422 }),
+      ),
+    );
+
+    renderWorkbench("/live");
+
+    await screen.findByRole("heading", { name: "Live 连接与独立准入" });
+    const region = screen.getByRole("region", { name: "Live Run 候选" });
+    expect(
+      await within(region).findByText(
+        "外部审计锚点尚未配置，Live Run 候选保持阻断。",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(region).getByRole("button", { name: "创建 Live Run 候选" }),
+    ).toBeDisabled();
+  });
+
   it("creates, preflights and manually stops a Live Run candidate", async () => {
     let currentCandidate: Record<string, any> | null = null;
     let listGets = 0;
@@ -482,9 +507,17 @@ describe("strategy workbench product slice", () => {
             currentCandidate.data.preflight_at_unix_ms = 1786406401000;
             currentCandidate.data.account_connected = true;
             currentCandidate.data.account_can_trade_verified = true;
+            currentCandidate.data.audit_anchor.revision = 1;
+            currentCandidate.data.audit_anchor.workspace_revision = 1;
+            currentCandidate.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
+            currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
           } else {
             currentCandidate.data.lifecycle = "stopped";
             currentCandidate.data.stopped_at_unix_ms = 1786406402000;
+            currentCandidate.data.audit_anchor.revision = 2;
+            currentCandidate.data.audit_anchor.workspace_revision = 2;
+            currentCandidate.data.audit_anchor.receipt_ref = `sha256:${"e".repeat(64)}`;
+            currentCandidate.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
           }
           return HttpResponse.json(currentCandidate);
         },

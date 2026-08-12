@@ -2665,7 +2665,7 @@
                   <li>建立 Live 独立准入、最小权限、幂等、审计、恢复和回滚证据。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-003 已完成独立准入、显式生产账户只读检查以及账户/资产结果产品化。S3-LV-004 正在建设 Live Run 候选的创建、启动前检查和人工停止；候选不会启动真实 Runtime，订单接口与真实订单仍保持阻断。真实 Runtime 或订单准入前还必须引入外部不可回滚审计锚点，本地文件哈希链不作为 WORM 证明。</div>
+              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-004 已完成独立准入、生产账户只读结果和 Live Run 候选生命周期。S3-LV-005 已完成工作区外单调审计锚点、签名回执和完整本地旧快照恢复检测的本地实现，当前等待独立审查与远程检查；候选不会启动真实 Runtime，订单接口与真实订单仍保持阻断。</div>
               <div class="exit-gate"><strong>退出条件</strong>真实账户和 Venue 在独立授权下完成受控端到端交易；异常、断连、重复回报和恢复场景 fail closed，并证明不会由 Demo 自动继承权限。</div>
             </article>
 

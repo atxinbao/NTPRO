@@ -26,6 +26,10 @@ use super::{
         LiveRunCreationAdmission, LiveRunPreflightAdmission, evaluate_live_run_creation_admission,
         evaluate_live_run_preflight_admission,
     },
+    live_run_anchor::{
+        LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION, LiveRunAnchorAppendRequest, LiveRunAnchorReceipt,
+        LiveRunAnchorRevision, anchor_config_refs,
+    },
     run::{open_absolute_directory_nofollow, write_new_run_file},
     *,
 };
@@ -42,8 +46,8 @@ const LIVE_RUN_CANDIDATE_ACTION_SCHEMA_VERSION: &str =
     "ntpro.product_api.live_run_candidate_action.response.v1";
 const LIVE_RUN_PREFLIGHT_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_preflight.v1";
 const LIVE_RUN_STOP_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_stop.v1";
-const LIVE_RUN_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state.v1";
-const LIVE_RUN_STATE_HEAD_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_head.v1";
+const LIVE_RUN_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state.v2";
+const LIVE_RUN_STATE_HEAD_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_head.v2";
 const LIVE_RUN_ACTIVE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_active.v1";
 const LIVE_RUN_STATE_COMMIT_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_commit.v1";
 const LIVE_RUN_ACTIVE_FILE: &str = ".active-candidate.json";
@@ -51,6 +55,8 @@ const LIVE_RUN_STATE_HEAD_FILE: &str = "state-head.json";
 const LIVE_RUN_STATE_HEAD_NEXT_FILE: &str = ".state-head.next.json";
 const LIVE_RUN_MUTATION_LOCK_FILE: &str = ".live-run-mutation.lock";
 const LIVE_RUN_STATE_COMMIT_DIRECTORY: &str = "live-run-state-commits";
+const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE: &str = "live-run-audit-anchor-head.json";
+const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE: &str = ".live-run-audit-anchor-head.next.json";
 const LIVE_RUN_ARTIFACT_MAX_BYTES: u64 = 64 * 1024;
 
 const LIVE_RUN_GATE_CREATE: &str = "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE";
@@ -172,6 +178,7 @@ struct LiveRunStateHead {
     revision: u64,
     state_sha256: String,
     commit_sha256: String,
+    anchor_receipt_sha256: String,
     updated_at_unix_ms: u64,
 }
 
@@ -236,8 +243,22 @@ struct LiveRunCandidate {
     account_connected: bool,
     account_can_trade_verified: bool,
     runtime_started: bool,
+    audit_anchor: LiveRunAuditAnchorSnapshot,
     order_admission: LiveOrderAdmissionSnapshot,
     source_refs: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+struct LiveRunAuditAnchorSnapshot {
+    status: String,
+    namespace: String,
+    revision: u64,
+    workspace_revision: u64,
+    receipt_ref: String,
+    key_id: String,
+    anchored_at_unix_ms: u64,
+    workspace_snapshot_rollback_detectable: bool,
+    trading_authority_granted: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -290,6 +311,7 @@ pub(in crate::dashboard) struct LiveRunCandidateResponse {
     request_id: String,
     data: LiveRunCandidate,
     runtime_gate_refs: Vec<String>,
+    audit_anchor_config_refs: Vec<String>,
     boundaries: LiveRunCandidateBoundaries,
 }
 
@@ -300,6 +322,7 @@ pub(in crate::dashboard) struct LiveRunCandidateListResponse {
     request_id: String,
     data: Vec<LiveRunCandidate>,
     runtime_gate_refs: Vec<String>,
+    audit_anchor_config_refs: Vec<String>,
     boundaries: LiveRunCandidateBoundaries,
 }
 
@@ -433,6 +456,7 @@ pub(in crate::dashboard) async fn live_run_candidate_list_api(
                 .map(|(candidate, _, _)| candidate)
                 .collect(),
             runtime_gate_refs: LiveRunGateState::refs(),
+            audit_anchor_config_refs: anchor_config_refs(),
             boundaries: LiveRunCandidateBoundaries::enforced(),
         })
     });
@@ -520,6 +544,7 @@ fn response(
         request_id,
         data,
         runtime_gate_refs: LiveRunGateState::refs(),
+        audit_anchor_config_refs: anchor_config_refs(),
         boundaries: LiveRunCandidateBoundaries::enforced(),
     }
 }
@@ -585,7 +610,7 @@ fn create_live_run_candidate(
         cleanup_unpublished_live_run_candidate(state, &run_id);
         return Err(error);
     }
-    Ok(project_candidate(&manifest, None, None))
+    load_live_run_candidate(state, &run_id)
 }
 
 fn cleanup_unpublished_live_run_candidate(state: &DashboardServerState, run_id: &str) {
@@ -846,6 +871,7 @@ fn load_live_run_candidate_snapshot(
     state: &DashboardServerState,
     run_id: &str,
 ) -> Result<(LiveRunCandidate, LiveRunCandidateManifest, Vec<u8>), ProductError> {
+    validate_workspace_anchor_head(state)?;
     let (manifest, manifest_raw) = load_live_run_manifest(state, run_id)?;
     let root = canonical_live_run_root(state, false)?.join(run_id);
     let manifest_sha256 = sha256_ref(&manifest_raw);
@@ -874,10 +900,12 @@ fn load_live_run_candidate_snapshot(
         stop.as_ref(),
     )?;
     validate_candidate_directory_entries(&root, &state_history)?;
+    let receipt = load_live_run_anchor_receipt(state, run_id, candidate_state.revision)?;
     let candidate = project_candidate(
         &manifest,
         preflight.as_ref().map(|(value, _)| value),
         stop.as_ref().map(|(value, _)| value),
+        &receipt,
     );
     Ok((candidate, manifest, manifest_raw))
 }
@@ -1015,6 +1043,7 @@ fn project_candidate(
     manifest: &LiveRunCandidateManifest,
     preflight: Option<&LiveRunPreflightArtifact>,
     stop: Option<&LiveRunStopArtifact>,
+    receipt: &LiveRunAnchorReceipt,
 ) -> LiveRunCandidate {
     let lifecycle = if stop.is_some() {
         LiveRunCandidateLifecycle::Stopped
@@ -1037,6 +1066,17 @@ fn project_candidate(
         account_connected: preflight.is_some(),
         account_can_trade_verified: preflight.is_some(),
         runtime_started: false,
+        audit_anchor: LiveRunAuditAnchorSnapshot {
+            status: "verified_external_monotonic_anchor".to_string(),
+            namespace: receipt.namespace.clone(),
+            revision: receipt.revision,
+            workspace_revision: receipt.workspace_revision,
+            receipt_ref: receipt.sha256(),
+            key_id: receipt.key_id.clone(),
+            anchored_at_unix_ms: receipt.anchored_at_unix_ms,
+            workspace_snapshot_rollback_detectable: true,
+            trading_authority_granted: false,
+        },
         order_admission: LiveOrderAdmissionSnapshot::blocked(),
         source_refs: manifest.source_refs.clone(),
     }
@@ -1091,12 +1131,6 @@ fn write_live_run_state(
     let run_directory = open_absolute_directory_nofollow(&run_root)?;
     let state_raw = serde_json::to_vec_pretty(candidate_state)
         .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_run_state"))?;
-    write_new_run_file(
-        &run_directory,
-        &live_run_state_file_name(candidate_state.revision),
-        &state_raw,
-    )?;
-
     let previous_commit_sha256 = if candidate_state.revision == 0 {
         None
     } else {
@@ -1120,19 +1154,57 @@ fn write_live_run_state(
             "live_run_state_commit",
         )
     })?;
+    let previous_workspace_receipt = load_local_workspace_anchor_head(server_state)?;
+    let workspace_revision = previous_workspace_receipt
+        .as_ref()
+        .map_or(0, |receipt| receipt.workspace_revision + 1);
+    let previous_receipt_sha256 = previous_workspace_receipt
+        .as_ref()
+        .map(LiveRunAnchorReceipt::sha256);
+    let anchor_request = LiveRunAnchorAppendRequest::new(
+        server_state.live_run_audit_anchor.namespace()?,
+        run_id,
+        LiveRunAnchorRevision::new(candidate_state.revision, workspace_revision),
+        sha256_ref(&state_raw),
+        sha256_ref(&commit_raw),
+        previous_receipt_sha256,
+        candidate_state.updated_at_unix_ms,
+    );
+    let receipt = server_state.live_run_audit_anchor.append(&anchor_request)?;
+    server_state
+        .live_run_audit_anchor
+        .validate_receipt(&receipt, &anchor_request)?;
+    let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_run_audit_anchor_receipt",
+        )
+    })?;
+    write_new_run_file(
+        &run_directory,
+        &live_run_state_file_name(candidate_state.revision),
+        &state_raw,
+    )?;
     let commit_directory = open_live_run_state_commit_directory(server_state, true)?;
     write_new_run_file(
         &commit_directory,
         &live_run_state_commit_file_name(run_id, candidate_state.revision),
         &commit_raw,
     )?;
+    write_new_run_file(
+        &run_directory,
+        &live_run_anchor_receipt_file_name(candidate_state.revision),
+        &receipt_raw,
+    )?;
     publish_live_run_state_head(
         &run_directory,
         candidate_state,
         &state_raw,
         &commit_raw,
+        &receipt,
         previous_commit_sha256.as_deref(),
     )?;
+    publish_workspace_anchor_head(server_state, &receipt)?;
 
     let (persisted, persisted_raw) = load_live_run_state(
         server_state,
@@ -1153,6 +1225,7 @@ fn publish_live_run_state_head(
     state: &LiveRunCandidateState,
     state_raw: &[u8],
     commit_raw: &[u8],
+    receipt: &LiveRunAnchorReceipt,
     previous_commit_sha256: Option<&str>,
 ) -> Result<(), ProductError> {
     let head = LiveRunStateHead {
@@ -1161,6 +1234,7 @@ fn publish_live_run_state_head(
         revision: state.revision,
         state_sha256: sha256_ref(state_raw),
         commit_sha256: sha256_ref(commit_raw),
+        anchor_receipt_sha256: receipt.sha256(),
         updated_at_unix_ms: state.updated_at_unix_ms,
     };
     let raw = serde_json::to_vec_pretty(&head)
@@ -1180,6 +1254,8 @@ fn publish_live_run_state_head(
             || current.revision + 1 != state.revision
             || Some(current.state_sha256.as_str()) != state.previous_state_sha256.as_deref()
             || Some(current.commit_sha256.as_str()) != previous_commit_sha256
+            || current.anchor_receipt_sha256
+                != receipt.previous_receipt_sha256.clone().unwrap_or_default()
             || current.updated_at_unix_ms > state.updated_at_unix_ms
         {
             return Err(product_error(
@@ -1286,6 +1362,19 @@ fn load_live_run_state_history(
         let commit_raw = load_live_run_state_commit_raw(state, run_id, revision)?;
         let commit: LiveRunStateCommit = serde_json::from_slice(&commit_raw)
             .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_run_state_commit"))?;
+        let receipt = load_live_run_anchor_receipt(state, run_id, revision)?;
+        let anchor_request = LiveRunAnchorAppendRequest::new(
+            state.live_run_audit_anchor.namespace()?,
+            run_id,
+            LiveRunAnchorRevision::new(revision, receipt.workspace_revision),
+            sha256_ref(&state_raw),
+            sha256_ref(&commit_raw),
+            receipt.previous_receipt_sha256.clone(),
+            candidate_state.updated_at_unix_ms,
+        );
+        state
+            .live_run_audit_anchor
+            .validate_receipt(&receipt, &anchor_request)?;
         if candidate_state.schema_version != LIVE_RUN_STATE_SCHEMA_VERSION
             || candidate_state.run_id != run_id
             || candidate_state.source_manifest_sha256 != manifest_sha256
@@ -1330,6 +1419,8 @@ fn load_live_run_state_history(
         || head.revision != latest_state.revision
         || head.state_sha256 != sha256_ref(latest_state_raw)
         || Some(head.commit_sha256.as_str()) != previous_commit_sha256.as_deref()
+        || head.anchor_receipt_sha256
+            != load_live_run_anchor_receipt(state, run_id, latest_state.revision)?.sha256()
         || head.updated_at_unix_ms != latest_state.updated_at_unix_ms
     {
         return Err(product_error(
@@ -1380,6 +1471,39 @@ fn validate_live_run_state_transition(
 
 fn live_run_state_file_name(revision: u64) -> String {
     format!("state-{revision:020}.json")
+}
+
+fn live_run_anchor_receipt_file_name(revision: u64) -> String {
+    format!("anchor-receipt-{revision:020}.json")
+}
+
+fn load_live_run_anchor_receipt(
+    state: &DashboardServerState,
+    run_id: &str,
+    revision: u64,
+) -> Result<LiveRunAnchorReceipt, ProductError> {
+    let raw = read_live_run_artifact_bytes(
+        &canonical_live_run_root(state, false)?
+            .join(run_id)
+            .join(live_run_anchor_receipt_file_name(revision)),
+        "live_run_audit_anchor_receipt",
+    )?;
+    let receipt: LiveRunAnchorReceipt = serde_json::from_slice(&raw).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_run_audit_anchor_receipt",
+        )
+    })?;
+    if receipt.schema_version != LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION
+        || receipt.run_id != run_id
+        || receipt.revision != revision
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_audit_anchor_receipt",
+        ));
+    }
+    Ok(receipt)
 }
 
 fn live_run_state_commit_file_name(run_id: &str, revision: u64) -> String {
@@ -1475,6 +1599,7 @@ fn validate_candidate_directory_entries(
     ]);
     for (state, _) in state_history {
         expected.insert(live_run_state_file_name(state.revision));
+        expected.insert(live_run_anchor_receipt_file_name(state.revision));
     }
     let state = state_history
         .last()
@@ -1517,9 +1642,251 @@ fn validate_candidate_directory_entries(
     Ok(())
 }
 
+fn live_run_workspace_anchor_head_path(
+    state: &DashboardServerState,
+) -> Result<PathBuf, ProductError> {
+    let live_run_root = canonical_live_run_root(state, false)?;
+    let artifacts = live_run_root
+        .parent()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "artifact_root"))?;
+    let canonical_artifacts = canonical_path(artifacts, "artifact_root")?;
+    Ok(canonical_artifacts.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE))
+}
+
+fn load_local_workspace_anchor_head(
+    state: &DashboardServerState,
+) -> Result<Option<LiveRunAnchorReceipt>, ProductError> {
+    let head_path = live_run_workspace_anchor_head_path(state)?;
+    let next_path = head_path.with_file_name(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE);
+    if next_path.exists() {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        ));
+    }
+    read_optional_artifact_with_raw::<LiveRunAnchorReceipt>(
+        &head_path,
+        "live_run_workspace_anchor_head",
+    )
+    .map(|value| value.map(|(receipt, _)| receipt))
+}
+
+fn publish_workspace_anchor_head(
+    state: &DashboardServerState,
+    receipt: &LiveRunAnchorReceipt,
+) -> Result<(), ProductError> {
+    let head_path = live_run_workspace_anchor_head_path(state)?;
+    let artifacts = open_absolute_directory_nofollow(
+        head_path
+            .parent()
+            .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "artifact_root"))?,
+    )?;
+    let previous = load_local_workspace_anchor_head(state)?;
+    let expected_revision = previous
+        .as_ref()
+        .map_or(0, |value| value.workspace_revision + 1);
+    let expected_previous = previous.as_ref().map(LiveRunAnchorReceipt::sha256);
+    if receipt.workspace_revision != expected_revision
+        || receipt.previous_receipt_sha256 != expected_previous
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        ));
+    }
+    let raw = serde_json::to_vec_pretty(receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_run_workspace_anchor_head",
+        )
+    })?;
+    if previous.is_none() {
+        write_new_run_file(&artifacts, LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE, &raw)?;
+    } else {
+        write_new_run_file(&artifacts, LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE, &raw)?;
+        artifacts
+            .rename(
+                LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE,
+                &artifacts,
+                LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE,
+            )
+            .map_err(|_| {
+                product_error(
+                    ProductErrorKind::SourceUnavailable,
+                    "live_run_workspace_anchor_head",
+                )
+            })?;
+    }
+    let persisted = read_run_file_from_directory(
+        &artifacts,
+        LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE,
+        "live_run_workspace_anchor_head",
+    )?;
+    if persisted != raw {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_run_workspace_anchor_head",
+        ));
+    }
+    Ok(())
+}
+
+fn parse_live_run_anchor_receipt_file_name(name: &str) -> Result<u64, ProductError> {
+    let raw_revision = name
+        .strip_prefix("anchor-receipt-")
+        .and_then(|value| value.strip_suffix(".json"))
+        .ok_or_else(|| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "live_run_audit_anchor_receipt",
+            )
+        })?;
+    let revision = raw_revision.parse::<u64>().map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_run_audit_anchor_receipt",
+        )
+    })?;
+    if raw_revision.len() != 20 || name != live_run_anchor_receipt_file_name(revision) {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_run_audit_anchor_receipt",
+        ));
+    }
+    Ok(revision)
+}
+
+fn load_workspace_anchor_receipts(
+    state: &DashboardServerState,
+) -> Result<Vec<LiveRunAnchorReceipt>, ProductError> {
+    let root = canonical_live_run_root(state, false)?;
+    if !root.exists() {
+        return Ok(Vec::new());
+    }
+    let mut receipts = Vec::new();
+    for entry in fs::read_dir(&root)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "live_run_root"))?
+    {
+        let entry = entry
+            .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "live_run_root"))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "live_run_root"))?;
+        if !file_type.is_dir() || file_type.is_symlink() {
+            continue;
+        }
+        let run_id = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_run_root"))?;
+        validate_identifier("run_id", &run_id)?;
+        for artifact in fs::read_dir(entry.path()).map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_audit_anchor_receipt",
+            )
+        })? {
+            let artifact = artifact.map_err(|_| {
+                product_error(
+                    ProductErrorKind::SourceUnavailable,
+                    "live_run_audit_anchor_receipt",
+                )
+            })?;
+            let name = artifact.file_name().into_string().map_err(|_| {
+                product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "live_run_audit_anchor_receipt",
+                )
+            })?;
+            if !name.starts_with("anchor-receipt-") {
+                continue;
+            }
+            let file_type = artifact.file_type().map_err(|_| {
+                product_error(
+                    ProductErrorKind::SourceUnavailable,
+                    "live_run_audit_anchor_receipt",
+                )
+            })?;
+            if !file_type.is_file() || file_type.is_symlink() {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "live_run_audit_anchor_receipt",
+                ));
+            }
+            let revision = parse_live_run_anchor_receipt_file_name(&name)?;
+            let receipt = load_live_run_anchor_receipt(state, &run_id, revision)?;
+            receipts.push(receipt);
+        }
+    }
+    receipts.sort_by_key(|receipt| receipt.workspace_revision);
+    Ok(receipts)
+}
+
+fn validate_workspace_anchor_head(
+    state: &DashboardServerState,
+) -> Result<Option<LiveRunAnchorReceipt>, ProductError> {
+    let local = load_local_workspace_anchor_head(state)?;
+    let remote = state.live_run_audit_anchor.latest()?;
+    if local != remote {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_latest",
+        ));
+    }
+    let Some(latest) = local else {
+        if !load_workspace_anchor_receipts(state)?.is_empty() {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_run_workspace_anchor_head",
+            ));
+        }
+        return Ok(None);
+    };
+    let receipts = load_workspace_anchor_receipts(state)?;
+    if receipts.len() != latest.workspace_revision as usize + 1 {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_history",
+        ));
+    }
+    let mut previous: Option<&LiveRunAnchorReceipt> = None;
+    for (index, receipt) in receipts.iter().enumerate() {
+        let request = LiveRunAnchorAppendRequest::new(
+            state.live_run_audit_anchor.namespace()?,
+            &receipt.run_id,
+            LiveRunAnchorRevision::new(receipt.revision, receipt.workspace_revision),
+            receipt.state_sha256.clone(),
+            receipt.commit_sha256.clone(),
+            receipt.previous_receipt_sha256.clone(),
+            receipt.anchored_at_unix_ms,
+        );
+        state
+            .live_run_audit_anchor
+            .validate_receipt(receipt, &request)?;
+        if receipt.workspace_revision != index as u64
+            || receipt.previous_receipt_sha256 != previous.map(LiveRunAnchorReceipt::sha256)
+            || previous.is_some_and(|value| receipt.anchored_at_unix_ms < value.anchored_at_unix_ms)
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_run_workspace_anchor_history",
+            ));
+        }
+        previous = Some(receipt);
+    }
+    if receipts.last() != Some(&latest) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_latest",
+        ));
+    }
+    Ok(Some(latest))
+}
+
 fn load_active_live_run_candidates(
     state: &DashboardServerState,
 ) -> Result<Vec<(LiveRunCandidate, LiveRunCandidateManifest, Vec<u8>)>, ProductError> {
+    validate_workspace_anchor_head(state)?;
     let root = canonical_live_run_root(state, false)?;
     if !root.exists() {
         return Ok(Vec::new());
@@ -1894,6 +2261,9 @@ mod tests {
                     ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
                     lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
                     backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+                    live_run_audit_anchor: std::sync::Arc::new(
+                        super::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test(),
+                    ),
                 },
                 root,
             }
@@ -1906,6 +2276,7 @@ mod tests {
                 ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
                 lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
                 backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+                live_run_audit_anchor: self.state.live_run_audit_anchor.clone(),
             }
         }
     }
@@ -2529,6 +2900,202 @@ mod tests {
                 VERSION_HASH,
             )
             .is_ok()
+        );
+    }
+
+    #[test]
+    fn external_anchor_detects_complete_workspace_snapshot_rollback() {
+        let fixture = LiveRunFixture::new("complete-workspace-rollback");
+        let created = create_live_run_candidate(
+            &fixture.state,
+            request(),
+            "product-complete-workspace-rollback",
+            unix_time_ms(),
+            admission(),
+            gates(),
+            VERSION_HASH,
+        )
+        .unwrap();
+        run_live_candidate_action_with_preflight(
+            &fixture.state,
+            &created.run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: created.run_id.clone(),
+                action: LiveRunCandidateAction::Preflight,
+                user_confirmed: true,
+            },
+            |_| {
+                Ok(LiveRunPreflightAdmission {
+                    connected: true,
+                    can_trade: true,
+                    evaluated_at_unix_ms: unix_time_ms(),
+                    source_refs: admission().source_refs,
+                })
+            },
+        )
+        .unwrap();
+
+        let run_root = fixture
+            .root
+            .join("artifacts/live-runs")
+            .join(&created.run_id);
+        let snapshot_files = fs::read_dir(&run_root)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (entry.file_name(), fs::read(entry.path()).unwrap())
+            })
+            .collect::<Vec<_>>();
+        let commit_root = fixture.root.join("artifacts/live-run-state-commits");
+        let snapshot_commits = fs::read_dir(&commit_root)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (entry.file_name(), fs::read(entry.path()).unwrap())
+            })
+            .collect::<Vec<_>>();
+        let workspace_head_path = fixture
+            .root
+            .join("artifacts/live-run-audit-anchor-head.json");
+        let workspace_head = fs::read(&workspace_head_path).unwrap();
+        let active_pointer = fs::read(
+            fixture
+                .root
+                .join("artifacts/live-runs/.active-candidate.json"),
+        )
+        .unwrap();
+
+        run_live_candidate_action(
+            &fixture.state,
+            &created.run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: created.run_id.clone(),
+                action: LiveRunCandidateAction::Stop,
+                user_confirmed: true,
+            },
+        )
+        .unwrap();
+
+        fs::remove_dir_all(&run_root).unwrap();
+        fs::create_dir(&run_root).unwrap();
+        for (name, raw) in snapshot_files {
+            fs::write(run_root.join(name), raw).unwrap();
+        }
+        for entry in fs::read_dir(&commit_root).unwrap() {
+            fs::remove_file(entry.unwrap().path()).unwrap();
+        }
+        for (name, raw) in snapshot_commits {
+            fs::write(commit_root.join(name), raw).unwrap();
+        }
+        fs::write(
+            fixture
+                .root
+                .join("artifacts/live-runs/.active-candidate.json"),
+            active_pointer,
+        )
+        .unwrap();
+        fs::write(&workspace_head_path, workspace_head).unwrap();
+
+        let error = load_live_run_candidate(&fixture.state, &created.run_id).unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+        assert_eq!(error.field, "live_run_workspace_anchor_latest");
+    }
+
+    #[test]
+    fn external_anchor_detects_rollback_to_empty_precreation_workspace() {
+        let fixture = LiveRunFixture::new("empty-workspace-rollback");
+        create_live_run_candidate(
+            &fixture.state,
+            request(),
+            "product-empty-workspace-rollback",
+            unix_time_ms(),
+            admission(),
+            gates(),
+            VERSION_HASH,
+        )
+        .unwrap();
+
+        fs::remove_dir_all(fixture.root.join("artifacts/live-runs")).unwrap();
+        fs::remove_dir_all(fixture.root.join("artifacts/live-run-state-commits")).unwrap();
+        fs::remove_file(
+            fixture
+                .root
+                .join("artifacts/live-run-audit-anchor-head.json"),
+        )
+        .unwrap();
+
+        let error = load_active_live_run_candidates(&fixture.state).unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+        assert_eq!(error.field, "live_run_workspace_anchor_latest");
+    }
+
+    #[test]
+    fn external_anchor_detects_append_success_before_local_publication() {
+        let fixture = LiveRunFixture::new("append-before-local-publication");
+        let anchor_request = LiveRunAnchorAppendRequest::new(
+            fixture.state.live_run_audit_anchor.namespace().unwrap(),
+            "live-candidate-orphaned-anchor",
+            LiveRunAnchorRevision::new(0, 0),
+            format!("sha256:{}", "1".repeat(64)),
+            format!("sha256:{}", "2".repeat(64)),
+            None,
+            unix_time_ms(),
+        );
+        fixture
+            .state
+            .live_run_audit_anchor
+            .append(&anchor_request)
+            .unwrap();
+
+        let error = load_active_live_run_candidates(&fixture.state).unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+        assert_eq!(error.field, "live_run_workspace_anchor_latest");
+        let create_error = create_live_run_candidate(
+            &fixture.state,
+            request(),
+            "product-after-orphaned-anchor",
+            unix_time_ms(),
+            admission(),
+            gates(),
+            VERSION_HASH,
+        )
+        .unwrap_err();
+        assert_eq!(create_error.kind, ProductErrorKind::BoundaryViolation);
+        assert!(
+            fs::read_dir(fixture.root.join("artifacts/live-runs"))
+                .unwrap()
+                .all(|entry| !entry.unwrap().file_type().unwrap().is_dir())
+        );
+    }
+
+    #[test]
+    fn unconfigured_anchor_fails_before_candidate_publication() {
+        let fixture = LiveRunFixture::new("unconfigured-anchor");
+        let mut state = fixture.independent_state();
+        state.live_run_audit_anchor =
+            std::sync::Arc::new(super::live_run_anchor::LiveRunAuditAnchorClient::Unconfigured);
+        let error = create_live_run_candidate(
+            &state,
+            request(),
+            "product-unconfigured-anchor",
+            unix_time_ms(),
+            admission(),
+            gates(),
+            &format!("sha256:{}", "1".repeat(64)),
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::LiveExecutionFailed);
+        assert_eq!(error.field, "live_run_audit_anchor_config");
+        assert!(
+            fs::read_dir(fixture.root.join("artifacts/live-runs"))
+                .unwrap()
+                .all(|entry| !entry.unwrap().file_type().unwrap().is_dir())
+        );
+        assert!(
+            !fixture
+                .root
+                .join("artifacts/live-run-audit-anchor-head.json")
+                .exists()
         );
     }
 

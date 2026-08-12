@@ -215,6 +215,7 @@ async fn serve_dashboard(opt: DashboardServeOpt) -> anyhow::Result<()> {
             workflow_root,
             &strategy_workbench_dist,
             access,
+            Arc::new(product_api::live_run_anchor::LiveRunAuditAnchorClient::from_environment()),
         ),
     )
     .await
@@ -230,6 +231,7 @@ pub(crate) fn dashboard_router(registry_path: PathBuf, ntpro_node_bin: PathBuf) 
         None,
         &strategy_workbench_test_dist(),
         PortalAccess::disabled_for_existing_tests(),
+        Arc::new(product_api::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test()),
     )
 }
 
@@ -246,6 +248,23 @@ pub(super) fn dashboard_router_with_access(
         None,
         &strategy_workbench_test_dist(),
         PortalAccess::enforced_for_test(institution_token, operator_token),
+        Arc::new(product_api::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test()),
+    )
+}
+
+#[cfg(test)]
+pub(super) fn dashboard_router_with_audit_anchor(
+    registry_path: PathBuf,
+    ntpro_node_bin: PathBuf,
+    live_run_audit_anchor: Arc<product_api::live_run_anchor::LiveRunAuditAnchorClient>,
+) -> Router {
+    dashboard_router_with_workflow_root(
+        registry_path,
+        ntpro_node_bin,
+        None,
+        &strategy_workbench_test_dist(),
+        PortalAccess::disabled_for_existing_tests(),
+        live_run_audit_anchor,
     )
 }
 
@@ -260,6 +279,7 @@ fn dashboard_router_with_workflow_root(
     workflow_root: Option<PathBuf>,
     strategy_workbench_dist: &Path,
     access: PortalAccess,
+    live_run_audit_anchor: Arc<product_api::live_run_anchor::LiveRunAuditAnchorClient>,
 ) -> Router {
     let state = DashboardServerState {
         registry_path,
@@ -267,6 +287,7 @@ fn dashboard_router_with_workflow_root(
         ntpro_node_bin,
         lifecycle_action_lock: Arc::new(std::sync::Mutex::new(())),
         backtest_creation_gate: Arc::new(tokio::sync::Semaphore::new(1)),
+        live_run_audit_anchor,
     };
     let strategy_workbench_routes = strategy_workbench_routes(strategy_workbench_dist);
     let public_routes = Router::new()

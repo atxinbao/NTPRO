@@ -184,6 +184,9 @@ environment = "sandbox"
                 ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
                 lifecycle_action_lock: Arc::new(Mutex::new(())),
                 backtest_creation_gate: Arc::new(tokio::sync::Semaphore::new(1)),
+                live_run_audit_anchor: Arc::new(
+                    super::super::product_api::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test(),
+                ),
             },
             identity,
             status,

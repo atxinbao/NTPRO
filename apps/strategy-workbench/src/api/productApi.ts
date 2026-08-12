@@ -392,6 +392,7 @@ function assertLiveRunCandidate(
     data: LiveRunCandidate;
     boundaries: LiveRunCandidateCreateResponse["boundaries"];
     runtime_gate_refs: string[];
+    audit_anchor_config_refs: string[];
   },
   field: string,
 ): void {
@@ -421,6 +422,27 @@ function assertLiveRunCandidate(
     (candidate.stopped_at_unix_ms === null ||
       candidate.stopped_at_unix_ms >=
         (candidate.preflight_at_unix_ms ?? candidate.created_at_unix_ms));
+  const expectedAnchorRevision =
+    candidate.lifecycle === "created"
+      ? 0
+      : candidate.lifecycle === "preflight_ready"
+        ? 1
+        : candidate.preflight_at_unix_ms === null
+          ? 1
+          : 2;
+  const auditAnchorValid =
+    candidate.audit_anchor.status === "verified_external_monotonic_anchor" &&
+    candidate.audit_anchor.revision === expectedAnchorRevision &&
+    Number.isSafeInteger(candidate.audit_anchor.workspace_revision) &&
+    candidate.audit_anchor.workspace_revision >=
+      candidate.audit_anchor.revision &&
+    /^sha256:[a-f0-9]{64}$/u.test(candidate.audit_anchor.receipt_ref) &&
+    candidate.audit_anchor.anchored_at_unix_ms >=
+      (candidate.stopped_at_unix_ms ??
+        candidate.preflight_at_unix_ms ??
+        candidate.created_at_unix_ms) &&
+    candidate.audit_anchor.workspace_snapshot_rollback_detectable &&
+    !candidate.audit_anchor.trading_authority_granted;
   assertIdentity(
     candidate.environment === "live" &&
       candidate.account_ref === "account://live/binance/primary" &&
@@ -428,6 +450,7 @@ function assertLiveRunCandidate(
       !candidate.runtime_started &&
       lifecycleFieldsValid &&
       lifecycleTimesValid &&
+      auditAnchorValid &&
       candidate.order_admission.status === "blocked" &&
       candidate.order_admission.submit === "blocked" &&
       candidate.order_admission.cancel === "blocked" &&
@@ -452,6 +475,10 @@ function assertLiveRunCandidate(
     field,
   );
   assertUniqueIds(payload.runtime_gate_refs, `${field}.runtime_gate_refs`);
+  assertUniqueIds(
+    payload.audit_anchor_config_refs,
+    `${field}.audit_anchor_config_refs`,
+  );
   assertUniqueIds(candidate.source_refs, `${field}.source_refs`);
 }
 

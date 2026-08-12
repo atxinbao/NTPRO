@@ -59,6 +59,12 @@ ignore = [
   { id = "RUSTSEC-2026-0194", reason = "quick-xml via object_store cloud features; no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41" },
   { id = "RUSTSEC-2026-0195", reason = "quick-xml via object_store cloud features; no compatible DataFusion/object_store upgrade currently resolves quick-xml >=0.41" },
 
+  # lru pop panic-safety issue, transitive through alloy-provider 2.x.
+  # alloy-provider uses BlockNumber (u64) and B256 cache keys, which cannot panic on Drop;
+  # current alloy-provider 2.3.0 still requires lru 0.16, so no compatible upgrade exists.
+  # TODO: Remove when alloy-provider adopts lru >= 0.18.2.
+  { id = "RUSTSEC-2026-0253", reason = "lru via alloy-provider; affected pop keys cannot panic on Drop and no compatible upstream upgrade exists" },
+
   # NOTE: cargo-audit also flags RUSTSEC-2024-0388 (derivative), RUSTSEC-2023-0071 (rsa),
   # and inactive optional RUSTSEC-2026-0235 (rkyv), which cargo-deny does not surface;
   # those are listed only in .cargo/audit.toml.

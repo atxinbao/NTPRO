@@ -187,6 +187,8 @@ export type {
   LiveFundsSummary,
   LiveOrderAdmissionSnapshot,
   LiveOrderLifecycleAdmission,
+  LiveRunAuditAnchorConfigRefs,
+  LiveRunAuditAnchorSnapshot,
   LiveRunCandidate,
   LiveRunCandidateAction,
   LiveRunCandidateActionRequest,

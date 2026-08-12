@@ -16,6 +16,17 @@
     "account_connected": false,
     "account_can_trade_verified": false,
     "runtime_started": false,
+    "audit_anchor": {
+      "status": "verified_external_monotonic_anchor",
+      "namespace": "ntpro-live-production",
+      "revision": 0,
+      "workspace_revision": 0,
+      "receipt_ref": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "key_id": "ntpro-audit-ed25519-1",
+      "anchored_at_unix_ms": 1786406400000,
+      "workspace_snapshot_rollback_detectable": true,
+      "trading_authority_granted": false
+    },
     "order_admission": {
       "status": "blocked",
       "submit": "blocked",
@@ -41,6 +52,13 @@
     "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND",
     "NTPRO_S3_LIVE_RUN_MANUAL_STOP",
     "NTPRO_S3_LIVE_RUN_RISK_APPROVED"
+  ],
+  "audit_anchor_config_refs": [
+    "NTPRO_S3_AUDIT_ANCHOR_ENDPOINT",
+    "NTPRO_S3_AUDIT_ANCHOR_NAMESPACE",
+    "NTPRO_S3_AUDIT_ANCHOR_KEY_ID",
+    "NTPRO_S3_AUDIT_ANCHOR_PUBLIC_KEY_BASE64",
+    "NTPRO_S3_AUDIT_ANCHOR_TOKEN"
   ],
   "boundaries": {
     "candidate_creation_allowed": true,
