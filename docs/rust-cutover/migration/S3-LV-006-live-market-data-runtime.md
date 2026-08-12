@@ -13,6 +13,11 @@ Executor: Codex
 `market_data_running` 可以同时声明 `runtime_started=true`、`market_data_connected=true`；
 任何工件、进程或执行边界漂移都必须 fail closed。
 
+Rust 嵌入方会看到两个新增的可选配置：`LiveNodeConfig::shutdown_on_data_disconnect` 默认
+`false`，`BinanceDataClientConfig::ws_reconnect_max_attempts` 默认 `None`。现有 serde 配置无需
+修改；直接构造完整 struct literal 的调用方应补字段，或使用 `..Default::default()`。只有本任务
+的生产行情 Runtime 显式设置 `true` 和 `Some(0)`。
+
 ## 部署变化
 
 生产行情节点只读取以下环境凭证：
@@ -31,8 +36,9 @@ Run ownership 和终态锚点。
 本次只注册 Binance Spot 生产行情客户端，不注册执行客户端。订单 endpoint、submit、cancel、
 replace、fill reconciliation、自动 retry/remediation/recovery 和交易控件全部保持关闭。
 页面加载不会自动启动、停止或重连 Runtime。`automatic_reconnect_allowed=false` 约束的是
-NTPRO Supervisor 不自动重启 Runtime；每个心跳仍检查真实数据客户端状态，空客户端或断连
-会优雅停止节点并由 Product API 记录失败，而不会继续投影为在线。
+NTPRO Supervisor 不自动重启 Runtime，且 Binance WebSocket 不发起传输重连；`LiveNode`
+事件循环检查真实数据客户端状态，断连会优雅停止节点并由 Product API 记录失败，而不会继续
+投影为在线。
 
 ## 回滚
 
