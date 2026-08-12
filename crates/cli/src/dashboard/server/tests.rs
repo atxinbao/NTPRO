@@ -14,12 +14,34 @@ use tower::ServiceExt;
 
 use super::{
     INSTITUTION_ACCESS_COOKIE, OPERATOR_ACCESS_COOKIE, PORTAL_ACCESS_ERROR_SCHEMA_VERSION,
-    dashboard_router, dashboard_router_with_access, reject_raw_event_store_paths,
-    validate_strategy_workbench_dist,
+    PortalAccess, RISK_ACCESS_COOKIE, dashboard_bootstrap_summary, dashboard_router,
+    dashboard_router_with_access, reject_raw_event_store_paths, validate_strategy_workbench_dist,
 };
 
 const INSTITUTION_TOKEN: &str = "test-institution-access-token";
 const OPERATOR_TOKEN: &str = "test-operator-access-token";
+
+#[test]
+fn dashboard_bootstrap_summary_keeps_each_portal_token_in_its_own_slot() {
+    let access = PortalAccess::enforced_for_test(INSTITUTION_TOKEN, OPERATOR_TOKEN);
+    let summary = dashboard_bootstrap_summary(
+        "127.0.0.1:4210".parse().unwrap(),
+        std::path::Path::new("registry.json"),
+        Some(std::path::Path::new("workflow")),
+        &access,
+    );
+
+    assert!(summary.contains(&format!(
+        "strategy_workbench_url=http://127.0.0.1:4210/strategy-workbench?access_token={INSTITUTION_TOKEN}"
+    )));
+    assert!(summary.contains(&format!(
+        "institution_workbench_url=http://127.0.0.1:4210/institution-workbench?access_token={INSTITUTION_TOKEN}"
+    )));
+    assert!(summary.contains(&format!(
+        "control_center_url=http://127.0.0.1:4210/control-center?access_token={OPERATOR_TOKEN}"
+    )));
+    assert!(summary.contains("risk_api_token=test-risk-access"));
+}
 
 #[tokio::test]
 async fn trader_terminal_v28_http_routes_serve_read_only_contracts() {
@@ -896,6 +918,44 @@ async fn portal_access_enforces_server_side_role_matrix_without_api_bypass() {
     ] {
         let response = router_response(&router, Method::HEAD, path, Some(cookie)).await;
         assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED, "{path}");
+    }
+}
+
+#[tokio::test]
+async fn live_execution_approvals_require_three_distinct_role_sessions() {
+    let router = dashboard_router_with_access(
+        PathBuf::from("missing-mvp-live-execution-registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+        INSTITUTION_TOKEN,
+        OPERATOR_TOKEN,
+    );
+    let institution_cookie = format!("{INSTITUTION_ACCESS_COOKIE}={INSTITUTION_TOKEN}");
+    let risk_cookie = format!("{RISK_ACCESS_COOKIE}=test-risk-access");
+    let operator_cookie = format!("{OPERATOR_ACCESS_COOKIE}={OPERATOR_TOKEN}");
+    for (role, expected_cookie) in [
+        ("owner", institution_cookie.as_str()),
+        ("risk", risk_cookie.as_str()),
+        ("operator", operator_cookie.as_str()),
+    ] {
+        let path = format!(
+            "/api/product/v1/live-run-candidates/live-candidate-001/execution-approvals/{role}"
+        );
+        for cookie in [
+            institution_cookie.as_str(),
+            risk_cookie.as_str(),
+            operator_cookie.as_str(),
+        ] {
+            let response = router_response(&router, Method::POST, &path, Some(cookie)).await;
+            assert_eq!(
+                response.status(),
+                if cookie == expected_cookie {
+                    StatusCode::BAD_REQUEST
+                } else {
+                    StatusCode::FORBIDDEN
+                },
+                "{role} approval must accept only its own role session"
+            );
+        }
     }
 }
 

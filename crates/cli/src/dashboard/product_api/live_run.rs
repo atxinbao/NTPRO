@@ -19,6 +19,7 @@ use axum::{
 };
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
 use nautilus_live::status::{ConnectionStatus, LifecycleStatus};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -31,12 +32,15 @@ use crate::{
 
 use super::{
     live_admission::{
-        LiveRunCreationAdmission, LiveRunPreflightAdmission, evaluate_live_run_creation_admission,
+        LiveExecutionRiskPolicy, LiveRunCreationAdmission, LiveRunPreflightAdmission,
+        evaluate_live_execution_risk_policy, evaluate_live_run_creation_admission,
         evaluate_live_run_preflight_admission,
     },
     live_run_anchor::{
-        LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION, LiveRunAnchorAppendRequest, LiveRunAnchorReceipt,
-        LiveRunAnchorRevision, anchor_config_refs,
+        LIVE_EXECUTION_RUNTIME_CLAIM_FILE, LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE,
+        LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION, LiveExecutionRuntimeClaimArtifact,
+        LiveRunAnchorAppendRequest, LiveRunAnchorReceipt, LiveRunAnchorRevision,
+        anchor_config_refs,
     },
     run::{open_absolute_directory_nofollow, write_new_run_file},
     *,
@@ -67,13 +71,28 @@ const LIVE_RUN_STATE_COMMIT_DIRECTORY: &str = "live-run-state-commits";
 const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE: &str = "live-run-audit-anchor-head.json";
 const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE: &str = ".live-run-audit-anchor-head.next.json";
 const LIVE_RUN_ARTIFACT_MAX_BYTES: u64 = 64 * 1024;
+const LIVE_RUN_STOP_CLOCK_SKEW_MS: u64 = 5_000;
 const LIVE_MARKET_DATA_STARTUP_TIMEOUT_MS: u64 = 20_000;
+const LIVE_EXECUTION_ADMISSION_SCHEMA_VERSION: &str =
+    "ntpro.product_api.live_execution_admission.v1";
+const LIVE_EXECUTION_ADMISSION_FILE: &str = "execution-admission.json";
+const LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION: &str = "ntpro.product_api.live_execution_approval.v1";
+const LIVE_EXECUTION_OWNER_APPROVAL_FILE: &str = "execution-owner-approval.json";
+const LIVE_EXECUTION_RISK_APPROVAL_FILE: &str = "execution-risk-approval.json";
+const LIVE_EXECUTION_OPERATOR_APPROVAL_FILE: &str = "execution-operator-approval.json";
+const LIVE_EXECUTION_OWNER_APPROVAL_RECEIPT_FILE: &str = "execution-owner-approval-receipt.json";
+const LIVE_EXECUTION_RISK_APPROVAL_RECEIPT_FILE: &str = "execution-risk-approval-receipt.json";
+const LIVE_EXECUTION_OPERATOR_APPROVAL_RECEIPT_FILE: &str =
+    "execution-operator-approval-receipt.json";
+const LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v1";
+const LIVE_EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
 
 const LIVE_RUN_GATE_CREATE: &str = "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE";
 const LIVE_RUN_GATE_OWNER_APPROVED: &str = "NTPRO_S3_LIVE_RUN_OWNER_APPROVED";
 const LIVE_RUN_GATE_NO_ORDER_SEND: &str = "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND";
 const LIVE_RUN_GATE_MANUAL_STOP: &str = "NTPRO_S3_LIVE_RUN_MANUAL_STOP";
 const LIVE_RUN_GATE_RISK_APPROVED: &str = "NTPRO_S3_LIVE_RUN_RISK_APPROVED";
+const LIVE_RUN_GATE_EXECUTION_SINGLE_SHOT: &str = "NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT";
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -92,6 +111,7 @@ enum LiveRunCandidateLifecycle {
 enum LiveRunCandidateAction {
     Preflight,
     StartMarketData,
+    StartExecution,
     Stop,
 }
 
@@ -112,6 +132,121 @@ pub(in crate::dashboard) struct LiveRunCandidateActionRequest {
     run_id: String,
     action: LiveRunCandidateAction,
     user_confirmed: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::dashboard) struct LiveExecutionAdmissionRequest {
+    run_id: String,
+    strategy_version_id: String,
+    account_ref: String,
+    venue_ref: String,
+    admission_id: String,
+    instrument_id: String,
+    side: String,
+    order_type: String,
+    time_in_force: String,
+    price: String,
+    quantity: String,
+    max_notional: String,
+    expires_at_unix_ms: u64,
+    user_confirmed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(in crate::dashboard) enum LiveExecutionApprovalRole {
+    Owner,
+    Risk,
+    Operator,
+}
+
+impl LiveExecutionApprovalRole {
+    const fn artifact_file(self) -> &'static str {
+        match self {
+            Self::Owner => LIVE_EXECUTION_OWNER_APPROVAL_FILE,
+            Self::Risk => LIVE_EXECUTION_RISK_APPROVAL_FILE,
+            Self::Operator => LIVE_EXECUTION_OPERATOR_APPROVAL_FILE,
+        }
+    }
+
+    const fn receipt_file(self) -> &'static str {
+        match self {
+            Self::Owner => LIVE_EXECUTION_OWNER_APPROVAL_RECEIPT_FILE,
+            Self::Risk => LIVE_EXECUTION_RISK_APPROVAL_RECEIPT_FILE,
+            Self::Operator => LIVE_EXECUTION_OPERATOR_APPROVAL_RECEIPT_FILE,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionApprovalArtifact {
+    schema_version: String,
+    role: LiveExecutionApprovalRole,
+    proposal_sha256: String,
+    source_manifest_sha256: String,
+    run_id: String,
+    strategy_version_id: String,
+    admission_id: String,
+    authority_ref: String,
+    risk_policy_ref: String,
+    approved_at_unix_ms: u64,
+    expires_at_unix_ms: u64,
+}
+
+struct LiveExecutionApprovalRecord {
+    role: LiveExecutionApprovalRole,
+    artifact: LiveExecutionApprovalArtifact,
+    artifact_raw: Vec<u8>,
+    receipt: LiveRunAnchorReceipt,
+}
+
+struct LiveExecutionApprovalBinding<'a> {
+    role: LiveExecutionApprovalRole,
+    manifest_sha256: &'a str,
+    run_id: &'a str,
+    strategy_version_id: &'a str,
+    admission_id: &'a str,
+    proposal_sha256: &'a str,
+    risk_policy: &'a LiveExecutionRiskPolicy,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionAdmissionArtifact {
+    schema_version: String,
+    request_sha256: String,
+    source_manifest_sha256: String,
+    run_id: String,
+    strategy_version_id: String,
+    account_ref: String,
+    venue_ref: String,
+    admission_id: String,
+    instrument_id: String,
+    side: String,
+    order_type: String,
+    time_in_force: String,
+    price: String,
+    quantity: String,
+    max_notional: String,
+    risk_policy_max_notional: String,
+    risk_policy_ref: String,
+    owner_authority_ref: String,
+    risk_authority_ref: String,
+    operator_authority_ref: String,
+    authorized_at_unix_ms: u64,
+    expires_at_unix_ms: u64,
+    owner_confirmed: bool,
+    risk_confirmed: bool,
+    operator_confirmed: bool,
+    kill_switch_active: bool,
+    single_shot: bool,
+    consumed: bool,
+    cancel_order_allowed: bool,
+    replace_order_allowed: bool,
+    automatic_retry_allowed: bool,
+    automatic_recovery_allowed: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -165,6 +300,8 @@ struct LiveRunStopArtifact {
     order_endpoint_access_attempted: bool,
     execution_adapter_send_attempted: bool,
     real_orders_submitted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    execution_order_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -177,6 +314,10 @@ struct LiveRunCandidateState {
     previous_state_sha256: Option<String>,
     lifecycle: LiveRunCandidateLifecycle,
     preflight_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    execution_admission_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    execution_runtime_config_sha256: Option<String>,
     stop_sha256: Option<String>,
     updated_at_unix_ms: u64,
 }
@@ -230,21 +371,72 @@ struct LiveOrderAdmissionSnapshot {
     cancel: String,
     replace: String,
     fill_reconciliation: String,
+    owner_approved: bool,
+    risk_approved: bool,
+    operator_approved: bool,
     blockers: Vec<String>,
 }
 
 impl LiveOrderAdmissionSnapshot {
+    #[cfg(test)]
     fn blocked() -> Self {
+        Self::blocked_with_approvals(false, false, false)
+    }
+
+    fn blocked_with_approvals(
+        owner_approved: bool,
+        risk_approved: bool,
+        operator_approved: bool,
+    ) -> Self {
         Self {
             status: "blocked".to_string(),
             submit: "blocked".to_string(),
             cancel: "blocked".to_string(),
             replace: "blocked".to_string(),
             fill_reconciliation: "blocked".to_string(),
+            owner_approved,
+            risk_approved,
+            operator_approved,
             blockers: vec![
                 "production_order_authority_not_granted".to_string(),
                 "execution_adapter_send_not_enabled".to_string(),
                 "fill_reconciliation_not_enabled".to_string(),
+            ],
+        }
+    }
+
+    fn authorized() -> Self {
+        Self {
+            status: "authorized_single_shot".to_string(),
+            submit: "authorized_single_shot".to_string(),
+            cancel: "blocked".to_string(),
+            replace: "blocked".to_string(),
+            fill_reconciliation: "runtime_event_projection".to_string(),
+            owner_approved: true,
+            risk_approved: true,
+            operator_approved: true,
+            blockers: vec![
+                "additional_orders_blocked".to_string(),
+                "cancel_not_scoped".to_string(),
+                "replace_not_scoped".to_string(),
+            ],
+        }
+    }
+
+    fn consumed() -> Self {
+        Self {
+            status: "consumed_single_shot".to_string(),
+            submit: "blocked".to_string(),
+            cancel: "blocked".to_string(),
+            replace: "blocked".to_string(),
+            fill_reconciliation: "runtime_event_projection".to_string(),
+            owner_approved: true,
+            risk_approved: true,
+            operator_approved: true,
+            blockers: vec![
+                "single_shot_admission_consumed".to_string(),
+                "additional_orders_blocked".to_string(),
+                "manual_review_required_for_follow_up".to_string(),
             ],
         }
     }
@@ -271,7 +463,34 @@ struct LiveRunCandidate {
     runtime_error: Option<String>,
     audit_anchor: LiveRunAuditAnchorSnapshot,
     order_admission: LiveOrderAdmissionSnapshot,
+    execution_order: Option<LiveExecutionOrderSnapshot>,
     source_refs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionOrderSnapshot {
+    schema_version: String,
+    admission_id: String,
+    strategy_version_id: String,
+    instrument_id: String,
+    client_order_id: Option<String>,
+    status: String,
+    terminal: bool,
+    new_orders_blocked: bool,
+    actual_submission_attempted: bool,
+    automatic_retry_attempted: bool,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    last_error: Option<String>,
+    updated_at_unix_ms: u64,
+}
+
+struct LiveExecutionStopActivity {
+    endpoint_access_attempted: bool,
+    adapter_send_attempted: bool,
+    real_order_submitted: bool,
+    order_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -308,24 +527,28 @@ struct LiveRunCandidateBoundaries {
 }
 
 impl LiveRunCandidateBoundaries {
-    const fn enforced() -> Self {
+    const fn enforced(
+        order_authorized: bool,
+        execution_adapter_send_attempted: bool,
+        real_orders_submitted: bool,
+    ) -> Self {
         Self {
             candidate_creation_allowed: true,
             explicit_preflight_allowed: true,
             manual_stop_allowed: true,
             live_runtime_start_allowed: true,
             external_market_data_connection_allowed: true,
-            order_endpoint_access_allowed: false,
-            order_submission_allowed: false,
+            order_endpoint_access_allowed: order_authorized,
+            order_submission_allowed: order_authorized,
             cancel_order_allowed: false,
             replace_order_allowed: false,
             fill_reconciliation_allowed: false,
             automatic_retry_allowed: false,
             automatic_remediation_allowed: false,
             automatic_recovery_allowed: false,
-            execution_adapter_send_attempted: false,
-            real_orders_submitted: false,
-            trading_controls_enabled: false,
+            execution_adapter_send_attempted,
+            real_orders_submitted,
+            trading_controls_enabled: order_authorized,
         }
     }
 }
@@ -359,6 +582,7 @@ struct LiveRunGateState {
     no_order_send: bool,
     manual_stop: bool,
     risk_approved: bool,
+    execution_single_shot: bool,
 }
 
 impl LiveRunGateState {
@@ -376,6 +600,7 @@ impl LiveRunGateState {
             no_order_send: reader(LIVE_RUN_GATE_NO_ORDER_SEND),
             manual_stop: reader(LIVE_RUN_GATE_MANUAL_STOP),
             risk_approved: reader(LIVE_RUN_GATE_RISK_APPROVED),
+            execution_single_shot: reader(LIVE_RUN_GATE_EXECUTION_SINGLE_SHOT),
         }
     }
 
@@ -394,6 +619,7 @@ impl LiveRunGateState {
             LIVE_RUN_GATE_NO_ORDER_SEND.to_string(),
             LIVE_RUN_GATE_MANUAL_STOP.to_string(),
             LIVE_RUN_GATE_RISK_APPROVED.to_string(),
+            LIVE_RUN_GATE_EXECUTION_SINGLE_SHOT.to_string(),
         ]
     }
 }
@@ -487,17 +713,37 @@ pub(in crate::dashboard) async fn live_run_candidate_list_api(
         for (_, manifest, _) in &active {
             validate_live_candidate_against_current_source(&state, manifest)?;
         }
+        let data = active
+            .into_iter()
+            .map(|(candidate, _, _)| candidate)
+            .collect::<Vec<_>>();
+        let order_authorized = data
+            .iter()
+            .any(|candidate| candidate.order_admission.status == "authorized_single_shot");
+        let execution_adapter_send_attempted = data.iter().any(|candidate| {
+            candidate
+                .execution_order
+                .as_ref()
+                .is_some_and(|order| order.actual_submission_attempted)
+        });
+        let real_orders_submitted = data.iter().any(|candidate| {
+            candidate
+                .execution_order
+                .as_ref()
+                .is_some_and(execution_order_has_confirmed_submission)
+        });
         Ok(LiveRunCandidateListResponse {
             schema_version: LIVE_RUN_CANDIDATE_LIST_SCHEMA_VERSION.to_string(),
             contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
             request_id: request_id.clone(),
-            data: active
-                .into_iter()
-                .map(|(candidate, _, _)| candidate)
-                .collect(),
+            data,
             runtime_gate_refs: LiveRunGateState::refs(),
             audit_anchor_config_refs: anchor_config_refs(),
-            boundaries: LiveRunCandidateBoundaries::enforced(),
+            boundaries: LiveRunCandidateBoundaries::enforced(
+                order_authorized,
+                execution_adapter_send_attempted,
+                real_orders_submitted,
+            ),
         })
     });
     result
@@ -558,12 +804,23 @@ pub(in crate::dashboard) async fn live_run_candidate_action_api(
             &request_id,
         )
     })?;
+    if request.action == LiveRunCandidateAction::StartExecution
+        && !LiveRunGateState::from_environment().execution_single_shot
+    {
+        return Err(product_error_response(
+            &product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_runtime_gate",
+            ),
+            &request_id,
+        ));
+    }
     let worker_state = state.clone();
     tokio::task::spawn_blocking(move || {
         let _guard = worker_state.lifecycle_action_lock.lock().map_err(|_| {
             product_error(ProductErrorKind::LiveConflict, "live_candidate_action_lock")
         })?;
-        run_live_candidate_action(&worker_state, &run_id, &request)
+        run_live_candidate_action_api_guarded(&worker_state, &run_id, &request)
     })
     .await
     .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_action_worker"))
@@ -578,11 +835,436 @@ pub(in crate::dashboard) async fn live_run_candidate_action_api(
     .map_err(|error| product_error_response(&error, &request_id))
 }
 
+pub(in crate::dashboard) async fn live_execution_owner_approval_api(
+    state: State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<LiveExecutionAdmissionRequest>, JsonRejection>,
+) -> ApiResult<LiveRunCandidateResponse> {
+    live_execution_approval_api(LiveExecutionApprovalRole::Owner, state, run_path, payload).await
+}
+
+pub(in crate::dashboard) async fn live_execution_risk_approval_api(
+    state: State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<LiveExecutionAdmissionRequest>, JsonRejection>,
+) -> ApiResult<LiveRunCandidateResponse> {
+    live_execution_approval_api(LiveExecutionApprovalRole::Risk, state, run_path, payload).await
+}
+
+pub(in crate::dashboard) async fn live_execution_operator_approval_api(
+    state: State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<LiveExecutionAdmissionRequest>, JsonRejection>,
+) -> ApiResult<LiveRunCandidateResponse> {
+    live_execution_approval_api(
+        LiveExecutionApprovalRole::Operator,
+        state,
+        run_path,
+        payload,
+    )
+    .await
+}
+
+async fn live_execution_approval_api(
+    role: LiveExecutionApprovalRole,
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<LiveExecutionAdmissionRequest>, JsonRejection>,
+) -> ApiResult<LiveRunCandidateResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(value)| value).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let Json(request) = payload.map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "request_body"),
+            &request_id,
+        )
+    })?;
+    let worker_state = state.clone();
+    tokio::task::spawn_blocking(move || {
+        let _guard = worker_state.lifecycle_action_lock.lock().map_err(|_| {
+            product_error(ProductErrorKind::LiveConflict, "live_candidate_action_lock")
+        })?;
+        authorize_live_execution(&worker_state, &run_id, &request, role)
+    })
+    .await
+    .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_action_worker"))
+    .and_then(|result| result)
+    .map(|data| {
+        Json(response(
+            LIVE_RUN_CANDIDATE_ACTION_SCHEMA_VERSION,
+            request_id.clone(),
+            data,
+        ))
+    })
+    .map_err(|error| product_error_response(&error, &request_id))
+}
+
+fn authorize_live_execution(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveExecutionAdmissionRequest,
+    role: LiveExecutionApprovalRole,
+) -> Result<LiveRunCandidate, ProductError> {
+    if !LiveRunGateState::from_environment().execution_single_shot {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_runtime_gate",
+        ));
+    }
+    authorize_live_execution_with_source_validator(state, path_run_id, request, role, |manifest| {
+        validate_live_candidate_against_current_source(state, manifest)?;
+        let source = load_product_source(state, unix_time_ms())?;
+        evaluate_live_execution_risk_policy(&source)
+    })
+}
+
+fn authorize_live_execution_with_source_validator<F>(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveExecutionAdmissionRequest,
+    role: LiveExecutionApprovalRole,
+    source_validator: F,
+) -> Result<LiveRunCandidate, ProductError>
+where
+    F: FnOnce(&LiveRunCandidateManifest) -> Result<LiveExecutionRiskPolicy, ProductError>,
+{
+    let _workspace_lock = acquire_live_run_mutation_lock(state)?;
+    validate_identifier("run_id", path_run_id)?;
+    validate_identifier("execution_admission_id", &request.admission_id)?;
+    let (candidate, manifest, manifest_raw) = load_live_run_candidate_snapshot(state, path_run_id)?;
+    if request.run_id != path_run_id
+        || request.strategy_version_id != manifest.strategy_version_id
+        || request.account_ref != manifest.account_ref
+        || request.venue_ref != manifest.venue_ref
+        || candidate.lifecycle != LiveRunCandidateLifecycle::PreflightReady
+        || !request.user_confirmed
+        || request.order_type != "LIMIT"
+        || request.time_in_force != "GTC"
+        || !matches!(request.side.as_str(), "BUY" | "SELL")
+        || !manifest.data_symbols.contains(&request.instrument_id)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_admission",
+        ));
+    }
+    let now = unix_time_ms();
+    if request.expires_at_unix_ms <= now
+        || request.expires_at_unix_ms > now.saturating_add(15 * 60 * 1_000)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_admission_expiry",
+        ));
+    }
+    let price = Decimal::from_str_exact(&request.price)
+        .map_err(|_| product_error(ProductErrorKind::BadRequest, "live_execution_order_price"))?;
+    let quantity = Decimal::from_str_exact(&request.quantity).map_err(|_| {
+        product_error(
+            ProductErrorKind::BadRequest,
+            "live_execution_order_quantity",
+        )
+    })?;
+    let risk_policy = source_validator(&manifest)?;
+    let max_notional = Decimal::from_str_exact(&request.max_notional)
+        .map_err(|_| product_error(ProductErrorKind::BadRequest, "live_execution_max_notional"))?;
+    let risk_policy_max_notional = Decimal::from_str_exact(&risk_policy.max_order_notional)
+        .map_err(|_| product_error(ProductErrorKind::BadRequest, "live_execution_max_notional"))?;
+    if price <= Decimal::ZERO
+        || quantity <= Decimal::ZERO
+        || max_notional <= Decimal::ZERO
+        || risk_policy_max_notional <= Decimal::ZERO
+        || price * quantity > max_notional
+        || max_notional > risk_policy_max_notional
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_order_notional",
+        ));
+    }
+    let manifest_sha256 = sha256_ref(&manifest_raw);
+    let (current_state, current_state_raw) =
+        load_live_run_state(state, path_run_id, &manifest_sha256)?;
+    if current_state.execution_admission_sha256.is_some() {
+        return Err(product_error(
+            ProductErrorKind::LiveConflict,
+            "live_execution_admission",
+        ));
+    }
+    let raw_request = serde_json::to_vec(request).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_admission",
+        )
+    })?;
+    let proposal_sha256 = sha256_ref(&raw_request);
+    let authority_ref = match role {
+        LiveExecutionApprovalRole::Owner => &risk_policy.owner_authority_ref,
+        LiveExecutionApprovalRole::Risk => &risk_policy.risk_authority_ref,
+        LiveExecutionApprovalRole::Operator => &risk_policy.operator_authority_ref,
+    };
+    let approval = LiveExecutionApprovalArtifact {
+        schema_version: LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION.to_string(),
+        role,
+        proposal_sha256: proposal_sha256.clone(),
+        source_manifest_sha256: manifest_sha256.clone(),
+        run_id: path_run_id.to_string(),
+        strategy_version_id: manifest.strategy_version_id.clone(),
+        admission_id: request.admission_id.clone(),
+        authority_ref: authority_ref.clone(),
+        risk_policy_ref: risk_policy.source_ref.clone(),
+        approved_at_unix_ms: now,
+        expires_at_unix_ms: request.expires_at_unix_ms,
+    };
+    let approval_raw = serde_json::to_vec_pretty(&approval).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_approval",
+        )
+    })?;
+    let candidate_root = canonical_live_run_root(state, false)?.join(path_run_id);
+    let directory = open_absolute_directory_nofollow(&candidate_root)?;
+    if candidate_root.join(role.artifact_file()).exists()
+        || candidate_root.join(role.receipt_file()).exists()
+    {
+        return Err(product_error(
+            ProductErrorKind::LiveConflict,
+            "live_execution_approval",
+        ));
+    }
+    for existing_role in [
+        LiveExecutionApprovalRole::Owner,
+        LiveExecutionApprovalRole::Risk,
+        LiveExecutionApprovalRole::Operator,
+    ] {
+        if let Some((existing, _)) = read_optional_artifact_with_raw::<LiveExecutionApprovalArtifact>(
+            &candidate_root.join(existing_role.artifact_file()),
+            "live_execution_approval",
+        )? {
+            validate_live_execution_approval(
+                &existing,
+                &LiveExecutionApprovalBinding {
+                    role: existing_role,
+                    manifest_sha256: &manifest_sha256,
+                    run_id: path_run_id,
+                    strategy_version_id: &manifest.strategy_version_id,
+                    admission_id: &request.admission_id,
+                    proposal_sha256: &proposal_sha256,
+                    risk_policy: &risk_policy,
+                },
+            )?;
+        }
+    }
+    write_and_anchor_live_execution_approval(
+        state,
+        path_run_id,
+        current_state.revision,
+        &manifest_sha256,
+        role,
+        &approval_raw,
+        &directory,
+    )?;
+    let mut approvals = Vec::new();
+    for approval_role in [
+        LiveExecutionApprovalRole::Owner,
+        LiveExecutionApprovalRole::Risk,
+        LiveExecutionApprovalRole::Operator,
+    ] {
+        let Some((artifact, _)) = read_optional_artifact_with_raw::<LiveExecutionApprovalArtifact>(
+            &candidate_root.join(approval_role.artifact_file()),
+            "live_execution_approval",
+        )?
+        else {
+            return load_live_run_candidate(state, path_run_id);
+        };
+        approvals.push((approval_role, artifact));
+    }
+    for (approval_role, existing) in &approvals {
+        validate_live_execution_approval(
+            existing,
+            &LiveExecutionApprovalBinding {
+                role: *approval_role,
+                manifest_sha256: &manifest_sha256,
+                run_id: path_run_id,
+                strategy_version_id: &manifest.strategy_version_id,
+                admission_id: &request.admission_id,
+                proposal_sha256: &proposal_sha256,
+                risk_policy: &risk_policy,
+            },
+        )?;
+    }
+    let authorized_at = approvals
+        .iter()
+        .map(|(_, approval)| approval.approved_at_unix_ms)
+        .max()
+        .unwrap_or(now);
+    let artifact = LiveExecutionAdmissionArtifact {
+        schema_version: LIVE_EXECUTION_ADMISSION_SCHEMA_VERSION.to_string(),
+        request_sha256: proposal_sha256,
+        source_manifest_sha256: manifest_sha256.clone(),
+        run_id: path_run_id.to_string(),
+        strategy_version_id: manifest.strategy_version_id,
+        account_ref: manifest.account_ref,
+        venue_ref: manifest.venue_ref,
+        admission_id: request.admission_id.clone(),
+        instrument_id: request.instrument_id.clone(),
+        side: request.side.clone(),
+        order_type: request.order_type.clone(),
+        time_in_force: request.time_in_force.clone(),
+        price: request.price.clone(),
+        quantity: request.quantity.clone(),
+        max_notional: request.max_notional.clone(),
+        risk_policy_max_notional: risk_policy.max_order_notional,
+        risk_policy_ref: risk_policy.source_ref,
+        owner_authority_ref: risk_policy.owner_authority_ref,
+        risk_authority_ref: risk_policy.risk_authority_ref,
+        operator_authority_ref: risk_policy.operator_authority_ref,
+        authorized_at_unix_ms: authorized_at,
+        expires_at_unix_ms: request.expires_at_unix_ms,
+        owner_confirmed: true,
+        risk_confirmed: true,
+        operator_confirmed: true,
+        kill_switch_active: false,
+        single_shot: true,
+        consumed: false,
+        cancel_order_allowed: false,
+        replace_order_allowed: false,
+        automatic_retry_allowed: false,
+        automatic_recovery_allowed: false,
+    };
+    let raw = serde_json::to_vec_pretty(&artifact).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_admission",
+        )
+    })?;
+    write_new_run_file(&directory, LIVE_EXECUTION_ADMISSION_FILE, &raw)?;
+    let state_result = write_live_run_state(
+        state,
+        path_run_id,
+        &LiveRunCandidateState {
+            schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+            run_id: path_run_id.to_string(),
+            source_manifest_sha256: manifest_sha256,
+            revision: current_state.revision + 1,
+            previous_state_sha256: Some(sha256_ref(&current_state_raw)),
+            lifecycle: LiveRunCandidateLifecycle::PreflightReady,
+            preflight_sha256: current_state.preflight_sha256,
+            execution_admission_sha256: Some(sha256_ref(&raw)),
+            execution_runtime_config_sha256: None,
+            stop_sha256: None,
+            updated_at_unix_ms: authorized_at,
+        },
+    );
+    if let Err(error) = state_result {
+        directory
+            .remove_file(LIVE_EXECUTION_ADMISSION_FILE)
+            .map_err(|_| {
+                product_error(
+                    ProductErrorKind::LiveExecutionFailed,
+                    "live_execution_admission_cleanup",
+                )
+            })?;
+        return Err(error);
+    }
+    load_live_run_candidate(state, path_run_id)
+}
+
+fn validate_live_execution_approval(
+    approval: &LiveExecutionApprovalArtifact,
+    binding: &LiveExecutionApprovalBinding<'_>,
+) -> Result<(), ProductError> {
+    let expected_authority = match binding.role {
+        LiveExecutionApprovalRole::Owner => &binding.risk_policy.owner_authority_ref,
+        LiveExecutionApprovalRole::Risk => &binding.risk_policy.risk_authority_ref,
+        LiveExecutionApprovalRole::Operator => &binding.risk_policy.operator_authority_ref,
+    };
+    if approval.schema_version != LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION
+        || approval.role != binding.role
+        || approval.proposal_sha256 != binding.proposal_sha256
+        || approval.source_manifest_sha256 != binding.manifest_sha256
+        || approval.run_id != binding.run_id
+        || approval.strategy_version_id != binding.strategy_version_id
+        || approval.admission_id != binding.admission_id
+        || approval.authority_ref != *expected_authority
+        || approval.risk_policy_ref != binding.risk_policy.source_ref
+        || approval.approved_at_unix_ms == 0
+        || approval.approved_at_unix_ms > approval.expires_at_unix_ms
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_approval",
+        ));
+    }
+    Ok(())
+}
+
+fn write_and_anchor_live_execution_approval(
+    state: &DashboardServerState,
+    run_id: &str,
+    run_revision: u64,
+    manifest_sha256: &str,
+    role: LiveExecutionApprovalRole,
+    approval_raw: &[u8],
+    directory: &cap_std::fs::Dir,
+) -> Result<(), ProductError> {
+    let approval: LiveExecutionApprovalArtifact = serde_json::from_slice(approval_raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_execution_approval"))?;
+    let previous = validate_workspace_anchor_head(state)?.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        )
+    })?;
+    let request = LiveRunAnchorAppendRequest::new(
+        state.live_run_audit_anchor.namespace()?,
+        run_id,
+        LiveRunAnchorRevision::new(run_revision, previous.workspace_revision + 1),
+        sha256_ref(approval_raw),
+        manifest_sha256.to_string(),
+        Some(previous.sha256()),
+        approval.approved_at_unix_ms,
+    );
+    let receipt = state.live_run_audit_anchor.append(&request)?;
+    state
+        .live_run_audit_anchor
+        .validate_receipt(&receipt, &request)?;
+    if state.live_run_audit_anchor.latest()?.as_ref() != Some(&receipt) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_approval_receipt",
+        ));
+    }
+    let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_approval_receipt",
+        )
+    })?;
+    write_new_run_file(directory, role.artifact_file(), approval_raw)?;
+    write_new_run_file(directory, role.receipt_file(), &receipt_raw)?;
+    publish_workspace_anchor_head(state, &receipt)
+}
+
 fn response(
     schema_version: &str,
     request_id: String,
     data: LiveRunCandidate,
 ) -> LiveRunCandidateResponse {
+    let order_authorized = data.order_admission.status == "authorized_single_shot";
+    let execution_adapter_send_attempted = data
+        .execution_order
+        .as_ref()
+        .is_some_and(|order| order.actual_submission_attempted);
+    let real_orders_submitted = data
+        .execution_order
+        .as_ref()
+        .is_some_and(execution_order_has_confirmed_submission);
     LiveRunCandidateResponse {
         schema_version: schema_version.to_string(),
         contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
@@ -590,8 +1272,26 @@ fn response(
         data,
         runtime_gate_refs: LiveRunGateState::refs(),
         audit_anchor_config_refs: anchor_config_refs(),
-        boundaries: LiveRunCandidateBoundaries::enforced(),
+        boundaries: LiveRunCandidateBoundaries::enforced(
+            order_authorized,
+            execution_adapter_send_attempted,
+            real_orders_submitted,
+        ),
     }
+}
+
+fn execution_order_has_confirmed_submission(order: &LiveExecutionOrderSnapshot) -> bool {
+    order.actual_submission_attempted
+        && matches!(
+            order.status.as_str(),
+            "submitted"
+                | "accepted"
+                | "rejected"
+                | "expired"
+                | "partially_filled"
+                | "filled"
+                | "canceled"
+        )
 }
 
 fn create_live_run_candidate_with_symbols(
@@ -726,6 +1426,7 @@ fn validate_create_request(
     Ok(())
 }
 
+#[cfg(test)]
 fn run_live_candidate_action(
     state: &DashboardServerState,
     path_run_id: &str,
@@ -736,10 +1437,40 @@ fn run_live_candidate_action(
     })
 }
 
+fn run_live_candidate_action_api_guarded(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveRunCandidateActionRequest,
+) -> Result<LiveRunCandidate, ProductError> {
+    run_live_candidate_action_with_preflight_policy(state, path_run_id, request, true, |manifest| {
+        evaluate_current_live_candidate_preflight(state, manifest)
+    })
+}
+
+#[cfg(test)]
 fn run_live_candidate_action_with_preflight<F>(
     state: &DashboardServerState,
     path_run_id: &str,
     request: &LiveRunCandidateActionRequest,
+    preflight_evaluator: F,
+) -> Result<LiveRunCandidate, ProductError>
+where
+    F: FnOnce(&LiveRunCandidateManifest) -> Result<LiveRunPreflightAdmission, ProductError>,
+{
+    run_live_candidate_action_with_preflight_policy(
+        state,
+        path_run_id,
+        request,
+        false,
+        preflight_evaluator,
+    )
+}
+
+fn run_live_candidate_action_with_preflight_policy<F>(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveRunCandidateActionRequest,
+    revalidate_start: bool,
     preflight_evaluator: F,
 ) -> Result<LiveRunCandidate, ProductError>
 where
@@ -786,16 +1517,82 @@ where
                     previous_state_sha256: Some(sha256_ref(&current_state_raw)),
                     lifecycle: LiveRunCandidateLifecycle::PreflightReady,
                     preflight_sha256: Some(sha256_ref(&preflight_raw)),
+                    execution_admission_sha256: None,
+                    execution_runtime_config_sha256: None,
                     stop_sha256: None,
                     updated_at_unix_ms: preflight.evaluated_at_unix_ms,
                 },
             )?;
         }
-        LiveRunCandidateAction::StartMarketData
+        LiveRunCandidateAction::StartMarketData | LiveRunCandidateAction::StartExecution
             if current.lifecycle == LiveRunCandidateLifecycle::PreflightReady =>
         {
             let starting_at = unix_time_ms();
-            write_live_market_data_node_config(state, &directory, &manifest)?;
+            if request.action == LiveRunCandidateAction::StartMarketData
+                && current_state.execution_admission_sha256.is_some()
+            {
+                return Err(product_error(
+                    ProductErrorKind::LiveConflict,
+                    "live_execution_admission_requires_execution_start",
+                ));
+            }
+            let execution_admission = if request.action == LiveRunCandidateAction::StartExecution {
+                let root = canonical_live_run_root(state, false)?.join(path_run_id);
+                let (admission, admission_raw) =
+                    read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+                        &root.join(LIVE_EXECUTION_ADMISSION_FILE),
+                        "live_execution_admission",
+                    )?
+                    .ok_or_else(|| {
+                        product_error(
+                            ProductErrorKind::BoundaryViolation,
+                            "live_execution_admission",
+                        )
+                    })?;
+                validate_execution_admission_artifact(
+                    &manifest,
+                    &manifest_sha256,
+                    &admission,
+                    current.lifecycle,
+                )?;
+                if admission.expires_at_unix_ms <= starting_at || admission.consumed {
+                    return Err(product_error(
+                        ProductErrorKind::BoundaryViolation,
+                        "live_execution_admission_expiry",
+                    ));
+                }
+                if current_state.execution_admission_sha256.as_deref()
+                    != Some(sha256_ref(&admission_raw).as_str())
+                {
+                    return Err(product_error(
+                        ProductErrorKind::BoundaryViolation,
+                        "live_execution_admission_anchor",
+                    ));
+                }
+                Some(admission)
+            } else {
+                if current_state.execution_admission_sha256.is_some() {
+                    return Err(product_error(
+                        ProductErrorKind::BoundaryViolation,
+                        "live_execution_admission",
+                    ));
+                }
+                None
+            };
+            if revalidate_start {
+                let refreshed_preflight = preflight_evaluator(&manifest)?;
+                if !refreshed_preflight.connected
+                    || !refreshed_preflight.can_trade
+                    || sorted_refs(refreshed_preflight.source_refs) != manifest.source_refs
+                {
+                    return Err(product_error(
+                        ProductErrorKind::BoundaryViolation,
+                        "live_execution_current_preflight",
+                    ));
+                }
+            }
+            let runtime_config_sha256 =
+                write_live_node_config(state, &directory, &manifest, execution_admission.as_ref())?;
             let starting_result = write_live_run_state(
                 state,
                 path_run_id,
@@ -807,6 +1604,10 @@ where
                     previous_state_sha256: Some(sha256_ref(&current_state_raw)),
                     lifecycle: LiveRunCandidateLifecycle::Starting,
                     preflight_sha256: current_state.preflight_sha256,
+                    execution_admission_sha256: current_state.execution_admission_sha256,
+                    execution_runtime_config_sha256: execution_admission
+                        .as_ref()
+                        .map(|_| runtime_config_sha256),
                     stop_sha256: None,
                     updated_at_unix_ms: starting_at,
                 },
@@ -909,6 +1710,8 @@ where
                 previous_state_sha256: Some(sha256_ref(&starting_raw)),
                 lifecycle: LiveRunCandidateLifecycle::MarketDataRunning,
                 preflight_sha256: starting_state.preflight_sha256,
+                execution_admission_sha256: starting_state.execution_admission_sha256,
+                execution_runtime_config_sha256: starting_state.execution_runtime_config_sha256,
                 stop_sha256: None,
                 updated_at_unix_ms: unix_time_ms(),
             };
@@ -959,6 +1762,7 @@ where
                 order_endpoint_access_attempted: false,
                 execution_adapter_send_attempted: false,
                 real_orders_submitted: false,
+                execution_order_sha256: None,
             };
             let raw = serde_json::to_vec_pretty(&stop)
                 .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_stop"))?;
@@ -974,6 +1778,8 @@ where
                     previous_state_sha256: Some(sha256_ref(&current_state_raw)),
                     lifecycle: LiveRunCandidateLifecycle::Stopped,
                     preflight_sha256: current_state.preflight_sha256,
+                    execution_admission_sha256: current_state.execution_admission_sha256,
+                    execution_runtime_config_sha256: current_state.execution_runtime_config_sha256,
                     stop_sha256: Some(sha256_ref(&raw)),
                     updated_at_unix_ms: stop.stopped_at_unix_ms,
                 },
@@ -995,6 +1801,8 @@ where
                     previous_state_sha256: Some(sha256_ref(&current_state_raw)),
                     lifecycle: LiveRunCandidateLifecycle::Stopping,
                     preflight_sha256: current_state.preflight_sha256,
+                    execution_admission_sha256: current_state.execution_admission_sha256,
+                    execution_runtime_config_sha256: current_state.execution_runtime_config_sha256,
                     stop_sha256: None,
                     updated_at_unix_ms: stopping_at,
                 },
@@ -1016,6 +1824,7 @@ where
                 })?;
             let (stopping_state, stopping_raw) =
                 load_live_run_state(state, path_run_id, &manifest_sha256)?;
+            let activity = load_live_execution_stop_activity(state, path_run_id)?;
             let stop = LiveRunStopArtifact {
                 schema_version: LIVE_RUN_STOP_SCHEMA_VERSION.to_string(),
                 run_id: path_run_id.to_string(),
@@ -1023,9 +1832,10 @@ where
                 source_preflight_sha256: stopping_state.preflight_sha256.clone(),
                 stopped_at_unix_ms: unix_time_ms(),
                 manual_stop: true,
-                order_endpoint_access_attempted: false,
-                execution_adapter_send_attempted: false,
-                real_orders_submitted: false,
+                order_endpoint_access_attempted: activity.endpoint_access_attempted,
+                execution_adapter_send_attempted: activity.adapter_send_attempted,
+                real_orders_submitted: activity.real_order_submitted,
+                execution_order_sha256: activity.order_sha256,
             };
             let stop_raw = serde_json::to_vec_pretty(&stop)
                 .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_stop"))?;
@@ -1038,6 +1848,8 @@ where
                 previous_state_sha256: Some(sha256_ref(&stopping_raw)),
                 lifecycle: LiveRunCandidateLifecycle::Stopped,
                 preflight_sha256: stopping_state.preflight_sha256,
+                execution_admission_sha256: stopping_state.execution_admission_sha256,
+                execution_runtime_config_sha256: stopping_state.execution_runtime_config_sha256,
                 stop_sha256: Some(sha256_ref(&stop_raw)),
                 updated_at_unix_ms: stop.stopped_at_unix_ms,
             };
@@ -1093,6 +1905,20 @@ fn transition_live_market_data_runtime_failed(
     let failed = if current.lifecycle == LiveRunCandidateLifecycle::Failed {
         current
     } else {
+        let activity = load_live_execution_stop_activity(state, run_id)?;
+        let failed_at = unix_time_ms();
+        let candidate_root = canonical_live_run_root(state, false)?.join(run_id);
+        let directory = open_absolute_directory_nofollow(&candidate_root)?;
+        let (stop, stop_raw) = load_or_create_failed_stop_artifact(FailedStopArtifactContext {
+            candidate_root: &candidate_root,
+            directory: &directory,
+            run_id,
+            manifest_sha256,
+            preflight_sha256: current.preflight_sha256.as_deref(),
+            current_updated_at_unix_ms: current.updated_at_unix_ms,
+            failed_at_unix_ms: failed_at,
+            activity: &activity,
+        })?;
         let failed = LiveRunCandidateState {
             schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
             run_id: run_id.to_string(),
@@ -1101,8 +1927,10 @@ fn transition_live_market_data_runtime_failed(
             previous_state_sha256: Some(sha256_ref(&current_raw)),
             lifecycle: LiveRunCandidateLifecycle::Failed,
             preflight_sha256: current.preflight_sha256,
-            stop_sha256: None,
-            updated_at_unix_ms: unix_time_ms(),
+            execution_admission_sha256: current.execution_admission_sha256,
+            execution_runtime_config_sha256: current.execution_runtime_config_sha256,
+            stop_sha256: Some(sha256_ref(&stop_raw)),
+            updated_at_unix_ms: stop.stopped_at_unix_ms,
         };
         write_live_run_state(state, run_id, &failed)?;
         failed
@@ -1128,6 +1956,78 @@ fn transition_live_market_data_runtime_failed(
             })?;
     }
     release_active_live_run_candidate_if_present(state, run_id)
+}
+
+#[derive(Clone, Copy)]
+struct FailedStopArtifactContext<'a> {
+    candidate_root: &'a Path,
+    directory: &'a cap_std::fs::Dir,
+    run_id: &'a str,
+    manifest_sha256: &'a str,
+    preflight_sha256: Option<&'a str>,
+    current_updated_at_unix_ms: u64,
+    failed_at_unix_ms: u64,
+    activity: &'a LiveExecutionStopActivity,
+}
+
+fn load_or_create_failed_stop_artifact(
+    context: FailedStopArtifactContext<'_>,
+) -> Result<(LiveRunStopArtifact, Vec<u8>), ProductError> {
+    let FailedStopArtifactContext {
+        candidate_root,
+        directory,
+        run_id,
+        manifest_sha256,
+        preflight_sha256,
+        current_updated_at_unix_ms,
+        failed_at_unix_ms,
+        activity,
+    } = context;
+    if let Some((stop, raw)) = read_optional_artifact_with_raw::<LiveRunStopArtifact>(
+        &candidate_root.join("stop.json"),
+        "live_runtime_cleanup",
+    )? {
+        if stop.schema_version != LIVE_RUN_STOP_SCHEMA_VERSION
+            || stop.run_id != run_id
+            || stop.source_manifest_sha256 != manifest_sha256
+            || stop.source_preflight_sha256.as_deref() != preflight_sha256
+            || stop.stopped_at_unix_ms < current_updated_at_unix_ms
+            || stop.stopped_at_unix_ms
+                > failed_at_unix_ms.saturating_add(LIVE_RUN_STOP_CLOCK_SKEW_MS)
+            || stop.manual_stop
+            || stop.order_endpoint_access_attempted != activity.endpoint_access_attempted
+            || stop.execution_adapter_send_attempted != activity.adapter_send_attempted
+            || stop.real_orders_submitted != activity.real_order_submitted
+            || stop.execution_order_sha256 != activity.order_sha256
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_runtime_cleanup",
+            ));
+        }
+        return Ok((stop, raw));
+    }
+
+    let stop = LiveRunStopArtifact {
+        schema_version: LIVE_RUN_STOP_SCHEMA_VERSION.to_string(),
+        run_id: run_id.to_string(),
+        source_manifest_sha256: manifest_sha256.to_string(),
+        source_preflight_sha256: preflight_sha256.map(str::to_string),
+        stopped_at_unix_ms: failed_at_unix_ms,
+        manual_stop: false,
+        order_endpoint_access_attempted: activity.endpoint_access_attempted,
+        execution_adapter_send_attempted: activity.adapter_send_attempted,
+        real_orders_submitted: activity.real_order_submitted,
+        execution_order_sha256: activity.order_sha256.clone(),
+    };
+    let raw = serde_json::to_vec_pretty(&stop).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_cleanup",
+        )
+    })?;
+    write_new_run_file(directory, "stop.json", &raw)?;
+    Ok((stop, raw))
 }
 
 fn reconcile_exited_live_market_data_runtime(
@@ -1387,6 +2287,7 @@ fn complete_stopping_live_run_state(
     {
         existing
     } else {
+        let activity = load_live_execution_stop_activity(state, run_id)?;
         let stop = LiveRunStopArtifact {
             schema_version: LIVE_RUN_STOP_SCHEMA_VERSION.to_string(),
             run_id: run_id.to_string(),
@@ -1394,9 +2295,10 @@ fn complete_stopping_live_run_state(
             source_preflight_sha256: current.preflight_sha256.clone(),
             stopped_at_unix_ms: unix_time_ms(),
             manual_stop: true,
-            order_endpoint_access_attempted: false,
-            execution_adapter_send_attempted: false,
-            real_orders_submitted: false,
+            order_endpoint_access_attempted: activity.endpoint_access_attempted,
+            execution_adapter_send_attempted: activity.adapter_send_attempted,
+            real_orders_submitted: activity.real_order_submitted,
+            execution_order_sha256: activity.order_sha256,
         };
         let raw = serde_json::to_vec_pretty(&stop)
             .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_stop"))?;
@@ -1411,6 +2313,7 @@ fn complete_stopping_live_run_state(
     validate_action_artifacts(
         &manifest,
         manifest_sha256,
+        LiveRunCandidateLifecycle::Stopped,
         preflight.as_ref().map(|(value, _)| value),
         Some(&stop),
     )?;
@@ -1425,6 +2328,8 @@ fn complete_stopping_live_run_state(
             previous_state_sha256: Some(sha256_ref(current_raw)),
             lifecycle: LiveRunCandidateLifecycle::Stopped,
             preflight_sha256: current.preflight_sha256.clone(),
+            execution_admission_sha256: current.execution_admission_sha256.clone(),
+            execution_runtime_config_sha256: current.execution_runtime_config_sha256.clone(),
             stop_sha256: Some(sha256_ref(&stop_raw)),
             updated_at_unix_ms: stop.stopped_at_unix_ms,
         },
@@ -1529,11 +2434,21 @@ fn write_preflight_artifact(
     Ok(raw)
 }
 
+#[cfg(test)]
 fn write_live_market_data_node_config(
     _state: &DashboardServerState,
     directory: &cap_std::fs::Dir,
     manifest: &LiveRunCandidateManifest,
 ) -> Result<(), ProductError> {
+    write_live_node_config(_state, directory, manifest, None).map(|_| ())
+}
+
+fn write_live_node_config(
+    state: &DashboardServerState,
+    directory: &cap_std::fs::Dir,
+    manifest: &LiveRunCandidateManifest,
+    execution: Option<&LiveExecutionAdmissionArtifact>,
+) -> Result<String, ProductError> {
     validate_live_market_data_symbols(&manifest.data_symbols)?;
     let symbols = manifest
         .data_symbols
@@ -1542,6 +2457,69 @@ fn write_live_market_data_node_config(
         .collect::<Vec<_>>()
         .join(", ");
     let run_id = &manifest.run_id;
+    let runtime_artifact_root = live_market_data_runtime_root(state, run_id)?;
+    let execution_admission_sha256 = execution
+        .map(|_| {
+            read_run_file_from_directory(
+                directory,
+                LIVE_EXECUTION_ADMISSION_FILE,
+                "live_execution_admission",
+            )
+            .map(|raw| sha256_ref(&raw))
+        })
+        .transpose()?;
+    let execution_section = execution.map_or_else(String::new, |admission| {
+        format!(
+            "\n[live_execution]\n\
+             schema_version = \"ntpro.s3.live_execution_node.v1\"\n\
+             source_manifest_sha256 = \"{}\"\n\
+             execution_admission_sha256 = \"{}\"\n\
+             runtime_artifact_root = \"{}\"\n\
+             risk_policy_ref = \"{}\"\n\
+             owner_authority_ref = \"{}\"\n\
+             risk_authority_ref = \"{}\"\n\
+             operator_authority_ref = \"{}\"\n\
+             admission_id = \"{}\"\n\
+             strategy_version_id = \"{}\"\n\
+             account_id = \"BINANCE-001\"\n\
+             instrument_id = \"{}\"\n\
+             side = \"{}\"\n\
+             order_type = \"LIMIT\"\n\
+             time_in_force = \"GTC\"\n\
+             price = \"{}\"\n\
+             quantity = \"{}\"\n\
+             max_notional = \"{}\"\n\
+             risk_policy_max_notional = \"{}\"\n\
+             expires_at_unix_ms = {}\n\
+             api_key_env = \"NTPRO_BINANCE_LIVE_API_KEY\"\n\
+             api_secret_env = \"NTPRO_BINANCE_LIVE_API_SECRET\"\n\
+             owner_confirmed = true\n\
+             risk_confirmed = true\n\
+             operator_confirmed = true\n\
+             kill_switch_active = false\n\
+             single_shot = true\n\
+             cancel_order_allowed = false\n\
+             replace_order_allowed = false\n\
+             automatic_retry_allowed = false\n\
+             automatic_recovery_allowed = false\n",
+            admission.source_manifest_sha256,
+            execution_admission_sha256.as_deref().unwrap_or_default(),
+            runtime_artifact_root.display(),
+            admission.risk_policy_ref,
+            admission.owner_authority_ref,
+            admission.risk_authority_ref,
+            admission.operator_authority_ref,
+            admission.admission_id,
+            admission.strategy_version_id,
+            admission.instrument_id,
+            admission.side,
+            admission.price,
+            admission.quantity,
+            admission.max_notional,
+            admission.risk_policy_max_notional,
+            admission.expires_at_unix_ms,
+        )
+    });
     let raw = format!(
         "[live_market_data]\n\
          schema_version = \"ntpro.live_market_data_node.v1\"\n\
@@ -1557,14 +2535,16 @@ fn write_live_market_data_node_config(
          execution_client_enabled = false\n\
          order_endpoint_access_allowed = false\n\
          order_submission_allowed = false\n\
-         automatic_reconnect_allowed = false\n\n\
+         automatic_reconnect_allowed = false\n\
+         {execution_section}\n\
          [shutdown]\n\
          mode = \"start-stop\"\n\
          post_stop_delay_secs = 0\n\
          connection_timeout_secs = 10\n\
          disconnection_timeout_secs = 10\n"
     );
-    write_new_run_file(directory, LIVE_MARKET_DATA_NODE_CONFIG_FILE, raw.as_bytes())
+    write_new_run_file(directory, LIVE_MARKET_DATA_NODE_CONFIG_FILE, raw.as_bytes())?;
+    Ok(sha256_ref(raw.as_bytes()))
 }
 
 fn validate_live_market_data_symbols(symbols: &[String]) -> Result<(), ProductError> {
@@ -1596,6 +2576,44 @@ fn live_market_data_runtime_root(
     canonical_path(&root, "live_runtime_root")
 }
 
+fn load_live_execution_stop_activity(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<LiveExecutionStopActivity, ProductError> {
+    let runtime_root = live_market_data_runtime_root(state, run_id)?;
+    let Some((order, raw)) = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+        &runtime_root.join(LIVE_EXECUTION_ORDER_STATE_FILE),
+        "live_execution_order_state",
+    )?
+    else {
+        return Ok(LiveExecutionStopActivity {
+            endpoint_access_attempted: false,
+            adapter_send_attempted: false,
+            real_order_submitted: false,
+            order_sha256: None,
+        });
+    };
+    let candidate_root = canonical_live_run_root(state, false)?.join(run_id);
+    let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+        &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+        "live_execution_admission",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_order_state",
+        )
+    })?;
+    validate_execution_order_snapshot(&order, &admission)?;
+    let real_order_submitted = order.actual_submission_attempted && order.status != "denied";
+    Ok(LiveExecutionStopActivity {
+        endpoint_access_attempted: order.actual_submission_attempted,
+        adapter_send_attempted: order.actual_submission_attempted,
+        real_order_submitted,
+        order_sha256: Some(sha256_ref(&raw)),
+    })
+}
+
 fn load_live_run_candidate(
     state: &DashboardServerState,
     run_id: &str,
@@ -1623,9 +2641,15 @@ fn load_live_run_candidate_snapshot(
         &root.join("stop.json"),
         "live_stop",
     )?;
+    let execution_admission = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+        &root.join(LIVE_EXECUTION_ADMISSION_FILE),
+        "live_execution_admission",
+    )?;
+    let execution_approvals = load_live_execution_approvals(&root)?;
     validate_action_artifacts(
         &manifest,
         &manifest_sha256,
+        candidate_state.lifecycle,
         preflight.as_ref().map(|(value, _)| value),
         stop.as_ref().map(|(value, _)| value),
     )?;
@@ -1633,16 +2657,72 @@ fn load_live_run_candidate_snapshot(
         &manifest,
         candidate_state,
         preflight.as_ref(),
+        execution_admission.as_ref(),
         stop.as_ref(),
     )?;
+    if let Some((admission, _)) = &execution_admission {
+        validate_execution_admission_artifact(
+            &manifest,
+            &manifest_sha256,
+            admission,
+            candidate_state.lifecycle,
+        )?;
+    }
+    validate_live_execution_approval_set(
+        &execution_approvals,
+        &manifest,
+        &manifest_sha256,
+        execution_admission.as_ref().map(|(value, _)| value),
+    )?;
+    let execution_order_path = mvp_workspace_root(&state.registry_path)?
+        .join("artifacts/live-market-data-runtime")
+        .join(run_id)
+        .join(LIVE_EXECUTION_ORDER_STATE_FILE);
+    let execution_order = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+        &execution_order_path,
+        "live_execution_order_state",
+    )?;
+    if let Some((order, _)) = &execution_order {
+        let admission = execution_admission
+            .as_ref()
+            .map(|(value, _)| value)
+            .ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_execution_order_state",
+                )
+            })?;
+        validate_execution_order_snapshot(order, admission)?;
+        validate_execution_order_runtime_context(&root, candidate_state.lifecycle)?;
+    }
+    if let Some((stop, _)) = &stop
+        && stop.execution_order_sha256.as_deref()
+            != execution_order
+                .as_ref()
+                .map(|(_, raw)| sha256_ref(raw))
+                .as_deref()
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_terminal_order_anchor",
+        ));
+    }
     validate_candidate_directory_entries(&root, &state_history)?;
-    let receipt = load_live_run_anchor_receipt(state, run_id, candidate_state.revision)?;
+    let state_receipt = load_live_run_anchor_receipt(state, run_id, candidate_state.revision)?;
+    let receipt = validate_workspace_anchor_head(state)?
+        .filter(|receipt| receipt.run_id == run_id)
+        .unwrap_or(state_receipt);
     let candidate = project_candidate(
         state,
         &manifest,
         candidate_state,
-        preflight.as_ref().map(|(value, _)| value),
-        stop.as_ref().map(|(value, _)| value),
+        &LiveRunProjectionArtifacts {
+            preflight: preflight.as_ref().map(|(value, _)| value),
+            stop: stop.as_ref().map(|(value, _)| value),
+            execution_admission: execution_admission.as_ref().map(|(value, _)| value),
+            execution_approvals: &execution_approvals,
+            execution_order: execution_order.as_ref().map(|(value, _)| value),
+        },
         &receipt,
     );
     Ok((candidate, manifest, manifest_raw))
@@ -1735,6 +2815,7 @@ fn load_live_run_manifest(
 fn validate_action_artifacts(
     manifest: &LiveRunCandidateManifest,
     manifest_sha256: &str,
+    lifecycle: LiveRunCandidateLifecycle,
     preflight: Option<&LiveRunPreflightArtifact>,
     stop: Option<&LiveRunStopArtifact>,
 ) -> Result<(), ProductError> {
@@ -1764,10 +2845,17 @@ fn validate_action_artifacts(
             || value.run_id != manifest.run_id
             || value.source_manifest_sha256 != manifest_sha256
             || value.stopped_at_unix_ms < earliest
-            || !value.manual_stop
-            || value.order_endpoint_access_attempted
-            || value.execution_adapter_send_attempted
-            || value.real_orders_submitted
+            || (value.manual_stop == (lifecycle == LiveRunCandidateLifecycle::Failed))
+            || (value.execution_adapter_send_attempted && !value.order_endpoint_access_attempted)
+            || (value.real_orders_submitted && !value.execution_adapter_send_attempted)
+            || ((value.order_endpoint_access_attempted
+                || value.execution_adapter_send_attempted
+                || value.real_orders_submitted)
+                && value.execution_order_sha256.is_none())
+            || value
+                .execution_order_sha256
+                .as_ref()
+                .is_some_and(|hash| !hash.starts_with("sha256:") || hash.len() != 71)
         {
             return Err(product_error(
                 ProductErrorKind::BoundaryViolation,
@@ -1778,12 +2866,298 @@ fn validate_action_artifacts(
     Ok(())
 }
 
+fn validate_execution_admission_artifact(
+    manifest: &LiveRunCandidateManifest,
+    manifest_sha256: &str,
+    admission: &LiveExecutionAdmissionArtifact,
+    lifecycle: LiveRunCandidateLifecycle,
+) -> Result<(), ProductError> {
+    let reconstructed_request = LiveExecutionAdmissionRequest {
+        run_id: admission.run_id.clone(),
+        strategy_version_id: admission.strategy_version_id.clone(),
+        account_ref: admission.account_ref.clone(),
+        venue_ref: admission.venue_ref.clone(),
+        admission_id: admission.admission_id.clone(),
+        instrument_id: admission.instrument_id.clone(),
+        side: admission.side.clone(),
+        order_type: admission.order_type.clone(),
+        time_in_force: admission.time_in_force.clone(),
+        price: admission.price.clone(),
+        quantity: admission.quantity.clone(),
+        max_notional: admission.max_notional.clone(),
+        expires_at_unix_ms: admission.expires_at_unix_ms,
+        user_confirmed: true,
+    };
+    let reconstructed_raw = serde_json::to_vec(&reconstructed_request)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_execution_admission"))?;
+    let price = Decimal::from_str_exact(&admission.price)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_execution_admission"))?;
+    let quantity = Decimal::from_str_exact(&admission.quantity)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_execution_admission"))?;
+    let max_notional = Decimal::from_str_exact(&admission.max_notional)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_execution_admission"))?;
+    let risk_policy_max_notional = Decimal::from_str_exact(&admission.risk_policy_max_notional)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_execution_admission"))?;
+    if admission.schema_version != LIVE_EXECUTION_ADMISSION_SCHEMA_VERSION
+        || admission.request_sha256 != sha256_ref(&reconstructed_raw)
+        || admission.source_manifest_sha256 != manifest_sha256
+        || admission.run_id != manifest.run_id
+        || admission.strategy_version_id != manifest.strategy_version_id
+        || admission.account_ref != manifest.account_ref
+        || admission.venue_ref != manifest.venue_ref
+        || !manifest.data_symbols.contains(&admission.instrument_id)
+        || !matches!(admission.side.as_str(), "BUY" | "SELL")
+        || admission.order_type != "LIMIT"
+        || admission.time_in_force != "GTC"
+        || !admission.risk_policy_ref.starts_with("risk-config-sha256:")
+        || admission.owner_authority_ref.trim().is_empty()
+        || admission.risk_authority_ref.trim().is_empty()
+        || admission.operator_authority_ref.trim().is_empty()
+        || admission.owner_authority_ref == admission.risk_authority_ref
+        || admission.owner_authority_ref == admission.operator_authority_ref
+        || admission.risk_authority_ref == admission.operator_authority_ref
+        || admission.authorized_at_unix_ms < manifest.created_at_unix_ms
+        || admission.expires_at_unix_ms <= admission.authorized_at_unix_ms
+        || !admission.owner_confirmed
+        || !admission.risk_confirmed
+        || !admission.operator_confirmed
+        || admission.kill_switch_active
+        || !admission.single_shot
+        || admission.cancel_order_allowed
+        || admission.replace_order_allowed
+        || admission.automatic_retry_allowed
+        || admission.automatic_recovery_allowed
+        || price <= Decimal::ZERO
+        || quantity <= Decimal::ZERO
+        || max_notional <= Decimal::ZERO
+        || risk_policy_max_notional <= Decimal::ZERO
+        || price * quantity > max_notional
+        || max_notional > risk_policy_max_notional
+        || (admission.consumed
+            && !matches!(
+                lifecycle,
+                LiveRunCandidateLifecycle::Starting
+                    | LiveRunCandidateLifecycle::MarketDataRunning
+                    | LiveRunCandidateLifecycle::Stopping
+                    | LiveRunCandidateLifecycle::Stopped
+                    | LiveRunCandidateLifecycle::Failed
+            ))
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_admission",
+        ));
+    }
+    Ok(())
+}
+
+fn load_live_execution_approvals(
+    root: &Path,
+) -> Result<Vec<LiveExecutionApprovalRecord>, ProductError> {
+    let mut approvals = Vec::new();
+    for role in [
+        LiveExecutionApprovalRole::Owner,
+        LiveExecutionApprovalRole::Risk,
+        LiveExecutionApprovalRole::Operator,
+    ] {
+        if let Some((artifact, artifact_raw)) =
+            read_optional_artifact_with_raw::<LiveExecutionApprovalArtifact>(
+                &root.join(role.artifact_file()),
+                "live_execution_approval",
+            )?
+        {
+            let receipt_raw = read_live_run_artifact_bytes(
+                &root.join(role.receipt_file()),
+                "live_execution_approval_receipt",
+            )?;
+            let receipt: LiveRunAnchorReceipt =
+                serde_json::from_slice(&receipt_raw).map_err(|_| {
+                    product_error(
+                        ProductErrorKind::SourceInvalid,
+                        "live_execution_approval_receipt",
+                    )
+                })?;
+            approvals.push(LiveExecutionApprovalRecord {
+                role,
+                artifact,
+                artifact_raw,
+                receipt,
+            });
+        }
+    }
+    Ok(approvals)
+}
+
+fn validate_live_execution_approval_set(
+    approvals: &[LiveExecutionApprovalRecord],
+    manifest: &LiveRunCandidateManifest,
+    manifest_sha256: &str,
+    admission: Option<&LiveExecutionAdmissionArtifact>,
+) -> Result<(), ProductError> {
+    let proposal_sha256 = approvals
+        .first()
+        .map(|record| record.artifact.proposal_sha256.as_str());
+    let admission_id = approvals
+        .first()
+        .map(|record| record.artifact.admission_id.as_str());
+    for record in approvals {
+        let role = record.role;
+        let approval = &record.artifact;
+        let receipt = &record.receipt;
+        let expected_authority = admission.map(|value| match role {
+            LiveExecutionApprovalRole::Owner => value.owner_authority_ref.as_str(),
+            LiveExecutionApprovalRole::Risk => value.risk_authority_ref.as_str(),
+            LiveExecutionApprovalRole::Operator => value.operator_authority_ref.as_str(),
+        });
+        if approval.schema_version != LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION
+            || approval.role != role
+            || approval.source_manifest_sha256 != manifest_sha256
+            || approval.run_id != manifest.run_id
+            || approval.strategy_version_id != manifest.strategy_version_id
+            || proposal_sha256 != Some(approval.proposal_sha256.as_str())
+            || admission_id != Some(approval.admission_id.as_str())
+            || !approval.proposal_sha256.starts_with("sha256:")
+            || approval.proposal_sha256.len() != 71
+            || approval.authority_ref.trim().is_empty()
+            || approval.risk_policy_ref.trim().is_empty()
+            || approval.approved_at_unix_ms < manifest.created_at_unix_ms
+            || approval.approved_at_unix_ms > approval.expires_at_unix_ms
+            || record.artifact_raw.len() > LIVE_RUN_ARTIFACT_MAX_BYTES as usize
+            || receipt.schema_version != LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION
+            || receipt.run_id != manifest.run_id
+            || receipt.state_sha256 != sha256_ref(&record.artifact_raw)
+            || receipt.commit_sha256 != manifest_sha256
+            || receipt.anchored_at_unix_ms < approval.approved_at_unix_ms
+            || expected_authority.is_some_and(|value| value != approval.authority_ref)
+            || admission.is_some_and(|value| {
+                value.request_sha256 != approval.proposal_sha256
+                    || value.admission_id != approval.admission_id
+                    || value.risk_policy_ref != approval.risk_policy_ref
+            })
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_approval",
+            ));
+        }
+    }
+    if admission.is_some() && approvals.len() != 3 {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_approval",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_order_snapshot(
+    order: &LiveExecutionOrderSnapshot,
+    admission: &LiveExecutionAdmissionArtifact,
+) -> Result<(), ProductError> {
+    let terminal_status = matches!(
+        order.status.as_str(),
+        "rejected" | "denied" | "expired" | "filled" | "canceled" | "submission_failed"
+    );
+    let status_valid = matches!(
+        order.status.as_str(),
+        "waiting_for_instrument"
+            | "submission_requested"
+            | "submitted"
+            | "accepted"
+            | "rejected"
+            | "denied"
+            | "expired"
+            | "partially_filled"
+            | "filled"
+            | "canceled"
+            | "submission_failed"
+    );
+    let waiting = order.status == "waiting_for_instrument";
+    let denied_before_adapter = order.status == "denied";
+    let failed_before_attempt =
+        order.status == "submission_failed" && !order.actual_submission_attempted;
+    if order.schema_version != LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION
+        || order.admission_id != admission.admission_id
+        || order.strategy_version_id != admission.strategy_version_id
+        || order.instrument_id != admission.instrument_id
+        || !status_valid
+        || order.terminal != terminal_status
+        || !order.new_orders_blocked
+        || (waiting && order.actual_submission_attempted)
+        || (!waiting
+            && !denied_before_adapter
+            && !failed_before_attempt
+            && !order.actual_submission_attempted)
+        || ((waiting || failed_before_attempt) && order.client_order_id.is_some())
+        || (!waiting && !failed_before_attempt && order.client_order_id.is_none())
+        || order.automatic_retry_attempted
+        || order.cancel_attempted
+        || order.replace_attempted
+        || order.updated_at_unix_ms < admission.authorized_at_unix_ms
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_order_state",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_order_runtime_context(
+    candidate_root: &Path,
+    lifecycle: LiveRunCandidateLifecycle,
+) -> Result<(), ProductError> {
+    if !matches!(
+        lifecycle,
+        LiveRunCandidateLifecycle::Starting
+            | LiveRunCandidateLifecycle::MarketDataRunning
+            | LiveRunCandidateLifecycle::Stopping
+            | LiveRunCandidateLifecycle::Stopped
+            | LiveRunCandidateLifecycle::Failed
+    ) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_order_state",
+        ));
+    }
+    let raw = read_live_run_artifact_bytes(
+        &candidate_root.join(LIVE_MARKET_DATA_NODE_CONFIG_FILE),
+        "live_execution_runtime_config",
+    )?;
+    let raw = std::str::from_utf8(&raw).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_runtime_config",
+        )
+    })?;
+    let config: toml::Value = toml::from_str(raw).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_runtime_config",
+        )
+    })?;
+    if config.get("live_execution").is_none() {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_order_state",
+        ));
+    }
+    Ok(())
+}
+
+struct LiveRunProjectionArtifacts<'a> {
+    preflight: Option<&'a LiveRunPreflightArtifact>,
+    stop: Option<&'a LiveRunStopArtifact>,
+    execution_admission: Option<&'a LiveExecutionAdmissionArtifact>,
+    execution_approvals: &'a [LiveExecutionApprovalRecord],
+    execution_order: Option<&'a LiveExecutionOrderSnapshot>,
+}
+
 fn project_candidate(
     server_state: &DashboardServerState,
     manifest: &LiveRunCandidateManifest,
     candidate_state: &LiveRunCandidateState,
-    preflight: Option<&LiveRunPreflightArtifact>,
-    stop: Option<&LiveRunStopArtifact>,
+    artifacts: &LiveRunProjectionArtifacts<'_>,
     receipt: &LiveRunAnchorReceipt,
 ) -> LiveRunCandidate {
     let lifecycle = candidate_state.lifecycle;
@@ -1797,10 +3171,10 @@ fn project_candidate(
         venue_ref: manifest.venue_ref.clone(),
         lifecycle,
         created_at_unix_ms: manifest.created_at_unix_ms,
-        preflight_at_unix_ms: preflight.map(|value| value.evaluated_at_unix_ms),
-        stopped_at_unix_ms: stop.map(|value| value.stopped_at_unix_ms),
-        account_connected: preflight.is_some(),
-        account_can_trade_verified: preflight.is_some(),
+        preflight_at_unix_ms: artifacts.preflight.map(|value| value.evaluated_at_unix_ms),
+        stopped_at_unix_ms: artifacts.stop.map(|value| value.stopped_at_unix_ms),
+        account_connected: artifacts.preflight.is_some(),
+        account_can_trade_verified: artifacts.preflight.is_some(),
         runtime_started: runtime.0,
         market_data_connected: runtime.1,
         runtime_node_id: runtime.2,
@@ -1817,7 +3191,36 @@ fn project_candidate(
             workspace_snapshot_rollback_detectable: true,
             trading_authority_granted: false,
         },
-        order_admission: LiveOrderAdmissionSnapshot::blocked(),
+        order_admission: if artifacts.execution_admission.is_some() {
+            let consumed = canonical_live_run_root(server_state, false).is_ok_and(|root| {
+                fs::read_to_string(
+                    root.join(&manifest.run_id)
+                        .join(LIVE_MARKET_DATA_NODE_CONFIG_FILE),
+                )
+                .is_ok_and(|raw| raw.contains("[live_execution]"))
+            });
+            if consumed {
+                LiveOrderAdmissionSnapshot::consumed()
+            } else {
+                LiveOrderAdmissionSnapshot::authorized()
+            }
+        } else {
+            LiveOrderAdmissionSnapshot::blocked_with_approvals(
+                artifacts
+                    .execution_approvals
+                    .iter()
+                    .any(|record| record.role == LiveExecutionApprovalRole::Owner),
+                artifacts
+                    .execution_approvals
+                    .iter()
+                    .any(|record| record.role == LiveExecutionApprovalRole::Risk),
+                artifacts
+                    .execution_approvals
+                    .iter()
+                    .any(|record| record.role == LiveExecutionApprovalRole::Operator),
+            )
+        },
+        execution_order: artifacts.execution_order.cloned(),
         source_refs: manifest.source_refs.clone(),
     }
 }
@@ -1827,11 +3230,17 @@ fn project_live_market_data_runtime(
     manifest: &LiveRunCandidateManifest,
     lifecycle: LiveRunCandidateLifecycle,
 ) -> (bool, bool, Option<String>, String, Option<String>) {
-    let runtime_config_exists = canonical_live_run_root(state, false).is_ok_and(|root| {
-        root.join(&manifest.run_id)
-            .join(LIVE_MARKET_DATA_NODE_CONFIG_FILE)
-            .is_file()
+    let runtime_config = canonical_live_run_root(state, false).ok().and_then(|root| {
+        fs::read_to_string(
+            root.join(&manifest.run_id)
+                .join(LIVE_MARKET_DATA_NODE_CONFIG_FILE),
+        )
+        .ok()
     });
+    let runtime_config_exists = runtime_config.is_some();
+    let execution_expected = runtime_config
+        .as_deref()
+        .is_some_and(|raw| raw.contains("[live_execution]"));
     if !matches!(
         lifecycle,
         LiveRunCandidateLifecycle::Starting
@@ -1862,21 +3271,30 @@ fn project_live_market_data_runtime(
     let data_connected = running
         && record.last_known_status.data_connection == ConnectionStatus::Connected
         && record.last_known_status.external_venue_connection;
-    let execution_disabled = record.last_known_status.execution_connection
-        == ConnectionStatus::NotConfigured
-        && !record
-            .last_known_status
-            .execution
-            .started
-            .value
-            .unwrap_or(true)
-        && !record.last_known_status.real_orders_submitted;
+    let execution_boundary_valid = if execution_expected {
+        record.last_known_status.execution_connection == ConnectionStatus::Connected
+            && record
+                .last_known_status
+                .execution
+                .started
+                .value
+                .unwrap_or(false)
+    } else {
+        record.last_known_status.execution_connection == ConnectionStatus::NotConfigured
+            && !record
+                .last_known_status
+                .execution
+                .started
+                .value
+                .unwrap_or(true)
+            && !record.last_known_status.real_orders_submitted
+    };
     let lifecycle_exposes_runtime = matches!(
         lifecycle,
         LiveRunCandidateLifecycle::MarketDataRunning | LiveRunCandidateLifecycle::Stopping
     );
     let error = if matches!(lifecycle, LiveRunCandidateLifecycle::MarketDataRunning)
-        && (!running || !data_connected || !execution_disabled)
+        && (!running || !data_connected || !execution_boundary_valid)
     {
         Some("live_market_data_runtime_boundary_violation".to_string())
     } else if record.last_known_status.last_error.is_some() {
@@ -1885,8 +3303,8 @@ fn project_live_market_data_runtime(
         None
     };
     (
-        lifecycle_exposes_runtime && running && execution_disabled,
-        lifecycle_exposes_runtime && data_connected && execution_disabled,
+        lifecycle_exposes_runtime && running && execution_boundary_valid,
+        lifecycle_exposes_runtime && data_connected && execution_boundary_valid,
         Some(node_id),
         supervisor_process_state_label(record.process.state).to_string(),
         error,
@@ -1937,6 +3355,8 @@ fn write_initial_live_run_state(
             previous_state_sha256: None,
             lifecycle: LiveRunCandidateLifecycle::Created,
             preflight_sha256: None,
+            execution_admission_sha256: None,
+            execution_runtime_config_sha256: None,
             stop_sha256: None,
             updated_at_unix_ms: created_at_unix_ms,
         },
@@ -2075,8 +3495,6 @@ fn publish_live_run_state_head(
             || current.revision + 1 != state.revision
             || Some(current.state_sha256.as_str()) != state.previous_state_sha256.as_deref()
             || Some(current.commit_sha256.as_str()) != previous_commit_sha256
-            || current.anchor_receipt_sha256
-                != receipt.previous_receipt_sha256.clone().unwrap_or_default()
             || current.updated_at_unix_ms > state.updated_at_unix_ms
         {
             return Err(product_error(
@@ -2259,40 +3677,81 @@ fn validate_live_run_state_transition(
     let lifecycle_fields_valid = match (previous.lifecycle, current.lifecycle) {
         (LiveRunCandidateLifecycle::Created, LiveRunCandidateLifecycle::PreflightReady) => {
             previous.preflight_sha256.is_none()
+                && previous.execution_admission_sha256.is_none()
+                && previous.execution_runtime_config_sha256.is_none()
                 && previous.stop_sha256.is_none()
                 && current.preflight_sha256.is_some()
+                && current.execution_admission_sha256.is_none()
+                && current.execution_runtime_config_sha256.is_none()
                 && current.stop_sha256.is_none()
         }
         (LiveRunCandidateLifecycle::Created, LiveRunCandidateLifecycle::Stopped) => {
             previous.preflight_sha256.is_none()
+                && previous.execution_admission_sha256.is_none()
+                && previous.execution_runtime_config_sha256.is_none()
                 && previous.stop_sha256.is_none()
                 && current.preflight_sha256.is_none()
+                && current.execution_admission_sha256.is_none()
+                && current.execution_runtime_config_sha256.is_none()
                 && current.stop_sha256.is_some()
+        }
+        (LiveRunCandidateLifecycle::PreflightReady, LiveRunCandidateLifecycle::PreflightReady) => {
+            previous.preflight_sha256.is_some()
+                && previous.execution_admission_sha256.is_none()
+                && previous.execution_runtime_config_sha256.is_none()
+                && previous.stop_sha256.is_none()
+                && current.preflight_sha256 == previous.preflight_sha256
+                && current.execution_admission_sha256.is_some()
+                && current.execution_runtime_config_sha256.is_none()
+                && current.stop_sha256.is_none()
         }
         (LiveRunCandidateLifecycle::PreflightReady, LiveRunCandidateLifecycle::Stopped) => {
             previous.preflight_sha256.is_some()
                 && previous.stop_sha256.is_none()
                 && current.preflight_sha256 == previous.preflight_sha256
+                && current.execution_admission_sha256 == previous.execution_admission_sha256
+                && current.execution_runtime_config_sha256.is_none()
                 && current.stop_sha256.is_some()
         }
-        (LiveRunCandidateLifecycle::PreflightReady, LiveRunCandidateLifecycle::Starting)
-        | (
-            LiveRunCandidateLifecycle::Starting,
-            LiveRunCandidateLifecycle::MarketDataRunning | LiveRunCandidateLifecycle::Failed,
-        )
-        | (
-            LiveRunCandidateLifecycle::MarketDataRunning,
-            LiveRunCandidateLifecycle::Stopping | LiveRunCandidateLifecycle::Failed,
+        (LiveRunCandidateLifecycle::PreflightReady, LiveRunCandidateLifecycle::Starting) => {
+            previous.preflight_sha256.is_some()
+                && previous.stop_sha256.is_none()
+                && previous.execution_runtime_config_sha256.is_none()
+                && current.preflight_sha256 == previous.preflight_sha256
+                && current.execution_admission_sha256 == previous.execution_admission_sha256
+                && current.execution_runtime_config_sha256.is_some()
+                    == current.execution_admission_sha256.is_some()
+                && current.stop_sha256.is_none()
+        }
+        (LiveRunCandidateLifecycle::Starting, LiveRunCandidateLifecycle::MarketDataRunning)
+        | (LiveRunCandidateLifecycle::MarketDataRunning, LiveRunCandidateLifecycle::Stopping) => {
+            previous.preflight_sha256.is_some()
+                && previous.stop_sha256.is_none()
+                && current.preflight_sha256 == previous.preflight_sha256
+                && current.execution_admission_sha256 == previous.execution_admission_sha256
+                && current.execution_runtime_config_sha256
+                    == previous.execution_runtime_config_sha256
+                && current.stop_sha256.is_none()
+        }
+        (
+            LiveRunCandidateLifecycle::Starting | LiveRunCandidateLifecycle::MarketDataRunning,
+            LiveRunCandidateLifecycle::Failed,
         ) => {
             previous.preflight_sha256.is_some()
                 && previous.stop_sha256.is_none()
                 && current.preflight_sha256 == previous.preflight_sha256
-                && current.stop_sha256.is_none()
+                && current.execution_admission_sha256 == previous.execution_admission_sha256
+                && current.execution_runtime_config_sha256
+                    == previous.execution_runtime_config_sha256
+                && current.stop_sha256.is_some()
         }
         (LiveRunCandidateLifecycle::Stopping, LiveRunCandidateLifecycle::Stopped) => {
             previous.preflight_sha256.is_some()
                 && previous.stop_sha256.is_none()
                 && current.preflight_sha256 == previous.preflight_sha256
+                && current.execution_admission_sha256 == previous.execution_admission_sha256
+                && current.execution_runtime_config_sha256
+                    == previous.execution_runtime_config_sha256
                 && current.stop_sha256.is_some()
         }
         _ => false,
@@ -2387,71 +3846,115 @@ fn validate_live_run_state(
     manifest: &LiveRunCandidateManifest,
     state: &LiveRunCandidateState,
     preflight: Option<&(LiveRunPreflightArtifact, Vec<u8>)>,
+    execution_admission: Option<&(LiveExecutionAdmissionArtifact, Vec<u8>)>,
     stop: Option<&(LiveRunStopArtifact, Vec<u8>)>,
 ) -> Result<(), ProductError> {
     let preflight_sha = preflight.map(|(_, raw)| sha256_ref(raw));
+    let execution_admission_sha = execution_admission.map(|(_, raw)| sha256_ref(raw));
     let stop_sha = stop.map(|(_, raw)| sha256_ref(raw));
-    let valid = match state.lifecycle {
-        LiveRunCandidateLifecycle::Created => {
-            state.revision == 0
-                && state.updated_at_unix_ms == manifest.created_at_unix_ms
-                && state.preflight_sha256.is_none()
-                && state.stop_sha256.is_none()
-                && preflight.is_none()
-                && stop.is_none()
+    let execution_scoped = execution_admission.is_some();
+    let revision_offset = u64::from(execution_scoped);
+    let runtime_config_binding_valid = match state.lifecycle {
+        LiveRunCandidateLifecycle::Created | LiveRunCandidateLifecycle::PreflightReady => {
+            state.execution_runtime_config_sha256.is_none()
         }
-        LiveRunCandidateLifecycle::PreflightReady => {
-            let evaluated_at = preflight.map(|(value, _)| value.evaluated_at_unix_ms);
-            state.revision == 1
-                && state.preflight_sha256 == preflight_sha
-                && state.stop_sha256.is_none()
-                && stop.is_none()
-                && Some(state.updated_at_unix_ms) == evaluated_at
-        }
-        LiveRunCandidateLifecycle::Starting => {
-            state.revision == 2
-                && state.preflight_sha256 == preflight_sha
-                && state.stop_sha256.is_none()
-                && preflight.is_some()
-                && stop.is_none()
-        }
-        LiveRunCandidateLifecycle::MarketDataRunning => {
-            state.revision == 3
-                && state.preflight_sha256 == preflight_sha
-                && state.stop_sha256.is_none()
-                && preflight.is_some()
-                && stop.is_none()
-        }
-        LiveRunCandidateLifecycle::Stopping => {
-            state.revision == 4
-                && state.preflight_sha256 == preflight_sha
-                && state.stop_sha256.is_none()
-                && preflight.is_some()
-                && stop.is_none()
-        }
-        LiveRunCandidateLifecycle::Failed => {
-            matches!(state.revision, 3 | 4)
-                && state.preflight_sha256 == preflight_sha
-                && state.stop_sha256.is_none()
-                && preflight.is_some()
-                && stop.is_none()
+        LiveRunCandidateLifecycle::Starting
+        | LiveRunCandidateLifecycle::MarketDataRunning
+        | LiveRunCandidateLifecycle::Stopping
+        | LiveRunCandidateLifecycle::Failed => {
+            state.execution_runtime_config_sha256.is_some() == execution_scoped
         }
         LiveRunCandidateLifecycle::Stopped => {
-            let stopped_at = stop.map(|(value, _)| value.stopped_at_unix_ms);
-            let valid_revision = if preflight.is_some() {
-                matches!(state.revision, 2 | 5)
+            if execution_scoped && state.revision == 3 {
+                state.execution_runtime_config_sha256.is_none()
             } else {
-                state.revision == 1
-            };
-            valid_revision
-                && state.preflight_sha256 == preflight_sha
-                && state.stop_sha256 == stop_sha
-                && Some(state.updated_at_unix_ms) == stopped_at
-                && stop
-                    .as_ref()
-                    .is_some_and(|(value, _)| value.source_preflight_sha256 == preflight_sha)
+                state.execution_runtime_config_sha256.is_some() == execution_scoped
+            }
         }
     };
+    let valid = runtime_config_binding_valid
+        && match state.lifecycle {
+            LiveRunCandidateLifecycle::Created => {
+                state.revision == 0
+                    && state.updated_at_unix_ms == manifest.created_at_unix_ms
+                    && state.preflight_sha256.is_none()
+                    && state.execution_admission_sha256.is_none()
+                    && state.stop_sha256.is_none()
+                    && preflight.is_none()
+                    && stop.is_none()
+            }
+            LiveRunCandidateLifecycle::PreflightReady => {
+                let evaluated_at = preflight.map(|(value, _)| value.evaluated_at_unix_ms);
+                matches!(state.revision, 1 | 2)
+                    && state.preflight_sha256 == preflight_sha
+                    && state.execution_admission_sha256 == execution_admission_sha
+                    && state.stop_sha256.is_none()
+                    && stop.is_none()
+                    && if execution_scoped {
+                        state.revision == 2
+                            && state.updated_at_unix_ms
+                                >= evaluated_at.unwrap_or(state.updated_at_unix_ms)
+                    } else {
+                        state.revision == 1 && Some(state.updated_at_unix_ms) == evaluated_at
+                    }
+            }
+            LiveRunCandidateLifecycle::Starting => {
+                state.revision == 2 + revision_offset
+                    && state.preflight_sha256 == preflight_sha
+                    && state.execution_admission_sha256 == execution_admission_sha
+                    && state.stop_sha256.is_none()
+                    && preflight.is_some()
+                    && stop.is_none()
+            }
+            LiveRunCandidateLifecycle::MarketDataRunning => {
+                state.revision == 3 + revision_offset
+                    && state.preflight_sha256 == preflight_sha
+                    && state.execution_admission_sha256 == execution_admission_sha
+                    && state.stop_sha256.is_none()
+                    && preflight.is_some()
+                    && stop.is_none()
+            }
+            LiveRunCandidateLifecycle::Stopping => {
+                state.revision == 4 + revision_offset
+                    && state.preflight_sha256 == preflight_sha
+                    && state.execution_admission_sha256 == execution_admission_sha
+                    && state.stop_sha256.is_none()
+                    && preflight.is_some()
+                    && stop.is_none()
+            }
+            LiveRunCandidateLifecycle::Failed => {
+                let failed_at = stop.map(|(value, _)| value.stopped_at_unix_ms);
+                matches!(state.revision, 3..=5)
+                    && state.preflight_sha256 == preflight_sha
+                    && state.execution_admission_sha256 == execution_admission_sha
+                    && state.stop_sha256 == stop_sha
+                    && preflight.is_some()
+                    && Some(state.updated_at_unix_ms) == failed_at
+                    && stop.as_ref().is_some_and(|(value, _)| {
+                        !value.manual_stop && value.source_preflight_sha256 == preflight_sha
+                    })
+            }
+            LiveRunCandidateLifecycle::Stopped => {
+                let stopped_at = stop.map(|(value, _)| value.stopped_at_unix_ms);
+                let valid_revision = if preflight.is_some() {
+                    if execution_scoped {
+                        matches!(state.revision, 3 | 6)
+                    } else {
+                        matches!(state.revision, 2 | 5)
+                    }
+                } else {
+                    state.revision == 1
+                };
+                valid_revision
+                    && state.preflight_sha256 == preflight_sha
+                    && state.execution_admission_sha256 == execution_admission_sha
+                    && state.stop_sha256 == stop_sha
+                    && Some(state.updated_at_unix_ms) == stopped_at
+                    && stop
+                        .as_ref()
+                        .is_some_and(|(value, _)| value.source_preflight_sha256 == preflight_sha)
+            }
+        };
     if !valid {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -2483,6 +3986,54 @@ fn validate_candidate_directory_entries(
     }
     if state.stop_sha256.is_some() {
         expected.insert("stop.json".to_string());
+    }
+    if state.execution_admission_sha256.is_some() {
+        expected.insert(LIVE_EXECUTION_ADMISSION_FILE.to_string());
+    }
+    let mut approval_count = 0;
+    for role in [
+        LiveExecutionApprovalRole::Owner,
+        LiveExecutionApprovalRole::Risk,
+        LiveExecutionApprovalRole::Operator,
+    ] {
+        let artifact_exists = root.join(role.artifact_file()).exists();
+        let receipt_exists = root.join(role.receipt_file()).exists();
+        if artifact_exists != receipt_exists {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_approval",
+            ));
+        }
+        if artifact_exists {
+            approval_count += 1;
+            expected.insert(role.artifact_file().to_string());
+            expected.insert(role.receipt_file().to_string());
+        }
+    }
+    if state.execution_admission_sha256.is_some() && approval_count != 3 {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_approval",
+        ));
+    }
+    let claim_exists = validate_live_execution_runtime_claim(root, state)?;
+    let claim_required = state.execution_admission_sha256.is_some()
+        && matches!(
+            state.lifecycle,
+            LiveRunCandidateLifecycle::MarketDataRunning
+                | LiveRunCandidateLifecycle::Stopping
+                | LiveRunCandidateLifecycle::Stopped
+                | LiveRunCandidateLifecycle::Failed
+        );
+    if claim_required && !claim_exists {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_runtime_claim",
+        ));
+    }
+    if claim_exists {
+        expected.insert(LIVE_EXECUTION_RUNTIME_CLAIM_FILE.to_string());
+        expected.insert(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE.to_string());
     }
     if state_history.iter().any(|(state, _)| {
         matches!(
@@ -2524,6 +4075,59 @@ fn validate_candidate_directory_entries(
         ));
     }
     Ok(())
+}
+
+fn validate_live_execution_runtime_claim(
+    root: &Path,
+    state: &LiveRunCandidateState,
+) -> Result<bool, ProductError> {
+    let claim = read_optional_artifact_with_raw::<LiveExecutionRuntimeClaimArtifact>(
+        &root.join(LIVE_EXECUTION_RUNTIME_CLAIM_FILE),
+        "live_execution_runtime_claim",
+    )?;
+    let receipt = read_optional_artifact_with_raw::<LiveRunAnchorReceipt>(
+        &root.join(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE),
+        "live_execution_runtime_claim_receipt",
+    )?;
+    let (Some((claim, claim_raw)), Some((receipt, _))) = (claim, receipt) else {
+        if root.join(LIVE_EXECUTION_RUNTIME_CLAIM_FILE).exists()
+            || root
+                .join(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE)
+                .exists()
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_runtime_claim",
+            ));
+        }
+        return Ok(false);
+    };
+    let valid = claim.schema_version == "ntpro.live_execution.runtime_claim.v1"
+        && claim.run_id == state.run_id
+        && claim.control_state_revision <= state.revision
+        && claim.starting_receipt_sha256.starts_with("sha256:")
+        && claim.starting_receipt_sha256.len() == 71
+        && claim.source_manifest_sha256 == state.source_manifest_sha256
+        && Some(claim.execution_admission_sha256.as_str())
+            == state.execution_admission_sha256.as_deref()
+        && Some(claim.runtime_config_sha256.as_str())
+            == state.execution_runtime_config_sha256.as_deref()
+        && Path::new(&claim.runtime_artifact_root).is_absolute()
+        && receipt.schema_version == LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION
+        && receipt.run_id == state.run_id
+        && receipt.revision == claim.control_state_revision
+        && receipt.state_sha256 == sha256_ref(&claim_raw)
+        && receipt.commit_sha256 == claim.runtime_config_sha256
+        && receipt.previous_receipt_sha256.as_deref()
+            == Some(claim.starting_receipt_sha256.as_str())
+        && receipt.anchored_at_unix_ms >= claim.claimed_at_unix_ms;
+    if !valid {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_runtime_claim",
+        ));
+    }
+    Ok(true)
 }
 
 fn live_run_workspace_anchor_head_path(
@@ -2682,6 +4286,27 @@ fn load_workspace_anchor_receipts(
                     "live_run_audit_anchor_receipt",
                 )
             })?;
+            if name == LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE
+                || matches!(
+                    name.as_str(),
+                    LIVE_EXECUTION_OWNER_APPROVAL_RECEIPT_FILE
+                        | LIVE_EXECUTION_RISK_APPROVAL_RECEIPT_FILE
+                        | LIVE_EXECUTION_OPERATOR_APPROVAL_RECEIPT_FILE
+                )
+            {
+                let (receipt, _) = read_optional_artifact_with_raw::<LiveRunAnchorReceipt>(
+                    &artifact.path(),
+                    "live_execution_runtime_claim_receipt",
+                )?
+                .ok_or_else(|| {
+                    product_error(
+                        ProductErrorKind::SourceUnavailable,
+                        "live_execution_runtime_claim_receipt",
+                    )
+                })?;
+                receipts.push(receipt);
+                continue;
+            }
             if !name.starts_with("anchor-receipt-") {
                 continue;
             }
@@ -3283,7 +4908,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             source_refs: vec![
                 "node-config:node.toml#live_admission".to_string(),
                 "node-config:node.toml#risk".to_string(),
-                "risk-config-sha256:8a92f596c7f51574c25979022b59358cfd6807ec3470ef7b21301fb133d4c1ac"
+                "risk-config-sha256:3311829f7f08266f4f8b706148285292e433d725a57b85ffd3b551f64223968c"
                     .to_string(),
                 VERSION_HASH.to_string(),
             ],
@@ -3297,6 +4922,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             no_order_send: true,
             manual_stop: true,
             risk_approved: true,
+            execution_single_shot: true,
         }
     }
 
@@ -3306,7 +4932,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[test]
     fn live_run_candidate_requires_every_independent_gate() {
         for missing in 0..5 {
-            let mut values = [true; 5];
+            let mut values = [true; 6];
             values[missing] = false;
             let mut index = 0;
             let state = LiveRunGateState::from_reader(|_| {
@@ -3317,11 +4943,15 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             assert!(!state.all_open());
         }
         assert!(gates().all_open());
+        let mut execution_blocked = gates();
+        execution_blocked.execution_single_shot = false;
+        assert!(execution_blocked.all_open());
+        assert!(!execution_blocked.execution_single_shot);
     }
 
     #[test]
     fn live_runtime_failure_transition_accepts_pre_start_and_post_start_cleanup() {
-        let state = |revision, lifecycle| LiveRunCandidateState {
+        let state = |revision, lifecycle, stop_sha256| LiveRunCandidateState {
             schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
             run_id: "live-candidate-transition".to_string(),
             source_manifest_sha256: VERSION_HASH.to_string(),
@@ -3329,23 +4959,199 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             previous_state_sha256: (revision > 0).then(|| VERSION_HASH.to_string()),
             lifecycle,
             preflight_sha256: Some(VERSION_HASH.to_string()),
-            stop_sha256: None,
+            execution_admission_sha256: None,
+            execution_runtime_config_sha256: None,
+            stop_sha256,
             updated_at_unix_ms: revision + 1,
         };
         assert!(
             validate_live_run_state_transition(
-                &state(2, LiveRunCandidateLifecycle::Starting),
-                &state(3, LiveRunCandidateLifecycle::Failed),
+                &state(2, LiveRunCandidateLifecycle::Starting, None),
+                &state(
+                    3,
+                    LiveRunCandidateLifecycle::Failed,
+                    Some(VERSION_HASH.to_string()),
+                ),
             )
             .is_ok()
         );
         assert!(
             validate_live_run_state_transition(
-                &state(3, LiveRunCandidateLifecycle::MarketDataRunning),
-                &state(4, LiveRunCandidateLifecycle::Failed),
+                &state(3, LiveRunCandidateLifecycle::MarketDataRunning, None),
+                &state(
+                    4,
+                    LiveRunCandidateLifecycle::Failed,
+                    Some(VERSION_HASH.to_string()),
+                ),
             )
             .is_ok()
         );
+        assert!(
+            validate_live_run_state_transition(
+                &state(2, LiveRunCandidateLifecycle::Starting, None),
+                &state(3, LiveRunCandidateLifecycle::Failed, None),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn confirmed_submission_projection_is_identical_for_list_and_detail() {
+        let mut order = LiveExecutionOrderSnapshot {
+            schema_version: LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
+            admission_id: "admission-001".to_string(),
+            strategy_version_id: "ema-cross@v1".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            client_order_id: Some("S3LV007-001".to_string()),
+            status: "submitted".to_string(),
+            terminal: false,
+            new_orders_blocked: true,
+            actual_submission_attempted: true,
+            automatic_retry_attempted: false,
+            cancel_attempted: false,
+            replace_attempted: false,
+            last_error: None,
+            updated_at_unix_ms: 1,
+        };
+        for status in [
+            "submitted",
+            "accepted",
+            "rejected",
+            "expired",
+            "partially_filled",
+            "filled",
+            "canceled",
+        ] {
+            order.status = status.to_string();
+            assert!(execution_order_has_confirmed_submission(&order), "{status}");
+        }
+        for status in [
+            "waiting_for_instrument",
+            "submission_requested",
+            "denied",
+            "submission_failed",
+        ] {
+            order.status = status.to_string();
+            assert!(
+                !execution_order_has_confirmed_submission(&order),
+                "{status}"
+            );
+        }
+    }
+
+    #[test]
+    fn live_execution_runtime_claim_binds_artifact_bytes_to_receipt() {
+        let fixture = LiveRunFixture::new("runtime-claim-binding");
+        let root = fixture
+            .root
+            .join("artifacts/live-runs/live-candidate-claim-binding");
+        fs::create_dir_all(&root).unwrap();
+        let root = fs::canonicalize(root).unwrap();
+        let manifest_sha256 = format!("sha256:{}", "1".repeat(64));
+        let admission_sha256 = format!("sha256:{}", "2".repeat(64));
+        let config_sha256 = format!("sha256:{}", "3".repeat(64));
+        let starting_receipt_sha256 = format!("sha256:{}", "4".repeat(64));
+        let state = LiveRunCandidateState {
+            schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+            run_id: "live-candidate-claim-binding".to_string(),
+            source_manifest_sha256: manifest_sha256.clone(),
+            revision: 4,
+            previous_state_sha256: Some(VERSION_HASH.to_string()),
+            lifecycle: LiveRunCandidateLifecycle::MarketDataRunning,
+            preflight_sha256: Some(VERSION_HASH.to_string()),
+            execution_admission_sha256: Some(admission_sha256.clone()),
+            execution_runtime_config_sha256: Some(config_sha256.clone()),
+            stop_sha256: None,
+            updated_at_unix_ms: 20,
+        };
+        let mut claim = LiveExecutionRuntimeClaimArtifact {
+            schema_version: "ntpro.live_execution.runtime_claim.v1".to_string(),
+            claim_id: "claim-001".to_string(),
+            run_id: state.run_id.clone(),
+            control_state_revision: 3,
+            starting_receipt_sha256: starting_receipt_sha256.clone(),
+            source_manifest_sha256: manifest_sha256,
+            execution_admission_sha256: admission_sha256,
+            runtime_config_sha256: config_sha256.clone(),
+            runtime_artifact_root: fixture.root.display().to_string(),
+            claimed_at_unix_ms: 10,
+        };
+        let claim_raw = serde_json::to_vec_pretty(&claim).unwrap();
+        let receipt = LiveRunAnchorReceipt {
+            schema_version: LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION.to_string(),
+            namespace: "test".to_string(),
+            run_id: state.run_id.clone(),
+            revision: 3,
+            workspace_revision: 4,
+            state_sha256: sha256_ref(&claim_raw),
+            commit_sha256: config_sha256,
+            previous_receipt_sha256: Some(starting_receipt_sha256),
+            anchored_at_unix_ms: 10,
+            key_id: "test-key".to_string(),
+            receipt_id: "receipt-001".to_string(),
+            signature_base64: "test-signature".to_string(),
+        };
+        fs::write(root.join(LIVE_EXECUTION_RUNTIME_CLAIM_FILE), claim_raw).unwrap();
+        fs::write(
+            root.join(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE),
+            serde_json::to_vec_pretty(&receipt).unwrap(),
+        )
+        .unwrap();
+        assert!(validate_live_execution_runtime_claim(&root, &state).unwrap());
+
+        claim.claim_id = "tampered-claim".to_string();
+        fs::write(
+            root.join(LIVE_EXECUTION_RUNTIME_CLAIM_FILE),
+            serde_json::to_vec_pretty(&claim).unwrap(),
+        )
+        .unwrap();
+        let error = validate_live_execution_runtime_claim(&root, &state).unwrap_err();
+        assert_eq!(error.field, "live_execution_runtime_claim");
+    }
+
+    #[test]
+    fn failed_stop_artifact_is_idempotent_across_state_publish_retry() {
+        let fixture = LiveRunFixture::new("failed-stop-retry-window");
+        let candidate_root = fixture
+            .root
+            .join("artifacts/live-runs/live-candidate-stop-retry");
+        fs::create_dir_all(&candidate_root).unwrap();
+        let candidate_root = fs::canonicalize(candidate_root).unwrap();
+        let directory = open_absolute_directory_nofollow(&candidate_root).unwrap();
+        let activity = LiveExecutionStopActivity {
+            endpoint_access_attempted: true,
+            adapter_send_attempted: true,
+            real_order_submitted: true,
+            order_sha256: Some(VERSION_HASH.to_string()),
+        };
+
+        let (first, first_raw) = load_or_create_failed_stop_artifact(FailedStopArtifactContext {
+            candidate_root: &candidate_root,
+            directory: &directory,
+            run_id: "live-candidate-stop-retry",
+            manifest_sha256: VERSION_HASH,
+            preflight_sha256: Some(VERSION_HASH),
+            current_updated_at_unix_ms: 10,
+            failed_at_unix_ms: 20,
+            activity: &activity,
+        })
+        .unwrap();
+        let (retried, retried_raw) =
+            load_or_create_failed_stop_artifact(FailedStopArtifactContext {
+                candidate_root: &candidate_root,
+                directory: &directory,
+                run_id: "live-candidate-stop-retry",
+                manifest_sha256: VERSION_HASH,
+                preflight_sha256: Some(VERSION_HASH),
+                current_updated_at_unix_ms: 10,
+                failed_at_unix_ms: 30,
+                activity: &activity,
+            })
+            .unwrap();
+
+        assert_eq!(retried, first);
+        assert_eq!(retried_raw, first_raw);
+        assert_eq!(retried.stopped_at_unix_ms, 20);
     }
 
     #[test]
@@ -3457,6 +5263,219 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         .unwrap()
     }
 
+    fn execution_admission_request(run_id: &str) -> LiveExecutionAdmissionRequest {
+        LiveExecutionAdmissionRequest {
+            run_id: run_id.to_string(),
+            strategy_version_id: "ema-cross@v1".to_string(),
+            account_ref: "account://live/binance/primary".to_string(),
+            venue_ref: "venue://live/BINANCE".to_string(),
+            admission_id: "admission-001".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            side: "BUY".to_string(),
+            order_type: "LIMIT".to_string(),
+            time_in_force: "GTC".to_string(),
+            price: "1.00".to_string(),
+            quantity: "0.00001000".to_string(),
+            max_notional: "1.00".to_string(),
+            expires_at_unix_ms: unix_time_ms() + 60_000,
+            user_confirmed: true,
+        }
+    }
+
+    fn execution_risk_policy() -> LiveExecutionRiskPolicy {
+        LiveExecutionRiskPolicy {
+            max_order_notional: "1.00".to_string(),
+            owner_authority_ref: "role://institution-owner".to_string(),
+            risk_authority_ref: "policy://risk/test-v1".to_string(),
+            operator_authority_ref: "role://operations-operator".to_string(),
+            source_ref: format!("risk-config-sha256:{}", "3".repeat(64)),
+        }
+    }
+
+    #[test]
+    fn live_execution_admission_is_fail_closed_single_use_and_externally_anchored() {
+        let fixture = LiveRunFixture::new("execution-admission");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000090");
+        let mut rejected = execution_admission_request(&ready.run_id);
+        rejected.user_confirmed = false;
+        let error = authorize_live_execution_with_source_validator(
+            &fixture.state,
+            &ready.run_id,
+            &rejected,
+            LiveExecutionApprovalRole::Owner,
+            |_| Ok(execution_risk_policy()),
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+        assert_eq!(error.field, "live_execution_admission");
+
+        let request = execution_admission_request(&ready.run_id);
+        let owner_approved = authorize_live_execution_with_source_validator(
+            &fixture.state,
+            &ready.run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            |_| Ok(execution_risk_policy()),
+        )
+        .unwrap();
+        assert_eq!(owner_approved.order_admission.status, "blocked");
+        assert!(owner_approved.order_admission.owner_approved);
+        assert!(!owner_approved.order_admission.risk_approved);
+        assert!(!owner_approved.order_admission.operator_approved);
+        let risk_approved = authorize_live_execution_with_source_validator(
+            &fixture.state,
+            &ready.run_id,
+            &request,
+            LiveExecutionApprovalRole::Risk,
+            |_| Ok(execution_risk_policy()),
+        )
+        .unwrap();
+        assert_eq!(risk_approved.order_admission.status, "blocked");
+        assert!(risk_approved.order_admission.owner_approved);
+        assert!(risk_approved.order_admission.risk_approved);
+        assert!(!risk_approved.order_admission.operator_approved);
+        let authorized = authorize_live_execution_with_source_validator(
+            &fixture.state,
+            &ready.run_id,
+            &request,
+            LiveExecutionApprovalRole::Operator,
+            |_| Ok(execution_risk_policy()),
+        )
+        .unwrap();
+        assert_eq!(
+            authorized.lifecycle,
+            LiveRunCandidateLifecycle::PreflightReady
+        );
+        assert_eq!(authorized.order_admission.status, "authorized_single_shot");
+        let (manifest, manifest_raw) =
+            load_live_run_manifest(&fixture.state, &ready.run_id).unwrap();
+        let (anchored_state, _) =
+            load_live_run_state(&fixture.state, &ready.run_id, &sha256_ref(&manifest_raw)).unwrap();
+        let admission_raw = fs::read(
+            fixture
+                .root
+                .join("artifacts/live-runs")
+                .join(&ready.run_id)
+                .join(LIVE_EXECUTION_ADMISSION_FILE),
+        )
+        .unwrap();
+        assert_eq!(anchored_state.revision, 2);
+        assert_eq!(
+            anchored_state.execution_admission_sha256,
+            Some(sha256_ref(&admission_raw))
+        );
+        assert_eq!(manifest.run_id, ready.run_id);
+        let admission_artifact: LiveExecutionAdmissionArtifact =
+            serde_json::from_slice(&admission_raw).unwrap();
+        let mut order = LiveExecutionOrderSnapshot {
+            schema_version: LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
+            admission_id: admission_artifact.admission_id.clone(),
+            strategy_version_id: admission_artifact.strategy_version_id.clone(),
+            instrument_id: admission_artifact.instrument_id.clone(),
+            client_order_id: Some("S3LV007-001".to_string()),
+            status: "accepted".to_string(),
+            terminal: false,
+            new_orders_blocked: true,
+            actual_submission_attempted: true,
+            automatic_retry_attempted: false,
+            cancel_attempted: false,
+            replace_attempted: false,
+            last_error: None,
+            updated_at_unix_ms: admission_artifact.authorized_at_unix_ms + 1,
+        };
+        validate_execution_order_snapshot(&order, &admission_artifact).unwrap();
+        order.automatic_retry_attempted = true;
+        assert!(validate_execution_order_snapshot(&order, &admission_artifact).is_err());
+
+        let candidate_root = canonical_live_run_root(&fixture.state, false)
+            .unwrap()
+            .join(&ready.run_id);
+        assert!(
+            validate_execution_order_runtime_context(
+                &candidate_root,
+                LiveRunCandidateLifecycle::PreflightReady,
+            )
+            .is_err()
+        );
+        fs::write(
+            candidate_root.join(LIVE_MARKET_DATA_NODE_CONFIG_FILE),
+            "[live_market_data]\nmode = \"production-market-data\"\n",
+        )
+        .unwrap();
+        assert!(
+            validate_execution_order_runtime_context(
+                &candidate_root,
+                LiveRunCandidateLifecycle::MarketDataRunning,
+            )
+            .is_err()
+        );
+        fs::write(
+            candidate_root.join(LIVE_MARKET_DATA_NODE_CONFIG_FILE),
+            "[live_market_data]\nmode = \"production-market-data\"\n[live_execution]\nsingle_shot = true\n",
+        )
+        .unwrap();
+        validate_execution_order_runtime_context(
+            &candidate_root,
+            LiveRunCandidateLifecycle::MarketDataRunning,
+        )
+        .unwrap();
+        fs::remove_file(candidate_root.join(LIVE_MARKET_DATA_NODE_CONFIG_FILE)).unwrap();
+
+        let duplicate = authorize_live_execution_with_source_validator(
+            &fixture.state,
+            &ready.run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            |_| Ok(execution_risk_policy()),
+        )
+        .unwrap_err();
+        assert_eq!(duplicate.kind, ProductErrorKind::LiveConflict);
+
+        let market_only_start = run_live_candidate_action(
+            &fixture.state,
+            &ready.run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: ready.run_id.clone(),
+                action: LiveRunCandidateAction::StartMarketData,
+                user_confirmed: true,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(market_only_start.kind, ProductErrorKind::LiveConflict);
+        assert_eq!(
+            market_only_start.field,
+            "live_execution_admission_requires_execution_start"
+        );
+    }
+
+    #[test]
+    fn live_execution_start_requires_an_independently_anchored_admission() {
+        let fixture = LiveRunFixture::new("execution-start-without-admission");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000091");
+        let error = run_live_candidate_action(
+            &fixture.state,
+            &ready.run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: ready.run_id.clone(),
+                action: LiveRunCandidateAction::StartExecution,
+                user_confirmed: true,
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
+        assert_eq!(error.field, "live_execution_admission");
+        assert!(
+            !fixture
+                .root
+                .join("artifacts/live-runs")
+                .join(ready.run_id)
+                .join(LIVE_MARKET_DATA_NODE_CONFIG_FILE)
+                .exists()
+        );
+    }
+
     fn persist_starting_live_market_data_runtime(fixture: &LiveRunFixture, run_id: &str) -> String {
         let (manifest, manifest_raw) = load_live_run_manifest(&fixture.state, run_id).unwrap();
         let manifest_sha256 = sha256_ref(&manifest_raw);
@@ -3480,6 +5499,8 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                 previous_state_sha256: Some(sha256_ref(&current_raw)),
                 lifecycle: LiveRunCandidateLifecycle::Starting,
                 preflight_sha256: current.preflight_sha256,
+                execution_admission_sha256: current.execution_admission_sha256,
+                execution_runtime_config_sha256: current.execution_runtime_config_sha256,
                 stop_sha256: None,
                 updated_at_unix_ms: unix_time_ms(),
             },
@@ -3542,6 +5563,8 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                 previous_state_sha256: Some(sha256_ref(&current_raw)),
                 lifecycle: LiveRunCandidateLifecycle::Stopping,
                 preflight_sha256: current.preflight_sha256,
+                execution_admission_sha256: current.execution_admission_sha256,
+                execution_runtime_config_sha256: current.execution_runtime_config_sha256,
                 stop_sha256: None,
                 updated_at_unix_ms: unix_time_ms(),
             },
@@ -3943,6 +5966,27 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             .unwrap();
         let (current, current_raw) =
             load_live_run_state(&fixture.state, &run_id, &manifest_sha256).unwrap();
+        let stop = LiveRunStopArtifact {
+            schema_version: LIVE_RUN_STOP_SCHEMA_VERSION.to_string(),
+            run_id: run_id.clone(),
+            source_manifest_sha256: manifest_sha256.clone(),
+            source_preflight_sha256: current.preflight_sha256.clone(),
+            stopped_at_unix_ms: unix_time_ms(),
+            manual_stop: false,
+            order_endpoint_access_attempted: false,
+            execution_adapter_send_attempted: false,
+            real_orders_submitted: false,
+            execution_order_sha256: None,
+        };
+        let stop_raw = serde_json::to_vec_pretty(&stop).unwrap();
+        fs::write(
+            canonical_live_run_root(&fixture.state, false)
+                .unwrap()
+                .join(&run_id)
+                .join("stop.json"),
+            &stop_raw,
+        )
+        .unwrap();
         write_live_run_state(
             &fixture.state,
             &run_id,
@@ -3954,7 +5998,9 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                 previous_state_sha256: Some(sha256_ref(&current_raw)),
                 lifecycle: LiveRunCandidateLifecycle::Failed,
                 preflight_sha256: current.preflight_sha256,
-                stop_sha256: None,
+                execution_admission_sha256: current.execution_admission_sha256,
+                execution_runtime_config_sha256: current.execution_runtime_config_sha256,
+                stop_sha256: Some(sha256_ref(&stop_raw)),
                 updated_at_unix_ms: unix_time_ms(),
             },
         )

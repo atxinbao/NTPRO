@@ -542,6 +542,73 @@
         }
       }
     },
+    "/live-run-candidates/{run_id}/execution-approvals/owner": {
+      "post": {
+        "operationId": "approveLiveExecutionAsOwner",
+        "summary": "机构负责人独立审批一个单笔真实订单提案",
+        "security": [{ "InstitutionCookie": [] }],
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": { "$ref": "#/components/schemas/RunId" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LiveExecutionAdmissionRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "负责人审批已锚定；三方审批齐全前仍保持阻断",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LiveRunCandidateActionResponse" }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/ProductError" },
+          "403": { "$ref": "#/components/responses/ProductError" },
+          "404": { "$ref": "#/components/responses/ProductError" },
+          "405": { "$ref": "#/components/responses/ProductCommandMethodNotAllowed" },
+          "409": { "$ref": "#/components/responses/ProductError" },
+          "422": { "$ref": "#/components/responses/ProductError" },
+          "500": { "$ref": "#/components/responses/ProductError" },
+          "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/live-run-candidates/{run_id}/execution-approvals/risk": {
+      "post": {
+        "operationId": "approveLiveExecutionAsRisk",
+        "summary": "风控人员独立审批一个单笔真实订单提案",
+        "security": [{ "RiskCookie": [] }],
+        "parameters": [{ "name": "run_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/RunId" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveExecutionAdmissionRequest" } } } },
+        "responses": {
+          "200": { "description": "风控审批已锚定；三方审批齐全前仍保持阻断", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveRunCandidateActionResponse" } } } },
+          "400": { "$ref": "#/components/responses/ProductError" }, "403": { "$ref": "#/components/responses/ProductError" }, "404": { "$ref": "#/components/responses/ProductError" }, "405": { "$ref": "#/components/responses/ProductCommandMethodNotAllowed" }, "409": { "$ref": "#/components/responses/ProductError" }, "422": { "$ref": "#/components/responses/ProductError" }, "500": { "$ref": "#/components/responses/ProductError" }, "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/live-run-candidates/{run_id}/execution-approvals/operator": {
+      "post": {
+        "operationId": "approveLiveExecutionAsOperator",
+        "summary": "当班操作员独立审批一个单笔真实订单提案",
+        "security": [{ "OperatorCookie": [] }],
+        "parameters": [{ "name": "run_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/RunId" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveExecutionAdmissionRequest" } } } },
+        "responses": {
+          "200": { "description": "操作员审批已锚定；三方审批齐全后建立一次性执行准入", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveRunCandidateActionResponse" } } } },
+          "400": { "$ref": "#/components/responses/ProductError" }, "403": { "$ref": "#/components/responses/ProductError" }, "404": { "$ref": "#/components/responses/ProductError" }, "405": { "$ref": "#/components/responses/ProductCommandMethodNotAllowed" }, "409": { "$ref": "#/components/responses/ProductError" }, "422": { "$ref": "#/components/responses/ProductError" }, "500": { "$ref": "#/components/responses/ProductError" }, "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
     "/runs": {
       "get": {
         "operationId": "listRuns",
@@ -1001,6 +1068,11 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "ntpro_mvp_institution_access"
+      },
+      "RiskCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "ntpro_mvp_risk_access"
       },
       "OperatorCookie": {
         "type": "apiKey",
@@ -2784,7 +2856,7 @@
       },
       "LiveRunCandidateAction": {
         "type": "string",
-        "enum": ["preflight", "start_market_data", "stop"]
+        "enum": ["preflight", "start_market_data", "start_execution", "stop"]
       },
       "LiveRunCandidateActionRequest": {
         "type": "object",
@@ -2800,26 +2872,45 @@
         "type": "string",
         "enum": ["created", "preflight_ready", "starting", "market_data_running", "stopping", "stopped", "failed"]
       },
+      "LiveExecutionAdmissionRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "strategy_version_id", "account_ref", "venue_ref", "admission_id", "instrument_id", "side", "order_type", "time_in_force", "price", "quantity", "max_notional", "expires_at_unix_ms", "user_confirmed"],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "account_ref": { "const": "account://live/binance/primary" },
+          "venue_ref": { "const": "venue://live/BINANCE" },
+          "admission_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+          "instrument_id": { "type": "string", "pattern": "^[A-Z0-9]+\\.BINANCE$" },
+          "side": { "enum": ["BUY", "SELL"] },
+          "order_type": { "const": "LIMIT" },
+          "time_in_force": { "const": "GTC" },
+          "price": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "max_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "expires_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "user_confirmed": { "const": true }
+        }
+      },
       "LiveOrderAdmissionSnapshot": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "submit", "cancel", "replace", "fill_reconciliation", "blockers"],
+        "required": ["status", "submit", "cancel", "replace", "fill_reconciliation", "owner_approved", "risk_approved", "operator_approved", "blockers"],
         "properties": {
-          "status": { "const": "blocked" },
-          "submit": { "const": "blocked" },
+          "status": { "enum": ["blocked", "authorized_single_shot", "consumed_single_shot"] },
+          "submit": { "enum": ["blocked", "authorized_single_shot"] },
           "cancel": { "const": "blocked" },
           "replace": { "const": "blocked" },
-          "fill_reconciliation": { "const": "blocked" },
+          "fill_reconciliation": { "enum": ["blocked", "runtime_event_projection"] },
+          "owner_approved": { "type": "boolean" },
+          "risk_approved": { "type": "boolean" },
+          "operator_approved": { "type": "boolean" },
           "blockers": {
             "type": "array",
             "minItems": 3,
             "maxItems": 3,
-            "prefixItems": [
-              { "const": "production_order_authority_not_granted" },
-              { "const": "execution_adapter_send_not_enabled" },
-              { "const": "fill_reconciliation_not_enabled" }
-            ],
-            "items": false
+            "items": { "type": "string", "minLength": 1 }
           }
         }
       },
@@ -2839,10 +2930,31 @@
           "trading_authority_granted": { "const": false }
         }
       },
+      "LiveExecutionOrderSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "admission_id", "strategy_version_id", "instrument_id", "client_order_id", "status", "terminal", "new_orders_blocked", "actual_submission_attempted", "automatic_retry_attempted", "cancel_attempted", "replace_attempted", "last_error", "updated_at_unix_ms"],
+        "properties": {
+          "schema_version": { "const": "ntpro.s3.live_execution_order_state.v1" },
+          "admission_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "instrument_id": { "type": "string", "pattern": "^[A-Z0-9]+\\.BINANCE$" },
+          "client_order_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 },
+          "status": { "enum": ["waiting_for_instrument", "submission_requested", "submitted", "accepted", "rejected", "denied", "expired", "partially_filled", "filled", "canceled", "submission_failed"] },
+          "terminal": { "type": "boolean" },
+          "new_orders_blocked": { "const": true },
+          "actual_submission_attempted": { "type": "boolean" },
+          "automatic_retry_attempted": { "const": false },
+          "cancel_attempted": { "const": false },
+          "replace_attempted": { "const": false },
+          "last_error": { "type": ["string", "null"], "minLength": 1, "maxLength": 512 },
+          "updated_at_unix_ms": { "type": "integer", "minimum": 1 }
+        }
+      },
       "LiveRunCandidate": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "market_data_connected", "runtime_node_id", "runtime_process_state", "runtime_error", "audit_anchor", "order_admission", "source_refs"],
+        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "market_data_connected", "runtime_node_id", "runtime_process_state", "runtime_error", "audit_anchor", "order_admission", "execution_order", "source_refs"],
         "properties": {
           "run_id": { "$ref": "#/components/schemas/RunId" },
           "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
@@ -2863,6 +2975,12 @@
           "runtime_error": { "type": ["string", "null"], "minLength": 1, "maxLength": 512 },
           "audit_anchor": { "$ref": "#/components/schemas/LiveRunAuditAnchorSnapshot" },
           "order_admission": { "$ref": "#/components/schemas/LiveOrderAdmissionSnapshot" },
+          "execution_order": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/LiveExecutionOrderSnapshot" },
+              { "type": "null" }
+            ]
+          },
           "source_refs": {
             "type": "array",
             "minItems": 4,
@@ -2993,17 +3111,17 @@
           "manual_stop_allowed": { "const": true },
           "live_runtime_start_allowed": { "const": true },
           "external_market_data_connection_allowed": { "const": true },
-          "order_endpoint_access_allowed": { "const": false },
-          "order_submission_allowed": { "const": false },
+          "order_endpoint_access_allowed": { "type": "boolean" },
+          "order_submission_allowed": { "type": "boolean" },
           "cancel_order_allowed": { "const": false },
           "replace_order_allowed": { "const": false },
           "fill_reconciliation_allowed": { "const": false },
           "automatic_retry_allowed": { "const": false },
           "automatic_remediation_allowed": { "const": false },
           "automatic_recovery_allowed": { "const": false },
-          "execution_adapter_send_attempted": { "const": false },
-          "real_orders_submitted": { "const": false },
-          "trading_controls_enabled": { "const": false }
+          "execution_adapter_send_attempted": { "type": "boolean" },
+          "real_orders_submitted": { "type": "boolean" },
+          "trading_controls_enabled": { "type": "boolean" }
         }
       },
       "LiveRunCandidateCreateResponse": {
@@ -3052,14 +3170,15 @@
       },
       "LiveRunCandidateGateRefs": {
             "type": "array",
-            "minItems": 5,
-            "maxItems": 5,
+            "minItems": 6,
+            "maxItems": 6,
             "prefixItems": [
               { "const": "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE" },
               { "const": "NTPRO_S3_LIVE_RUN_OWNER_APPROVED" },
               { "const": "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND" },
               { "const": "NTPRO_S3_LIVE_RUN_MANUAL_STOP" },
-              { "const": "NTPRO_S3_LIVE_RUN_RISK_APPROVED" }
+              { "const": "NTPRO_S3_LIVE_RUN_RISK_APPROVED" },
+              { "const": "NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT" }
             ],
             "items": false
       },
@@ -3150,7 +3269,7 @@
                 "production_network_not_authorized",
                 "authenticated_account_read_not_authorized",
                 "live_run_creation_not_authorized",
-                "order_lifecycle_not_authorized",
+                "follow_up_order_mutation_not_authorized",
                 "automatic_recovery_not_authorized",
                 "api_key_missing",
                 "api_secret_missing"

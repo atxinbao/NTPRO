@@ -2593,7 +2593,7 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
     };
 
     let ready_risk_ref =
-        "risk-config-sha256:8a92f596c7f51574c25979022b59358cfd6807ec3470ef7b21301fb133d4c1ac";
+        "risk-config-sha256:3311829f7f08266f4f8b706148285292e433d725a57b85ffd3b551f64223968c";
     write_candidate("ema-cross", ready_risk_ref);
     let router = fixture.router();
     let (status, candidate) = router_json(
@@ -5554,7 +5554,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             .keys()
             .map(String::as_str)
             .collect::<Vec<_>>(),
-        ["InstitutionCookie", "OperatorCookie"]
+        ["InstitutionCookie", "OperatorCookie", "RiskCookie"]
     );
     let paths = openapi["paths"]
         .as_object()
@@ -5567,6 +5567,9 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/live-run-candidates",
             "/live-run-candidates/{run_id}",
             "/live-run-candidates/{run_id}/actions",
+            "/live-run-candidates/{run_id}/execution-approvals/operator",
+            "/live-run-candidates/{run_id}/execution-approvals/owner",
+            "/live-run-candidates/{run_id}/execution-approvals/risk",
             "/run-comparisons",
             "/runs",
             "/runs/{run_id}",
@@ -5595,6 +5598,9 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/demo-runs"
                 | "/demo-runs/{run_id}/actions"
                 | "/live-run-candidates/{run_id}/actions"
+                | "/live-run-candidates/{run_id}/execution-approvals/operator"
+                | "/live-run-candidates/{run_id}/execution-approvals/owner"
+                | "/live-run-candidates/{run_id}/execution-approvals/risk"
                 | "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh"
         ) {
             vec!["post"]
@@ -5652,6 +5658,18 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             assert_eq!(
                 path["post"]["responses"]["405"]["$ref"],
                 "#/components/responses/ProductCommandMethodNotAllowed"
+            );
+        } else if path_name == "/live-run-candidates/{run_id}/execution-approvals/owner" {
+            assert_eq!(path["post"]["security"], json!([{"InstitutionCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "approveLiveExecutionAsOwner");
+        } else if path_name == "/live-run-candidates/{run_id}/execution-approvals/risk" {
+            assert_eq!(path["post"]["security"], json!([{"RiskCookie": []}]));
+            assert_eq!(path["post"]["operationId"], "approveLiveExecutionAsRisk");
+        } else if path_name == "/live-run-candidates/{run_id}/execution-approvals/operator" {
+            assert_eq!(path["post"]["security"], json!([{"OperatorCookie": []}]));
+            assert_eq!(
+                path["post"]["operationId"],
+                "approveLiveExecutionAsOperator"
             );
         } else if path_name
             == "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh"
@@ -5772,6 +5790,11 @@ venue = "BINANCE"
 [risk]
 kill_switch_enabled = true
 kill_switch_active = false
+live_execution_policy_enabled = true
+max_live_order_notional = "10.00"
+owner_authority_ref = "role://institution-owner"
+risk_authority_ref = "policy://risk/test-v1"
+operator_authority_ref = "role://operations-operator"
 
 [live_admission]
 schema_version = "ntpro.live_admission.config.v1"

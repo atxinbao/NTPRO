@@ -941,7 +941,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("Live page exposes independent admission and no trading actions", async ({
+test("Live page keeps execution blocked until the single-order admission form is complete", async ({
   page,
 }, testInfo) => {
   let liveAccountRefreshRequests = 0;
@@ -1021,6 +1021,16 @@ test("Live page exposes independent admission and no trading actions", async ({
   await expect(
     recoveredCandidate.getByText("preflight_ready", { exact: true }),
   ).toBeVisible();
+  const executionAdmission = recoveredCandidate.getByRole("form", {
+    name: "单笔真实限价单准入",
+  });
+  await expect(executionAdmission).toBeVisible();
+  await expect(
+    executionAdmission.getByRole("button", { name: "提交负责人审批" }),
+  ).toBeDisabled();
+  await executionAdmission.screenshot({
+    path: testInfo.outputPath("live-execution-admission-1440.png"),
+  });
   const listRequestsBeforeStop = liveCandidateListRequests;
   await recoveredCandidate
     .getByRole("button", { name: "人工停止候选" })

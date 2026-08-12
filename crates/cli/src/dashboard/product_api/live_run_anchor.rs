@@ -4,7 +4,9 @@
 use std::sync::Mutex;
 use std::{
     fmt,
+    fs::{self, OpenOptions},
     io::Read,
+    path::{Path, PathBuf},
     sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -34,6 +36,11 @@ const LIVE_RUN_ANCHOR_APPEND_SCHEMA_VERSION: &str = "ntpro.live_run.audit_anchor
 const LIVE_RUN_ANCHOR_MAX_RESPONSE_BYTES: u64 = 64 * 1024;
 const LIVE_RUN_ANCHOR_TIMEOUT: Duration = Duration::from_secs(3);
 const LIVE_RUN_ANCHOR_CLOCK_SKEW_MS: u64 = 5_000;
+pub(super) const LIVE_EXECUTION_RUNTIME_CLAIM_FILE: &str = "execution-runtime-claim.json";
+pub(super) const LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE: &str =
+    "execution-runtime-claim-receipt.json";
+const LIVE_EXECUTION_RUNTIME_CLAIM_SCHEMA_VERSION: &str = "ntpro.live_execution.runtime_claim.v1";
+const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE: &str = "live-run-audit-anchor-head.json";
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -106,6 +113,34 @@ pub(super) struct LiveRunAnchorReceipt {
     pub(super) key_id: String,
     pub(super) receipt_id: String,
     pub(super) signature_base64: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct LiveExecutionRuntimeClaimArtifact {
+    pub(super) schema_version: String,
+    pub(super) claim_id: String,
+    pub(super) run_id: String,
+    pub(super) control_state_revision: u64,
+    pub(super) starting_receipt_sha256: String,
+    pub(super) source_manifest_sha256: String,
+    pub(super) execution_admission_sha256: String,
+    pub(super) runtime_config_sha256: String,
+    pub(super) runtime_artifact_root: String,
+    pub(super) claimed_at_unix_ms: u64,
+}
+
+pub(crate) struct LiveExecutionRuntimeClaim<'a> {
+    pub(crate) candidate_root: &'a Path,
+    pub(crate) run_id: &'a str,
+    pub(crate) control_state_revision: u64,
+    pub(crate) starting_receipt_raw: &'a [u8],
+    pub(crate) expected_starting_receipt_sha256: &'a str,
+    pub(crate) source_manifest_sha256: &'a str,
+    pub(crate) execution_admission_sha256: &'a str,
+    pub(crate) runtime_config_sha256: &'a str,
+    pub(crate) runtime_artifact_root: &'a Path,
+    pub(crate) claimed_at_unix_ms: u64,
 }
 
 impl LiveRunAnchorReceipt {
@@ -255,6 +290,214 @@ impl LiveRunAuditAnchorClient {
             receipts: Mutex::new(Vec::new()),
         }))
     }
+}
+
+/// Verifies that a Runtime is starting from the exact externally anchored control-plane state.
+pub(crate) fn validate_runtime_authority(
+    run_id: &str,
+    revision: u64,
+    state_raw: &[u8],
+    commit_sha256: &str,
+    receipt_raw: &[u8],
+    expected_receipt_sha256: &str,
+    observed_at_unix_ms: u64,
+) -> anyhow::Result<()> {
+    let client = LiveRunAuditAnchorClient::from_environment();
+    let authority = RuntimeAuthorityBinding {
+        run_id,
+        revision,
+        state_raw,
+        commit_sha256,
+        receipt_raw,
+        expected_receipt_sha256,
+        observed_at_unix_ms,
+    };
+    validate_runtime_authority_with_client(&client, &authority)
+}
+
+struct RuntimeAuthorityBinding<'a> {
+    run_id: &'a str,
+    revision: u64,
+    state_raw: &'a [u8],
+    commit_sha256: &'a str,
+    receipt_raw: &'a [u8],
+    expected_receipt_sha256: &'a str,
+    observed_at_unix_ms: u64,
+}
+
+fn validate_runtime_authority_with_client(
+    client: &LiveRunAuditAnchorClient,
+    authority: &RuntimeAuthorityBinding<'_>,
+) -> anyhow::Result<()> {
+    let receipt: LiveRunAnchorReceipt = serde_json::from_slice(authority.receipt_raw)
+        .map_err(|_| anyhow::anyhow!("live execution anchor receipt is invalid"))?;
+    if receipt.sha256() != authority.expected_receipt_sha256 {
+        anyhow::bail!("live execution anchor receipt hash does not match the control state head");
+    }
+    let request = LiveRunAnchorAppendRequest::new(
+        client
+            .namespace()
+            .map_err(|_| anyhow::anyhow!("live execution anchor is not configured"))?,
+        authority.run_id,
+        LiveRunAnchorRevision::new(authority.revision, receipt.workspace_revision),
+        prefixed_sha256(authority.state_raw),
+        authority.commit_sha256.to_string(),
+        receipt.previous_receipt_sha256.clone(),
+        authority.observed_at_unix_ms,
+    );
+    client
+        .validate_receipt(&receipt, &request)
+        .map_err(|_| anyhow::anyhow!("live execution anchor receipt validation failed"))?;
+    let latest = client
+        .latest()
+        .map_err(|_| anyhow::anyhow!("live execution latest anchor is unavailable"))?
+        .ok_or_else(|| anyhow::anyhow!("live execution latest anchor is missing"))?;
+    if latest != receipt {
+        anyhow::bail!("live execution control-plane state is not the latest external anchor");
+    }
+    Ok(())
+}
+
+/// Atomically consumes the externally anchored starting authority before an execution client is
+/// registered. A second Runtime observes a compare-and-append conflict and must fail closed.
+pub(crate) fn claim_runtime_authority(claim: &LiveExecutionRuntimeClaim<'_>) -> anyhow::Result<()> {
+    let client = LiveRunAuditAnchorClient::from_environment();
+    claim_runtime_authority_with_client(&client, claim)
+}
+
+fn claim_runtime_authority_with_client(
+    client: &LiveRunAuditAnchorClient,
+    claim: &LiveExecutionRuntimeClaim<'_>,
+) -> anyhow::Result<()> {
+    let candidate_root = fs::canonicalize(claim.candidate_root)
+        .map_err(|_| anyhow::anyhow!("live execution candidate root is unavailable"))?;
+    if !candidate_root.is_dir() {
+        anyhow::bail!("live execution candidate root is not canonical");
+    }
+    let claim_path = candidate_root.join(LIVE_EXECUTION_RUNTIME_CLAIM_FILE);
+    let claim_receipt_path = candidate_root.join(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE);
+    if claim_path.exists() || claim_receipt_path.exists() {
+        anyhow::bail!("live execution Runtime authority has already been claimed");
+    }
+    let starting_receipt: LiveRunAnchorReceipt = serde_json::from_slice(claim.starting_receipt_raw)
+        .map_err(|_| anyhow::anyhow!("live execution starting receipt is invalid"))?;
+    if starting_receipt.sha256() != claim.expected_starting_receipt_sha256
+        || starting_receipt.run_id != claim.run_id
+        || starting_receipt.revision != claim.control_state_revision
+        || client
+            .latest()
+            .map_err(|_| anyhow::anyhow!("live execution latest anchor is unavailable"))?
+            .as_ref()
+            != Some(&starting_receipt)
+    {
+        anyhow::bail!("live execution starting authority is no longer current");
+    }
+    let artifacts_root = candidate_root
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| anyhow::anyhow!("live execution artifact root is invalid"))?;
+    let workspace_head_path = artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE);
+    let workspace_head_raw = read_bounded_anchor_file(&workspace_head_path)?;
+    let workspace_head: LiveRunAnchorReceipt = serde_json::from_slice(&workspace_head_raw)
+        .map_err(|_| anyhow::anyhow!("live execution local workspace anchor head is invalid"))?;
+    if workspace_head != starting_receipt {
+        anyhow::bail!("live execution local workspace anchor head is stale");
+    }
+    let canonical_runtime_root = fs::canonicalize(claim.runtime_artifact_root)
+        .map_err(|_| anyhow::anyhow!("live execution Runtime artifact root is unavailable"))?;
+    let claim_artifact = LiveExecutionRuntimeClaimArtifact {
+        schema_version: LIVE_EXECUTION_RUNTIME_CLAIM_SCHEMA_VERSION.to_string(),
+        claim_id: uuid::Uuid::new_v4().to_string(),
+        run_id: claim.run_id.to_string(),
+        control_state_revision: claim.control_state_revision,
+        starting_receipt_sha256: starting_receipt.sha256(),
+        source_manifest_sha256: claim.source_manifest_sha256.to_string(),
+        execution_admission_sha256: claim.execution_admission_sha256.to_string(),
+        runtime_config_sha256: claim.runtime_config_sha256.to_string(),
+        runtime_artifact_root: canonical_runtime_root.display().to_string(),
+        claimed_at_unix_ms: claim
+            .claimed_at_unix_ms
+            .max(starting_receipt.anchored_at_unix_ms),
+    };
+    let claim_raw = serde_json::to_vec_pretty(&claim_artifact)
+        .map_err(|_| anyhow::anyhow!("live execution Runtime claim is invalid"))?;
+    let request = LiveRunAnchorAppendRequest::new(
+        client
+            .namespace()
+            .map_err(|_| anyhow::anyhow!("live execution anchor is not configured"))?,
+        claim.run_id,
+        LiveRunAnchorRevision::new(
+            claim.control_state_revision,
+            starting_receipt.workspace_revision + 1,
+        ),
+        prefixed_sha256(&claim_raw),
+        claim.runtime_config_sha256.to_string(),
+        Some(starting_receipt.sha256()),
+        claim_artifact.claimed_at_unix_ms,
+    );
+    let claim_receipt = client
+        .append(&request)
+        .map_err(|_| anyhow::anyhow!("live execution Runtime authority claim was rejected"))?;
+    client
+        .validate_receipt(&claim_receipt, &request)
+        .map_err(|_| anyhow::anyhow!("live execution Runtime claim receipt is invalid"))?;
+    if client
+        .latest()
+        .map_err(|_| anyhow::anyhow!("live execution latest claim anchor is unavailable"))?
+        .as_ref()
+        != Some(&claim_receipt)
+    {
+        anyhow::bail!("live execution Runtime claim is not the latest external anchor");
+    }
+    let claim_receipt_raw = serde_json::to_vec_pretty(&claim_receipt)
+        .map_err(|_| anyhow::anyhow!("live execution Runtime claim receipt is invalid"))?;
+    write_new_anchor_file(&claim_path, &claim_raw)?;
+    write_new_anchor_file(&claim_receipt_path, &claim_receipt_raw)?;
+    publish_runtime_claim_workspace_head(artifacts_root, &claim_receipt_raw)?;
+    Ok(())
+}
+
+fn read_bounded_anchor_file(path: &Path) -> anyhow::Result<Vec<u8>> {
+    let metadata = fs::symlink_metadata(path)?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 64 * 1024 {
+        anyhow::bail!("live execution anchor artifact must be a bounded regular file");
+    }
+    fs::read(path).map_err(Into::into)
+}
+
+fn write_new_anchor_file(path: &Path, raw: &[u8]) -> anyhow::Result<()> {
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    std::io::Write::write_all(&mut file, raw)?;
+    file.sync_all()?;
+    Ok(())
+}
+
+fn publish_runtime_claim_workspace_head(
+    artifacts_root: &Path,
+    receipt_raw: &[u8],
+) -> anyhow::Result<()> {
+    let next_path: PathBuf = artifacts_root.join(format!(
+        ".live-run-audit-anchor-head.{}.next",
+        uuid::Uuid::new_v4()
+    ));
+    write_new_anchor_file(&next_path, receipt_raw)?;
+    fs::rename(
+        &next_path,
+        artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE),
+    )?;
+    Ok(())
+}
+
+fn prefixed_sha256(raw: &[u8]) -> String {
+    use aws_lc_rs::digest::{SHA256, digest};
+
+    let value = digest(&SHA256, raw);
+    let mut encoded = String::with_capacity(value.as_ref().len() * 2 + 7);
+    encoded.push_str("sha256:");
+    for byte in value.as_ref() {
+        encoded.push_str(&format!("{byte:02x}"));
+    }
+    encoded
 }
 
 impl ExternalAnchorConfig {
@@ -639,6 +882,7 @@ impl MemoryAnchor {
 mod tests {
     use super::*;
     use std::{io::Write as _, net::TcpListener, thread};
+    use tempfile::tempdir;
 
     fn loopback_client(
         address: std::net::SocketAddr,
@@ -669,6 +913,124 @@ mod tests {
             None,
             unix_time_ms(),
         )
+    }
+
+    #[test]
+    fn runtime_authority_requires_the_signed_latest_external_receipt() {
+        let client = LiveRunAuditAnchorClient::memory_for_test();
+        let state_raw = br#"{"lifecycle":"starting"}"#;
+        let observed_at = unix_time_ms();
+        let request = LiveRunAnchorAppendRequest::new(
+            client.namespace().unwrap(),
+            "live-candidate-runtime-authority",
+            LiveRunAnchorRevision::new(0, 0),
+            prefixed_sha256(state_raw),
+            format!("sha256:{}", "2".repeat(64)),
+            None,
+            observed_at,
+        );
+        let receipt = client.append(&request).unwrap();
+        let receipt_raw = serde_json::to_vec(&receipt).unwrap();
+        let receipt_sha256 = receipt.sha256();
+        let authority = RuntimeAuthorityBinding {
+            run_id: &request.run_id,
+            revision: request.revision,
+            state_raw,
+            commit_sha256: &request.commit_sha256,
+            receipt_raw: &receipt_raw,
+            expected_receipt_sha256: &receipt_sha256,
+            observed_at_unix_ms: observed_at,
+        };
+        validate_runtime_authority_with_client(&client, &authority).unwrap();
+
+        let mut tampered_state = state_raw.to_vec();
+        tampered_state.push(b' ');
+        assert!(
+            validate_runtime_authority_with_client(
+                &client,
+                &RuntimeAuthorityBinding {
+                    state_raw: &tampered_state,
+                    ..authority
+                },
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn runtime_authority_claim_is_external_single_use() {
+        let client = LiveRunAuditAnchorClient::memory_for_test();
+        let run_id = "live-candidate-runtime-claim";
+        let observed_at = unix_time_ms();
+        let starting_request = LiveRunAnchorAppendRequest::new(
+            client.namespace().unwrap(),
+            run_id,
+            LiveRunAnchorRevision::new(3, 0),
+            format!("sha256:{}", "1".repeat(64)),
+            format!("sha256:{}", "2".repeat(64)),
+            None,
+            observed_at,
+        );
+        let starting_receipt = client.append(&starting_request).unwrap();
+        let starting_receipt_raw = serde_json::to_vec_pretty(&starting_receipt).unwrap();
+        let temp = tempdir().unwrap();
+        let artifacts_root = temp.path().join("artifacts");
+        let candidate_root = artifacts_root.join("live-runs").join(run_id);
+        let runtime_root = artifacts_root.join("live-market-data-runtime").join(run_id);
+        fs::create_dir_all(&candidate_root).unwrap();
+        fs::create_dir_all(&runtime_root).unwrap();
+        fs::write(
+            artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE),
+            &starting_receipt_raw,
+        )
+        .unwrap();
+        let starting_receipt_sha256 = starting_receipt.sha256();
+        let source_manifest_sha256 = format!("sha256:{}", "3".repeat(64));
+        let execution_admission_sha256 = format!("sha256:{}", "4".repeat(64));
+        let runtime_config_sha256 = format!("sha256:{}", "5".repeat(64));
+        let claim = LiveExecutionRuntimeClaim {
+            candidate_root: &candidate_root,
+            run_id,
+            control_state_revision: 3,
+            starting_receipt_raw: &starting_receipt_raw,
+            expected_starting_receipt_sha256: &starting_receipt_sha256,
+            source_manifest_sha256: &source_manifest_sha256,
+            execution_admission_sha256: &execution_admission_sha256,
+            runtime_config_sha256: &runtime_config_sha256,
+            runtime_artifact_root: &runtime_root,
+            claimed_at_unix_ms: observed_at,
+        };
+
+        claim_runtime_authority_with_client(&client, &claim).unwrap();
+        assert!(
+            candidate_root
+                .join(LIVE_EXECUTION_RUNTIME_CLAIM_FILE)
+                .is_file()
+        );
+        assert!(
+            candidate_root
+                .join(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE)
+                .is_file()
+        );
+        let latest = client.latest().unwrap().unwrap();
+        let local_head: LiveRunAnchorReceipt = serde_json::from_slice(
+            &fs::read(artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(local_head, latest);
+        assert!(claim_runtime_authority_with_client(&client, &claim).is_err());
+
+        fs::remove_file(candidate_root.join(LIVE_EXECUTION_RUNTIME_CLAIM_FILE)).unwrap();
+        fs::remove_file(candidate_root.join(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE)).unwrap();
+        fs::write(
+            artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE),
+            &starting_receipt_raw,
+        )
+        .unwrap();
+        let error = claim_runtime_authority_with_client(&client, &claim)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("starting authority is no longer current"));
     }
 
     fn serve_raw_once(

@@ -2,6 +2,7 @@ import { createClient } from "./generated/productApi/client";
 import {
   actOnDemoRun,
   actOnLiveRunCandidate,
+  approveLiveExecutionAsOwner,
   compareRuns,
   createBacktestRun,
   createDemoRun,
@@ -44,6 +45,7 @@ import {
   type ListStrategyVersionsData,
   type LiveAdmissionResponse,
   type LiveAccountRefreshResponse,
+  type LiveExecutionAdmissionRequest,
   type LiveRunCandidateAction,
   type LiveRunCandidateActionResponse,
   type LiveRunCandidate,
@@ -433,23 +435,25 @@ function assertLiveRunCandidate(
     (candidate.stopped_at_unix_ms === null ||
       candidate.stopped_at_unix_ms >=
         (candidate.preflight_at_unix_ms ?? candidate.created_at_unix_ms));
+  const admissionStatus = candidate.order_admission.status;
+  const executionRevisionOffset = admissionStatus === "blocked" ? 0 : 1;
   const expectedAnchorRevision =
     candidate.lifecycle === "created"
       ? 0
       : candidate.lifecycle === "preflight_ready"
-        ? 1
+        ? 1 + executionRevisionOffset
         : candidate.lifecycle === "starting"
-          ? 2
+          ? 2 + executionRevisionOffset
           : candidate.lifecycle === "market_data_running" ||
               candidate.lifecycle === "failed"
-            ? 3
+            ? 3 + executionRevisionOffset
             : candidate.lifecycle === "stopping"
-              ? 4
+              ? 4 + executionRevisionOffset
               : candidate.preflight_at_unix_ms === null
                 ? 1
                 : candidate.runtime_node_id === null
-                  ? 2
-                  : 5;
+                  ? 2 + executionRevisionOffset
+                  : 5 + executionRevisionOffset;
   const runtimeBoundaryValid =
     candidate.lifecycle === "market_data_running"
       ? candidate.runtime_started &&
@@ -466,7 +470,9 @@ function assertLiveRunCandidate(
   const auditAnchorValid =
     candidate.audit_anchor.status === "verified_external_monotonic_anchor" &&
     (candidate.lifecycle === "failed"
-      ? [3, 4].includes(candidate.audit_anchor.revision)
+      ? [3 + executionRevisionOffset, 4 + executionRevisionOffset].includes(
+          candidate.audit_anchor.revision,
+        )
       : candidate.audit_anchor.revision === expectedAnchorRevision) &&
     Number.isSafeInteger(candidate.audit_anchor.workspace_revision) &&
     candidate.audit_anchor.workspace_revision >=
@@ -478,6 +484,73 @@ function assertLiveRunCandidate(
         candidate.created_at_unix_ms) &&
     candidate.audit_anchor.workspace_snapshot_rollback_detectable &&
     !candidate.audit_anchor.trading_authority_granted;
+  const blockedAdmission =
+    admissionStatus === "blocked" &&
+    candidate.order_admission.submit === "blocked" &&
+    candidate.order_admission.fill_reconciliation === "blocked" &&
+    !boundaries.order_endpoint_access_allowed &&
+    !boundaries.order_submission_allowed &&
+    !boundaries.trading_controls_enabled;
+  const authorizedAdmission =
+    admissionStatus === "authorized_single_shot" &&
+    candidate.lifecycle === "preflight_ready" &&
+    candidate.order_admission.submit === "authorized_single_shot" &&
+    candidate.order_admission.fill_reconciliation ===
+      "runtime_event_projection" &&
+    boundaries.order_endpoint_access_allowed &&
+    boundaries.order_submission_allowed &&
+    boundaries.trading_controls_enabled;
+  const consumedAdmission =
+    admissionStatus === "consumed_single_shot" &&
+    candidate.order_admission.submit === "blocked" &&
+    candidate.order_admission.fill_reconciliation ===
+      "runtime_event_projection" &&
+    !boundaries.order_endpoint_access_allowed &&
+    !boundaries.order_submission_allowed &&
+    !boundaries.trading_controls_enabled;
+  const executionOrder = candidate.execution_order;
+  const executionAttempted =
+    executionOrder?.actual_submission_attempted ?? false;
+  const failedBeforeAttempt =
+    executionOrder?.status === "submission_failed" && !executionAttempted;
+  const realOrderSubmitted =
+    executionOrder !== null &&
+    executionAttempted &&
+    [
+      "submitted",
+      "accepted",
+      "rejected",
+      "expired",
+      "partially_filled",
+      "filled",
+      "canceled",
+    ].includes(executionOrder.status);
+  const terminalOrderStatus =
+    executionOrder !== null &&
+    [
+      "rejected",
+      "denied",
+      "expired",
+      "filled",
+      "canceled",
+      "submission_failed",
+    ].includes(executionOrder.status);
+  const executionOrderValid =
+    executionOrder === null ||
+    (admissionStatus === "consumed_single_shot" &&
+      executionOrder.strategy_version_id === candidate.strategy_version_id &&
+      executionOrder.terminal === terminalOrderStatus &&
+      executionOrder.new_orders_blocked &&
+      !executionOrder.automatic_retry_attempted &&
+      !executionOrder.cancel_attempted &&
+      !executionOrder.replace_attempted &&
+      (executionOrder.status === "waiting_for_instrument"
+        ? !executionAttempted && executionOrder.client_order_id === null
+        : executionOrder.status === "denied"
+          ? !executionAttempted && executionOrder.client_order_id !== null
+          : failedBeforeAttempt
+            ? executionOrder.client_order_id === null
+            : executionAttempted && executionOrder.client_order_id !== null));
   assertIdentity(
     candidate.environment === "live" &&
       candidate.account_ref === "account://live/binance/primary" &&
@@ -486,27 +559,23 @@ function assertLiveRunCandidate(
       lifecycleFieldsValid &&
       lifecycleTimesValid &&
       auditAnchorValid &&
-      candidate.order_admission.status === "blocked" &&
-      candidate.order_admission.submit === "blocked" &&
+      (blockedAdmission || authorizedAdmission || consumedAdmission) &&
+      executionOrderValid &&
       candidate.order_admission.cancel === "blocked" &&
       candidate.order_admission.replace === "blocked" &&
-      candidate.order_admission.fill_reconciliation === "blocked" &&
       boundaries.candidate_creation_allowed &&
       boundaries.explicit_preflight_allowed &&
       boundaries.manual_stop_allowed &&
       boundaries.live_runtime_start_allowed &&
       boundaries.external_market_data_connection_allowed &&
-      !boundaries.order_endpoint_access_allowed &&
-      !boundaries.order_submission_allowed &&
       !boundaries.cancel_order_allowed &&
       !boundaries.replace_order_allowed &&
       !boundaries.fill_reconciliation_allowed &&
       !boundaries.automatic_retry_allowed &&
       !boundaries.automatic_remediation_allowed &&
       !boundaries.automatic_recovery_allowed &&
-      !boundaries.execution_adapter_send_attempted &&
-      !boundaries.real_orders_submitted &&
-      !boundaries.trading_controls_enabled,
+      boundaries.execution_adapter_send_attempted === executionAttempted &&
+      boundaries.real_orders_submitted === realOrderSubmitted,
     field,
   );
   assertUniqueIds(payload.runtime_gate_refs, `${field}.runtime_gate_refs`);
@@ -652,12 +721,40 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
         payload.data.run_id === runId &&
           (action === "preflight"
             ? payload.data.lifecycle === "preflight_ready"
-            : action === "start_market_data"
+            : action === "start_market_data" || action === "start_execution"
               ? payload.data.lifecycle === "market_data_running"
               : payload.data.lifecycle === "stopped"),
         "live_run_candidate_action.identity",
       );
       assertLiveRunCandidate(payload, "live_run_candidate_action");
+      return payload;
+    },
+
+    async approveLiveExecutionAsOwner(
+      runId: string,
+      body: LiveExecutionAdmissionRequest,
+      signal?: AbortSignal,
+    ): Promise<LiveRunCandidateActionResponse> {
+      const payload = await resolveResponse(
+        approveLiveExecutionAsOwner({
+          client,
+          path: { run_id: runId },
+          body,
+          signal,
+        }),
+        zLiveRunCandidateActionResponse,
+        "live_execution_owner_approval",
+      );
+      assertIdentity(
+        body.run_id === runId &&
+          payload.data.run_id === runId &&
+          payload.data.lifecycle === "preflight_ready" &&
+          payload.data.order_admission.owner_approved &&
+          (payload.data.order_admission.status === "blocked" ||
+            payload.data.order_admission.status === "authorized_single_shot"),
+        "live_execution_owner_approval.identity",
+      );
+      assertLiveRunCandidate(payload, "live_execution_owner_approval");
       return payload;
     },
 
@@ -994,7 +1091,7 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
       const blockers = new Set(payload.data.blockers);
       const requiredBlockers = [
         "live_run_creation_not_authorized",
-        "order_lifecycle_not_authorized",
+        "follow_up_order_mutation_not_authorized",
         "automatic_recovery_not_authorized",
       ] as const;
       assertIdentity(

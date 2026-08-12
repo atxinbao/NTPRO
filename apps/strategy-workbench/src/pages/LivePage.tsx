@@ -10,6 +10,7 @@ import { useState } from "react";
 import { ProductApiRequestError } from "../api/productApi";
 import {
   useLiveAdmission,
+  useLiveExecutionOwnerApproval,
   useLiveRunCandidates,
   useCreateLiveRunCandidate,
   useLiveRunCandidateAction,
@@ -24,7 +25,7 @@ const blockerLabels: Record<string, string> = {
   production_network_not_authorized: "生产网络连接尚未授权",
   authenticated_account_read_not_authorized: "账户只读连接尚未授权",
   live_run_creation_not_authorized: "真实 Live Runtime 启动尚未授权",
-  order_lifecycle_not_authorized: "真实订单生命周期尚未授权",
+  follow_up_order_mutation_not_authorized: "追加、撤单与改单尚未授权",
   automatic_recovery_not_authorized: "自动恢复尚未授权",
   api_key_missing: "生产 API Key 尚未配置",
   api_secret_missing: "生产 API Secret 尚未配置",
@@ -32,6 +33,13 @@ const blockerLabels: Record<string, string> = {
 
 export function LivePage() {
   const [liveRunConfirmed, setLiveRunConfirmed] = useState(false);
+  const [executionDraft, setExecutionDraft] = useState({
+    side: "BUY" as "BUY" | "SELL",
+    price: "",
+    quantity: "",
+    maxNotional: "",
+    userConfirmed: false,
+  });
   const product = useOverviewProductContext();
   const strategyId = product.isReady
     ? product.strategy?.strategy_id
@@ -44,6 +52,7 @@ export function LivePage() {
   const accountRefresh = useRefreshLiveAccount();
   const createLiveRun = useCreateLiveRunCandidate();
   const liveRunAction = useLiveRunCandidateAction();
+  const executionOwnerApproval = useLiveExecutionOwnerApproval();
   const auditAnchorUnavailable =
     liveRunCandidates.error instanceof ProductApiRequestError &&
     liveRunCandidates.error.field === "live_run_audit_anchor_config";
@@ -69,6 +78,8 @@ export function LivePage() {
   const boundaries = admission.data.boundaries;
   const account = accountRefresh.data?.data;
   const liveRun = liveRunCandidates.data?.data[0];
+  const executionInstrument = product.version?.data_requirements.symbols[0];
+  const executionConfirmationsComplete = executionDraft.userConfirmed;
   const canCreateLiveRun =
     !auditAnchorUnavailable &&
     account?.connection_status === "connected" &&
@@ -87,7 +98,7 @@ export function LivePage() {
         <div>
           <span className="eyebrow">Live</span>
           <h1>Live 连接与独立准入</h1>
-          <p>生产行情 Runtime 独立启动，真实订单生命周期继续关闭。</p>
+          <p>生产行情与单笔真实限价单分别准入，每次执行都需要独立确认。</p>
         </div>
         <span className={styles.readOnlyBadge}>
           <ShieldAlert aria-hidden="true" /> 只读边界
@@ -120,8 +131,14 @@ export function LivePage() {
         </article>
         <article>
           <span>真实订单</span>
-          <strong>关闭</strong>
-          <small>提交、撤单、改单均阻断</small>
+          <strong>
+            {liveRun?.order_admission.status === "authorized_single_shot"
+              ? "单笔已授权"
+              : liveRun?.order_admission.status === "consumed_single_shot"
+                ? "单笔已消费"
+                : "未授权"}
+          </strong>
+          <small>撤单、改单和自动重试仍阻断</small>
         </article>
       </section>
 
@@ -184,7 +201,17 @@ export function LivePage() {
             enabled={boundaries.authenticated_account_read_allowed}
           />
           <Boundary label="行情 Runtime 启动" value="可显式启动" enabled />
-          <Boundary label="订单提交" value="关闭" />
+          <Boundary
+            label="订单提交"
+            value={
+              liveRun?.order_admission.status === "authorized_single_shot"
+                ? "单笔已授权"
+                : "未授权"
+            }
+            enabled={
+              liveRun?.order_admission.status === "authorized_single_shot"
+            }
+          />
           <Boundary label="撤单与改单" value="关闭" />
           <Boundary label="自动恢复" value="关闭" />
           <Boundary label="人工停机" value="必须" enabled />
@@ -304,9 +331,13 @@ export function LivePage() {
         <header>
           <div>
             <span className="eyebrow">Live Run</span>
-            <h2>生产行情 Runtime 与人工停止</h2>
+            <h2>生产 Runtime、单笔执行与人工停止</h2>
           </div>
-          <span className={styles.readOnlyBadge}>订单发送关闭</span>
+          <span className={styles.readOnlyBadge}>
+            {liveRun?.order_admission.status === "authorized_single_shot"
+              ? "单笔订单待启动"
+              : "默认禁止下单"}
+          </span>
         </header>
         {liveRun ? (
           <>
@@ -337,7 +368,56 @@ export function LivePage() {
                 label="Runtime 错误"
                 value={liveRun.runtime_error ?? "无"}
               />
-              <Detail label="订单准入" value="已阻断" />
+              <Detail
+                label="订单准入"
+                value={
+                  liveRun.order_admission.status === "authorized_single_shot"
+                    ? "单笔已授权"
+                    : liveRun.order_admission.status === "consumed_single_shot"
+                      ? "单笔已消费"
+                      : "未授权"
+                }
+              />
+              <Detail
+                label="负责人审批"
+                value={
+                  liveRun.order_admission.owner_approved ? "已完成" : "待审批"
+                }
+              />
+              <Detail
+                label="风控审批"
+                value={
+                  liveRun.order_admission.risk_approved ? "已完成" : "待审批"
+                }
+              />
+              <Detail
+                label="操作员审批"
+                value={
+                  liveRun.order_admission.operator_approved
+                    ? "已完成"
+                    : "待审批"
+                }
+              />
+              <Detail
+                label="订单生命周期"
+                value={liveRun.execution_order?.status ?? "尚未启动"}
+              />
+              <Detail
+                label="Client Order ID"
+                value={liveRun.execution_order?.client_order_id ?? "尚未生成"}
+              />
+              <Detail
+                label="追加订单"
+                value={
+                  liveRun.execution_order?.new_orders_blocked === true
+                    ? "已阻断"
+                    : "默认阻断"
+                }
+              />
+              <Detail
+                label="订单错误"
+                value={liveRun.execution_order?.last_error ?? "无"}
+              />
               <Detail
                 label="外部审计锚点"
                 value={
@@ -364,8 +444,153 @@ export function LivePage() {
             {liveRunAction.error ? (
               <p className={styles.formError}>{liveRunAction.error.message}</p>
             ) : null}
+            {executionOwnerApproval.error ? (
+              <p className={styles.formError}>
+                {executionOwnerApproval.error.message}
+              </p>
+            ) : null}
+            {liveRun.lifecycle === "preflight_ready" &&
+            liveRun.order_admission.status === "blocked" ? (
+              <form
+                className={styles.liveExecutionForm}
+                aria-label="单笔真实限价单准入"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!executionInstrument || !executionConfirmationsComplete) {
+                    return;
+                  }
+                  executionOwnerApproval.mutate({
+                    runId: liveRun.run_id,
+                    request: {
+                      run_id: liveRun.run_id,
+                      strategy_version_id: liveRun.strategy_version_id,
+                      account_ref: "account://live/binance/primary",
+                      venue_ref: "venue://live/BINANCE",
+                      admission_id: `manual-${Date.now()}`,
+                      instrument_id: executionInstrument,
+                      side: executionDraft.side,
+                      order_type: "LIMIT",
+                      time_in_force: "GTC",
+                      price: executionDraft.price,
+                      quantity: executionDraft.quantity,
+                      max_notional: executionDraft.maxNotional,
+                      expires_at_unix_ms: Date.now() + 5 * 60 * 1_000,
+                      user_confirmed: true,
+                    },
+                  });
+                }}
+              >
+                <header>
+                  <div>
+                    <span className="eyebrow">Execution Admission</span>
+                    <h3>单笔真实 LIMIT / GTC 订单</h3>
+                  </div>
+                  <ShieldAlert aria-hidden="true" />
+                </header>
+                <div className={styles.formGrid}>
+                  <label>
+                    <span>交易标的</span>
+                    <input
+                      value={executionInstrument ?? "无可用标的"}
+                      readOnly
+                    />
+                  </label>
+                  <label>
+                    <span>方向</span>
+                    <select
+                      value={executionDraft.side}
+                      onChange={(event) =>
+                        setExecutionDraft((current) => ({
+                          ...current,
+                          side: event.target.value as "BUY" | "SELL",
+                        }))
+                      }
+                    >
+                      <option value="BUY">买入</option>
+                      <option value="SELL">卖出</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>限价</span>
+                    <input
+                      inputMode="decimal"
+                      required
+                      value={executionDraft.price}
+                      onChange={(event) =>
+                        setExecutionDraft((current) => ({
+                          ...current,
+                          price: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>数量</span>
+                    <input
+                      inputMode="decimal"
+                      required
+                      value={executionDraft.quantity}
+                      onChange={(event) =>
+                        setExecutionDraft((current) => ({
+                          ...current,
+                          quantity: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className={styles.formFieldWide}>
+                    <span>最大名义金额</span>
+                    <input
+                      inputMode="decimal"
+                      required
+                      value={executionDraft.maxNotional}
+                      onChange={(event) =>
+                        setExecutionDraft((current) => ({
+                          ...current,
+                          maxNotional: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+                <div className={styles.executionConfirmations}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={executionDraft.userConfirmed}
+                      onChange={(event) =>
+                        setExecutionDraft((current) => ({
+                          ...current,
+                          userConfirmed: event.target.checked,
+                        }))
+                      }
+                    />
+                    <span>我以机构负责人身份确认这是一笔真实订单</span>
+                  </label>
+                </div>
+                <footer>
+                  <span>提交负责人审批后，仍需风控与当班操作员分别审批。</span>
+                  <button
+                    type="submit"
+                    disabled={
+                      !executionInstrument ||
+                      !executionConfirmationsComplete ||
+                      executionOwnerApproval.isPending
+                    }
+                  >
+                    {executionOwnerApproval.isPending
+                      ? "审批中"
+                      : "提交负责人审批"}
+                  </button>
+                </footer>
+              </form>
+            ) : null}
             <div className={styles.runActions}>
-              <span>行情 Runtime 只连接生产市场数据，不注册执行客户端。</span>
+              <span>
+                {liveRun.order_admission.status === "authorized_single_shot"
+                  ? "已绑定单笔订单，启动后不能追加、撤销或改单。"
+                  : "普通行情启动不注册执行客户端。"}
+              </span>
               {liveRun.lifecycle === "created" ? (
                 <button
                   type="button"
@@ -383,7 +608,10 @@ export function LivePage() {
               {liveRun.lifecycle === "preflight_ready" ? (
                 <button
                   type="button"
-                  disabled={liveRunAction.isPending}
+                  disabled={
+                    liveRunAction.isPending ||
+                    liveRun.order_admission.status !== "blocked"
+                  }
                   onClick={() =>
                     liveRunAction.mutate({
                       runId: liveRun.run_id,
@@ -392,6 +620,21 @@ export function LivePage() {
                   }
                 >
                   启动生产行情
+                </button>
+              ) : null}
+              {liveRun.lifecycle === "preflight_ready" &&
+              liveRun.order_admission.status === "authorized_single_shot" ? (
+                <button
+                  type="button"
+                  disabled={liveRunAction.isPending}
+                  onClick={() =>
+                    liveRunAction.mutate({
+                      runId: liveRun.run_id,
+                      action: "start_execution",
+                    })
+                  }
+                >
+                  启动单笔真实执行
                 </button>
               ) : null}
               {["created", "preflight_ready", "market_data_running"].includes(

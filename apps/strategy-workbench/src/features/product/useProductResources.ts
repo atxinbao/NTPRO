@@ -6,6 +6,7 @@ import type {
   CreateDemoRunRequest,
   CreateLiveRunCandidateRequest,
   DemoRunAction,
+  LiveExecutionAdmissionRequest,
   LiveRunCandidateAction,
 } from "../../api/generated/productApi";
 
@@ -107,6 +108,26 @@ export function useLiveRunCandidateAction() {
       runId: string;
       action: LiveRunCandidateAction;
     }) => productApi.actOnLiveRunCandidate(runId, action),
+    retry: false,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: productQueryKeys.liveRunCandidates,
+        refetchType: "active",
+      });
+    },
+  });
+}
+
+export function useLiveExecutionOwnerApproval() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      runId,
+      request,
+    }: {
+      runId: string;
+      request: LiveExecutionAdmissionRequest;
+    }) => productApi.approveLiveExecutionAsOwner(runId, request),
     retry: false,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
