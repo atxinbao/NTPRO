@@ -476,6 +476,9 @@ pub(in crate::dashboard) async fn live_run_candidate_list_api(
             product_error(ProductErrorKind::LiveConflict, "live_candidate_action_lock")
         })?;
         let _workspace_lock = acquire_live_run_mutation_lock(&state)?;
+        if let Some(pointer) = load_active_live_run_pointer(&state)? {
+            reconcile_exited_live_market_data_runtime(&state, &pointer.run_id)?;
+        }
         let active = load_active_live_run_candidates(&state)?;
         for (candidate, _, _) in &active {
             reconcile_exited_live_market_data_runtime(&state, &candidate.run_id)?;
@@ -1121,7 +1124,7 @@ fn transition_live_market_data_runtime_failed(
                 )
             })?;
     }
-    release_active_live_run_candidate(state, run_id)
+    release_active_live_run_candidate_if_present(state, run_id)
 }
 
 fn reconcile_exited_live_market_data_runtime(
@@ -1134,6 +1137,18 @@ fn reconcile_exited_live_market_data_runtime(
         LiveRunCandidateLifecycle::MarketDataRunning | LiveRunCandidateLifecycle::Failed
     ) {
         return Ok(());
+    }
+    let manifest_sha256 = sha256_ref(&manifest_raw);
+    if candidate.lifecycle == LiveRunCandidateLifecycle::Failed {
+        let Some(pointer) = load_active_live_run_pointer(state)? else {
+            return Ok(());
+        };
+        if pointer.run_id != run_id || pointer.source_manifest_sha256 != manifest_sha256 {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "active_live_run_candidate",
+            ));
+        }
     }
     let store = SupervisorRegistryStore::new(&state.registry_path);
     let record = store.refresh_process_state(run_id).map_err(|_| {
@@ -1148,12 +1163,7 @@ fn reconcile_exited_live_market_data_runtime(
             SupervisorProcessState::Stopped | SupervisorProcessState::Stale
         )
     {
-        transition_live_market_data_runtime_failed(
-            state,
-            run_id,
-            &sha256_ref(&manifest_raw),
-            Some(&store),
-        )?;
+        transition_live_market_data_runtime_failed(state, run_id, &manifest_sha256, Some(&store))?;
     }
     Ok(())
 }
@@ -2646,12 +2656,31 @@ fn release_active_live_run_candidate(
     state: &DashboardServerState,
     run_id: &str,
 ) -> Result<(), ProductError> {
-    let pointer = load_active_live_run_pointer(state)?.ok_or_else(|| {
-        product_error(
-            ProductErrorKind::BoundaryViolation,
-            "active_live_run_candidate",
-        )
-    })?;
+    release_active_live_run_candidate_with_absence(state, run_id, false)
+}
+
+fn release_active_live_run_candidate_if_present(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<(), ProductError> {
+    release_active_live_run_candidate_with_absence(state, run_id, true)
+}
+
+fn release_active_live_run_candidate_with_absence(
+    state: &DashboardServerState,
+    run_id: &str,
+    allow_absent: bool,
+) -> Result<(), ProductError> {
+    let Some(pointer) = load_active_live_run_pointer(state)? else {
+        return if allow_absent {
+            Ok(())
+        } else {
+            Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "active_live_run_candidate",
+            ))
+        };
+    };
     let (_, manifest_raw) = load_live_run_manifest(state, run_id)?;
     if pointer.run_id != run_id || pointer.source_manifest_sha256 != sha256_ref(&manifest_raw) {
         return Err(product_error(
@@ -2863,6 +2892,8 @@ mod tests {
     };
 
     use super::*;
+
+    static LIVE_RUNTIME_PROCESS_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     struct LiveRunFixture {
         root: PathBuf,
@@ -3188,6 +3219,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn live_market_data_runtime_starts_and_stops_without_execution_capability() {
+        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
         let mut fixture = LiveRunFixture::new("market-data-runtime");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000002");
@@ -3269,6 +3301,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn live_market_data_runtime_external_exit_is_failed_anchored_and_released() {
+        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
         let mut fixture = LiveRunFixture::new("market-data-runtime-external-exit");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000004");
@@ -3305,6 +3338,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             .unwrap();
         let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
         reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
 
         let failed = load_live_run_candidate(&fixture.state, &run_id).unwrap();
         assert_eq!(failed.lifecycle, LiveRunCandidateLifecycle::Failed);
@@ -3321,6 +3355,92 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             .as_ref()
             .unwrap();
         assert_eq!(terminal.lifecycle, "failed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_live_runtime_retries_terminal_anchor_and_pointer_cleanup() {
+        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let mut fixture = LiveRunFixture::new("market-data-runtime-failed-retry");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000005");
+        let run_id = ready.run_id;
+        fixture.install_live_market_data_node(&run_id);
+        let running = run_live_candidate_action(
+            &fixture.state,
+            &run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: run_id.clone(),
+                action: LiveRunCandidateAction::StartMarketData,
+                user_confirmed: true,
+            },
+        )
+        .unwrap();
+        let store = SupervisorRegistryStore::new(&fixture.state.registry_path);
+        let registry = store.load().unwrap();
+        let manifest_sha256 = registry.nodes[&run_id].run_ownership[&run_id]
+            .manifest_sha256
+            .clone();
+        store
+            .stop_node_process_for_run(
+                &StopNodeRequest {
+                    node_id: run_id.clone(),
+                    stop_timeout: Duration::from_secs(5),
+                },
+                &run_id,
+                &manifest_sha256,
+            )
+            .unwrap();
+        let (current, current_raw) =
+            load_live_run_state(&fixture.state, &run_id, &manifest_sha256).unwrap();
+        write_live_run_state(
+            &fixture.state,
+            &run_id,
+            &LiveRunCandidateState {
+                schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+                run_id: run_id.clone(),
+                source_manifest_sha256: manifest_sha256,
+                revision: current.revision + 1,
+                previous_state_sha256: Some(sha256_ref(&current_raw)),
+                lifecycle: LiveRunCandidateLifecycle::Failed,
+                preflight_sha256: current.preflight_sha256,
+                stop_sha256: None,
+                updated_at_unix_ms: unix_time_ms(),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            running.lifecycle,
+            LiveRunCandidateLifecycle::MarketDataRunning
+        );
+        assert!(
+            load_active_live_run_pointer(&fixture.state)
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            store.load().unwrap().nodes[&run_id].run_ownership[&run_id]
+                .terminal
+                .is_none()
+        );
+
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+
+        assert!(
+            load_active_live_run_pointer(&fixture.state)
+                .unwrap()
+                .is_none()
+        );
+        let registry = store.load().unwrap();
+        assert_eq!(
+            registry.nodes[&run_id].run_ownership[&run_id]
+                .terminal
+                .as_ref()
+                .map(|terminal| terminal.lifecycle.as_str()),
+            Some("failed")
+        );
     }
 
     #[test]
@@ -3350,6 +3470,14 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             load_active_live_run_candidates(&fixture.state)
                 .unwrap()
                 .is_empty()
+        );
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        assert_eq!(
+            load_live_run_candidate(&fixture.state, &run_id)
+                .unwrap()
+                .lifecycle,
+            LiveRunCandidateLifecycle::Failed
         );
         let registry = SupervisorRegistryStore::new(&fixture.state.registry_path)
             .load()
