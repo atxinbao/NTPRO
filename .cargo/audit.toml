@@ -6,6 +6,7 @@
 #   - RUSTSEC-2024-0388 (derivative, unmaintained via alloy-primitives -> ruint -> ark-ff)
 #   - RUSTSEC-2023-0071 (rsa Marvin Attack, transitive via sqlx-mysql, no upstream fix)
 #   - RUSTSEC-2026-0235 (inactive optional rkyv via rust_decimal)
+#   - RUSTSEC-2026-0253 (lru via alloy-provider; affected pop key cannot panic on Drop)
 
 [advisories]
 ignore = [
@@ -36,4 +37,9 @@ ignore = [
   # cargo-deny intentionally does not ignore this advisory, so enabling the feature fails closed.
   # Remove when rust_decimal supports rkyv >=0.8.17 or scanners exclude inactive optional deps.
   "RUSTSEC-2026-0235",
+  # lru 0.16.4 is pinned by alloy-provider 2.x; even alloy-provider 2.3.0 still requires lru 0.16.
+  # The affected pop path stores BlockNumber (u64) keys, while the other cache uses B256 keys;
+  # neither key has a panicking Drop implementation required by the advisory exploit.
+  # Remove when alloy-provider adopts lru >=0.18.2.
+  "RUSTSEC-2026-0253",
 ]
