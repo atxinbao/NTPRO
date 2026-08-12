@@ -34,6 +34,9 @@ fn live_module_ownership_boundaries_are_explicit() {
     assert!(runtime.contains("//! Live and sandbox node runtime lifecycle."));
     assert!(runtime.contains("pub(super) async fn run_live_run_with_command("));
     assert!(runtime.contains("async fn wait_for_shutdown_signal()"));
+    assert!(runtime.contains("let run_future = node.run();"));
+    assert!(runtime.contains("node.add_actor(actor)?;"));
+    assert!(!runtime.contains("node.start().await"));
 }
 
 #[test]
@@ -14560,6 +14563,7 @@ fn production_market_data_config(node_id: &str) -> String {
          trader_id = \"TRADER-001\"\n\
          venue = \"BINANCE\"\n\
          product_type = \"spot\"\n\
+         symbols = [\"BTCUSDT.BINANCE\"]\n\
          api_key_env = \"NTPRO_BINANCE_LIVE_API_KEY\"\n\
          api_secret_env = \"NTPRO_BINANCE_LIVE_API_SECRET\"\n\
          execution_client_enabled = false\n\
@@ -14584,6 +14588,10 @@ fn production_market_data_config_is_live_data_only() {
 
     assert_eq!(config.live_market_data.environment, "live");
     assert_eq!(config.live_market_data.venue, "BINANCE");
+    assert_eq!(
+        config.live_market_data.symbols,
+        ["BTCUSDT.BINANCE".to_string()]
+    );
     assert!(!config.live_market_data.execution_client_enabled);
     assert!(!config.live_market_data.order_endpoint_access_allowed);
     assert!(!config.live_market_data.order_submission_allowed);
@@ -14611,9 +14619,17 @@ fn production_market_data_config_rejects_execution_or_order_capability() {
 }
 
 #[test]
-fn production_market_data_connection_requires_a_registered_connected_client() {
-    assert!(!node_runtime::data_client_statuses_connected([]));
-    assert!(node_runtime::data_client_statuses_connected([true]));
-    assert!(node_runtime::data_client_statuses_connected([true, true]));
-    assert!(!node_runtime::data_client_statuses_connected([true, false]));
+fn production_market_data_actor_records_consumed_quote_and_trade_events() {
+    let actor = ProductionMarketDataActor::new(
+        ClientId::from("BINANCE"),
+        vec![InstrumentId::from_str("BTCUSDT.BINANCE").unwrap()],
+    );
+    let (quote_count, trade_count, last_event_unix_ms) = actor.counters();
+
+    actor.record_quote_event();
+    actor.record_trade_event();
+
+    assert_eq!(quote_count.load(std::sync::atomic::Ordering::Acquire), 1);
+    assert_eq!(trade_count.load(std::sync::atomic::Ordering::Acquire), 1);
+    assert!(last_event_unix_ms.load(std::sync::atomic::Ordering::Acquire) > 0);
 }

@@ -200,6 +200,35 @@ describe("product API generated client", () => {
     expect(result.boundaries.automatic_retry_allowed).toBe(false);
   });
 
+  it("accepts a running Live Runtime failure anchored at revision four", async () => {
+    const failed: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    failed.schema_version =
+      "ntpro.product_api.live_run_candidate_detail.response.v1";
+    failed.data.lifecycle = "failed";
+    failed.data.preflight_at_unix_ms = 1786406401000;
+    failed.data.account_connected = true;
+    failed.data.account_can_trade_verified = true;
+    failed.data.runtime_started = false;
+    failed.data.market_data_connected = false;
+    failed.data.runtime_node_id = failed.data.run_id;
+    failed.data.runtime_process_state = "stopped";
+    failed.data.runtime_error = "data client disconnected during live run";
+    failed.data.audit_anchor.revision = 4;
+    failed.data.audit_anchor.workspace_revision = 4;
+    failed.data.audit_anchor.receipt_ref = `sha256:${"9".repeat(64)}`;
+    failed.data.audit_anchor.anchored_at_unix_ms = 1786406403000;
+
+    const result = await createProductApiClient({
+      fetch: jsonFetch(failed),
+    }).getLiveRunCandidate(failed.data.run_id);
+    expect(result.data.lifecycle).toBe("failed");
+    expect(result.data.runtime_started).toBe(false);
+    expect(result.data.runtime_error).toContain("disconnected");
+    expect(result.boundaries.order_submission_allowed).toBe(false);
+  });
+
   it.each([
     [
       "runtime started",

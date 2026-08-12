@@ -873,6 +873,11 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: null;
       account_connected?: false;
       account_can_trade_verified?: false;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_node_id?: null;
+      runtime_process_state?: "not_started";
+      runtime_error?: null;
     }
   | {
       lifecycle?: "preflight_ready";
@@ -880,6 +885,11 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: null;
       account_connected?: true;
       account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_node_id?: null;
+      runtime_process_state?: "not_started";
+      runtime_error?: null;
     }
   | {
       lifecycle?: "stopped";
@@ -887,6 +897,9 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: number;
       account_connected?: false;
       account_can_trade_verified?: false;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_error?: null;
     }
   | {
       lifecycle?: "stopped";
@@ -894,13 +907,49 @@ export type LiveRunCandidate = (
       stopped_at_unix_ms?: number;
       account_connected?: true;
       account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_error?: null;
     }
   | {
-      lifecycle?: "starting" | "market_data_running" | "stopping" | "failed";
+      lifecycle?: "starting";
       preflight_at_unix_ms?: number;
       stopped_at_unix_ms?: null;
       account_connected?: true;
       account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
+      runtime_error?: null;
+    }
+  | {
+      lifecycle?: "market_data_running";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+      runtime_started?: true;
+      market_data_connected?: true;
+      runtime_node_id?: string;
+      runtime_process_state?: "running";
+      runtime_error?: null;
+    }
+  | {
+      lifecycle?: "stopping";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+      runtime_node_id?: string;
+      runtime_error?: null;
+    }
+  | {
+      lifecycle?: "failed";
+      preflight_at_unix_ms?: number;
+      stopped_at_unix_ms?: null;
+      account_connected?: true;
+      account_can_trade_verified?: true;
+      runtime_started?: false;
+      market_data_connected?: false;
     }
 ) & {
   run_id: RunId;

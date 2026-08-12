@@ -83,11 +83,20 @@ pub(super) async fn run_production_market_data_node_with_command(
         environment: BinanceEnvironment::Live,
         api_key: Some(api_key),
         api_secret: Some(api_secret),
+        ws_reconnect_max_attempts: Some(0),
         ..Default::default()
     };
+    let instrument_ids = market
+        .symbols
+        .iter()
+        .map(|value| InstrumentId::from_str(value))
+        .collect::<Result<Vec<_>, _>>()?;
+    let actor = ProductionMarketDataActor::new(ClientId::from("BINANCE"), instrument_ids);
+    let (quote_count, trade_count, last_event_unix_ms) = actor.counters();
     let mut node = LiveNode::builder(trader_id, Environment::Live)?
         .with_name(run_id)
         .with_reconciliation(false)
+        .with_shutdown_on_data_disconnect(true)
         .with_timeout_connection(config.shutdown.connection_timeout_secs)
         .with_timeout_disconnection_secs(config.shutdown.disconnection_timeout_secs)
         .with_delay_post_stop_secs(config.shutdown.post_stop_delay_secs)
@@ -97,48 +106,87 @@ pub(super) async fn run_production_market_data_node_with_command(
             Box::new(data_config),
         )?
         .build()?;
+    node.add_actor(actor)?;
     if !node.kernel().exec_engine.borrow().client_ids().is_empty() {
         anyhow::bail!("production market data Runtime must not register execution clients");
     }
 
-    node.start().await?;
-    let started_at = now_millis();
-    let started_instant = Instant::now();
-    let data_connected = production_data_clients_connected(&node);
-    if node.state() != NodeState::Running || !data_connected {
-        if node.state() == NodeState::Running {
-            let _ = node.stop().await;
+    let handle = node.handle();
+    let run_future = node.run();
+    tokio::pin!(run_future);
+    let shutdown_signal = wait_for_shutdown_signal();
+    tokio::pin!(shutdown_signal);
+    let mut started_at: Option<String> = None;
+    let mut started_instant: Option<Instant> = None;
+    let mut last_heartbeat: Option<Instant> = None;
+    let mut shutdown_reason: Option<ShutdownReason> = None;
+    let runtime_result = loop {
+        tokio::select! {
+            result = &mut run_future => break result,
+            result = &mut shutdown_signal, if shutdown_reason.is_none() => {
+                shutdown_reason = Some(result?);
+                handle.stop();
+            }
+            () = sleep(SHUTDOWN_POLL_INTERVAL) => {
+                if handle.state() == NodeState::Running && started_at.is_none() {
+                    let observed_at = now_millis();
+                    let observed_instant = Instant::now();
+                    write_production_market_data_heartbeat(
+                        &context,
+                        &observed_at,
+                        observed_instant,
+                        true,
+                    )?;
+                    atomic_write_text(
+                        &events_log_path,
+                        "phase=start status=ok environment=live data_connection=connected execution_connection=not_configured subscriptions=quotes,trades order_endpoint_access=false real_orders_submitted=false\n",
+                    )?;
+                    started_at = Some(observed_at);
+                    started_instant = Some(observed_instant);
+                }
+                if shutdown_reason.is_none() {
+                    shutdown_reason = requested_production_market_data_shutdown(
+                        stop_file,
+                        shutdown_controls,
+                        started_instant,
+                    );
+                    if shutdown_reason.is_some() {
+                        handle.stop();
+                    }
+                }
+                if let (Some(started_at), Some(started_instant)) =
+                    (started_at.as_deref(), started_instant)
+                    && last_heartbeat
+                        .is_none_or(|last| last.elapsed() >= shutdown_controls.heartbeat_interval)
+                {
+                    write_production_market_data_heartbeat(
+                        &context,
+                        started_at,
+                        started_instant,
+                        true,
+                    )?;
+                    last_heartbeat = Some(Instant::now());
+                }
+            }
         }
-        anyhow::bail!("production market data Runtime did not reach connected running state");
-    }
-    write_production_market_data_heartbeat(&context, &started_at, started_instant, true)?;
-    atomic_write_text(
-        &events_log_path,
-        "phase=start status=ok environment=live data_connection=connected execution_connection=not_configured order_endpoint_access=false real_orders_submitted=false\n",
-    )?;
-
-    let shutdown_result = wait_for_production_market_data_shutdown(
-        &context,
-        &node,
-        stop_file,
-        shutdown_controls,
-        &started_at,
-        started_instant,
-    )
-    .await;
-    let stop_result = timeout(shutdown_controls.shutdown_timeout, node.stop())
-        .await
-        .context("production market data Runtime shutdown timed out")?;
-    stop_result.context("production market data Runtime shutdown failed")?;
-    let shutdown_reason = shutdown_result?;
+    };
+    let started_at = started_at
+        .context("production market data Runtime exited before reaching connected running state")?;
+    let started_instant = started_instant
+        .context("production market data Runtime exited before recording its start time")?;
     let stopped_at = now_millis();
-    let status = production_market_data_status(
+    let runtime_error = runtime_result
+        .as_ref()
+        .err()
+        .map(|_| "production market data Runtime exited unexpectedly".to_string());
+    let mut status = production_market_data_status(
         &context,
         NodeState::Stopped,
         ConnectionStatus::Disconnected,
         &started_at,
         Some(&stopped_at),
     );
+    status.last_error = runtime_error.clone();
     write_status(&status_path, &status)?;
     write_production_market_data_metrics(
         &context,
@@ -153,79 +201,43 @@ pub(super) async fn run_production_market_data_node_with_command(
     atomic_write_text(
         &output_dir.join("summary.txt"),
         &format!(
-            "status=ok\nmode=production-market-data\nrun_id={run_id}\nenvironment=live\nvenue=BINANCE\nproduct_type=spot\ndata_connection=disconnected\nexecution_connection=not_configured\nexecution_client_enabled=false\norder_endpoint_access_allowed=false\norder_submission_allowed=false\nautomatic_reconnect_allowed=false\nreal_orders_submitted=false\nshutdown_reason={}\n",
-            shutdown_reason.label()
+            "status={}\nmode=production-market-data\nrun_id={run_id}\nenvironment=live\nvenue=BINANCE\nproduct_type=spot\nsymbols={}\nquote_events={}\ntrade_events={}\nlast_market_event_unix_ms={}\ndata_connection=disconnected\nexecution_connection=not_configured\nexecution_client_enabled=false\norder_endpoint_access_allowed=false\norder_submission_allowed=false\nautomatic_reconnect_allowed=false\nreal_orders_submitted=false\nshutdown_reason={}\n",
+            if runtime_error.is_some() {
+                "error"
+            } else {
+                "ok"
+            },
+            market.symbols.join(","),
+            quote_count.load(std::sync::atomic::Ordering::Acquire),
+            trade_count.load(std::sync::atomic::Ordering::Acquire),
+            last_event_unix_ms.load(std::sync::atomic::Ordering::Acquire),
+            shutdown_reason.map_or("runtime-error", |reason| reason.label()),
         ),
     )?;
-    Ok(())
+    runtime_result
 }
 
-async fn wait_for_production_market_data_shutdown(
-    context: &ProductionMarketDataRuntimeContext<'_>,
-    node: &LiveNode,
+fn requested_production_market_data_shutdown(
     stop_file: Option<&Path>,
     controls: NtproNodeRunControls,
-    started_at: &str,
-    started_instant: Instant,
-) -> anyhow::Result<ShutdownReason> {
-    let Some(stop_file) = stop_file else {
-        return Ok(ShutdownReason::StartStop);
-    };
-    let shutdown_signal = wait_for_shutdown_signal();
-    tokio::pin!(shutdown_signal);
-    let mut last_heartbeat: Option<Instant> = None;
-    loop {
-        if stop_file.exists() {
-            return Ok(ShutdownReason::StopFile);
-        }
-        if let Some(parent_pid) = controls.parent_pid
-            && !process_is_alive(parent_pid)
-        {
-            return Ok(ShutdownReason::ParentExited);
-        }
-        if let Some(max_runtime) = controls.max_runtime
-            && started_instant.elapsed() >= max_runtime
-        {
-            return Ok(ShutdownReason::MaxRuntime);
-        }
-        if last_heartbeat.is_none_or(|last| last.elapsed() >= controls.heartbeat_interval) {
-            let connected = production_data_clients_connected(node);
-            write_production_market_data_heartbeat(
-                context,
-                started_at,
-                started_instant,
-                connected,
-            )?;
-            if !connected {
-                anyhow::bail!("production market data Runtime lost its data client connection");
-            }
-            last_heartbeat = Some(Instant::now());
-        }
-        tokio::select! {
-            result = &mut shutdown_signal => return result,
-            () = sleep(SHUTDOWN_POLL_INTERVAL) => {}
-        }
+    started_instant: Option<Instant>,
+) -> Option<ShutdownReason> {
+    if stop_file.is_some_and(Path::exists) {
+        Some(ShutdownReason::StopFile)
+    } else if controls
+        .parent_pid
+        .is_some_and(|pid| !process_is_alive(pid))
+    {
+        Some(ShutdownReason::ParentExited)
+    } else if controls.max_runtime.is_some_and(|max_runtime| {
+        started_instant.is_some_and(|started| started.elapsed() >= max_runtime)
+    }) {
+        Some(ShutdownReason::MaxRuntime)
+    } else if stop_file.is_none() {
+        Some(ShutdownReason::StartStop)
+    } else {
+        None
     }
-}
-
-fn production_data_clients_connected(node: &LiveNode) -> bool {
-    data_client_statuses_connected(
-        node.kernel()
-            .data_client_connection_status()
-            .into_iter()
-            .map(|(_, connected)| connected),
-    )
-}
-
-pub(super) fn data_client_statuses_connected(statuses: impl IntoIterator<Item = bool>) -> bool {
-    let mut registered = false;
-    for connected in statuses {
-        registered = true;
-        if !connected {
-            return false;
-        }
-    }
-    registered
 }
 
 fn write_production_market_data_heartbeat(

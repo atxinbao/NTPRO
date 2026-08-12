@@ -465,7 +465,9 @@ function assertLiveRunCandidate(
         : !candidate.runtime_started && !candidate.market_data_connected;
   const auditAnchorValid =
     candidate.audit_anchor.status === "verified_external_monotonic_anchor" &&
-    candidate.audit_anchor.revision === expectedAnchorRevision &&
+    (candidate.lifecycle === "failed"
+      ? [3, 4].includes(candidate.audit_anchor.revision)
+      : candidate.audit_anchor.revision === expectedAnchorRevision) &&
     Number.isSafeInteger(candidate.audit_anchor.workspace_revision) &&
     candidate.audit_anchor.workspace_revision >=
       candidate.audit_anchor.revision &&

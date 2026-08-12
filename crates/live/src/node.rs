@@ -1182,6 +1182,7 @@ impl LiveNode {
 
         // Running phase: runs until shutdown deadline expires
         let mut residual_events = 0usize;
+        let mut runtime_error: Option<&'static str> = None;
         let ctrl_c = dst::signal::ctrl_c();
         tokio::pin!(ctrl_c);
 
@@ -1222,6 +1223,14 @@ impl LiveNode {
                 // Maintenance dispatcher (before event processing to avoid
                 // starvation). See module docs for design rationale.
                 _ = maintenance_timer.tick(), if is_running => {
+                    if self.config.shutdown_on_data_disconnect
+                        && !self.kernel.data_engine().check_connected()
+                    {
+                        log::error!("Data client disconnected; initiating fail-closed shutdown");
+                        runtime_error = Some("data client disconnected during live run");
+                        self.initiate_shutdown();
+                        continue;
+                    }
                     let mut now = dst::time::Instant::now();
 
                     if recon_enabled && now >= recon_next {
@@ -1422,6 +1431,9 @@ impl LiveNode {
 
         log::info!("Event loop stopped");
 
+        if let Some(error) = runtime_error {
+            anyhow::bail!(error);
+        }
         Ok(())
     }
 

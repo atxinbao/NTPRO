@@ -225,6 +225,13 @@ impl LiveNodeBuilder {
         self
     }
 
+    /// Configure fail-closed shutdown when a registered data client disconnects.
+    #[must_use]
+    pub const fn with_shutdown_on_data_disconnect(mut self, enabled: bool) -> Self {
+        self.config.shutdown_on_data_disconnect = enabled;
+        self
+    }
+
     /// Set the cache configuration.
     #[must_use]
     pub fn with_cache_config(mut self, config: CacheConfig) -> Self {

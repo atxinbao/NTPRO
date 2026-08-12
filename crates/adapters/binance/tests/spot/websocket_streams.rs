@@ -257,6 +257,19 @@ fn create_test_client(addr: &SocketAddr) -> BinanceSpotWebSocketClient {
         .unwrap()
 }
 
+fn create_no_reconnect_test_client(addr: &SocketAddr) -> BinanceSpotWebSocketClient {
+    let ws_url = format!("ws://{addr}/ws");
+    BinanceSpotWebSocketClient::new_with_reconnect_limit(
+        Some(ws_url),
+        None,
+        None,
+        None,
+        TransportBackend::default(),
+        Some(0),
+    )
+    .unwrap()
+}
+
 #[rstest]
 #[tokio::test]
 async fn test_client_connection() {
@@ -773,6 +786,25 @@ async fn test_reconnection_after_server_drop() {
         "Expected at least one reconnection"
     );
 
+    client.close().await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_zero_reconnect_limit_closes_after_server_drop() {
+    let (addr, state) = start_test_server().await.unwrap();
+    let mut client = create_no_reconnect_test_client(&addr);
+
+    client.connect().await.unwrap();
+    wait_until_async(|| async { client.is_active() }, Duration::from_secs(5)).await;
+    let initial_total = state.total_connections();
+
+    state.disconnect_trigger.store(true, Ordering::Relaxed);
+    wait_until_async(|| async { client.is_closed() }, Duration::from_secs(5)).await;
+    tokio::time::sleep(Duration::from_millis(750)).await;
+
+    assert!(client.is_closed());
+    assert_eq!(state.total_connections(), initial_total);
     client.close().await.unwrap();
 }
 

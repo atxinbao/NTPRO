@@ -2885,7 +2885,12 @@
                   "preflight_at_unix_ms": { "type": "null" },
                   "stopped_at_unix_ms": { "type": "null" },
                   "account_connected": { "const": false },
-                  "account_can_trade_verified": { "const": false }
+                  "account_can_trade_verified": { "const": false },
+                  "runtime_started": { "const": false },
+                  "market_data_connected": { "const": false },
+                  "runtime_node_id": { "type": "null" },
+                  "runtime_process_state": { "const": "not_started" },
+                  "runtime_error": { "type": "null" }
                 }
               },
               {
@@ -2894,7 +2899,12 @@
                   "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
                   "stopped_at_unix_ms": { "type": "null" },
                   "account_connected": { "const": true },
-                  "account_can_trade_verified": { "const": true }
+                  "account_can_trade_verified": { "const": true },
+                  "runtime_started": { "const": false },
+                  "market_data_connected": { "const": false },
+                  "runtime_node_id": { "type": "null" },
+                  "runtime_process_state": { "const": "not_started" },
+                  "runtime_error": { "type": "null" }
                 }
               },
               {
@@ -2903,7 +2913,10 @@
                   "preflight_at_unix_ms": { "type": "null" },
                   "stopped_at_unix_ms": { "type": "integer", "minimum": 1 },
                   "account_connected": { "const": false },
-                  "account_can_trade_verified": { "const": false }
+                  "account_can_trade_verified": { "const": false },
+                  "runtime_started": { "const": false },
+                  "market_data_connected": { "const": false },
+                  "runtime_error": { "type": "null" }
                 }
               },
               {
@@ -2912,16 +2925,58 @@
                   "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
                   "stopped_at_unix_ms": { "type": "integer", "minimum": 1 },
                   "account_connected": { "const": true },
-                  "account_can_trade_verified": { "const": true }
+                  "account_can_trade_verified": { "const": true },
+                  "runtime_started": { "const": false },
+                  "market_data_connected": { "const": false },
+                  "runtime_error": { "type": "null" }
                 }
               },
               {
                 "properties": {
-                  "lifecycle": { "enum": ["starting", "market_data_running", "stopping", "failed"] },
+                  "lifecycle": { "const": "starting" },
                   "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
                   "stopped_at_unix_ms": { "type": "null" },
                   "account_connected": { "const": true },
-                  "account_can_trade_verified": { "const": true }
+                  "account_can_trade_verified": { "const": true },
+                  "runtime_started": { "const": false },
+                  "market_data_connected": { "const": false },
+                  "runtime_error": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "lifecycle": { "const": "market_data_running" },
+                  "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "stopped_at_unix_ms": { "type": "null" },
+                  "account_connected": { "const": true },
+                  "account_can_trade_verified": { "const": true },
+                  "runtime_started": { "const": true },
+                  "market_data_connected": { "const": true },
+                  "runtime_node_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+                  "runtime_process_state": { "const": "running" },
+                  "runtime_error": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "lifecycle": { "const": "stopping" },
+                  "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "stopped_at_unix_ms": { "type": "null" },
+                  "account_connected": { "const": true },
+                  "account_can_trade_verified": { "const": true },
+                  "runtime_node_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+                  "runtime_error": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "lifecycle": { "const": "failed" },
+                  "preflight_at_unix_ms": { "type": "integer", "minimum": 1 },
+                  "stopped_at_unix_ms": { "type": "null" },
+                  "account_connected": { "const": true },
+                  "account_can_trade_verified": { "const": true },
+                  "runtime_started": { "const": false },
+                  "market_data_connected": { "const": false }
                 }
               }
             ]

@@ -120,6 +120,7 @@ struct LiveRunCandidateManifest {
     schema_version: String,
     request_sha256: String,
     strategy_version_content_hash: String,
+    data_symbols: Vec<String>,
     run_id: String,
     strategy_id: String,
     strategy_version_id: String,
@@ -128,6 +129,12 @@ struct LiveRunCandidateManifest {
     venue_ref: String,
     created_at_unix_ms: u64,
     source_refs: Vec<String>,
+}
+
+#[derive(Clone, Copy)]
+struct LiveRunStrategyVersionBinding<'a> {
+    content_hash: &'a str,
+    data_symbols: &'a [String],
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -425,14 +432,17 @@ pub(in crate::dashboard) async fn live_run_candidate_create_api(
             &request.strategy_version_id,
             now,
         )?;
-        create_live_run_candidate(
+        create_live_run_candidate_with_symbols(
             &worker_state,
             request,
             &worker_request_id,
             now,
             admission,
             LiveRunGateState::from_environment(),
-            version.content_hash(),
+            LiveRunStrategyVersionBinding {
+                content_hash: version.content_hash(),
+                data_symbols: version.data_symbols(),
+            },
         )
     })
     .await
@@ -462,6 +472,14 @@ pub(in crate::dashboard) async fn live_run_candidate_list_api(
 ) -> ApiResult<LiveRunCandidateListResponse> {
     let request_id = product_request_id();
     let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
+        let _guard = state.lifecycle_action_lock.lock().map_err(|_| {
+            product_error(ProductErrorKind::LiveConflict, "live_candidate_action_lock")
+        })?;
+        let _workspace_lock = acquire_live_run_mutation_lock(&state)?;
+        let active = load_active_live_run_candidates(&state)?;
+        for (candidate, _, _) in &active {
+            reconcile_exited_live_market_data_runtime(&state, &candidate.run_id)?;
+        }
         let active = load_active_live_run_candidates(&state)?;
         for (_, manifest, _) in &active {
             validate_live_candidate_against_current_source(&state, manifest)?;
@@ -497,8 +515,13 @@ pub(in crate::dashboard) async fn live_run_candidate_detail_api(
         )
     })?;
     let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
+        let _guard = state.lifecycle_action_lock.lock().map_err(|_| {
+            product_error(ProductErrorKind::LiveConflict, "live_candidate_action_lock")
+        })?;
+        let _workspace_lock = acquire_live_run_mutation_lock(&state)?;
         validate_identifier("run_id", &run_id)
             .map_err(|_| product_error(ProductErrorKind::BadRequest, "run_id"))?;
+        reconcile_exited_live_market_data_runtime(&state, &run_id)?;
         let (candidate, manifest, _) = load_live_run_candidate_snapshot(&state, &run_id)?;
         validate_live_candidate_against_current_source(&state, &manifest)?;
         Ok(candidate)
@@ -568,20 +591,21 @@ fn response(
     }
 }
 
-fn create_live_run_candidate(
+fn create_live_run_candidate_with_symbols(
     state: &DashboardServerState,
     request: CreateLiveRunCandidateRequest,
     request_id: &str,
     now: u64,
     admission: LiveRunCreationAdmission,
     gates: LiveRunGateState,
-    strategy_version_content_hash: &str,
+    strategy_version: LiveRunStrategyVersionBinding<'_>,
 ) -> Result<LiveRunCandidate, ProductError> {
     validate_create_request(&request, &admission, &gates)?;
     validate_sha256_hash(
         "strategy_version_content_hash",
-        strategy_version_content_hash,
+        strategy_version.content_hash,
     )?;
+    validate_live_market_data_symbols(strategy_version.data_symbols)?;
     let _workspace_lock = acquire_live_run_mutation_lock(state)?;
     if !load_active_live_run_candidates(state)?.is_empty() {
         return Err(product_error(
@@ -599,7 +623,8 @@ fn create_live_run_candidate(
     let manifest = LiveRunCandidateManifest {
         schema_version: LIVE_RUN_CANDIDATE_MANIFEST_SCHEMA_VERSION.to_string(),
         request_sha256: sha256_ref(&request_raw),
-        strategy_version_content_hash: strategy_version_content_hash.to_string(),
+        strategy_version_content_hash: strategy_version.content_hash.to_string(),
+        data_symbols: strategy_version.data_symbols.to_vec(),
         run_id: run_id.clone(),
         strategy_id: request.strategy_id,
         strategy_version_id: request.strategy_version_id,
@@ -630,6 +655,30 @@ fn create_live_run_candidate(
         return Err(error);
     }
     load_live_run_candidate(state, &run_id)
+}
+
+#[cfg(test)]
+fn create_live_run_candidate(
+    state: &DashboardServerState,
+    request: CreateLiveRunCandidateRequest,
+    request_id: &str,
+    now: u64,
+    admission: LiveRunCreationAdmission,
+    gates: LiveRunGateState,
+    strategy_version_content_hash: &str,
+) -> Result<LiveRunCandidate, ProductError> {
+    create_live_run_candidate_with_symbols(
+        state,
+        request,
+        request_id,
+        now,
+        admission,
+        gates,
+        LiveRunStrategyVersionBinding {
+            content_hash: strategy_version_content_hash,
+            data_symbols: &["BTCUSDT.BINANCE".to_string()],
+        },
+    )
 }
 
 fn cleanup_unpublished_live_run_candidate(state: &DashboardServerState, run_id: &str) {
@@ -699,6 +748,7 @@ where
             "live_action_identity",
         ));
     }
+    reconcile_exited_live_market_data_runtime(state, path_run_id)?;
     let (current, manifest, manifest_raw) = load_live_run_candidate_snapshot(state, path_run_id)?;
     let manifest_sha256 = sha256_ref(&manifest_raw);
     let (current_state, current_state_raw) =
@@ -739,7 +789,7 @@ where
             if current.lifecycle == LiveRunCandidateLifecycle::PreflightReady =>
         {
             let starting_at = unix_time_ms();
-            write_live_market_data_node_config(&directory, path_run_id)?;
+            write_live_market_data_node_config(state, &directory, &manifest)?;
             let starting_result = write_live_run_state(
                 state,
                 path_run_id,
@@ -1025,26 +1075,32 @@ fn transition_live_market_data_runtime_failed(
     let (current, current_raw) = load_live_run_state(state, run_id, manifest_sha256)?;
     if !matches!(
         current.lifecycle,
-        LiveRunCandidateLifecycle::Starting | LiveRunCandidateLifecycle::MarketDataRunning
+        LiveRunCandidateLifecycle::Starting
+            | LiveRunCandidateLifecycle::MarketDataRunning
+            | LiveRunCandidateLifecycle::Failed
     ) {
         return Err(product_error(
             ProductErrorKind::LiveExecutionFailed,
             "live_runtime_cleanup",
         ));
     }
-    let failed_at = unix_time_ms();
-    let failed = LiveRunCandidateState {
-        schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
-        run_id: run_id.to_string(),
-        source_manifest_sha256: manifest_sha256.to_string(),
-        revision: current.revision + 1,
-        previous_state_sha256: Some(sha256_ref(&current_raw)),
-        lifecycle: LiveRunCandidateLifecycle::Failed,
-        preflight_sha256: current.preflight_sha256,
-        stop_sha256: None,
-        updated_at_unix_ms: failed_at,
+    let failed = if current.lifecycle == LiveRunCandidateLifecycle::Failed {
+        current
+    } else {
+        let failed = LiveRunCandidateState {
+            schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+            run_id: run_id.to_string(),
+            source_manifest_sha256: manifest_sha256.to_string(),
+            revision: current.revision + 1,
+            previous_state_sha256: Some(sha256_ref(&current_raw)),
+            lifecycle: LiveRunCandidateLifecycle::Failed,
+            preflight_sha256: current.preflight_sha256,
+            stop_sha256: None,
+            updated_at_unix_ms: unix_time_ms(),
+        };
+        write_live_run_state(state, run_id, &failed)?;
+        failed
     };
-    write_live_run_state(state, run_id, &failed)?;
     if let Some(store) = supervisor {
         let (_, failed_raw) = load_live_run_state(state, run_id, manifest_sha256)?;
         store
@@ -1055,7 +1111,7 @@ fn transition_live_market_data_runtime_failed(
                 SupervisorRunTerminalAnchor {
                     lifecycle: "failed".to_string(),
                     terminal_state_sha256: sha256_ref(&failed_raw),
-                    completed_at_unix_ms: failed_at,
+                    completed_at_unix_ms: failed.updated_at_unix_ms,
                 },
             )
             .map_err(|_| {
@@ -1066,6 +1122,40 @@ fn transition_live_market_data_runtime_failed(
             })?;
     }
     release_active_live_run_candidate(state, run_id)
+}
+
+fn reconcile_exited_live_market_data_runtime(
+    state: &DashboardServerState,
+    run_id: &str,
+) -> Result<(), ProductError> {
+    let (candidate, _, manifest_raw) = load_live_run_candidate_snapshot(state, run_id)?;
+    if !matches!(
+        candidate.lifecycle,
+        LiveRunCandidateLifecycle::MarketDataRunning | LiveRunCandidateLifecycle::Failed
+    ) {
+        return Ok(());
+    }
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    let record = store.refresh_process_state(run_id).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_reconcile",
+        )
+    })?;
+    if candidate.lifecycle == LiveRunCandidateLifecycle::Failed
+        || matches!(
+            record.process.state,
+            SupervisorProcessState::Stopped | SupervisorProcessState::Stale
+        )
+    {
+        transition_live_market_data_runtime_failed(
+            state,
+            run_id,
+            &sha256_ref(&manifest_raw),
+            Some(&store),
+        )?;
+    }
+    Ok(())
 }
 
 fn evaluate_current_live_candidate_preflight(
@@ -1109,6 +1199,7 @@ fn validate_live_candidate_source(
         || version.strategy_id() != manifest.strategy_id
         || version.strategy_version_id() != manifest.strategy_version_id
         || version.content_hash() != manifest.strategy_version_content_hash
+        || version.data_symbols() != manifest.data_symbols
     {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -1166,9 +1257,18 @@ fn write_preflight_artifact(
 }
 
 fn write_live_market_data_node_config(
+    _state: &DashboardServerState,
     directory: &cap_std::fs::Dir,
-    run_id: &str,
+    manifest: &LiveRunCandidateManifest,
 ) -> Result<(), ProductError> {
+    validate_live_market_data_symbols(&manifest.data_symbols)?;
+    let symbols = manifest
+        .data_symbols
+        .iter()
+        .map(|value| format!("\"{value}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let run_id = &manifest.run_id;
     let raw = format!(
         "[live_market_data]\n\
          schema_version = \"ntpro.live_market_data_node.v1\"\n\
@@ -1178,6 +1278,7 @@ fn write_live_market_data_node_config(
          trader_id = \"TRADER-001\"\n\
          venue = \"BINANCE\"\n\
          product_type = \"spot\"\n\
+         symbols = [{symbols}]\n\
          api_key_env = \"NTPRO_BINANCE_LIVE_API_KEY\"\n\
          api_secret_env = \"NTPRO_BINANCE_LIVE_API_SECRET\"\n\
          execution_client_enabled = false\n\
@@ -1191,6 +1292,23 @@ fn write_live_market_data_node_config(
          disconnection_timeout_secs = 10\n"
     );
     write_new_run_file(directory, LIVE_MARKET_DATA_NODE_CONFIG_FILE, raw.as_bytes())
+}
+
+fn validate_live_market_data_symbols(symbols: &[String]) -> Result<(), ProductError> {
+    let unique = symbols.iter().collect::<BTreeSet<_>>();
+    if symbols.is_empty()
+        || symbols.len() > 32
+        || unique.len() != symbols.len()
+        || symbols
+            .iter()
+            .any(|value| !value.ends_with(".BINANCE") || value.contains(['"', '\n', '\r']))
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_market_data_symbols",
+        ));
+    }
+    Ok(())
 }
 
 fn live_market_data_runtime_root(
@@ -1278,6 +1396,7 @@ fn load_live_run_manifest(
         "strategy_version_content_hash",
         &manifest.strategy_version_content_hash,
     )?;
+    validate_live_market_data_symbols(&manifest.data_symbols)?;
     if manifest.schema_version != LIVE_RUN_CANDIDATE_MANIFEST_SCHEMA_VERSION
         || manifest.run_id != run_id
         || manifest.environment != "live"
@@ -3145,6 +3264,63 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                 .map(|value| value.lifecycle.as_str()),
             Some("stopped")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn live_market_data_runtime_external_exit_is_failed_anchored_and_released() {
+        let mut fixture = LiveRunFixture::new("market-data-runtime-external-exit");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000004");
+        let run_id = ready.run_id;
+        fixture.install_live_market_data_node(&run_id);
+        let running = run_live_candidate_action(
+            &fixture.state,
+            &run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: run_id.clone(),
+                action: LiveRunCandidateAction::StartMarketData,
+                user_confirmed: true,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            running.lifecycle,
+            LiveRunCandidateLifecycle::MarketDataRunning
+        );
+
+        let store = SupervisorRegistryStore::new(&fixture.state.registry_path);
+        let manifest_sha256 = store.load().unwrap().nodes[&run_id].run_ownership[&run_id]
+            .manifest_sha256
+            .clone();
+        store
+            .stop_node_process_for_run(
+                &StopNodeRequest {
+                    node_id: run_id.clone(),
+                    stop_timeout: Duration::from_secs(5),
+                },
+                &run_id,
+                &manifest_sha256,
+            )
+            .unwrap();
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+
+        let failed = load_live_run_candidate(&fixture.state, &run_id).unwrap();
+        assert_eq!(failed.lifecycle, LiveRunCandidateLifecycle::Failed);
+        assert!(!failed.runtime_started);
+        assert!(!failed.market_data_connected);
+        assert!(
+            load_active_live_run_candidates(&fixture.state)
+                .unwrap()
+                .is_empty()
+        );
+        let registry = store.load().unwrap();
+        let terminal = registry.nodes[&run_id].run_ownership[&run_id]
+            .terminal
+            .as_ref()
+            .unwrap();
+        assert_eq!(terminal.lifecycle, "failed");
     }
 
     #[test]

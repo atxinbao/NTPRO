@@ -19,6 +19,7 @@ use std::{
     fs::{self, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
+    str::FromStr,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -33,7 +34,11 @@ use nautilus_binance::{
     config::BinanceDataClientConfig,
     factories::BinanceDataClientFactory,
 };
-use nautilus_common::enums::Environment;
+use nautilus_common::{
+    actor::{DataActor, DataActorCore, data_actor::DataActorConfig},
+    enums::Environment,
+    nautilus_actor,
+};
 use nautilus_core::string::urlencoding;
 use nautilus_live::{
     node::{LiveNode, NodeState},
@@ -42,7 +47,8 @@ use nautilus_live::{
     },
 };
 use nautilus_model::{
-    identifiers::{AccountId, TraderId, Venue},
+    data::{QuoteTick, TradeTick},
+    identifiers::{AccountId, ClientId, InstrumentId, TraderId, Venue},
     types::Money,
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
@@ -382,12 +388,92 @@ struct ProductionMarketDataSection {
     trader_id: String,
     venue: String,
     product_type: String,
+    symbols: Vec<String>,
     api_key_env: String,
     api_secret_env: String,
     execution_client_enabled: bool,
     order_endpoint_access_allowed: bool,
     order_submission_allowed: bool,
     automatic_reconnect_allowed: bool,
+}
+
+#[derive(Debug)]
+struct ProductionMarketDataActor {
+    core: DataActorCore,
+    client_id: ClientId,
+    instrument_ids: Vec<InstrumentId>,
+    quote_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    trade_count: std::sync::Arc<std::sync::atomic::AtomicU64>,
+    last_event_unix_ms: std::sync::Arc<std::sync::atomic::AtomicU64>,
+}
+
+nautilus_actor!(ProductionMarketDataActor);
+
+impl ProductionMarketDataActor {
+    fn new(client_id: ClientId, instrument_ids: Vec<InstrumentId>) -> Self {
+        Self {
+            core: DataActorCore::new(DataActorConfig::default()),
+            client_id,
+            instrument_ids,
+            quote_count: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            trade_count: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            last_event_unix_ms: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
+        }
+    }
+
+    fn counters(
+        &self,
+    ) -> (
+        std::sync::Arc<std::sync::atomic::AtomicU64>,
+        std::sync::Arc<std::sync::atomic::AtomicU64>,
+        std::sync::Arc<std::sync::atomic::AtomicU64>,
+    ) {
+        (
+            self.quote_count.clone(),
+            self.trade_count.clone(),
+            self.last_event_unix_ms.clone(),
+        )
+    }
+
+    fn record_quote_event(&self) {
+        self.quote_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.record_market_event_time();
+    }
+
+    fn record_trade_event(&self) {
+        self.trade_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.record_market_event_time();
+    }
+
+    fn record_market_event_time(&self) {
+        let observed_at = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |duration| millis_to_u64(duration.as_millis()));
+        self.last_event_unix_ms
+            .store(observed_at, std::sync::atomic::Ordering::Release);
+    }
+}
+
+impl DataActor for ProductionMarketDataActor {
+    fn on_start(&mut self) -> anyhow::Result<()> {
+        for instrument_id in self.instrument_ids.clone() {
+            self.subscribe_quotes(instrument_id, Some(self.client_id), None);
+            self.subscribe_trades(instrument_id, Some(self.client_id), None);
+        }
+        Ok(())
+    }
+
+    fn on_quote(&mut self, _quote: &QuoteTick) -> anyhow::Result<()> {
+        self.record_quote_event();
+        Ok(())
+    }
+
+    fn on_trade(&mut self, _trade: &TradeTick) -> anyhow::Result<()> {
+        self.record_trade_event();
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -19606,6 +19692,17 @@ fn validate_production_market_data_node_config(
         &market.product_type,
         BINANCE_SPOT_PRODUCT_TYPE,
     )?;
+    if market.symbols.is_empty() || market.symbols.len() > 32 {
+        anyhow::bail!("production market data symbols must contain between 1 and 32 entries");
+    }
+    let mut symbols = BTreeSet::new();
+    for symbol in &market.symbols {
+        let instrument_id = InstrumentId::from_str(symbol)
+            .with_context(|| format!("invalid production market data symbol '{symbol}'"))?;
+        if instrument_id.venue != Venue::from("BINANCE") || !symbols.insert(symbol) {
+            anyhow::bail!("production market data symbols must be unique Binance instruments");
+        }
+    }
     validate_exact(
         "live_market_data.api_key_env",
         &market.api_key_env,

@@ -88,6 +88,7 @@ pub struct BinanceSpotWebSocketClient {
     request_id_counter: Arc<AtomicU64>,
     instruments_cache: Arc<AtomicMap<Ustr, InstrumentAny>>,
     transport_backend: TransportBackend,
+    reconnect_max_attempts: Option<u32>,
 }
 
 impl Debug for BinanceSpotWebSocketClient {
@@ -119,6 +120,22 @@ impl BinanceSpotWebSocketClient {
         heartbeat: Option<u64>,
         transport_backend: TransportBackend,
     ) -> anyhow::Result<Self> {
+        Self::new_with_reconnect_limit(url, api_key, api_secret, heartbeat, transport_backend, None)
+    }
+
+    /// Creates a client with an explicit reconnection-attempt limit.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if credential creation fails.
+    pub fn new_with_reconnect_limit(
+        url: Option<String>,
+        api_key: Option<String>,
+        api_secret: Option<String>,
+        heartbeat: Option<u64>,
+        transport_backend: TransportBackend,
+        reconnect_max_attempts: Option<u32>,
+    ) -> anyhow::Result<Self> {
         let url = url.unwrap_or(BINANCE_SPOT_SBE_WS_URL.to_string());
 
         let credential = match (api_key, api_secret) {
@@ -137,6 +154,7 @@ impl BinanceSpotWebSocketClient {
             request_id_counter: Arc::new(AtomicU64::new(1)),
             instruments_cache: Arc::new(AtomicMap::new()),
             transport_backend,
+            reconnect_max_attempts,
         })
     }
 
@@ -437,7 +455,7 @@ impl BinanceSpotWebSocketClient {
             reconnect_delay_max_ms: Some(5_000),
             reconnect_backoff_factor: Some(2.0),
             reconnect_jitter_ms: Some(250),
-            reconnect_max_attempts: None,
+            reconnect_max_attempts: self.reconnect_max_attempts,
             idle_timeout_ms: None,
             backend: self.transport_backend,
             proxy_url: None,

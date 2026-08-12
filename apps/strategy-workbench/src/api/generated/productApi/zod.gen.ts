@@ -933,6 +933,11 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.null().optional(),
       account_connected: z.literal(false).optional(),
       account_can_trade_verified: z.literal(false).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_node_id: z.null().optional(),
+      runtime_process_state: z.literal("not_started").optional(),
+      runtime_error: z.null().optional(),
     }),
     z.object({
       lifecycle: z.literal("preflight_ready").optional(),
@@ -940,6 +945,11 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.null().optional(),
       account_connected: z.literal(true).optional(),
       account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_node_id: z.null().optional(),
+      runtime_process_state: z.literal("not_started").optional(),
+      runtime_error: z.null().optional(),
     }),
     z.object({
       lifecycle: z.literal("stopped").optional(),
@@ -947,6 +957,9 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.int().gte(1).optional(),
       account_connected: z.literal(false).optional(),
       account_can_trade_verified: z.literal(false).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_error: z.null().optional(),
     }),
     z.object({
       lifecycle: z.literal("stopped").optional(),
@@ -954,15 +967,55 @@ export const zLiveRunCandidate = z.intersection(
       stopped_at_unix_ms: z.int().gte(1).optional(),
       account_connected: z.literal(true).optional(),
       account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_error: z.null().optional(),
     }),
     z.object({
-      lifecycle: z
-        .enum(["starting", "market_data_running", "stopping", "failed"])
-        .optional(),
+      lifecycle: z.literal("starting").optional(),
       preflight_at_unix_ms: z.int().gte(1).optional(),
       stopped_at_unix_ms: z.null().optional(),
       account_connected: z.literal(true).optional(),
       account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
+      runtime_error: z.null().optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("market_data_running").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(true).optional(),
+      market_data_connected: z.literal(true).optional(),
+      runtime_node_id: z
+        .string()
+        .regex(/^[A-Za-z0-9._-]{1,128}$/)
+        .optional(),
+      runtime_process_state: z.literal("running").optional(),
+      runtime_error: z.null().optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("stopping").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+      runtime_node_id: z
+        .string()
+        .regex(/^[A-Za-z0-9._-]{1,128}$/)
+        .optional(),
+      runtime_error: z.null().optional(),
+    }),
+    z.object({
+      lifecycle: z.literal("failed").optional(),
+      preflight_at_unix_ms: z.int().gte(1).optional(),
+      stopped_at_unix_ms: z.null().optional(),
+      account_connected: z.literal(true).optional(),
+      account_can_trade_verified: z.literal(true).optional(),
+      runtime_started: z.literal(false).optional(),
+      market_data_connected: z.literal(false).optional(),
     }),
   ]),
   z.object({
