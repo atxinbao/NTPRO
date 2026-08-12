@@ -610,6 +610,9 @@ fn create_live_run_candidate_with_symbols(
     )?;
     validate_live_market_data_symbols(strategy_version.data_symbols)?;
     let _workspace_lock = acquire_live_run_mutation_lock(state)?;
+    if let Some(pointer) = load_active_live_run_pointer(state)? {
+        reconcile_exited_live_market_data_runtime(state, &pointer.run_id)?;
+    }
     if !load_active_live_run_candidates(state)?.is_empty() {
         return Err(product_error(
             ProductErrorKind::LiveConflict,
@@ -1131,41 +1134,301 @@ fn reconcile_exited_live_market_data_runtime(
     state: &DashboardServerState,
     run_id: &str,
 ) -> Result<(), ProductError> {
-    let (candidate, _, manifest_raw) = load_live_run_candidate_snapshot(state, run_id)?;
-    if !matches!(
-        candidate.lifecycle,
-        LiveRunCandidateLifecycle::MarketDataRunning | LiveRunCandidateLifecycle::Failed
+    let (_, manifest_raw) = load_live_run_manifest(state, run_id)?;
+    let manifest_sha256 = sha256_ref(&manifest_raw);
+    let (candidate_state, _) = load_live_run_state(state, run_id, &manifest_sha256)?;
+    if matches!(
+        candidate_state.lifecycle,
+        LiveRunCandidateLifecycle::Created | LiveRunCandidateLifecycle::PreflightReady
     ) {
         return Ok(());
     }
-    let manifest_sha256 = sha256_ref(&manifest_raw);
-    if candidate.lifecycle == LiveRunCandidateLifecycle::Failed {
-        let Some(pointer) = load_active_live_run_pointer(state)? else {
-            return Ok(());
-        };
-        if pointer.run_id != run_id || pointer.source_manifest_sha256 != manifest_sha256 {
-            return Err(product_error(
+    ensure_active_live_run_pointer_matches(
+        state,
+        run_id,
+        &manifest_sha256,
+        candidate_state.lifecycle,
+    )?;
+    let store = SupervisorRegistryStore::new(&state.registry_path);
+    match candidate_state.lifecycle {
+        LiveRunCandidateLifecycle::Starting => {
+            reconcile_starting_live_market_data_runtime(state, run_id, &manifest_sha256, &store)?;
+        }
+        LiveRunCandidateLifecycle::MarketDataRunning => {
+            let record = store.refresh_process_state(run_id).map_err(|_| {
+                product_error(
+                    ProductErrorKind::LiveExecutionFailed,
+                    "live_runtime_reconcile",
+                )
+            })?;
+            if matches!(
+                record.process.state,
+                SupervisorProcessState::Stopped | SupervisorProcessState::Stale
+            ) {
+                transition_live_market_data_runtime_failed(
+                    state,
+                    run_id,
+                    &manifest_sha256,
+                    Some(&store),
+                )?;
+            } else if record.process.state == SupervisorProcessState::Unknown {
+                return Err(product_error(
+                    ProductErrorKind::LiveExecutionFailed,
+                    "live_runtime_reconcile",
+                ));
+            }
+        }
+        LiveRunCandidateLifecycle::Stopping | LiveRunCandidateLifecycle::Stopped => {
+            complete_live_market_data_runtime_stop(state, run_id, &manifest_sha256, &store)?;
+        }
+        LiveRunCandidateLifecycle::Failed => {
+            if load_active_live_run_pointer(state)?.is_some() {
+                transition_live_market_data_runtime_failed(
+                    state,
+                    run_id,
+                    &manifest_sha256,
+                    Some(&store),
+                )?;
+            }
+        }
+        LiveRunCandidateLifecycle::Created | LiveRunCandidateLifecycle::PreflightReady => {}
+    }
+    Ok(())
+}
+
+fn ensure_active_live_run_pointer_matches(
+    state: &DashboardServerState,
+    run_id: &str,
+    manifest_sha256: &str,
+    lifecycle: LiveRunCandidateLifecycle,
+) -> Result<(), ProductError> {
+    match load_active_live_run_pointer(state)? {
+        Some(pointer)
+            if pointer.run_id != run_id || pointer.source_manifest_sha256 != manifest_sha256 =>
+        {
+            Err(product_error(
                 ProductErrorKind::BoundaryViolation,
                 "active_live_run_candidate",
-            ));
+            ))
         }
+        None if matches!(
+            lifecycle,
+            LiveRunCandidateLifecycle::Starting
+                | LiveRunCandidateLifecycle::MarketDataRunning
+                | LiveRunCandidateLifecycle::Stopping
+        ) =>
+        {
+            Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "active_live_run_candidate",
+            ))
+        }
+        _ => Ok(()),
     }
-    let store = SupervisorRegistryStore::new(&state.registry_path);
-    let record = store.refresh_process_state(run_id).map_err(|_| {
+}
+
+fn reconcile_starting_live_market_data_runtime(
+    state: &DashboardServerState,
+    run_id: &str,
+    manifest_sha256: &str,
+    store: &SupervisorRegistryStore,
+) -> Result<(), ProductError> {
+    let registry = store.load().map_err(|_| {
         product_error(
             ProductErrorKind::LiveExecutionFailed,
             "live_runtime_reconcile",
         )
     })?;
-    if candidate.lifecycle == LiveRunCandidateLifecycle::Failed
-        || matches!(
-            record.process.state,
-            SupervisorProcessState::Stopped | SupervisorProcessState::Stale
-        )
-    {
-        transition_live_market_data_runtime_failed(state, run_id, &manifest_sha256, Some(&store))?;
+    let Some(record) = registry.nodes.get(run_id) else {
+        return transition_live_market_data_runtime_failed(state, run_id, manifest_sha256, None);
+    };
+    let Some(ownership) = record.run_ownership.get(run_id) else {
+        if record.process.state == SupervisorProcessState::Running
+            || !record.run_ownership.is_empty()
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_runtime_ownership",
+            ));
+        }
+        store.remove_node(run_id).map_err(|_| {
+            product_error(
+                ProductErrorKind::LiveExecutionFailed,
+                "live_runtime_cleanup",
+            )
+        })?;
+        return transition_live_market_data_runtime_failed(state, run_id, manifest_sha256, None);
+    };
+    if ownership.manifest_sha256 != manifest_sha256 || ownership.terminal.is_some() {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_runtime_ownership",
+        ));
     }
-    Ok(())
+    let refreshed = store.refresh_process_state(run_id).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_reconcile",
+        )
+    })?;
+    if refreshed.process.state == SupervisorProcessState::Running {
+        stop_owned_live_market_data_process(store, run_id, manifest_sha256)?;
+    } else if refreshed.process.state == SupervisorProcessState::Unknown {
+        return Err(product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_reconcile",
+        ));
+    }
+    transition_live_market_data_runtime_failed(state, run_id, manifest_sha256, Some(store))
+}
+
+fn stop_owned_live_market_data_process(
+    store: &SupervisorRegistryStore,
+    run_id: &str,
+    manifest_sha256: &str,
+) -> Result<(), ProductError> {
+    store
+        .stop_node_process_for_run(
+            &StopNodeRequest {
+                node_id: run_id.to_string(),
+                stop_timeout: Duration::from_millis(super::super::DASHBOARD_ACTION_TIMEOUT_MS),
+            },
+            run_id,
+            manifest_sha256,
+        )
+        .map(|_| ())
+        .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_runtime_stop"))
+}
+
+fn complete_live_market_data_runtime_stop(
+    state: &DashboardServerState,
+    run_id: &str,
+    manifest_sha256: &str,
+    store: &SupervisorRegistryStore,
+) -> Result<(), ProductError> {
+    let (current, current_raw) = load_live_run_state(state, run_id, manifest_sha256)?;
+    if current.lifecycle == LiveRunCandidateLifecycle::Stopped && current.revision != 5 {
+        return release_active_live_run_candidate_if_present(state, run_id);
+    }
+    let registry = store.load().map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_reconcile",
+        )
+    })?;
+    let record = registry.nodes.get(run_id).ok_or_else(|| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_ownership",
+        )
+    })?;
+    let ownership = record.run_ownership.get(run_id).ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_runtime_ownership",
+        )
+    })?;
+    if ownership.manifest_sha256 != manifest_sha256 {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_runtime_ownership",
+        ));
+    }
+    let refreshed = store.refresh_process_state(run_id).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_reconcile",
+        )
+    })?;
+    if refreshed.process.state == SupervisorProcessState::Running {
+        stop_owned_live_market_data_process(store, run_id, manifest_sha256)?;
+    } else if refreshed.process.state == SupervisorProcessState::Unknown {
+        return Err(product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_runtime_reconcile",
+        ));
+    }
+    if current.lifecycle == LiveRunCandidateLifecycle::Stopping {
+        complete_stopping_live_run_state(state, run_id, manifest_sha256, &current, &current_raw)?;
+    }
+    let (stopped, stopped_raw) = load_live_run_state(state, run_id, manifest_sha256)?;
+    store
+        .anchor_run_terminal(
+            run_id,
+            run_id,
+            manifest_sha256,
+            SupervisorRunTerminalAnchor {
+                lifecycle: "stopped".to_string(),
+                terminal_state_sha256: sha256_ref(&stopped_raw),
+                completed_at_unix_ms: stopped.updated_at_unix_ms,
+            },
+        )
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::LiveExecutionFailed,
+                "live_runtime_terminal",
+            )
+        })?;
+    release_active_live_run_candidate_if_present(state, run_id)
+}
+
+fn complete_stopping_live_run_state(
+    state: &DashboardServerState,
+    run_id: &str,
+    manifest_sha256: &str,
+    current: &LiveRunCandidateState,
+    current_raw: &[u8],
+) -> Result<(), ProductError> {
+    let root = canonical_live_run_root(state, false)?.join(run_id);
+    let directory = open_absolute_directory_nofollow(&root)?;
+    let (stop, stop_raw) = if let Some(existing) = read_optional_artifact_with_raw::<
+        LiveRunStopArtifact,
+    >(&root.join("stop.json"), "live_stop")?
+    {
+        existing
+    } else {
+        let stop = LiveRunStopArtifact {
+            schema_version: LIVE_RUN_STOP_SCHEMA_VERSION.to_string(),
+            run_id: run_id.to_string(),
+            source_manifest_sha256: manifest_sha256.to_string(),
+            source_preflight_sha256: current.preflight_sha256.clone(),
+            stopped_at_unix_ms: unix_time_ms(),
+            manual_stop: true,
+            order_endpoint_access_attempted: false,
+            execution_adapter_send_attempted: false,
+            real_orders_submitted: false,
+        };
+        let raw = serde_json::to_vec_pretty(&stop)
+            .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_stop"))?;
+        write_new_run_file(&directory, "stop.json", &raw)?;
+        (stop, raw)
+    };
+    let (manifest, _) = load_live_run_manifest(state, run_id)?;
+    let preflight = read_optional_artifact_with_raw::<LiveRunPreflightArtifact>(
+        &root.join("preflight.json"),
+        "live_preflight",
+    )?;
+    validate_action_artifacts(
+        &manifest,
+        manifest_sha256,
+        preflight.as_ref().map(|(value, _)| value),
+        Some(&stop),
+    )?;
+    write_live_run_state(
+        state,
+        run_id,
+        &LiveRunCandidateState {
+            schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+            run_id: run_id.to_string(),
+            source_manifest_sha256: manifest_sha256.to_string(),
+            revision: current.revision + 1,
+            previous_state_sha256: Some(sha256_ref(current_raw)),
+            lifecycle: LiveRunCandidateLifecycle::Stopped,
+            preflight_sha256: current.preflight_sha256.clone(),
+            stop_sha256: Some(sha256_ref(&stop_raw)),
+            updated_at_unix_ms: stop.stopped_at_unix_ms,
+        },
+    )
 }
 
 fn evaluate_current_live_candidate_preflight(
@@ -2622,32 +2885,10 @@ fn claim_active_live_run_candidate(
     })?;
     match write_new_run_file(&root, LIVE_RUN_ACTIVE_FILE, &raw) {
         Ok(()) => Ok(()),
-        Err(error) if error.kind == ProductErrorKind::Conflict => {
-            let existing = load_active_live_run_pointer(state)?.ok_or_else(|| {
-                product_error(ProductErrorKind::SourceInvalid, "active_live_run_candidate")
-            })?;
-            let snapshot = load_live_run_candidate_snapshot(state, &existing.run_id)?;
-            if matches!(
-                snapshot.0.lifecycle,
-                LiveRunCandidateLifecycle::Stopped | LiveRunCandidateLifecycle::Failed
-            ) && sha256_ref(&snapshot.2) == existing.source_manifest_sha256
-            {
-                root.remove_file(LIVE_RUN_ACTIVE_FILE).map_err(|_| {
-                    product_error(
-                        ProductErrorKind::SourceUnavailable,
-                        "active_live_run_candidate",
-                    )
-                })?;
-                write_new_run_file(&root, LIVE_RUN_ACTIVE_FILE, &raw).map_err(|_| {
-                    product_error(ProductErrorKind::LiveConflict, "active_live_run_candidate")
-                })
-            } else {
-                Err(product_error(
-                    ProductErrorKind::LiveConflict,
-                    "active_live_run_candidate",
-                ))
-            }
-        }
+        Err(error) if error.kind == ProductErrorKind::Conflict => Err(product_error(
+            ProductErrorKind::LiveConflict,
+            "active_live_run_candidate",
+        )),
         Err(error) => Err(error),
     }
 }
@@ -3216,6 +3457,189 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         .unwrap()
     }
 
+    fn persist_starting_live_market_data_runtime(fixture: &LiveRunFixture, run_id: &str) -> String {
+        let (manifest, manifest_raw) = load_live_run_manifest(&fixture.state, run_id).unwrap();
+        let manifest_sha256 = sha256_ref(&manifest_raw);
+        let (current, current_raw) =
+            load_live_run_state(&fixture.state, run_id, &manifest_sha256).unwrap();
+        let directory = open_absolute_directory_nofollow(
+            &canonical_live_run_root(&fixture.state, false)
+                .unwrap()
+                .join(run_id),
+        )
+        .unwrap();
+        write_live_market_data_node_config(&fixture.state, &directory, &manifest).unwrap();
+        write_live_run_state(
+            &fixture.state,
+            run_id,
+            &LiveRunCandidateState {
+                schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+                run_id: run_id.to_string(),
+                source_manifest_sha256: manifest_sha256.clone(),
+                revision: current.revision + 1,
+                previous_state_sha256: Some(sha256_ref(&current_raw)),
+                lifecycle: LiveRunCandidateLifecycle::Starting,
+                preflight_sha256: current.preflight_sha256,
+                stop_sha256: None,
+                updated_at_unix_ms: unix_time_ms(),
+            },
+        )
+        .unwrap();
+        manifest_sha256
+    }
+
+    fn register_live_market_data_runtime(
+        fixture: &LiveRunFixture,
+        run_id: &str,
+    ) -> SupervisorRegistryStore {
+        let store = SupervisorRegistryStore::new(&fixture.state.registry_path);
+        store
+            .register_node(RegisterNodeRequest {
+                node_id: run_id.to_string(),
+                config_path: canonical_live_run_root(&fixture.state, false)
+                    .unwrap()
+                    .join(run_id)
+                    .join(LIVE_MARKET_DATA_NODE_CONFIG_FILE),
+                artifact_root: Some(live_market_data_runtime_root(&fixture.state, run_id).unwrap()),
+            })
+            .unwrap();
+        store
+    }
+
+    fn claim_live_market_data_runtime(
+        store: &SupervisorRegistryStore,
+        run_id: &str,
+        manifest_sha256: &str,
+    ) {
+        store
+            .claim_run_ownership(
+                run_id,
+                SupervisorRunOwnership {
+                    run_id: run_id.to_string(),
+                    manifest_sha256: manifest_sha256.to_string(),
+                    claimed_at_unix_ms: unix_time_ms(),
+                    terminal: None,
+                },
+            )
+            .unwrap();
+    }
+
+    fn persist_stopping_live_market_data_runtime(
+        fixture: &LiveRunFixture,
+        run_id: &str,
+        manifest_sha256: &str,
+    ) {
+        let (current, current_raw) =
+            load_live_run_state(&fixture.state, run_id, manifest_sha256).unwrap();
+        write_live_run_state(
+            &fixture.state,
+            run_id,
+            &LiveRunCandidateState {
+                schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+                run_id: run_id.to_string(),
+                source_manifest_sha256: manifest_sha256.to_string(),
+                revision: current.revision + 1,
+                previous_state_sha256: Some(sha256_ref(&current_raw)),
+                lifecycle: LiveRunCandidateLifecycle::Stopping,
+                preflight_sha256: current.preflight_sha256,
+                stop_sha256: None,
+                updated_at_unix_ms: unix_time_ms(),
+            },
+        )
+        .unwrap();
+    }
+
+    fn assert_failed_runtime_recovery(
+        fixture: &LiveRunFixture,
+        run_id: &str,
+        terminal_expected: bool,
+    ) {
+        let failed = load_live_run_candidate(&fixture.state, run_id).unwrap();
+        assert_eq!(failed.lifecycle, LiveRunCandidateLifecycle::Failed);
+        assert!(!failed.runtime_started);
+        assert!(
+            load_active_live_run_pointer(&fixture.state)
+                .unwrap()
+                .is_none()
+        );
+        let registry = SupervisorRegistryStore::new(&fixture.state.registry_path)
+            .load()
+            .unwrap();
+        let terminal = registry
+            .nodes
+            .get(run_id)
+            .and_then(|record| record.run_ownership.get(run_id))
+            .and_then(|ownership| ownership.terminal.as_ref());
+        assert_eq!(terminal.is_some(), terminal_expected);
+    }
+
+    #[test]
+    fn starting_runtime_interruption_before_registration_fails_and_releases_candidate() {
+        let fixture = LiveRunFixture::new("starting-before-registration");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000006");
+        let run_id = ready.run_id;
+        persist_starting_live_market_data_runtime(&fixture, &run_id);
+
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        assert_failed_runtime_recovery(&fixture, &run_id, false);
+    }
+
+    #[test]
+    fn starting_runtime_interruption_after_registration_removes_unowned_node() {
+        let fixture = LiveRunFixture::new("starting-after-registration");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000007");
+        let run_id = ready.run_id;
+        persist_starting_live_market_data_runtime(&fixture, &run_id);
+        register_live_market_data_runtime(&fixture, &run_id);
+
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        assert_failed_runtime_recovery(&fixture, &run_id, false);
+        assert!(
+            !SupervisorRegistryStore::new(&fixture.state.registry_path)
+                .load()
+                .unwrap()
+                .nodes
+                .contains_key(&run_id)
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn starting_runtime_interruption_after_process_start_stops_and_anchors_failure() {
+        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let mut fixture = LiveRunFixture::new("starting-after-process-start");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000008");
+        let run_id = ready.run_id;
+        fixture.install_live_market_data_node(&run_id);
+        let manifest_sha256 = persist_starting_live_market_data_runtime(&fixture, &run_id);
+        let store = register_live_market_data_runtime(&fixture, &run_id);
+        claim_live_market_data_runtime(&store, &run_id, &manifest_sha256);
+        store
+            .start_node_process_for_run(
+                &StartNodeRequest {
+                    node_id: run_id.clone(),
+                    ntpro_node_bin: fixture.state.ntpro_node_bin.clone(),
+                    startup_timeout: Duration::from_millis(LIVE_MARKET_DATA_STARTUP_TIMEOUT_MS),
+                    node_max_runtime: Duration::from_millis(3_600_000),
+                    node_heartbeat_interval: Duration::from_millis(1_000),
+                    node_parent_pid: Some(std::process::id()),
+                    node_shutdown_timeout: Duration::from_millis(5_000),
+                },
+                &run_id,
+                &manifest_sha256,
+            )
+            .unwrap();
+
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        assert_failed_runtime_recovery(&fixture, &run_id, true);
+    }
+
     #[cfg(unix)]
     #[test]
     fn live_market_data_runtime_starts_and_stops_without_execution_capability() {
@@ -3294,6 +3718,132 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                 .terminal
                 .as_ref()
                 .map(|value| value.lifecycle.as_str()),
+            Some("stopped")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stopping_runtime_interruption_is_stopped_anchored_and_released() {
+        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let mut fixture = LiveRunFixture::new("stopping-interruption");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000009");
+        let run_id = ready.run_id;
+        fixture.install_live_market_data_node(&run_id);
+        let running = run_live_candidate_action(
+            &fixture.state,
+            &run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: run_id.clone(),
+                action: LiveRunCandidateAction::StartMarketData,
+                user_confirmed: true,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            running.lifecycle,
+            LiveRunCandidateLifecycle::MarketDataRunning
+        );
+        let manifest_sha256 = SupervisorRegistryStore::new(&fixture.state.registry_path)
+            .load()
+            .unwrap()
+            .nodes[&run_id]
+            .run_ownership[&run_id]
+            .manifest_sha256
+            .clone();
+        persist_stopping_live_market_data_runtime(&fixture, &run_id, &manifest_sha256);
+
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        let stopped = load_live_run_candidate(&fixture.state, &run_id).unwrap();
+        assert_eq!(stopped.lifecycle, LiveRunCandidateLifecycle::Stopped);
+        assert!(!stopped.runtime_started);
+        assert!(
+            load_active_live_run_pointer(&fixture.state)
+                .unwrap()
+                .is_none()
+        );
+        let registry = SupervisorRegistryStore::new(&fixture.state.registry_path)
+            .load()
+            .unwrap();
+        assert_eq!(
+            registry.nodes[&run_id].run_ownership[&run_id]
+                .terminal
+                .as_ref()
+                .map(|terminal| terminal.lifecycle.as_str()),
+            Some("stopped")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stopped_runtime_interruption_retries_terminal_anchor_and_pointer_cleanup() {
+        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let mut fixture = LiveRunFixture::new("stopped-interruption");
+        let ready =
+            create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000010");
+        let run_id = ready.run_id;
+        fixture.install_live_market_data_node(&run_id);
+        run_live_candidate_action(
+            &fixture.state,
+            &run_id,
+            &LiveRunCandidateActionRequest {
+                run_id: run_id.clone(),
+                action: LiveRunCandidateAction::StartMarketData,
+                user_confirmed: true,
+            },
+        )
+        .unwrap();
+        let store = SupervisorRegistryStore::new(&fixture.state.registry_path);
+        let manifest_sha256 = store.load().unwrap().nodes[&run_id].run_ownership[&run_id]
+            .manifest_sha256
+            .clone();
+        persist_stopping_live_market_data_runtime(&fixture, &run_id, &manifest_sha256);
+        store
+            .stop_node_process_for_run(
+                &StopNodeRequest {
+                    node_id: run_id.clone(),
+                    stop_timeout: Duration::from_secs(5),
+                },
+                &run_id,
+                &manifest_sha256,
+            )
+            .unwrap();
+        let (stopping, stopping_raw) =
+            load_live_run_state(&fixture.state, &run_id, &manifest_sha256).unwrap();
+        complete_stopping_live_run_state(
+            &fixture.state,
+            &run_id,
+            &manifest_sha256,
+            &stopping,
+            &stopping_raw,
+        )
+        .unwrap();
+        assert!(
+            store.load().unwrap().nodes[&run_id].run_ownership[&run_id]
+                .terminal
+                .is_none()
+        );
+        assert!(
+            load_active_live_run_pointer(&fixture.state)
+                .unwrap()
+                .is_some()
+        );
+
+        let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
+        assert!(
+            load_active_live_run_pointer(&fixture.state)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            store.load().unwrap().nodes[&run_id].run_ownership[&run_id]
+                .terminal
+                .as_ref()
+                .map(|terminal| terminal.lifecycle.as_str()),
             Some("stopped")
         );
     }

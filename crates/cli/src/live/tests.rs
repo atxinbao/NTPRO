@@ -25,6 +25,10 @@ use crate::strategy_session::{
 fn live_module_ownership_boundaries_are_explicit() {
     let root = include_str!("../live.rs");
     let runtime = include_str!("node_runtime.rs");
+    let production_runtime = runtime
+        .split("async fn run_live_init_smoke")
+        .next()
+        .expect("production runtime source should precede sandbox smoke");
 
     assert!(root.contains("mod node_runtime;"));
     assert!(root.contains("#[path = \"live/tests.rs\"]"));
@@ -34,9 +38,9 @@ fn live_module_ownership_boundaries_are_explicit() {
     assert!(runtime.contains("//! Live and sandbox node runtime lifecycle."));
     assert!(runtime.contains("pub(super) async fn run_live_run_with_command("));
     assert!(runtime.contains("async fn wait_for_shutdown_signal()"));
-    assert!(runtime.contains("let run_future = node.run();"));
-    assert!(runtime.contains("node.add_actor(actor)?;"));
-    assert!(!runtime.contains("node.start().await"));
+    assert!(production_runtime.contains("let run_future = node.run();"));
+    assert!(production_runtime.contains("node.add_actor(actor)?;"));
+    assert!(!production_runtime.contains("node.start().await"));
 }
 
 #[test]
