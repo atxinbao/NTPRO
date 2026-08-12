@@ -2826,11 +2826,12 @@
       "LiveRunAuditAnchorSnapshot": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["status", "namespace", "revision", "receipt_ref", "key_id", "anchored_at_unix_ms", "workspace_snapshot_rollback_detectable", "trading_authority_granted"],
+        "required": ["status", "namespace", "revision", "workspace_revision", "receipt_ref", "key_id", "anchored_at_unix_ms", "workspace_snapshot_rollback_detectable", "trading_authority_granted"],
         "properties": {
           "status": { "const": "verified_external_monotonic_anchor" },
           "namespace": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
           "revision": { "type": "integer", "minimum": 0 },
+          "workspace_revision": { "type": "integer", "minimum": 0 },
           "receipt_ref": { "$ref": "#/components/schemas/ContentHash" },
           "key_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
           "anchored_at_unix_ms": { "type": "integer", "minimum": 1 },

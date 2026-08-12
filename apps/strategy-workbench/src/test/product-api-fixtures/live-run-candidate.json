@@ -20,6 +20,7 @@
       "status": "verified_external_monotonic_anchor",
       "namespace": "ntpro-live-production",
       "revision": 0,
+      "workspace_revision": 0,
       "receipt_ref": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "key_id": "ntpro-audit-ed25519-1",
       "anchored_at_unix_ms": 1786406400000,

@@ -433,6 +433,9 @@ function assertLiveRunCandidate(
   const auditAnchorValid =
     candidate.audit_anchor.status === "verified_external_monotonic_anchor" &&
     candidate.audit_anchor.revision === expectedAnchorRevision &&
+    Number.isSafeInteger(candidate.audit_anchor.workspace_revision) &&
+    candidate.audit_anchor.workspace_revision >=
+      candidate.audit_anchor.revision &&
     /^sha256:[a-f0-9]{64}$/u.test(candidate.audit_anchor.receipt_ref) &&
     candidate.audit_anchor.anchored_at_unix_ms >=
       (candidate.stopped_at_unix_ms ??

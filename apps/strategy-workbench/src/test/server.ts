@@ -578,12 +578,14 @@ export const server = setupServer(
         response.data.account_connected = true;
         response.data.account_can_trade_verified = true;
         response.data.audit_anchor.revision = 1;
+        response.data.audit_anchor.workspace_revision = 1;
         response.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
         response.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
       } else {
         response.data.lifecycle = "stopped";
         response.data.stopped_at_unix_ms = 1786406402000;
         response.data.audit_anchor.revision = 1;
+        response.data.audit_anchor.workspace_revision = 1;
         response.data.audit_anchor.receipt_ref = `sha256:${"e".repeat(64)}`;
         response.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
       }

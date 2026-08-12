@@ -852,6 +852,7 @@ export type LiveRunAuditAnchorSnapshot = {
   status: "verified_external_monotonic_anchor";
   namespace: string;
   revision: number;
+  workspace_revision: number;
   receipt_ref: ContentHash;
   key_id: string;
   anchored_at_unix_ms: number;

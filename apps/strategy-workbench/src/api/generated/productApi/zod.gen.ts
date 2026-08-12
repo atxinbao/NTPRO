@@ -909,6 +909,7 @@ export const zLiveRunAuditAnchorSnapshot = z.object({
   status: z.literal("verified_external_monotonic_anchor"),
   namespace: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
   revision: z.int().gte(0),
+  workspace_revision: z.int().gte(0),
   receipt_ref: zContentHash,
   key_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
   anchored_at_unix_ms: z.int().gte(1),

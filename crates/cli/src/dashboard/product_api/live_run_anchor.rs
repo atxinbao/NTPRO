@@ -1,7 +1,7 @@
 //! Live Run 外部单调审计锚点客户端与签名回执合同。
 
 #[cfg(test)]
-use std::{collections::BTreeMap, sync::Mutex};
+use std::sync::Mutex;
 use std::{
     fmt,
     io::Read,
@@ -42,6 +42,7 @@ pub(super) struct LiveRunAnchorAppendRequest {
     namespace: String,
     run_id: String,
     revision: u64,
+    workspace_revision: u64,
     state_sha256: String,
     commit_sha256: String,
     previous_receipt_sha256: Option<String>,
@@ -49,23 +50,38 @@ pub(super) struct LiveRunAnchorAppendRequest {
     idempotency_key: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct LiveRunAnchorRevision {
+    run: u64,
+    workspace: u64,
+}
+
+impl LiveRunAnchorRevision {
+    pub(super) const fn new(run: u64, workspace: u64) -> Self {
+        Self { run, workspace }
+    }
+}
+
 impl LiveRunAnchorAppendRequest {
     pub(super) fn new(
         namespace: &str,
         run_id: &str,
-        revision: u64,
+        revision: LiveRunAnchorRevision,
         state_sha256: String,
         commit_sha256: String,
         previous_receipt_sha256: Option<String>,
         observed_at_unix_ms: u64,
     ) -> Self {
-        let idempotency_key =
-            format!("{namespace}:{run_id}:{revision}:{state_sha256}:{commit_sha256}");
+        let idempotency_key = format!(
+            "{namespace}:{}:{run_id}:{}:{state_sha256}:{commit_sha256}",
+            revision.workspace, revision.run
+        );
         Self {
             schema_version: LIVE_RUN_ANCHOR_APPEND_SCHEMA_VERSION.to_string(),
             namespace: namespace.to_string(),
             run_id: run_id.to_string(),
-            revision,
+            revision: revision.run,
+            workspace_revision: revision.workspace,
             state_sha256,
             commit_sha256,
             previous_receipt_sha256,
@@ -82,6 +98,7 @@ pub(super) struct LiveRunAnchorReceipt {
     pub(super) namespace: String,
     pub(super) run_id: String,
     pub(super) revision: u64,
+    pub(super) workspace_revision: u64,
     pub(super) state_sha256: String,
     pub(super) commit_sha256: String,
     pub(super) previous_receipt_sha256: Option<String>,
@@ -134,7 +151,7 @@ pub(in crate::dashboard) struct MemoryAnchor {
     namespace: String,
     key_id: String,
     signing_key: SigningKey,
-    receipts: Mutex<BTreeMap<String, Vec<LiveRunAnchorReceipt>>>,
+    receipts: Mutex<Vec<LiveRunAnchorReceipt>>,
 }
 
 #[derive(Clone, Debug)]
@@ -196,11 +213,11 @@ impl LiveRunAuditAnchorClient {
         }
     }
 
-    pub(super) fn latest(&self, run_id: &str) -> Result<LiveRunAnchorReceipt, ProductError> {
+    pub(super) fn latest(&self) -> Result<Option<LiveRunAnchorReceipt>, ProductError> {
         match self {
-            Self::External(config) => config.latest(run_id),
+            Self::External(config) => config.latest(),
             #[cfg(test)]
-            Self::Memory(anchor) => anchor.latest(run_id),
+            Self::Memory(anchor) => anchor.latest(),
             Self::Unconfigured | Self::Invalid => Err(anchor_error("live_run_audit_anchor_config")),
         }
     }
@@ -235,7 +252,7 @@ impl LiveRunAuditAnchorClient {
             namespace: "ntpro-live-test".to_string(),
             key_id: "test-ed25519-1".to_string(),
             signing_key: SigningKey::from_bytes(&[7_u8; 32]),
-            receipts: Mutex::new(BTreeMap::new()),
+            receipts: Mutex::new(Vec::new()),
         }))
     }
 }
@@ -266,6 +283,26 @@ impl ExternalAnchorConfig {
         bearer_token: String,
         allow_loopback_http: bool,
     ) -> Result<Self, ()> {
+        Self::new_with_policy_and_timeout(
+            endpoint,
+            namespace,
+            key_id,
+            public_key_base64,
+            bearer_token,
+            allow_loopback_http,
+            LIVE_RUN_ANCHOR_TIMEOUT,
+        )
+    }
+
+    fn new_with_policy_and_timeout(
+        endpoint: &str,
+        namespace: &str,
+        key_id: &str,
+        public_key_base64: &str,
+        bearer_token: String,
+        allow_loopback_http: bool,
+        timeout: Duration,
+    ) -> Result<Self, ()> {
         let endpoint = Url::parse(endpoint).map_err(|_| ())?;
         let secure_transport = endpoint.scheme() == "https";
         let test_loopback = allow_loopback_http
@@ -289,7 +326,7 @@ impl ExternalAnchorConfig {
         let public_key = decode_base64_array::<32>(public_key_base64)?;
         let verifying_key = VerifyingKey::from_bytes(&public_key).map_err(|_| ())?;
         let client = Client::builder()
-            .timeout(LIVE_RUN_ANCHOR_TIMEOUT)
+            .timeout(timeout)
             .https_only(!allow_loopback_http)
             .redirect(reqwest::redirect::Policy::none())
             .build()
@@ -313,7 +350,7 @@ impl ExternalAnchorConfig {
         }
         let response = self
             .client
-            .post(self.url(&request.run_id, "compare-and-append")?)
+            .post(self.url("compare-and-append")?)
             .header(AUTHORIZATION, self.authorization_header()?)
             .header("Idempotency-Key", &request.idempotency_key)
             .json(request)
@@ -336,18 +373,21 @@ impl ExternalAnchorConfig {
         Ok(receipt)
     }
 
-    fn latest(&self, run_id: &str) -> Result<LiveRunAnchorReceipt, ProductError> {
+    fn latest(&self) -> Result<Option<LiveRunAnchorReceipt>, ProductError> {
         let response = self
             .client
-            .get(self.url(run_id, "latest")?)
+            .get(self.url("latest")?)
             .header(AUTHORIZATION, self.authorization_header()?)
             .send()
             .map_err(|_| anchor_error("live_run_audit_anchor_transport"))?;
+        if response.status().as_u16() == 404 {
+            return Ok(None);
+        }
         let receipt = parse_response(response)?;
         let request = LiveRunAnchorAppendRequest::new(
             &self.namespace,
-            run_id,
-            receipt.revision,
+            &receipt.run_id,
+            LiveRunAnchorRevision::new(receipt.revision, receipt.workspace_revision),
             receipt.state_sha256.clone(),
             receipt.commit_sha256.clone(),
             receipt.previous_receipt_sha256.clone(),
@@ -360,20 +400,17 @@ impl ExternalAnchorConfig {
             &self.key_id,
             &self.verifying_key,
         )?;
-        Ok(receipt)
+        Ok(Some(receipt))
     }
 
-    fn url(&self, run_id: &str, operation: &str) -> Result<Url, ProductError> {
-        if !valid_identifier(run_id) {
-            return Err(anchor_error("live_run_audit_anchor_run_id"));
-        }
+    fn url(&self, operation: &str) -> Result<Url, ProductError> {
         let mut url = self.endpoint.clone();
         {
             let mut segments = url
                 .path_segments_mut()
                 .map_err(|()| anchor_error("live_run_audit_anchor_endpoint"))?;
             segments.pop_if_empty();
-            segments.extend(["anchors", &self.namespace, run_id, operation]);
+            segments.extend(["anchors", &self.namespace, "workspace", operation]);
         }
         Ok(url)
     }
@@ -429,6 +466,7 @@ fn validate_receipt_contract(
         || receipt.namespace != request.namespace
         || receipt.run_id != request.run_id
         || receipt.revision != request.revision
+        || receipt.workspace_revision != request.workspace_revision
         || receipt.state_sha256 != request.state_sha256
         || receipt.commit_sha256 != request.commit_sha256
         || receipt.previous_receipt_sha256 != request.previous_receipt_sha256
@@ -441,10 +479,7 @@ fn validate_receipt_contract(
             .as_deref()
             .is_some_and(|value| !valid_sha256_ref(value))
         || receipt.anchored_at_unix_ms == 0
-        || receipt
-            .anchored_at_unix_ms
-            .saturating_add(LIVE_RUN_ANCHOR_CLOCK_SKEW_MS)
-            < request.observed_at_unix_ms
+        || receipt.anchored_at_unix_ms < request.observed_at_unix_ms
         || receipt.anchored_at_unix_ms
             > unix_time_ms().saturating_add(LIVE_RUN_ANCHOR_CLOCK_SKEW_MS)
     {
@@ -461,11 +496,12 @@ fn validate_receipt_contract(
 fn canonical_receipt(receipt: &LiveRunAnchorReceipt, include_signature: bool) -> String {
     let previous = receipt.previous_receipt_sha256.as_deref().unwrap_or("-");
     let base = format!(
-        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}",
         receipt.schema_version,
         receipt.namespace,
         receipt.run_id,
         receipt.revision,
+        receipt.workspace_revision,
         receipt.state_sha256,
         receipt.commit_sha256,
         previous,
@@ -539,8 +575,7 @@ impl MemoryAnchor {
             .receipts
             .lock()
             .map_err(|_| anchor_error("live_run_audit_anchor_lock"))?;
-        let run_receipts = receipts.entry(request.run_id.clone()).or_default();
-        if let Some(existing) = run_receipts.get(request.revision as usize) {
+        if let Some(existing) = receipts.get(request.workspace_revision as usize) {
             validate_receipt_contract(
                 existing,
                 request,
@@ -550,9 +585,9 @@ impl MemoryAnchor {
             )?;
             return Ok(existing.clone());
         }
-        let expected_revision = run_receipts.len() as u64;
-        let expected_previous = run_receipts.last().map(LiveRunAnchorReceipt::sha256);
-        if request.revision != expected_revision
+        let expected_revision = receipts.len() as u64;
+        let expected_previous = receipts.last().map(LiveRunAnchorReceipt::sha256);
+        if request.workspace_revision != expected_revision
             || request.previous_receipt_sha256 != expected_previous
         {
             return Err(product_error(
@@ -565,12 +600,20 @@ impl MemoryAnchor {
             namespace: self.namespace.clone(),
             run_id: request.run_id.clone(),
             revision: request.revision,
+            workspace_revision: request.workspace_revision,
             state_sha256: request.state_sha256.clone(),
             commit_sha256: request.commit_sha256.clone(),
             previous_receipt_sha256: request.previous_receipt_sha256.clone(),
-            anchored_at_unix_ms: request.observed_at_unix_ms,
+            anchored_at_unix_ms: receipts
+                .last()
+                .map_or(request.observed_at_unix_ms, |receipt| {
+                    receipt.anchored_at_unix_ms.max(request.observed_at_unix_ms)
+                }),
             key_id: self.key_id.clone(),
-            receipt_id: format!("receipt-{}-{}", request.run_id, request.revision),
+            receipt_id: format!(
+                "receipt-{}-{}-{}",
+                request.workspace_revision, request.run_id, request.revision
+            ),
             signature_base64: String::new(),
         };
         receipt.signature_base64 = STANDARD.encode(
@@ -578,18 +621,17 @@ impl MemoryAnchor {
                 .sign(canonical_receipt(&receipt, false).as_bytes())
                 .to_bytes(),
         );
-        run_receipts.push(receipt.clone());
+        receipts.push(receipt.clone());
         Ok(receipt)
     }
 
-    fn latest(&self, run_id: &str) -> Result<LiveRunAnchorReceipt, ProductError> {
-        self.receipts
+    fn latest(&self) -> Result<Option<LiveRunAnchorReceipt>, ProductError> {
+        Ok(self
+            .receipts
             .lock()
             .map_err(|_| anchor_error("live_run_audit_anchor_lock"))?
-            .get(run_id)
-            .and_then(|receipts| receipts.last())
-            .cloned()
-            .ok_or_else(|| anchor_error("live_run_audit_anchor_latest"))
+            .last()
+            .cloned())
     }
 }
 
@@ -598,13 +640,58 @@ mod tests {
     use super::*;
     use std::{io::Write as _, net::TcpListener, thread};
 
+    fn loopback_client(
+        address: std::net::SocketAddr,
+        timeout: Duration,
+    ) -> LiveRunAuditAnchorClient {
+        let signing_key = SigningKey::from_bytes(&[9_u8; 32]);
+        LiveRunAuditAnchorClient::External(Box::new(
+            ExternalAnchorConfig::new_with_policy_and_timeout(
+                &format!("http://{address}/v1"),
+                "ntpro-live-test",
+                "test-ed25519-http",
+                &STANDARD.encode(signing_key.verifying_key().to_bytes()),
+                "test-token".to_string(),
+                true,
+                timeout,
+            )
+            .unwrap(),
+        ))
+    }
+
+    fn http_test_request(name: &str) -> LiveRunAnchorAppendRequest {
+        LiveRunAnchorAppendRequest::new(
+            "ntpro-live-test",
+            name,
+            LiveRunAnchorRevision::new(0, 0),
+            format!("sha256:{}", "1".repeat(64)),
+            format!("sha256:{}", "2".repeat(64)),
+            None,
+            unix_time_ms(),
+        )
+    }
+
+    fn serve_raw_once(
+        listener: TcpListener,
+        response: Vec<u8>,
+        delay: Duration,
+    ) -> thread::JoinHandle<()> {
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 4096];
+            let _ = stream.read(&mut request);
+            thread::sleep(delay);
+            let _ = stream.write_all(&response);
+        })
+    }
+
     #[test]
     fn memory_anchor_is_monotonic_idempotent_and_signed() {
         let client = LiveRunAuditAnchorClient::memory_for_test();
         let request = LiveRunAnchorAppendRequest::new(
             client.namespace().unwrap(),
             "live-candidate-1",
-            0,
+            LiveRunAnchorRevision::new(0, 0),
             format!("sha256:{}", "1".repeat(64)),
             format!("sha256:{}", "2".repeat(64)),
             None,
@@ -613,12 +700,12 @@ mod tests {
         let receipt = client.append(&request).unwrap();
         client.validate_receipt(&receipt, &request).unwrap();
         assert_eq!(client.append(&request).unwrap(), receipt);
-        assert_eq!(client.latest("live-candidate-1").unwrap(), receipt);
+        assert_eq!(client.latest().unwrap(), Some(receipt.clone()));
 
         let skipped = LiveRunAnchorAppendRequest::new(
             client.namespace().unwrap(),
             "live-candidate-1",
-            2,
+            LiveRunAnchorRevision::new(2, 2),
             format!("sha256:{}", "3".repeat(64)),
             format!("sha256:{}", "4".repeat(64)),
             Some(receipt.sha256()),
@@ -633,7 +720,7 @@ mod tests {
         let request = LiveRunAnchorAppendRequest::new(
             client.namespace().unwrap(),
             "live-candidate-2",
-            0,
+            LiveRunAnchorRevision::new(0, 0),
             format!("sha256:{}", "a".repeat(64)),
             format!("sha256:{}", "b".repeat(64)),
             None,
@@ -697,13 +784,101 @@ mod tests {
         let request = LiveRunAnchorAppendRequest::new(
             "ntpro-live-test",
             "live-candidate-redirect",
-            0,
+            LiveRunAnchorRevision::new(0, 0),
             format!("sha256:{}", "1".repeat(64)),
             format!("sha256:{}", "2".repeat(64)),
             None,
             unix_time_ms(),
         );
         assert!(client.append(&request).is_err());
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn external_anchor_rejects_non_success_response() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = serve_raw_once(
+            listener,
+            b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                .to_vec(),
+            Duration::ZERO,
+        );
+        let error = loopback_client(address, Duration::from_secs(1))
+            .append(&http_test_request("live-candidate-http-500"))
+            .unwrap_err();
+        assert_eq!(error.field, "live_run_audit_anchor_response");
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn external_anchor_rejects_oversized_response() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            LIVE_RUN_ANCHOR_MAX_RESPONSE_BYTES + 1
+        )
+        .into_bytes();
+        let server = serve_raw_once(listener, response, Duration::ZERO);
+        let error = loopback_client(address, Duration::from_secs(1))
+            .append(&http_test_request("live-candidate-http-oversized"))
+            .unwrap_err();
+        assert_eq!(error.field, "live_run_audit_anchor_response_size");
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn external_anchor_rejects_unknown_receipt_fields() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let request = http_test_request("live-candidate-http-unknown");
+        let signing_key = SigningKey::from_bytes(&[9_u8; 32]);
+        let mut receipt = LiveRunAnchorReceipt {
+            schema_version: LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION.to_string(),
+            namespace: request.namespace.clone(),
+            run_id: request.run_id.clone(),
+            revision: request.revision,
+            workspace_revision: request.workspace_revision,
+            state_sha256: request.state_sha256.clone(),
+            commit_sha256: request.commit_sha256.clone(),
+            previous_receipt_sha256: None,
+            anchored_at_unix_ms: request.observed_at_unix_ms,
+            key_id: "test-ed25519-http".to_string(),
+            receipt_id: "receipt-live-candidate-http-unknown-0".to_string(),
+            signature_base64: String::new(),
+        };
+        receipt.signature_base64 = STANDARD.encode(
+            signing_key
+                .sign(canonical_receipt(&receipt, false).as_bytes())
+                .to_bytes(),
+        );
+        let mut receipt_value = serde_json::to_value(receipt).unwrap();
+        receipt_value["unexpected"] = serde_json::json!(true);
+        let body = serde_json::to_vec(&receipt_value).unwrap();
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes();
+        response.extend_from_slice(&body);
+        let server = serve_raw_once(listener, response, Duration::ZERO);
+        let error = loopback_client(address, Duration::from_secs(1))
+            .append(&request)
+            .unwrap_err();
+        assert_eq!(error.field, "live_run_audit_anchor_receipt");
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn external_anchor_times_out_fail_closed() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = serve_raw_once(listener, Vec::new(), Duration::from_millis(100));
+        let error = loopback_client(address, Duration::from_millis(20))
+            .append(&http_test_request("live-candidate-http-timeout"))
+            .unwrap_err();
+        assert_eq!(error.field, "live_run_audit_anchor_transport");
         server.join().unwrap();
     }
 
@@ -716,7 +891,7 @@ mod tests {
         let request = LiveRunAnchorAppendRequest::new(
             "ntpro-live-test",
             "live-candidate-http",
-            0,
+            LiveRunAnchorRevision::new(0, 0),
             format!("sha256:{}", "1".repeat(64)),
             format!("sha256:{}", "2".repeat(64)),
             None,
@@ -727,6 +902,7 @@ mod tests {
             namespace: request.namespace.clone(),
             run_id: request.run_id.clone(),
             revision: request.revision,
+            workspace_revision: request.workspace_revision,
             state_sha256: request.state_sha256.clone(),
             commit_sha256: request.commit_sha256.clone(),
             previous_receipt_sha256: None,
@@ -804,7 +980,7 @@ mod tests {
         .unwrap();
         let client = LiveRunAuditAnchorClient::External(Box::new(config));
         assert_eq!(client.append(&request).unwrap(), receipt);
-        assert_eq!(client.latest(&request.run_id).unwrap(), receipt);
+        assert_eq!(client.latest().unwrap(), Some(receipt));
         server.join().unwrap();
     }
 }

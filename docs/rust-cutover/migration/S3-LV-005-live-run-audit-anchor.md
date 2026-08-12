@@ -1,6 +1,6 @@
 # S3-LV-005 Live Run 外部审计锚点迁移说明
 
-Date: 2026-08-12  
+Date: 2026-08-12
 Executor: Codex
 
 ## 破坏性变更
@@ -15,10 +15,10 @@ Live Run 本地状态从 `state.v1` / `state_head.v1` 升级到 v2，并要求�
 
 ## 外部服务要求
 
-部署方提供支持 HTTPS、Bearer 认证、幂等 compare-and-append、单调 revision、latest 读取和
-Ed25519 签名回执的独立服务。服务必须位于 NTPRO 工作区故障域之外，并由实际不可变存储、
-WORM 日志或具有单调 CAS 保证的控制面支撑；普通共享目录、同机 SQLite 或可覆盖对象不能作为
-生产证明。
+部署方提供支持 HTTPS、Bearer 认证、namespace 级 workspace compare-and-append、全局单调
+workspace revision、latest 读取和 Ed25519 签名回执的独立服务。服务必须位于 NTPRO 工作区
+故障域之外，并由实际不可变存储、WORM 日志或具有单调 CAS 保证的控制面支撑；普通共享目录、
+同机 SQLite 或可覆盖对象不能作为生产证明。
 
 ## 故障处理
 

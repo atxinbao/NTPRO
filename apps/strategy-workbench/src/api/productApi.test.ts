@@ -121,6 +121,7 @@ describe("product API generated client", () => {
       created.data.audit_anchor.workspace_snapshot_rollback_detectable,
     ).toBe(true);
     expect(created.data.audit_anchor.trading_authority_granted).toBe(false);
+    expect(created.data.audit_anchor.workspace_revision).toBe(0);
     expect(createFetch).toHaveBeenCalledTimes(1);
 
     const detail = structuredClone(liveRunCandidateFixture);
@@ -153,6 +154,7 @@ describe("product API generated client", () => {
     preflight.data.account_connected = true;
     preflight.data.account_can_trade_verified = true;
     preflight.data.audit_anchor.revision = 1;
+    preflight.data.audit_anchor.workspace_revision = 1;
     preflight.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
     preflight.data.audit_anchor.anchored_at_unix_ms = 1786406401000;
     const client = createProductApiClient({ fetch: jsonFetch(preflight) });

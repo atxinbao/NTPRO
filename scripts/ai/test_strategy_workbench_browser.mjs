@@ -421,11 +421,10 @@ try {
   );
   const liveCandidateList = await liveCandidateListResponse.json();
   if (
-    liveCandidateListResponse.status !== 200 ||
-    liveCandidateList.schema_version !==
-      "ntpro.product_api.live_run_candidate_list.response.v1" ||
-    liveCandidateList.data?.length !== 0 ||
-    liveCandidateList.runtime_gate_refs?.length !== 5
+    liveCandidateListResponse.status !== 422 ||
+    liveCandidateList.error?.code !== "live_run_preflight_failed" ||
+    liveCandidateList.error?.field !== "live_run_audit_anchor_config" ||
+    liveCandidateList.error?.retryable !== false
   ) {
     throw new Error(
       `Live candidate list contract drift: status=${liveCandidateListResponse.status} body=${JSON.stringify(liveCandidateList)}`,
@@ -451,6 +450,12 @@ try {
     },
   );
   const blockedLiveCandidate = await blockedLiveCandidateResponse.json();
+  const liveRunRoot = path.join(workspace, "artifacts", "live-runs");
+  const publishedLiveCandidate =
+    fs.existsSync(liveRunRoot) &&
+    fs
+      .readdirSync(liveRunRoot, { withFileTypes: true })
+      .some((entry) => entry.isDirectory());
   if (
     blockedLiveCandidateResponse.status !== 422 ||
     blockedLiveCandidate.error?.code !== "live_run_preflight_failed" ||
@@ -459,7 +464,10 @@ try {
     blockedLiveCandidate.boundaries?.order_submission_allowed !== false ||
     blockedLiveCandidate.boundaries?.order_mutation_allowed !== false ||
     blockedLiveCandidate.boundaries?.real_orders_submitted !== false ||
-    fs.existsSync(path.join(workspace, "artifacts", "live-runs"))
+    publishedLiveCandidate ||
+    fs.existsSync(
+      path.join(workspace, "artifacts", "live-run-audit-anchor-head.json"),
+    )
   ) {
     throw new Error(
       `Live candidate did not fail closed without independent gates: status=${blockedLiveCandidateResponse.status} body=${JSON.stringify(blockedLiveCandidate)}`,
@@ -766,6 +774,7 @@ try {
   const browserErrors = [];
   const productionAssets = new Set();
   let expectedHttpErrorResponses = 0;
+  let expectedLiveAnchorErrorResponses = 0;
   let liveAccountRefreshBrowserRequests = 0;
   let liveCandidateBrowserRequests = 0;
   page.on("pageerror", (error) => browserErrors.push(error.message));
@@ -779,6 +788,13 @@ try {
     }
     if (url.pathname.startsWith("/api/product/") && response.status() >= 400) {
       productResponseErrors.push(`${response.status()} ${url.pathname}`);
+    }
+    if (
+      response.request().method() === "GET" &&
+      decodeURIComponent(url.pathname) === liveRunCandidatesPath &&
+      response.status() === 422
+    ) {
+      expectedLiveAnchorErrorResponses += 1;
     }
   });
   page.on("request", (request) => {
@@ -912,10 +928,9 @@ try {
   });
 
   await liveLink.click();
-  await page
-    .getByRole("heading", { name: "Live 连接与独立准入" })
-    .waitFor();
+  await page.getByRole("heading", { name: "Live 连接与独立准入" }).waitFor();
   await page.getByText("尚未获得 Live 独立审批").waitFor();
+  await page.getByText("外部审计锚点尚未配置").waitFor();
   if (
     liveAccountRefreshBrowserRequests !== 0 ||
     liveCandidateBrowserRequests !== 0
@@ -952,8 +967,13 @@ try {
   const liveCandidateButton = page.getByRole("button", {
     name: "创建 Live Run 候选",
   });
-  if (!(await liveCandidateButton.isDisabled()) || liveCandidateBrowserRequests !== 0) {
-    throw new Error("blocked Live account enabled or issued candidate creation");
+  if (
+    !(await liveCandidateButton.isDisabled()) ||
+    liveCandidateBrowserRequests !== 0
+  ) {
+    throw new Error(
+      "blocked Live account enabled or issued candidate creation",
+    );
   }
   if (
     await page.getByRole("button", { name: /启动|下单|撤单|改单|平仓/ }).count()
@@ -1220,8 +1240,21 @@ try {
   });
   await page.getByText("产品资源已验证").waitFor();
 
+  const refreshButton = page.getByRole("button", {
+    name: "刷新产品与系统状态",
+  });
+  const waitForStatusRefresh = () =>
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === "GET" &&
+        url.pathname === "/api/mvp/v1/status"
+      );
+    });
   scenario = "boundary";
-  await page.getByRole("button", { name: "刷新产品与系统状态" }).click();
+  const boundaryStatusResponse = waitForStatusRefresh();
+  await refreshButton.click();
+  await boundaryStatusResponse;
   await page.getByText("连接阻断").waitFor({ state: "attached" });
   await page.waitForFunction(
     (strategyId) =>
@@ -1236,7 +1269,9 @@ try {
 
   scenario = "http_error";
   const errorsBeforeHttpScenario = browserErrors.length;
-  await page.getByRole("button", { name: "刷新产品与系统状态" }).click();
+  const httpStatusResponse = waitForStatusRefresh();
+  await refreshButton.click();
+  await httpStatusResponse;
   await page.getByText("连接阻断").waitFor({ state: "attached" });
   if (expectedHttpErrorResponses < 1) {
     throw new Error("HTTP error scenario did not intercept the status request");
@@ -1257,10 +1292,21 @@ try {
       message !==
       "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
   );
+  let remainingExpectedLiveAnchorErrors = expectedLiveAnchorErrorResponses;
   const unexpectedBrowserErrors = [
     ...browserErrors.slice(0, errorsBeforeHttpScenario),
     ...unexpectedHttpScenarioErrors,
-  ];
+  ].filter((message) => {
+    if (
+      remainingExpectedLiveAnchorErrors > 0 &&
+      message ===
+        "Failed to load resource: the server responded with a status of 422 (Unprocessable Entity)"
+    ) {
+      remainingExpectedLiveAnchorErrors -= 1;
+      return false;
+    }
+    return true;
+  });
   if (unexpectedBrowserErrors.length > 0) {
     throw new Error(`browser errors: ${unexpectedBrowserErrors.join("; ")}`);
   }

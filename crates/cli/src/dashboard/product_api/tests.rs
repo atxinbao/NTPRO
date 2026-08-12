@@ -2547,7 +2547,7 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
             let anchor_request = super::live_run_anchor::LiveRunAnchorAppendRequest::new(
                 fixture.live_run_audit_anchor.namespace().unwrap(),
                 run_id,
-                0,
+                super::live_run_anchor::LiveRunAnchorRevision::new(0, 0),
                 sha256_bytes_ref(&state_raw),
                 sha256_bytes_ref(&commit_raw),
                 None,
@@ -2567,6 +2567,14 @@ async fn live_run_candidate_detail_revalidates_current_source_bindings() {
             &fs::read(&receipt_path).expect("audit anchor receipt should be readable"),
         )
         .expect("audit anchor receipt should parse");
+        fs::write(
+            fixture
+                .root
+                .join("artifacts/live-run-audit-anchor-head.json"),
+            serde_json::to_vec_pretty(&receipt)
+                .expect("workspace audit anchor head should serialize"),
+        )
+        .expect("workspace audit anchor head should be written");
         fs::write(
             directory.join("state-head.json"),
             serde_json::to_vec_pretty(&json!({

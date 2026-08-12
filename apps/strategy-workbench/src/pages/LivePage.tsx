@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { ProductApiRequestError } from "../api/productApi";
 import {
   useLiveAdmission,
   useLiveRunCandidates,
@@ -43,7 +44,13 @@ export function LivePage() {
   const accountRefresh = useRefreshLiveAccount();
   const createLiveRun = useCreateLiveRunCandidate();
   const liveRunAction = useLiveRunCandidateAction();
-  const error = product.error ?? admission.error ?? liveRunCandidates.error;
+  const auditAnchorUnavailable =
+    liveRunCandidates.error instanceof ProductApiRequestError &&
+    liveRunCandidates.error.field === "live_run_audit_anchor_config";
+  const error =
+    product.error ??
+    admission.error ??
+    (auditAnchorUnavailable ? null : liveRunCandidates.error);
 
   if (error) return <ProductErrorState error={error} />;
   if (
@@ -63,6 +70,7 @@ export function LivePage() {
   const account = accountRefresh.data?.data;
   const liveRun = liveRunCandidates.data?.data[0];
   const canCreateLiveRun =
+    !auditAnchorUnavailable &&
     account?.connection_status === "connected" &&
     account.account_result?.can_trade === true;
   const connectionLabel = account
@@ -325,8 +333,12 @@ export function LivePage() {
                 }
               />
               <Detail
-                label="审计 Revision"
+                label="Run Revision"
                 value={liveRun.audit_anchor.revision.toString()}
+              />
+              <Detail
+                label="Workspace Revision"
+                value={liveRun.audit_anchor.workspace_revision.toString()}
               />
               <Detail
                 label="回执引用"
@@ -372,7 +384,9 @@ export function LivePage() {
         ) : (
           <>
             <p>
-              先显式检查生产账户。账户连接与交易所交易权限都验证后，才可创建候选。
+              {auditAnchorUnavailable
+                ? "外部审计锚点尚未配置，Live Run 候选保持阻断。"
+                : "先显式检查生产账户。账户连接与交易所交易权限都验证后，才可创建候选。"}
             </p>
             <label className={styles.confirmationRow}>
               <input
