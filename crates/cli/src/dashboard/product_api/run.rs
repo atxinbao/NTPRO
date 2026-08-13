@@ -1999,30 +1999,23 @@ pub(super) fn load_promotable_demo_order_intent(
         instrument_id: intent.symbol,
         side: side.to_string(),
         source_order_type: intent.order_type,
-        quantity: Decimal::from_f64_retain(intent.quantity)
-            .ok_or_else(|| {
-                product_error(
-                    ProductErrorKind::BoundaryViolation,
-                    "live_strategy_intent_quantity",
-                )
-            })?
-            .normalize()
-            .to_string(),
+        quantity: normalized_f64_decimal(intent.quantity, "live_strategy_intent_quantity")?,
         source_signal: intent.source_signal,
-        confidence: Decimal::from_f64_retain(intent.confidence)
-            .ok_or_else(|| {
-                product_error(
-                    ProductErrorKind::BoundaryViolation,
-                    "live_strategy_intent_confidence",
-                )
-            })?
-            .normalize()
-            .to_string(),
+        confidence: normalized_f64_decimal(intent.confidence, "live_strategy_intent_confidence")?,
         market_event_seq: intent.market_event_seq,
         created_at_unix_ms: intent.created_at_unix_ms,
         source_manifest_sha256,
         source_result_sha256,
     })
+}
+
+fn normalized_f64_decimal(value: f64, field: &'static str) -> Result<String, ProductError> {
+    if !value.is_finite() {
+        return Err(product_error(ProductErrorKind::BoundaryViolation, field));
+    }
+    Decimal::from_str_exact(&value.to_string())
+        .map(|value| value.normalize().to_string())
+        .map_err(|_| product_error(ProductErrorKind::BoundaryViolation, field))
 }
 
 fn load_frozen_demo_result(
@@ -2793,6 +2786,16 @@ fn snapshot_unix_ms(
 #[cfg(test)]
 mod strategy_record_validation_tests {
     use super::*;
+
+    #[test]
+    fn canonicalizes_demo_intent_decimals_for_live_requests() {
+        for (value, expected) in [(0.1, "0.1"), (0.001, "0.001"), (0.00001, "0.00001")] {
+            assert_eq!(
+                normalized_f64_decimal(value, "live_strategy_intent_quantity").unwrap(),
+                expected
+            );
+        }
+    }
 
     #[test]
     fn rejects_invalid_or_forbidden_early_jsonl_records() {
