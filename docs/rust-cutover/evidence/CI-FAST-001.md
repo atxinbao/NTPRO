@@ -38,7 +38,18 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
   治理 trigger 字符串变化导致的 canonical hash；
 - current governance：PASS；v0.33 maintenance release stage 在模拟 hosted
   `pull_request` 事件上下文下 PASS；
-- hosted checks 与运行时长：等待 PR。
+
+## Hosted 首轮冷缓存证据
+
+- PR #1305 / Rust Cutover Smoke run `31702533792`：success；
+- `changes` 23 秒后，`smoke-core`、`rust-lint`、`rust-tests` 同时开始，证明并行调度成立；
+- `rust-tests` 6 分 54 秒，`smoke-core` 11 分 50 秒，`rust-lint` 14 分 15 秒，最终
+  required `smoke` 9 秒并成功聚合；
+- Backend Performance 未被该普通 PR 触发；security run `31702533727` 全部成功；
+- 新 job 的首轮 cache key 无历史条目：workspace Clippy 冷编译 8 分 36 秒，第二组
+  warning-only product lint 冷编译 5 分 07 秒；本轮用于建立缓存，不能作为最终提速结论；
+- 下一 head 将复用完全相同的 Cargo lockfile、Rust 1.95 和 job cache key，记录热缓存耗时
+  后再判断 required gate 是否达到提速目标。
 
 ## 行为影响
 
