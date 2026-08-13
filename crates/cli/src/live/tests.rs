@@ -14624,12 +14624,14 @@ fn production_market_data_config_rejects_execution_or_order_capability() {
 
 fn production_execution_config(node_id: &str) -> String {
     let runtime_artifact_root = std::env::temp_dir().join("ntpro-s3-lv-007-runtime");
+    let control_artifact_root = std::env::temp_dir().join("ntpro-s3-lv-008-control");
     let execution = format!(
         "[live_execution]\n\
          schema_version = \"ntpro.s3.live_execution_node.v1\"\n\
          source_manifest_sha256 = \"sha256:1111111111111111111111111111111111111111111111111111111111111111\"\n\
          execution_admission_sha256 = \"sha256:2222222222222222222222222222222222222222222222222222222222222222\"\n\
          runtime_artifact_root = \"{}\"\n\
+         control_artifact_root = \"{}\"\n\
          risk_policy_ref = \"policy://risk/test-v1\"\n\
          owner_authority_ref = \"role://institution-owner\"\n\
          risk_authority_ref = \"policy://risk/test-v1\"\n\
@@ -14658,6 +14660,7 @@ fn production_execution_config(node_id: &str) -> String {
          automatic_retry_allowed = false\n\
          automatic_recovery_allowed = false\n\n",
         runtime_artifact_root.display(),
+        control_artifact_root.display(),
         current_unix_timestamp_millis() + 60_000,
     );
     production_market_data_config(node_id).replace("[shutdown]", &format!("{execution}[shutdown]"))

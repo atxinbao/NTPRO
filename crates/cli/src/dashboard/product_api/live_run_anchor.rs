@@ -365,6 +365,174 @@ pub(crate) fn claim_runtime_authority(claim: &LiveExecutionRuntimeClaim<'_>) -> 
     claim_runtime_authority_with_client(&client, claim)
 }
 
+pub(crate) struct LiveExecutionControlResultAnchor<'a> {
+    pub(crate) candidate_root: &'a Path,
+    pub(crate) run_id: &'a str,
+    pub(crate) action: &'a str,
+    pub(crate) result_raw: &'a [u8],
+    pub(crate) request_sha256: &'a str,
+    pub(crate) completed_at_unix_ms: u64,
+}
+
+/// Publishes a Runtime control result only after it is appended to the external monotonic anchor.
+pub(crate) fn anchor_runtime_control_result(
+    result: &LiveExecutionControlResultAnchor<'_>,
+) -> anyhow::Result<()> {
+    let client = LiveRunAuditAnchorClient::from_environment();
+    anchor_runtime_control_result_with_client(&client, result)
+}
+
+fn anchor_runtime_control_result_with_client(
+    client: &LiveRunAuditAnchorClient,
+    result: &LiveExecutionControlResultAnchor<'_>,
+) -> anyhow::Result<()> {
+    let (result_file, receipt_file) = match result.action {
+        "reconcile" => (
+            "execution-reconcile-result.json",
+            "execution-reconcile-result-receipt.json",
+        ),
+        "cancel" => (
+            "execution-cancel-result.json",
+            "execution-cancel-result-receipt.json",
+        ),
+        _ => anyhow::bail!("live execution control result action is invalid"),
+    };
+    let candidate_root = fs::canonicalize(result.candidate_root)
+        .map_err(|_| anyhow::anyhow!("live execution candidate root is unavailable"))?;
+    if !candidate_root.is_dir() || result.result_raw.len() > 64 * 1024 {
+        anyhow::bail!("live execution control result is not bounded");
+    }
+    let result_path = candidate_root.join(result_file);
+    let receipt_path = candidate_root.join(receipt_file);
+    let existing_result = if result_path.exists() {
+        let raw = read_bounded_anchor_file(&result_path)?;
+        if raw != result.result_raw {
+            anyhow::bail!("live execution control result bytes do not match");
+        }
+        Some(raw)
+    } else {
+        None
+    };
+    let existing_receipt = if receipt_path.exists() {
+        Some(
+            serde_json::from_slice::<LiveRunAnchorReceipt>(&read_bounded_anchor_file(
+                &receipt_path,
+            )?)
+            .map_err(|_| anyhow::anyhow!("live execution control result receipt is invalid"))?,
+        )
+    } else {
+        None
+    };
+    if existing_receipt.is_some() && existing_result.is_none() {
+        anyhow::bail!("live execution control result receipt exists without result bytes");
+    }
+    let state_head_raw = read_bounded_anchor_file(&candidate_root.join("state-head.json"))?;
+    let state_head: serde_json::Value = serde_json::from_slice(&state_head_raw)
+        .map_err(|_| anyhow::anyhow!("live execution control state head is invalid"))?;
+    let run_revision = state_head
+        .get("revision")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| anyhow::anyhow!("live execution control state revision is invalid"))?;
+    if state_head.get("run_id").and_then(serde_json::Value::as_str) != Some(result.run_id) {
+        anyhow::bail!("live execution control state head identity is invalid");
+    }
+    let artifacts_root = candidate_root
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| anyhow::anyhow!("live execution artifact root is invalid"))?;
+    let workspace_head_path = artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE);
+    let workspace_head_raw = read_bounded_anchor_file(&workspace_head_path)?;
+    let workspace_head: LiveRunAnchorReceipt = serde_json::from_slice(&workspace_head_raw)
+        .map_err(|_| anyhow::anyhow!("live execution local workspace anchor head is invalid"))?;
+    let latest = client
+        .latest()
+        .map_err(|_| anyhow::anyhow!("live execution latest anchor is unavailable"))?
+        .ok_or_else(|| anyhow::anyhow!("live execution latest anchor is missing"))?;
+    let result_sha256 = prefixed_sha256(result.result_raw);
+    let existing_or_published_receipt = existing_receipt.or_else(|| {
+        (workspace_head.state_sha256 == result_sha256
+            && workspace_head.commit_sha256 == result.request_sha256
+            && workspace_head.run_id == result.run_id)
+            .then(|| workspace_head.clone())
+    });
+    let receipt = if let Some(receipt) = existing_or_published_receipt {
+        let request = LiveRunAnchorAppendRequest::new(
+            client
+                .namespace()
+                .map_err(|_| anyhow::anyhow!("live execution anchor is not configured"))?,
+            result.run_id,
+            LiveRunAnchorRevision::new(receipt.revision, receipt.workspace_revision),
+            result_sha256,
+            result.request_sha256.to_string(),
+            receipt.previous_receipt_sha256.clone(),
+            result.completed_at_unix_ms,
+        );
+        client
+            .validate_receipt(&receipt, &request)
+            .map_err(|_| anyhow::anyhow!("live execution control result receipt is invalid"))?;
+        let workspace_head_sha256 = workspace_head.sha256();
+        let pending_local_publication = workspace_head != receipt
+            && receipt.previous_receipt_sha256.as_deref() == Some(workspace_head_sha256.as_str());
+        let already_current = workspace_head == receipt && latest == receipt;
+        let valid_historical_result = workspace_head.workspace_revision
+            > receipt.workspace_revision
+            && latest == workspace_head;
+        if pending_local_publication && latest != receipt {
+            anyhow::bail!("live execution control result recovery anchor is no longer current");
+        }
+        if !pending_local_publication && !already_current && !valid_historical_result {
+            anyhow::bail!("live execution control result recovery chain is invalid");
+        }
+        receipt
+    } else {
+        let completed_at_unix_ms = result
+            .completed_at_unix_ms
+            .max(workspace_head.anchored_at_unix_ms);
+        let request = LiveRunAnchorAppendRequest::new(
+            client
+                .namespace()
+                .map_err(|_| anyhow::anyhow!("live execution anchor is not configured"))?,
+            result.run_id,
+            LiveRunAnchorRevision::new(run_revision, workspace_head.workspace_revision + 1),
+            result_sha256,
+            result.request_sha256.to_string(),
+            Some(workspace_head.sha256()),
+            completed_at_unix_ms,
+        );
+        let receipt = if latest == workspace_head {
+            client
+                .append(&request)
+                .map_err(|_| anyhow::anyhow!("live execution control result anchor was rejected"))?
+        } else {
+            latest
+        };
+        client
+            .validate_receipt(&receipt, &request)
+            .map_err(|_| anyhow::anyhow!("live execution control result receipt is invalid"))?;
+        if client
+            .latest()
+            .map_err(|_| anyhow::anyhow!("live execution latest result anchor is unavailable"))?
+            .as_ref()
+            != Some(&receipt)
+        {
+            anyhow::bail!("live execution control result is not the latest external anchor");
+        }
+        receipt
+    };
+    let receipt_raw = serde_json::to_vec_pretty(&receipt)
+        .map_err(|_| anyhow::anyhow!("live execution control result receipt is invalid"))?;
+    if existing_result.is_none() {
+        write_new_anchor_file(&result_path, result.result_raw)?;
+    }
+    if !receipt_path.exists() {
+        write_new_anchor_file(&receipt_path, &receipt_raw)?;
+    }
+    if workspace_head.workspace_revision < receipt.workspace_revision {
+        publish_runtime_claim_workspace_head(artifacts_root, &receipt_raw)?;
+    }
+    Ok(())
+}
+
 fn claim_runtime_authority_with_client(
     client: &LiveRunAuditAnchorClient,
     claim: &LiveExecutionRuntimeClaim<'_>,
@@ -1031,6 +1199,113 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("starting authority is no longer current"));
+    }
+
+    #[test]
+    fn runtime_control_result_is_anchored_before_local_publication() {
+        let client = LiveRunAuditAnchorClient::memory_for_test();
+        let run_id = "live-candidate-control-result";
+        let observed_at = unix_time_ms();
+        let starting_request = LiveRunAnchorAppendRequest::new(
+            client.namespace().unwrap(),
+            run_id,
+            LiveRunAnchorRevision::new(7, 0),
+            format!("sha256:{}", "1".repeat(64)),
+            format!("sha256:{}", "2".repeat(64)),
+            None,
+            observed_at,
+        );
+        let starting_receipt = client.append(&starting_request).unwrap();
+        let starting_receipt_raw = serde_json::to_vec_pretty(&starting_receipt).unwrap();
+        let temp = tempdir().unwrap();
+        let artifacts_root = temp.path().join("artifacts");
+        let candidate_root = artifacts_root.join("live-runs").join(run_id);
+        fs::create_dir_all(&candidate_root).unwrap();
+        fs::write(
+            artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE),
+            &starting_receipt_raw,
+        )
+        .unwrap();
+        fs::write(
+            candidate_root.join("state-head.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "run_id": run_id,
+                "revision": 7
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let result_raw = br#"{"action":"reconcile","status":"reconciled"}"#;
+        let request_sha256 = format!("sha256:{}", "3".repeat(64));
+        let result = LiveExecutionControlResultAnchor {
+            candidate_root: &candidate_root,
+            run_id,
+            action: "reconcile",
+            result_raw,
+            request_sha256: &request_sha256,
+            completed_at_unix_ms: observed_at,
+        };
+
+        anchor_runtime_control_result_with_client(&client, &result).unwrap();
+
+        assert_eq!(
+            fs::read(candidate_root.join("execution-reconcile-result.json")).unwrap(),
+            result_raw
+        );
+        let receipt: LiveRunAnchorReceipt = serde_json::from_slice(
+            &fs::read(candidate_root.join("execution-reconcile-result-receipt.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(receipt.state_sha256, prefixed_sha256(result_raw));
+        assert_eq!(receipt.commit_sha256, request_sha256);
+        assert_eq!(client.latest().unwrap(), Some(receipt.clone()));
+        let local_head: LiveRunAnchorReceipt = serde_json::from_slice(
+            &fs::read(artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(local_head, receipt);
+
+        fs::remove_file(candidate_root.join("execution-reconcile-result-receipt.json")).unwrap();
+        fs::write(
+            artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE),
+            &starting_receipt_raw,
+        )
+        .unwrap();
+        anchor_runtime_control_result_with_client(&client, &result).unwrap();
+        assert!(
+            candidate_root
+                .join("execution-reconcile-result-receipt.json")
+                .is_file()
+        );
+        anchor_runtime_control_result_with_client(&client, &result).unwrap();
+
+        let result_receipt: LiveRunAnchorReceipt = serde_json::from_slice(
+            &fs::read(candidate_root.join("execution-reconcile-result-receipt.json")).unwrap(),
+        )
+        .unwrap();
+        let later_request = LiveRunAnchorAppendRequest::new(
+            client.namespace().unwrap(),
+            run_id,
+            LiveRunAnchorRevision::new(8, result_receipt.workspace_revision + 1),
+            format!("sha256:{}", "4".repeat(64)),
+            format!("sha256:{}", "5".repeat(64)),
+            Some(result_receipt.sha256()),
+            observed_at + 1,
+        );
+        let later_receipt = client.append(&later_request).unwrap();
+        fs::write(
+            artifacts_root.join(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE),
+            serde_json::to_vec_pretty(&later_receipt).unwrap(),
+        )
+        .unwrap();
+        anchor_runtime_control_result_with_client(&client, &result).unwrap();
+
+        fs::write(
+            candidate_root.join("execution-reconcile-result.json"),
+            br#"{"action":"cancel","status":"tampered"}"#,
+        )
+        .unwrap();
+        assert!(anchor_runtime_control_result_with_client(&client, &result).is_err());
     }
 
     fn serve_raw_once(

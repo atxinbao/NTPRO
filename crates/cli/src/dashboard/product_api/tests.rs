@@ -5567,6 +5567,8 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/live-run-candidates",
             "/live-run-candidates/{run_id}",
             "/live-run-candidates/{run_id}/actions",
+            "/live-run-candidates/{run_id}/cancel-approvals/operator",
+            "/live-run-candidates/{run_id}/cancel-approvals/owner",
             "/live-run-candidates/{run_id}/execution-approvals/operator",
             "/live-run-candidates/{run_id}/execution-approvals/owner",
             "/live-run-candidates/{run_id}/execution-approvals/risk",
@@ -5598,6 +5600,8 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/demo-runs"
                 | "/demo-runs/{run_id}/actions"
                 | "/live-run-candidates/{run_id}/actions"
+                | "/live-run-candidates/{run_id}/cancel-approvals/operator"
+                | "/live-run-candidates/{run_id}/cancel-approvals/owner"
                 | "/live-run-candidates/{run_id}/execution-approvals/operator"
                 | "/live-run-candidates/{run_id}/execution-approvals/owner"
                 | "/live-run-candidates/{run_id}/execution-approvals/risk"

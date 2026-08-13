@@ -2665,7 +2665,7 @@
                   <li>建立 Live 独立准入、最小权限、幂等、审计、恢复和回滚证据。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-006 已完成独立准入、生产账户只读结果、外部不可变审计锚点和 Supervisor 管理的真实 Live 生产行情 Runtime。S3-LV-007 正在建设独立锚定的一次性 LIMIT/GTC 真实订单；追加订单、撤单、改单、自动重试和自动恢复仍保持阻断。</div>
+              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-007 已完成独立准入、生产账户只读结果、外部不可变审计锚点、真实 Live 生产行情 Runtime 和一次性 LIMIT/GTC 真实订单。S3-LV-008 已完成显式交易所对账、双人确认人工撤单和部分成交恢复，当前等待独立审查；追加订单、改单、自动重试和自动恢复仍保持阻断。</div>
               <div class="exit-gate"><strong>退出条件</strong>真实账户和 Venue 在独立授权下完成受控端到端交易；异常、断连、重复回报和恢复场景 fail closed，并证明不会由 Demo 自动继承权限。</div>
             </article>
 
@@ -2686,7 +2686,7 @@
           </div>
 
           <div class="decision-grid">
-            <div class="decision"><h3>当前推进 S3</h3><p>S0-S2 与 Live 独立准入/审计基础已完成；当前先交付生产行情 Runtime，再独立建设真实订单生命周期。</p></div>
+            <div class="decision"><h3>当前推进 S3</h3><p>S0-S2 与 Live 独立准入、生产行情和单笔订单已交付；对账、人工撤单和部分成交恢复已实现，等待独立审查。</p></div>
             <div class="decision"><h3>Live 不是 Sandbox 开关</h3><p>策略代码相同，但真实数据、执行、账户、风控、授权和故障处置必须单独建设。</p></div>
             <div class="decision"><h3>平台化后置</h3><p>多机构、多节点、集中运维和复杂角色治理在策略三模式闭环完成后再独立规划。</p></div>
           </div>
@@ -2813,18 +2813,18 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 边界与验证</p>
-              <h2>Demo 基线已冻结，Live 生产行情正在建设</h2>
+              <h2>Demo 基线已冻结，Live 单笔执行进入恢复治理</h2>
               <p class="section-intro">权威边界来自 <code>docs/product/mvp_freeze_manifest.json</code>。当前冻结拓扑为一个 Supervisor、一个节点、一个策略实例、一个账户、一个 Venue 和 sandbox 环境。</p>
             </div>
           </div>
 
           <div class="status-row" aria-label="MVP 冻结边界">
             <span class="status ok">M0-M4 complete / frozen</span>
-            <span class="status info">机构工作台只读</span>
+            <span class="status info">机构工作台受控操作</span>
             <span class="status info">控制中心仅 start / stop</span>
-            <span class="status info">生产行情受控，真实订单关闭</span>
+            <span class="status info">单笔真实订单独立准入</span>
             <span class="status info">Live 是 S3 必达目标</span>
-            <span class="status info">多节点编排与自动恢复关闭</span>
+            <span class="status info">追加、改单与自动恢复关闭</span>
           </div>
 
           <div class="summary-callout">

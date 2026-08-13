@@ -48,9 +48,11 @@ use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
 use super::product_api::{
     demo_run_action_api, demo_run_create_api, demo_run_snapshot_api, live_account_refresh_api,
-    live_admission_api, live_execution_operator_approval_api, live_execution_owner_approval_api,
-    live_execution_risk_approval_api, live_run_candidate_action_api, live_run_candidate_create_api,
-    live_run_candidate_detail_api, live_run_candidate_list_api, product_access_denied_response,
+    live_admission_api, live_execution_cancel_operator_approval_api,
+    live_execution_cancel_owner_approval_api, live_execution_operator_approval_api,
+    live_execution_owner_approval_api, live_execution_risk_approval_api,
+    live_run_candidate_action_api, live_run_candidate_create_api, live_run_candidate_detail_api,
+    live_run_candidate_list_api, product_access_denied_response,
     product_command_method_not_allowed, product_method_not_allowed, product_run_method_not_allowed,
     run_analysis_api, run_comparison_api, run_create_api, run_detail_api, run_list_api,
     run_metrics_api, run_report_api, run_reproduce_api, run_reproduction_proof_api,
@@ -473,6 +475,12 @@ fn dashboard_router_with_workflow_root(
         .route_layer(middleware::from_fn(require_product_access));
     let owner_approval_routes = Router::new()
         .route(
+            "/api/product/v1/live-run-candidates/{run_id}/cancel-approvals/owner",
+            post(live_execution_cancel_owner_approval_api)
+                .head(product_command_method_not_allowed)
+                .fallback(product_command_method_not_allowed),
+        )
+        .route(
             "/api/product/v1/live-run-candidates/{run_id}/execution-approvals/owner",
             post(live_execution_owner_approval_api)
                 .head(product_command_method_not_allowed)
@@ -488,6 +496,12 @@ fn dashboard_router_with_workflow_root(
         )
         .route_layer(middleware::from_fn(require_risk_access));
     let operator_approval_routes = Router::new()
+        .route(
+            "/api/product/v1/live-run-candidates/{run_id}/cancel-approvals/operator",
+            post(live_execution_cancel_operator_approval_api)
+                .head(product_command_method_not_allowed)
+                .fallback(product_command_method_not_allowed),
+        )
         .route(
             "/api/product/v1/live-run-candidates/{run_id}/execution-approvals/operator",
             post(live_execution_operator_approval_api)

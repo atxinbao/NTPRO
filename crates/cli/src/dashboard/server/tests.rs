@@ -959,6 +959,43 @@ async fn live_execution_approvals_require_three_distinct_role_sessions() {
     }
 }
 
+#[tokio::test]
+async fn live_execution_cancel_approvals_require_owner_then_operator_sessions() {
+    let router = dashboard_router_with_access(
+        PathBuf::from("missing-mvp-live-execution-cancel-registry.json"),
+        PathBuf::from("missing-ntpro-node"),
+        INSTITUTION_TOKEN,
+        OPERATOR_TOKEN,
+    );
+    let institution_cookie = format!("{INSTITUTION_ACCESS_COOKIE}={INSTITUTION_TOKEN}");
+    let risk_cookie = format!("{RISK_ACCESS_COOKIE}=test-risk-access");
+    let operator_cookie = format!("{OPERATOR_ACCESS_COOKIE}={OPERATOR_TOKEN}");
+    for (role, expected_cookie) in [
+        ("owner", institution_cookie.as_str()),
+        ("operator", operator_cookie.as_str()),
+    ] {
+        let path = format!(
+            "/api/product/v1/live-run-candidates/live-candidate-001/cancel-approvals/{role}"
+        );
+        for cookie in [
+            institution_cookie.as_str(),
+            risk_cookie.as_str(),
+            operator_cookie.as_str(),
+        ] {
+            let response = router_response(&router, Method::POST, &path, Some(cookie)).await;
+            assert_eq!(
+                response.status(),
+                if cookie == expected_cookie {
+                    StatusCode::BAD_REQUEST
+                } else {
+                    StatusCode::FORBIDDEN
+                },
+                "{role} cancel approval must accept only its own role session"
+            );
+        }
+    }
+}
+
 fn assert_private_response_headers(response: &Response, context: &str) {
     assert_eq!(
         response.headers().get(header::CACHE_CONTROL),

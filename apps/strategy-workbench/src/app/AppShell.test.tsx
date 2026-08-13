@@ -590,6 +590,110 @@ describe("strategy workbench product slice", () => {
     expect(listGets).toBeGreaterThan(listGetsBeforeStop);
   });
 
+  it("shows partial-fill reconciliation and submits one owner cancel request", async () => {
+    const running: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    running.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    running.data.lifecycle = "market_data_running";
+    running.data.preflight_at_unix_ms = 1786406401000;
+    running.data.account_connected = true;
+    running.data.account_can_trade_verified = true;
+    running.data.runtime_started = true;
+    running.data.market_data_connected = true;
+    running.data.runtime_node_id = running.data.run_id;
+    running.data.runtime_process_state = "running";
+    running.data.order_admission = {
+      status: "consumed_single_shot",
+      submit: "blocked",
+      cancel: "dual_approval_required",
+      replace: "blocked",
+      fill_reconciliation: "explicit_manual_available",
+      owner_approved: true,
+      risk_approved: true,
+      operator_approved: true,
+      blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
+    };
+    running.data.execution_order = {
+      schema_version: "ntpro.s3.live_execution_order_state.v2",
+      admission_id: "manual-001",
+      strategy_version_id: running.data.strategy_version_id,
+      instrument_id: "BTCUSDT.BINANCE",
+      client_order_id: "S3LV008-001",
+      venue_order_id: "1001",
+      original_quantity: "0.00001000",
+      filled_quantity: "0.00000400",
+      remaining_quantity: "0.00000600",
+      status: "partially_filled",
+      terminal: false,
+      new_orders_blocked: true,
+      actual_submission_attempted: true,
+      automatic_retry_attempted: false,
+      cancel_attempted: false,
+      replace_attempted: false,
+      last_error: null,
+      updated_at_unix_ms: 1786406403000,
+    };
+    running.data.execution_order_state_sha256 = `sha256:${"a".repeat(64)}`;
+    running.data.audit_anchor.revision = 4;
+    running.data.audit_anchor.workspace_revision = 4;
+    running.data.audit_anchor.receipt_ref = `sha256:${"8".repeat(64)}`;
+    running.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+    running.boundaries.cancel_order_allowed = true;
+    running.boundaries.fill_reconciliation_allowed = true;
+    running.boundaries.execution_adapter_send_attempted = true;
+    running.boundaries.real_orders_submitted = true;
+    let cancelPosts = 0;
+    let cancelBody: Record<string, unknown> = {};
+    server.use(
+      http.get("/api/product/v1/live-run-candidates", () => {
+        const list = structuredClone(running);
+        list.schema_version =
+          "ntpro.product_api.live_run_candidate_list.response.v1";
+        list.data = [list.data];
+        return HttpResponse.json(list);
+      }),
+      http.post(
+        "/api/product/v1/live-run-candidates/:runId/cancel-approvals/owner",
+        async ({ request }) => {
+          cancelPosts += 1;
+          cancelBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(running);
+        },
+      ),
+    );
+
+    renderWorkbench("/live");
+    const region = await screen.findByRole("region", { name: "Live Run 候选" });
+    expect(within(region).getByText("0.00000400")).toBeInTheDocument();
+    expect(within(region).getByText("0.00000600")).toBeInTheDocument();
+    expect(
+      within(region).getByRole("button", { name: "刷新交易所订单状态" }),
+    ).toBeEnabled();
+    const submit = within(region).getByRole("button", {
+      name: "提交人工撤单申请",
+    });
+    expect(submit).toBeDisabled();
+    await userEvent.click(
+      within(region).getByRole("checkbox", {
+        name: /撤销当前订单的剩余未成交数量/,
+      }),
+    );
+    await userEvent.click(submit);
+
+    await waitFor(() => expect(cancelPosts).toBe(1));
+    expect(cancelBody).toMatchObject({
+      run_id: running.data.run_id,
+      client_order_id: "S3LV008-001",
+      source_order_state_sha256: running.data.execution_order_state_sha256,
+      user_confirmed: true,
+    });
+    expect(String(cancelBody.request_id)).toMatch(/^cancel-\d+$/);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(cancelPosts).toBe(1);
+  });
+
   it("renders real Backtest metrics only for an available Backtest Run", async () => {
     renderWorkbench("/runs/backtest-001");
 

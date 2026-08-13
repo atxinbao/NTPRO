@@ -47,6 +47,8 @@
       ]
     },
     "execution_order": null,
+    "execution_order_state_sha256": null,
+    "execution_control": null,
     "source_refs": [
       "node-config:node.toml#live_admission",
       "node-config:node.toml#risk",
@@ -59,6 +61,7 @@
     "NTPRO_S3_LIVE_RUN_OWNER_APPROVED",
     "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND",
     "NTPRO_S3_LIVE_RUN_MANUAL_STOP",
+    "NTPRO_S3_LIVE_ORDER_CONTROL",
     "NTPRO_S3_LIVE_RUN_RISK_APPROVED",
     "NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT"
   ],

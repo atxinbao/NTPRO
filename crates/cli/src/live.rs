@@ -33,13 +33,14 @@ use nautilus_binance::{
     },
     config::{BinanceDataClientConfig, BinanceExecClientConfig},
     factories::{BinanceDataClientFactory, BinanceExecutionClientFactory},
+    spot::http::client::BinanceSpotHttpClient,
 };
 use nautilus_common::{
     actor::{DataActor, DataActorCore, data_actor::DataActorConfig},
     enums::Environment,
     nautilus_actor,
 };
-use nautilus_core::string::urlencoding;
+use nautilus_core::{string::urlencoding, time::get_atomic_clock_realtime};
 use nautilus_live::{
     config::LiveRiskEngineConfig,
     node::{LiveNode, NodeState},
@@ -49,7 +50,7 @@ use nautilus_live::{
 };
 use nautilus_model::{
     data::{QuoteTick, TradeTick},
-    enums::{OrderSide, TimeInForce},
+    enums::{OrderSide, OrderStatus, TimeInForce},
     events::{
         OrderAccepted, OrderCanceled, OrderDenied, OrderExpired, OrderFilled, OrderRejected,
         OrderSubmitted,
@@ -57,6 +58,7 @@ use nautilus_model::{
     identifiers::{AccountId, ClientId, ClientOrderId, InstrumentId, StrategyId, TraderId, Venue},
     instruments::{Instrument, InstrumentAny},
     orders::Order,
+    reports::OrderStatusReport,
     types::{Money, Price, Quantity},
 };
 use nautilus_sandbox::{SandboxExecutionClientConfig, SandboxExecutionClientFactory};
@@ -421,6 +423,7 @@ struct ProductionExecutionSection {
     source_manifest_sha256: String,
     execution_admission_sha256: String,
     runtime_artifact_root: PathBuf,
+    control_artifact_root: PathBuf,
     risk_policy_ref: String,
     owner_authority_ref: String,
     risk_authority_ref: String,
@@ -19825,6 +19828,7 @@ fn validate_production_market_data_node_config(
         if !valid_prefixed_sha256(&execution.source_manifest_sha256)
             || !valid_prefixed_sha256(&execution.execution_admission_sha256)
             || !execution.runtime_artifact_root.is_absolute()
+            || !execution.control_artifact_root.is_absolute()
             || execution.owner_authority_ref == execution.risk_authority_ref
             || execution.owner_authority_ref == execution.operator_authority_ref
             || execution.risk_authority_ref == execution.operator_authority_ref

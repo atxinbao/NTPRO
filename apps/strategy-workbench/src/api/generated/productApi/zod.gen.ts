@@ -882,6 +882,7 @@ export const zLiveRunCandidateAction = z.enum([
   "preflight",
   "start_market_data",
   "start_execution",
+  "reconcile_order",
   "stop",
 ]);
 
@@ -918,16 +919,25 @@ export const zLiveExecutionAdmissionRequest = z.object({
   user_confirmed: z.literal(true),
 });
 
+export const zLiveExecutionCancelRequest = z.object({
+  run_id: zRunId,
+  request_id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  client_order_id: z.string().min(1).max(128),
+  source_order_state_sha256: zContentHash,
+  expires_at_unix_ms: z.int().gte(1),
+  user_confirmed: z.literal(true),
+});
+
 export const zLiveOrderAdmissionSnapshot = z.object({
   status: z.enum(["blocked", "authorized_single_shot", "consumed_single_shot"]),
   submit: z.enum(["blocked", "authorized_single_shot"]),
-  cancel: z.literal("blocked"),
+  cancel: z.string().min(1),
   replace: z.literal("blocked"),
-  fill_reconciliation: z.enum(["blocked", "runtime_event_projection"]),
+  fill_reconciliation: z.string().min(1),
   owner_approved: z.boolean(),
   risk_approved: z.boolean(),
   operator_approved: z.boolean(),
-  blockers: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1)]),
+  blockers: z.array(z.string().min(1)).min(2).max(3),
 });
 
 export const zLiveRunAuditAnchorSnapshot = z.object({
@@ -943,11 +953,15 @@ export const zLiveRunAuditAnchorSnapshot = z.object({
 });
 
 export const zLiveExecutionOrderSnapshot = z.object({
-  schema_version: z.literal("ntpro.s3.live_execution_order_state.v1"),
+  schema_version: z.literal("ntpro.s3.live_execution_order_state.v2"),
   admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
   strategy_version_id: zStrategyVersionId,
   instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
   client_order_id: z.string().min(1).max(128).nullable(),
+  venue_order_id: z.string().min(1).max(128).nullable(),
+  original_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  filled_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  remaining_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
   status: z.enum([
     "waiting_for_instrument",
     "submission_requested",
@@ -965,10 +979,50 @@ export const zLiveExecutionOrderSnapshot = z.object({
   new_orders_blocked: z.literal(true),
   actual_submission_attempted: z.boolean(),
   automatic_retry_attempted: z.literal(false),
-  cancel_attempted: z.literal(false),
+  cancel_attempted: z.boolean(),
   replace_attempted: z.literal(false),
   last_error: z.string().min(1).max(512).nullable(),
   updated_at_unix_ms: z.int().gte(1),
+});
+
+export const zLiveExecutionControlSnapshot = z.object({
+  schema_version: z.literal("ntpro.s3.live_execution_control_result.v1"),
+  request_sha256: zContentHash,
+  request_id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  action: z.enum(["reconcile", "cancel"]),
+  run_id: zRunId,
+  admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  strategy_version_id: zStrategyVersionId,
+  instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
+  client_order_id: z.string().min(1).max(128),
+  venue_order_id: z.string().min(1).max(128).nullable(),
+  status: z.enum([
+    "reconciled",
+    "cancel_confirmed",
+    "cancel_sent_readback_pending",
+    "cancel_not_required_terminal_or_pending",
+    "unknown_manual_review",
+  ]),
+  exchange_order_status: z.string().min(1).nullable(),
+  original_quantity: z
+    .string()
+    .regex(/^[0-9]+(?:\.[0-9]+)?$/)
+    .nullable(),
+  filled_quantity: z
+    .string()
+    .regex(/^[0-9]+(?:\.[0-9]+)?$/)
+    .nullable(),
+  remaining_quantity: z
+    .string()
+    .regex(/^[0-9]+(?:\.[0-9]+)?$/)
+    .nullable(),
+  query_attempted: z.boolean(),
+  cancel_attempted: z.boolean(),
+  cancel_confirmed: z.boolean(),
+  automatic_retry_attempted: z.literal(false),
+  manual_review_required: z.boolean(),
+  error_code: z.string().min(1).nullable(),
+  completed_at_unix_ms: z.int().gte(1),
 });
 
 export const zLiveRunCandidate = z.intersection(
@@ -1095,6 +1149,8 @@ export const zLiveRunCandidate = z.intersection(
     audit_anchor: zLiveRunAuditAnchorSnapshot,
     order_admission: zLiveOrderAdmissionSnapshot,
     execution_order: zLiveExecutionOrderSnapshot.nullable(),
+    execution_order_state_sha256: zContentHash.nullable(),
+    execution_control: zLiveExecutionControlSnapshot.nullable(),
     source_refs: z.tuple([
       z.string().regex(/^node-config:[^#]+#live_admission$/),
       z.string().regex(/^node-config:[^#]+#risk$/),
@@ -1112,9 +1168,9 @@ export const zLiveRunCandidateBoundaries = z.object({
   external_market_data_connection_allowed: z.literal(true),
   order_endpoint_access_allowed: z.boolean(),
   order_submission_allowed: z.boolean(),
-  cancel_order_allowed: z.literal(false),
+  cancel_order_allowed: z.boolean(),
   replace_order_allowed: z.literal(false),
-  fill_reconciliation_allowed: z.literal(false),
+  fill_reconciliation_allowed: z.boolean(),
   automatic_retry_allowed: z.literal(false),
   automatic_remediation_allowed: z.literal(false),
   automatic_recovery_allowed: z.literal(false),
@@ -1128,6 +1184,7 @@ export const zLiveRunCandidateGateRefs = z.tuple([
   z.literal("NTPRO_S3_LIVE_RUN_OWNER_APPROVED"),
   z.literal("NTPRO_S3_LIVE_RUN_NO_ORDER_SEND"),
   z.literal("NTPRO_S3_LIVE_RUN_MANUAL_STOP"),
+  z.literal("NTPRO_S3_LIVE_ORDER_CONTROL"),
   z.literal("NTPRO_S3_LIVE_RUN_RISK_APPROVED"),
   z.literal("NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT"),
 ]);
@@ -1671,6 +1728,32 @@ export const zApproveLiveExecutionAsOperatorPath = z.object({
  * 操作员审批已锚定；三方审批齐全后建立一次性执行准入
  */
 export const zApproveLiveExecutionAsOperatorResponse =
+  zLiveRunCandidateActionResponse;
+
+export const zApproveLiveExecutionCancelAsOwnerBody =
+  zLiveExecutionCancelRequest;
+
+export const zApproveLiveExecutionCancelAsOwnerPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * 机构撤单申请已锚定，等待当班操作员确认
+ */
+export const zApproveLiveExecutionCancelAsOwnerResponse =
+  zLiveRunCandidateActionResponse;
+
+export const zApproveLiveExecutionCancelAsOperatorBody =
+  zLiveExecutionCancelRequest;
+
+export const zApproveLiveExecutionCancelAsOperatorPath = z.object({
+  run_id: zRunId,
+});
+
+/**
+ * 同一撤单申请已双重确认并进入 Runtime 单次消费队列
+ */
+export const zApproveLiveExecutionCancelAsOperatorResponse =
   zLiveRunCandidateActionResponse;
 
 export const zListRunsQuery = z.object({

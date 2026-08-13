@@ -23,6 +23,84 @@ use super::*;
 
 const EXECUTION_STATE_HEAD_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state_head.v2";
 const EXECUTION_CONTROL_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state.v2";
+const EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_control_request.v1";
+const EXECUTION_CONTROL_RESULT_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_control_result.v1";
+const EXECUTION_RECONCILE_REQUEST_FILE: &str = "execution-reconcile-request.json";
+const EXECUTION_RECONCILE_RESULT_FILE: &str = "execution-reconcile-result.json";
+const EXECUTION_RECONCILE_RESULT_RECEIPT_FILE: &str = "execution-reconcile-result-receipt.json";
+const EXECUTION_CANCEL_REQUEST_FILE: &str = "execution-cancel-request.json";
+const EXECUTION_CANCEL_RESULT_FILE: &str = "execution-cancel-result.json";
+const EXECUTION_CANCEL_RESULT_RECEIPT_FILE: &str = "execution-cancel-result-receipt.json";
+const EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
+const EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v2";
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionExecutionControlRequest {
+    schema_version: String,
+    request_id: String,
+    action: String,
+    run_id: String,
+    admission_id: String,
+    strategy_version_id: String,
+    instrument_id: String,
+    client_order_id: String,
+    source_order_state_sha256: String,
+    owner_confirmed: bool,
+    operator_confirmed: bool,
+    requested_at_unix_ms: u64,
+    expires_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionExecutionControlResult {
+    schema_version: String,
+    request_sha256: String,
+    request_id: String,
+    action: String,
+    run_id: String,
+    admission_id: String,
+    strategy_version_id: String,
+    instrument_id: String,
+    client_order_id: String,
+    venue_order_id: Option<String>,
+    status: String,
+    exchange_order_status: Option<String>,
+    original_quantity: Option<String>,
+    filled_quantity: Option<String>,
+    remaining_quantity: Option<String>,
+    query_attempted: bool,
+    cancel_attempted: bool,
+    cancel_confirmed: bool,
+    automatic_retry_attempted: bool,
+    manual_review_required: bool,
+    error_code: Option<String>,
+    completed_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionExecutionOrderStateSnapshot {
+    schema_version: String,
+    admission_id: String,
+    strategy_version_id: String,
+    instrument_id: String,
+    client_order_id: Option<String>,
+    venue_order_id: Option<String>,
+    original_quantity: String,
+    filled_quantity: String,
+    remaining_quantity: String,
+    status: String,
+    terminal: bool,
+    new_orders_blocked: bool,
+    actual_submission_attempted: bool,
+    automatic_retry_attempted: bool,
+    cancel_attempted: bool,
+    replace_attempted: bool,
+    last_error: Option<String>,
+    updated_at_unix_ms: u64,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -63,6 +141,15 @@ struct ProductionMarketDataRuntimeContext<'a> {
     stderr_log_path: &'a Path,
     events_log_path: &'a Path,
     execution_enabled: bool,
+}
+
+struct ProductionExecutionControlContext<'a> {
+    candidate_root: &'a Path,
+    output_dir: &'a Path,
+    run_id: &'a str,
+    execution: &'a ProductionExecutionSection,
+    api_key: &'a str,
+    api_secret: &'a str,
 }
 
 pub(super) async fn run_production_market_data_node_with_command(
@@ -129,6 +216,18 @@ pub(super) async fn run_production_market_data_node_with_command(
         .collect::<Result<Vec<_>, _>>()?;
     let actor = ProductionMarketDataActor::new(ClientId::from("BINANCE"), instrument_ids);
     let (quote_count, trade_count, last_event_unix_ms) = actor.counters();
+    let execution_credentials = if let Some(execution) = &config.live_execution {
+        let exec_api_key = std::env::var(&execution.api_key_env)
+            .with_context(|| format!("{} is required", execution.api_key_env))?;
+        let exec_api_secret = std::env::var(&execution.api_secret_env)
+            .with_context(|| format!("{} is required", execution.api_secret_env))?;
+        if exec_api_key.trim().is_empty() || exec_api_secret.trim().is_empty() {
+            anyhow::bail!("production execution credentials must not be empty");
+        }
+        Some((exec_api_key, exec_api_secret))
+    } else {
+        None
+    };
     let mut builder = LiveNode::builder(trader_id, Environment::Live)?
         .with_name(run_id)
         .with_reconciliation(config.live_execution.is_some())
@@ -149,13 +248,9 @@ pub(super) async fn run_production_market_data_node_with_command(
             )]),
             ..Default::default()
         });
-        let exec_api_key = std::env::var(&execution.api_key_env)
-            .with_context(|| format!("{} is required", execution.api_key_env))?;
-        let exec_api_secret = std::env::var(&execution.api_secret_env)
-            .with_context(|| format!("{} is required", execution.api_secret_env))?;
-        if exec_api_key.trim().is_empty() || exec_api_secret.trim().is_empty() {
-            anyhow::bail!("production execution credentials must not be empty");
-        }
+        let (exec_api_key, exec_api_secret) = execution_credentials
+            .as_ref()
+            .context("production execution credentials are unavailable")?;
         builder = builder.add_exec_client(
             Some("BINANCE".to_string()),
             Box::new(BinanceExecutionClientFactory::new()),
@@ -164,8 +259,8 @@ pub(super) async fn run_production_market_data_node_with_command(
                 account_id: AccountId::from(execution.account_id.as_str()),
                 product_types: vec![BinanceProductType::Spot],
                 environment: BinanceEnvironment::Live,
-                api_key: Some(exec_api_key),
-                api_secret: Some(exec_api_secret),
+                api_key: Some(exec_api_key.clone()),
+                api_secret: Some(exec_api_secret.clone()),
                 ..Default::default()
             }),
         )?;
@@ -189,6 +284,7 @@ pub(super) async fn run_production_market_data_node_with_command(
     let mut started_at: Option<String> = None;
     let mut started_instant: Option<Instant> = None;
     let mut last_heartbeat: Option<Instant> = None;
+    let mut last_execution_control_poll: Option<Instant> = None;
     let mut shutdown_reason: Option<ShutdownReason> = None;
     let runtime_result = loop {
         tokio::select! {
@@ -240,6 +336,31 @@ pub(super) async fn run_production_market_data_node_with_command(
                         true,
                     )?;
                     last_heartbeat = Some(Instant::now());
+                }
+                if context.execution_enabled
+                    && last_execution_control_poll.is_none_or(|last| {
+                        last.elapsed() >= Duration::from_millis(250)
+                    })
+                {
+                    let execution = config
+                        .live_execution
+                        .as_ref()
+                        .context("production execution control lost its configuration")?;
+                    let (exec_api_key, exec_api_secret) = execution_credentials
+                        .as_ref()
+                        .context("production execution control lost its credentials")?;
+                    process_production_execution_controls(&ProductionExecutionControlContext {
+                        candidate_root: config_path
+                            .parent()
+                            .context("live execution config must have a candidate root")?,
+                        output_dir: &output_dir,
+                        run_id,
+                        execution,
+                        api_key: exec_api_key,
+                        api_secret: exec_api_secret,
+                    })
+                    .await?;
+                    last_execution_control_poll = Some(Instant::now());
                 }
             }
         }
@@ -306,6 +427,560 @@ pub(super) async fn run_production_market_data_node_with_command(
     runtime_result
 }
 
+async fn process_production_execution_controls(
+    context: &ProductionExecutionControlContext<'_>,
+) -> anyhow::Result<()> {
+    process_production_execution_control(
+        context,
+        "reconcile",
+        EXECUTION_RECONCILE_REQUEST_FILE,
+        "execution-reconcile-attempt.json",
+        EXECUTION_RECONCILE_RESULT_FILE,
+        EXECUTION_RECONCILE_RESULT_RECEIPT_FILE,
+    )
+    .await?;
+    process_production_execution_control(
+        context,
+        "cancel",
+        EXECUTION_CANCEL_REQUEST_FILE,
+        "execution-cancel-attempt.json",
+        EXECUTION_CANCEL_RESULT_FILE,
+        EXECUTION_CANCEL_RESULT_RECEIPT_FILE,
+    )
+    .await
+}
+
+async fn process_production_execution_control(
+    context: &ProductionExecutionControlContext<'_>,
+    expected_action: &str,
+    request_file: &str,
+    attempt_file: &str,
+    result_file: &str,
+    result_receipt_file: &str,
+) -> anyhow::Result<()> {
+    let request_path = context.candidate_root.join(request_file);
+    if !request_path.exists() {
+        return Ok(());
+    }
+    let request_raw = read_bounded_execution_authority_file(&request_path)?;
+    let request: ProductionExecutionControlRequest = serde_json::from_slice(&request_raw)
+        .context("live execution control request is invalid")?;
+    validate_production_execution_control_request(context, &request, expected_action)?;
+    let request_sha256 = execution_sha256_ref(&request_raw);
+    let result_path = context.candidate_root.join(result_file);
+    let result_receipt_path = context.candidate_root.join(result_receipt_file);
+    if result_path.exists() {
+        let result_raw = read_bounded_execution_authority_file(&result_path)
+            .context("live execution control result is invalid")?;
+        let result: ProductionExecutionControlResult = serde_json::from_slice(&result_raw)
+            .context("live execution control result is invalid")?;
+        if result.schema_version != EXECUTION_CONTROL_RESULT_SCHEMA_VERSION
+            || result.request_sha256 != request_sha256
+            || result.request_id != request.request_id
+            || result.action != expected_action
+            || result.run_id != context.run_id
+        {
+            anyhow::bail!("live execution control result identity is invalid");
+        }
+        publish_execution_control_result(context, &request_sha256, &result)?;
+        return Ok(());
+    }
+    if result_receipt_path.exists() {
+        anyhow::bail!("live execution control result receipt exists without result bytes");
+    }
+    let attempt_path = context.candidate_root.join(attempt_file);
+    if attempt_path.exists() {
+        let attempt_raw = read_bounded_execution_authority_file(&attempt_path)?;
+        if attempt_raw != request_raw {
+            anyhow::bail!("live execution control attempt does not match its request");
+        }
+        publish_execution_control_result(
+            context,
+            &request_sha256,
+            &interrupted_execution_control_result(&request, &request_sha256),
+        )?;
+        return Ok(());
+    }
+    atomic_write_text(
+        &attempt_path,
+        std::str::from_utf8(&request_raw).context("live execution control request is not UTF-8")?,
+    )?;
+
+    let order_state_raw = read_bounded_execution_authority_file(
+        &context.output_dir.join(EXECUTION_ORDER_STATE_FILE),
+    )?;
+    if request.source_order_state_sha256 != execution_sha256_ref(&order_state_raw) {
+        publish_execution_control_result(
+            context,
+            &request_sha256,
+            &failed_execution_control_result(
+                &request,
+                &request_sha256,
+                "source_order_state_drift",
+                false,
+                false,
+            ),
+        )?;
+        return Ok(());
+    }
+    let order_state: ProductionExecutionOrderStateSnapshot =
+        match serde_json::from_slice(&order_state_raw) {
+            Ok(order_state) => order_state,
+            Err(_) => {
+                publish_execution_control_result(
+                    context,
+                    &request_sha256,
+                    &failed_execution_control_result(
+                        &request,
+                        &request_sha256,
+                        "source_order_state_invalid",
+                        false,
+                        false,
+                    ),
+                )?;
+                return Ok(());
+            }
+        };
+    if !execution_control_source_order_matches(context, &request, &order_state) {
+        publish_execution_control_result(
+            context,
+            &request_sha256,
+            &failed_execution_control_result(
+                &request,
+                &request_sha256,
+                "source_order_state_identity_mismatch",
+                false,
+                false,
+            ),
+        )?;
+        return Ok(());
+    }
+
+    let client = match BinanceSpotHttpClient::new(
+        BinanceEnvironment::Live,
+        get_atomic_clock_realtime(),
+        Some(context.api_key.to_string()),
+        Some(context.api_secret.to_string()),
+        None,
+        None,
+        Some(10),
+        None,
+    ) {
+        Ok(client) => client,
+        Err(_) => {
+            publish_execution_control_result(
+                context,
+                &request_sha256,
+                &failed_execution_control_result(
+                    &request,
+                    &request_sha256,
+                    "exchange_client_initialization_failed",
+                    false,
+                    false,
+                ),
+            )?;
+            return Ok(());
+        }
+    };
+    let instruments = match client.request_instruments().await {
+        Ok(instruments) => instruments,
+        Err(_) => {
+            publish_execution_control_result(
+                context,
+                &request_sha256,
+                &failed_execution_control_result(
+                    &request,
+                    &request_sha256,
+                    "exchange_instrument_query_failed",
+                    false,
+                    false,
+                ),
+            )?;
+            return Ok(());
+        }
+    };
+    client.cache_instruments(instruments);
+    let instrument_id = match InstrumentId::from_str(&request.instrument_id) {
+        Ok(instrument_id) => instrument_id,
+        Err(_) => {
+            publish_execution_control_result(
+                context,
+                &request_sha256,
+                &failed_execution_control_result(
+                    &request,
+                    &request_sha256,
+                    "control_instrument_invalid",
+                    false,
+                    false,
+                ),
+            )?;
+            return Ok(());
+        }
+    };
+    let client_order_id = ClientOrderId::from(request.client_order_id.as_str());
+    let account_id = AccountId::from(context.execution.account_id.as_str());
+    let before = match client
+        .request_order_status_report(account_id, instrument_id, None, Some(client_order_id))
+        .await
+    {
+        Ok(report) => report,
+        Err(_) => {
+            publish_execution_control_result(
+                context,
+                &request_sha256,
+                &failed_execution_control_result(
+                    &request,
+                    &request_sha256,
+                    "exchange_order_query_failed",
+                    true,
+                    false,
+                ),
+            )?;
+            return Ok(());
+        }
+    };
+    let Some(before) = before else {
+        publish_execution_control_result(
+            context,
+            &request_sha256,
+            &failed_execution_control_result(
+                &request,
+                &request_sha256,
+                "order_not_found_at_venue",
+                true,
+                false,
+            ),
+        )?;
+        return Ok(());
+    };
+    validate_execution_order_report(context, &request, &order_state, &before)?;
+
+    let result = if expected_action == "reconcile" {
+        execution_control_result_from_report(
+            &request,
+            &request_sha256,
+            &before,
+            "reconciled",
+            true,
+            false,
+            false,
+            false,
+            None,
+        )
+    } else if !before.order_status.is_open()
+        || matches!(
+            before.order_status,
+            OrderStatus::PendingCancel | OrderStatus::PendingUpdate
+        )
+    {
+        execution_control_result_from_report(
+            &request,
+            &request_sha256,
+            &before,
+            "cancel_not_required_terminal_or_pending",
+            true,
+            false,
+            before.order_status == OrderStatus::Canceled,
+            false,
+            None,
+        )
+    } else {
+        let venue_order_id = match client
+            .cancel_order(
+                instrument_id,
+                Some(before.venue_order_id),
+                Some(client_order_id),
+            )
+            .await
+        {
+            Ok(venue_order_id) => venue_order_id,
+            Err(_) => {
+                publish_execution_control_result(
+                    context,
+                    &request_sha256,
+                    &failed_execution_control_result(
+                        &request,
+                        &request_sha256,
+                        "exchange_cancel_request_failed",
+                        true,
+                        true,
+                    ),
+                )?;
+                return Ok(());
+            }
+        };
+        let after = match client
+            .request_order_status_report(
+                account_id,
+                instrument_id,
+                Some(venue_order_id),
+                Some(client_order_id),
+            )
+            .await
+        {
+            Ok(report) => report,
+            Err(_) => {
+                publish_execution_control_result(
+                    context,
+                    &request_sha256,
+                    &failed_execution_control_result(
+                        &request,
+                        &request_sha256,
+                        "exchange_cancel_readback_failed",
+                        true,
+                        true,
+                    ),
+                )?;
+                return Ok(());
+            }
+        };
+        match after {
+            Some(after) => {
+                validate_execution_order_report(context, &request, &order_state, &after)?;
+                let confirmed = after.order_status == OrderStatus::Canceled;
+                execution_control_result_from_report(
+                    &request,
+                    &request_sha256,
+                    &after,
+                    if confirmed {
+                        "cancel_confirmed"
+                    } else {
+                        "cancel_sent_readback_pending"
+                    },
+                    true,
+                    true,
+                    confirmed,
+                    !confirmed,
+                    None,
+                )
+            }
+            None => failed_execution_control_result(
+                &request,
+                &request_sha256,
+                "cancel_sent_order_not_found_on_readback",
+                true,
+                true,
+            ),
+        }
+    };
+    publish_execution_control_result(context, &request_sha256, &result)?;
+    Ok(())
+}
+
+fn publish_execution_control_result(
+    context: &ProductionExecutionControlContext<'_>,
+    request_sha256: &str,
+    result: &ProductionExecutionControlResult,
+) -> anyhow::Result<()> {
+    let result_raw = serde_json::to_vec_pretty(result)
+        .context("live execution control result serialization failed")?;
+    crate::dashboard::product_api::live_run_anchor::anchor_runtime_control_result(
+        &crate::dashboard::product_api::live_run_anchor::LiveExecutionControlResultAnchor {
+            candidate_root: context.candidate_root,
+            run_id: context.run_id,
+            action: &result.action,
+            result_raw: &result_raw,
+            request_sha256,
+            completed_at_unix_ms: result.completed_at_unix_ms,
+        },
+    )
+}
+
+fn validate_production_execution_control_request(
+    context: &ProductionExecutionControlContext<'_>,
+    request: &ProductionExecutionControlRequest,
+    expected_action: &str,
+) -> anyhow::Result<()> {
+    let now = current_unix_timestamp_millis();
+    let valid_roles = match expected_action {
+        "reconcile" => request.owner_confirmed && !request.operator_confirmed,
+        "cancel" => request.owner_confirmed && request.operator_confirmed,
+        _ => false,
+    };
+    let valid_hash = request.source_order_state_sha256.len() == 71
+        && request.source_order_state_sha256.starts_with("sha256:")
+        && request.source_order_state_sha256[7..]
+            .bytes()
+            .all(|value| value.is_ascii_digit() || (b'a'..=b'f').contains(&value));
+    if request.schema_version != EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION
+        || request.request_id.trim().is_empty()
+        || request.request_id.len() > 128
+        || !request
+            .request_id
+            .bytes()
+            .all(|value| value.is_ascii_alphanumeric() || matches!(value, b'-' | b'_'))
+        || request.action != expected_action
+        || request.run_id != context.run_id
+        || request.admission_id != context.execution.admission_id
+        || request.strategy_version_id != context.execution.strategy_version_id
+        || request.instrument_id != context.execution.instrument_id
+        || request.client_order_id.trim().is_empty()
+        || !valid_hash
+        || !valid_roles
+        || request.requested_at_unix_ms > now
+        || request.expires_at_unix_ms <= request.requested_at_unix_ms
+        || request.expires_at_unix_ms <= now
+        || request.expires_at_unix_ms > request.requested_at_unix_ms.saturating_add(5 * 60 * 1_000)
+    {
+        anyhow::bail!("live execution control request does not match the admitted order");
+    }
+    Ok(())
+}
+
+fn execution_control_source_order_matches(
+    context: &ProductionExecutionControlContext<'_>,
+    request: &ProductionExecutionControlRequest,
+    order: &ProductionExecutionOrderStateSnapshot,
+) -> bool {
+    let quantities_valid = Decimal::from_str_exact(&order.original_quantity)
+        .ok()
+        .zip(Decimal::from_str_exact(&order.filled_quantity).ok())
+        .zip(Decimal::from_str_exact(&order.remaining_quantity).ok())
+        .is_some_and(|((original, filled), remaining)| {
+            original > Decimal::ZERO
+                && filled >= Decimal::ZERO
+                && remaining >= Decimal::ZERO
+                && filled + remaining == original
+                && original
+                    == Decimal::from_str_exact(&context.execution.quantity).unwrap_or_default()
+        });
+    order.schema_version == EXECUTION_ORDER_STATE_SCHEMA_VERSION
+        && order.admission_id == context.execution.admission_id
+        && order.strategy_version_id == context.execution.strategy_version_id
+        && order.instrument_id == context.execution.instrument_id
+        && order.client_order_id.as_deref() == Some(request.client_order_id.as_str())
+        && order
+            .venue_order_id
+            .as_deref()
+            .is_none_or(|value| !value.trim().is_empty())
+        && quantities_valid
+        && order.new_orders_blocked
+        && order.actual_submission_attempted
+        && !order.automatic_retry_attempted
+        && !order.replace_attempted
+        && (!order.cancel_attempted || request.action == "cancel")
+        && !matches!(order.status.as_str(), "waiting_for_instrument" | "denied")
+        && order.updated_at_unix_ms > 0
+        && (order.terminal
+            == matches!(
+                order.status.as_str(),
+                "rejected" | "expired" | "filled" | "canceled" | "submission_failed"
+            ))
+        && order
+            .last_error
+            .as_deref()
+            .is_none_or(|value| !value.trim().is_empty())
+}
+
+fn validate_execution_order_report(
+    context: &ProductionExecutionControlContext<'_>,
+    request: &ProductionExecutionControlRequest,
+    source_order: &ProductionExecutionOrderStateSnapshot,
+    report: &OrderStatusReport,
+) -> anyhow::Result<()> {
+    let admitted_quantity = Quantity::from_str(&context.execution.quantity)
+        .map_err(|error| anyhow::anyhow!("admitted execution quantity is invalid: {error}"))?;
+    if report.account_id != AccountId::from(context.execution.account_id.as_str())
+        || report.instrument_id != InstrumentId::from_str(&request.instrument_id)?
+        || report.client_order_id != Some(ClientOrderId::from(request.client_order_id.as_str()))
+        || source_order
+            .venue_order_id
+            .as_deref()
+            .is_some_and(|value| report.venue_order_id.to_string() != value)
+        || report.quantity != admitted_quantity
+        || report.filled_qty > report.quantity
+    {
+        anyhow::bail!(
+            "exchange order report identity or quantity does not match the admitted order"
+        );
+    }
+    Ok(())
+}
+
+#[expect(clippy::too_many_arguments)]
+fn execution_control_result_from_report(
+    request: &ProductionExecutionControlRequest,
+    request_sha256: &str,
+    report: &OrderStatusReport,
+    status: &str,
+    query_attempted: bool,
+    cancel_attempted: bool,
+    cancel_confirmed: bool,
+    manual_review_required: bool,
+    error_code: Option<String>,
+) -> ProductionExecutionControlResult {
+    ProductionExecutionControlResult {
+        schema_version: EXECUTION_CONTROL_RESULT_SCHEMA_VERSION.to_string(),
+        request_sha256: request_sha256.to_string(),
+        request_id: request.request_id.clone(),
+        action: request.action.clone(),
+        run_id: request.run_id.clone(),
+        admission_id: request.admission_id.clone(),
+        strategy_version_id: request.strategy_version_id.clone(),
+        instrument_id: request.instrument_id.clone(),
+        client_order_id: request.client_order_id.clone(),
+        venue_order_id: Some(report.venue_order_id.to_string()),
+        status: status.to_string(),
+        exchange_order_status: Some(report.order_status.as_ref().to_ascii_lowercase()),
+        original_quantity: Some(report.quantity.to_string()),
+        filled_quantity: Some(report.filled_qty.to_string()),
+        remaining_quantity: Some((report.quantity - report.filled_qty).to_string()),
+        query_attempted,
+        cancel_attempted,
+        cancel_confirmed,
+        automatic_retry_attempted: false,
+        manual_review_required,
+        error_code,
+        completed_at_unix_ms: current_unix_timestamp_millis(),
+    }
+}
+
+fn failed_execution_control_result(
+    request: &ProductionExecutionControlRequest,
+    request_sha256: &str,
+    error_code: &str,
+    query_attempted: bool,
+    cancel_attempted: bool,
+) -> ProductionExecutionControlResult {
+    ProductionExecutionControlResult {
+        schema_version: EXECUTION_CONTROL_RESULT_SCHEMA_VERSION.to_string(),
+        request_sha256: request_sha256.to_string(),
+        request_id: request.request_id.clone(),
+        action: request.action.clone(),
+        run_id: request.run_id.clone(),
+        admission_id: request.admission_id.clone(),
+        strategy_version_id: request.strategy_version_id.clone(),
+        instrument_id: request.instrument_id.clone(),
+        client_order_id: request.client_order_id.clone(),
+        venue_order_id: None,
+        status: "unknown_manual_review".to_string(),
+        exchange_order_status: None,
+        original_quantity: None,
+        filled_quantity: None,
+        remaining_quantity: None,
+        query_attempted,
+        cancel_attempted,
+        cancel_confirmed: false,
+        automatic_retry_attempted: false,
+        manual_review_required: true,
+        error_code: Some(error_code.to_string()),
+        completed_at_unix_ms: current_unix_timestamp_millis(),
+    }
+}
+
+fn interrupted_execution_control_result(
+    request: &ProductionExecutionControlRequest,
+    request_sha256: &str,
+) -> ProductionExecutionControlResult {
+    failed_execution_control_result(
+        request,
+        request_sha256,
+        "previous_attempt_interrupted_no_retry",
+        true,
+        request.action == "cancel",
+    )
+}
+
 fn validate_execution_runtime_authority(
     config_path: &Path,
     output_dir: &Path,
@@ -332,6 +1007,10 @@ fn validate_execution_runtime_authority(
     )?;
     let expected_output = fs::canonicalize(&execution.runtime_artifact_root)
         .context("live execution admitted Runtime artifact root is unavailable")?;
+    let expected_control = fs::canonicalize(&execution.control_artifact_root)
+        .context("live execution control artifact root is unavailable")?;
+    let actual_control =
+        fs::canonicalize(candidate_root).context("live execution candidate root is unavailable")?;
     let actual_output = fs::canonicalize(output_dir)
         .context("live execution Runtime artifact root is unavailable")?;
     let config_sha256 = execution_sha256_ref(&config_raw);
@@ -350,7 +1029,8 @@ fn validate_execution_runtime_authority(
             == Some(execution.execution_admission_sha256.as_str())
         && state.execution_runtime_config_sha256.as_deref() == Some(config_sha256.as_str())
         && state.stop_sha256.is_none()
-        && expected_output == actual_output;
+        && expected_output == actual_output
+        && expected_control == actual_control;
     if !valid {
         anyhow::bail!("live execution Runtime authority does not match the anchored control plane");
     }
@@ -400,9 +1080,218 @@ fn execution_sha256_ref(raw: &[u8]) -> String {
 
 #[cfg(test)]
 mod execution_authority_tests {
+    use nautilus_core::UnixNanos;
+    use nautilus_model::{enums::OrderType, identifiers::VenueOrderId};
     use tempfile::tempdir;
 
     use super::*;
+
+    fn execution_section(runtime_root: &Path, control_root: &Path) -> ProductionExecutionSection {
+        ProductionExecutionSection {
+            schema_version: PRODUCTION_EXECUTION_SCHEMA_VERSION.to_string(),
+            source_manifest_sha256: format!("sha256:{}", "1".repeat(64)),
+            execution_admission_sha256: format!("sha256:{}", "4".repeat(64)),
+            runtime_artifact_root: runtime_root.to_path_buf(),
+            control_artifact_root: control_root.to_path_buf(),
+            risk_policy_ref: format!("risk-config-sha256:{}", "7".repeat(64)),
+            owner_authority_ref: "role://institution-owner".to_string(),
+            risk_authority_ref: "policy://risk/test-v1".to_string(),
+            operator_authority_ref: "role://operations-operator".to_string(),
+            admission_id: "admission-authority-test".to_string(),
+            strategy_version_id: "ema-cross@v1".to_string(),
+            account_id: "BINANCE-001".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            side: "BUY".to_string(),
+            order_type: "LIMIT".to_string(),
+            time_in_force: "GTC".to_string(),
+            price: "1.00".to_string(),
+            quantity: "0.01".to_string(),
+            max_notional: "1.00".to_string(),
+            risk_policy_max_notional: "10.00".to_string(),
+            expires_at_unix_ms: u64::MAX,
+            api_key_env: "NTPRO_BINANCE_LIVE_API_KEY".to_string(),
+            api_secret_env: "NTPRO_BINANCE_LIVE_API_SECRET".to_string(),
+            owner_confirmed: true,
+            risk_confirmed: true,
+            operator_confirmed: true,
+            kill_switch_active: false,
+            single_shot: true,
+            cancel_order_allowed: false,
+            replace_order_allowed: false,
+            automatic_retry_allowed: false,
+            automatic_recovery_allowed: false,
+        }
+    }
+
+    fn control_request(action: &str) -> ProductionExecutionControlRequest {
+        let now = current_unix_timestamp_millis();
+        ProductionExecutionControlRequest {
+            schema_version: EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION.to_string(),
+            request_id: format!("{action}-001"),
+            action: action.to_string(),
+            run_id: "live-candidate-authority-test".to_string(),
+            admission_id: "admission-authority-test".to_string(),
+            strategy_version_id: "ema-cross@v1".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            client_order_id: "S3LV007-001".to_string(),
+            source_order_state_sha256: format!("sha256:{}", "a".repeat(64)),
+            owner_confirmed: true,
+            operator_confirmed: action == "cancel",
+            requested_at_unix_ms: now,
+            expires_at_unix_ms: now + 60_000,
+        }
+    }
+
+    fn partial_fill_report() -> OrderStatusReport {
+        OrderStatusReport::new(
+            AccountId::from("BINANCE-001"),
+            InstrumentId::from("BTCUSDT.BINANCE"),
+            Some(ClientOrderId::from("S3LV007-001")),
+            VenueOrderId::from("1001"),
+            OrderSide::Buy,
+            OrderType::Limit,
+            TimeInForce::Gtc,
+            OrderStatus::PartiallyFilled,
+            Quantity::from("0.01000000"),
+            Quantity::from("0.00400000"),
+            UnixNanos::from(1_000_000_000),
+            UnixNanos::from(2_000_000_000),
+            UnixNanos::from(3_000_000_000),
+            None,
+        )
+    }
+
+    fn partial_fill_order_state() -> ProductionExecutionOrderStateSnapshot {
+        ProductionExecutionOrderStateSnapshot {
+            schema_version: EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
+            admission_id: "admission-authority-test".to_string(),
+            strategy_version_id: "ema-cross@v1".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            client_order_id: Some("S3LV007-001".to_string()),
+            venue_order_id: Some("1001".to_string()),
+            original_quantity: "0.01000000".to_string(),
+            filled_quantity: "0.00400000".to_string(),
+            remaining_quantity: "0.00600000".to_string(),
+            status: "partially_filled".to_string(),
+            terminal: false,
+            new_orders_blocked: true,
+            actual_submission_attempted: true,
+            automatic_retry_attempted: false,
+            cancel_attempted: false,
+            replace_attempted: false,
+            last_error: None,
+            updated_at_unix_ms: 1,
+        }
+    }
+
+    #[test]
+    fn execution_control_roles_are_action_specific_and_fail_closed() {
+        let temp = tempdir().unwrap();
+        let execution = execution_section(temp.path(), temp.path());
+        let context = ProductionExecutionControlContext {
+            candidate_root: temp.path(),
+            output_dir: temp.path(),
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let reconcile = control_request("reconcile");
+        validate_production_execution_control_request(&context, &reconcile, "reconcile").unwrap();
+        let mut invalid_reconcile = reconcile;
+        invalid_reconcile.operator_confirmed = true;
+        assert!(
+            validate_production_execution_control_request(
+                &context,
+                &invalid_reconcile,
+                "reconcile"
+            )
+            .is_err()
+        );
+        let cancel = control_request("cancel");
+        validate_production_execution_control_request(&context, &cancel, "cancel").unwrap();
+        let mut invalid_cancel = cancel;
+        invalid_cancel.operator_confirmed = false;
+        assert!(
+            validate_production_execution_control_request(&context, &invalid_cancel, "cancel")
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn partial_fill_reconciliation_preserves_quantity_and_never_retries() {
+        let request = control_request("reconcile");
+        let report = partial_fill_report();
+        let result = execution_control_result_from_report(
+            &request,
+            "sha256:request",
+            &report,
+            "reconciled",
+            true,
+            false,
+            false,
+            false,
+            None,
+        );
+        assert_eq!(result.original_quantity.as_deref(), Some("0.01000000"));
+        assert_eq!(result.filled_quantity.as_deref(), Some("0.00400000"));
+        assert_eq!(result.remaining_quantity.as_deref(), Some("0.00600000"));
+        assert_eq!(
+            result.exchange_order_status.as_deref(),
+            Some("partially_filled")
+        );
+        assert!(!result.cancel_attempted);
+        assert!(!result.automatic_retry_attempted);
+        assert!(!result.manual_review_required);
+    }
+
+    #[test]
+    fn exchange_report_must_match_admitted_quantity_and_venue_order() {
+        let temp = tempdir().unwrap();
+        let execution = execution_section(temp.path(), temp.path());
+        let context = ProductionExecutionControlContext {
+            candidate_root: temp.path(),
+            output_dir: temp.path(),
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let request = control_request("cancel");
+        let source_order = partial_fill_order_state();
+        let report = partial_fill_report();
+        validate_execution_order_report(&context, &request, &source_order, &report).unwrap();
+
+        let mut wrong_quantity = partial_fill_report();
+        wrong_quantity.quantity = Quantity::from("0.02000000");
+        assert!(
+            validate_execution_order_report(&context, &request, &source_order, &wrong_quantity)
+                .is_err()
+        );
+
+        let mut wrong_venue_order = partial_fill_report();
+        wrong_venue_order.venue_order_id = VenueOrderId::from("1002");
+        assert!(
+            validate_execution_order_report(&context, &request, &source_order, &wrong_venue_order)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn interrupted_cancel_is_single_use_and_requires_manual_review() {
+        let request = control_request("cancel");
+        let result = interrupted_execution_control_result(&request, "sha256:request");
+        assert_eq!(result.status, "unknown_manual_review");
+        assert_eq!(
+            result.error_code.as_deref(),
+            Some("previous_attempt_interrupted_no_retry")
+        );
+        assert!(result.query_attempted);
+        assert!(result.cancel_attempted);
+        assert!(!result.cancel_confirmed);
+        assert!(!result.automatic_retry_attempted);
+        assert!(result.manual_review_required);
+    }
 
     #[test]
     fn tampered_runtime_config_is_rejected_before_execution_client_registration() {
@@ -453,39 +1342,7 @@ mod execution_authority_tests {
         )
         .unwrap();
         fs::write(&config_path, b"tampered-config").unwrap();
-        let execution = ProductionExecutionSection {
-            schema_version: PRODUCTION_EXECUTION_SCHEMA_VERSION.to_string(),
-            source_manifest_sha256: format!("sha256:{}", "1".repeat(64)),
-            execution_admission_sha256: format!("sha256:{}", "4".repeat(64)),
-            runtime_artifact_root: output.clone(),
-            risk_policy_ref: format!("risk-config-sha256:{}", "7".repeat(64)),
-            owner_authority_ref: "role://institution-owner".to_string(),
-            risk_authority_ref: "policy://risk/test-v1".to_string(),
-            operator_authority_ref: "role://operations-operator".to_string(),
-            admission_id: "admission-authority-test".to_string(),
-            strategy_version_id: "ema-cross@v1".to_string(),
-            account_id: "BINANCE-001".to_string(),
-            instrument_id: "BTCUSDT.BINANCE".to_string(),
-            side: "BUY".to_string(),
-            order_type: "LIMIT".to_string(),
-            time_in_force: "GTC".to_string(),
-            price: "1.00".to_string(),
-            quantity: "0.01".to_string(),
-            max_notional: "1.00".to_string(),
-            risk_policy_max_notional: "10.00".to_string(),
-            expires_at_unix_ms: u64::MAX,
-            api_key_env: "NTPRO_BINANCE_LIVE_API_KEY".to_string(),
-            api_secret_env: "NTPRO_BINANCE_LIVE_API_SECRET".to_string(),
-            owner_confirmed: true,
-            risk_confirmed: true,
-            operator_confirmed: true,
-            kill_switch_active: false,
-            single_shot: true,
-            cancel_order_allowed: false,
-            replace_order_allowed: false,
-            automatic_retry_allowed: false,
-            automatic_recovery_allowed: false,
-        };
+        let execution = execution_section(&output, &candidate);
         let error = validate_execution_runtime_authority(
             &config_path,
             &output,

@@ -242,24 +242,24 @@ describe("product API generated client", () => {
     running.data.order_admission = {
       status: "consumed_single_shot",
       submit: "blocked",
-      cancel: "blocked",
+      cancel: "dual_approval_required",
       replace: "blocked",
-      fill_reconciliation: "runtime_event_projection",
+      fill_reconciliation: "explicit_manual_available",
       owner_approved: true,
       risk_approved: true,
       operator_approved: true,
-      blockers: [
-        "single_shot_admission_consumed",
-        "additional_orders_blocked",
-        "manual_review_required_for_follow_up",
-      ],
+      blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
     };
     running.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v1",
+      schema_version: "ntpro.s3.live_execution_order_state.v2",
       admission_id: "manual-001",
       strategy_version_id: running.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: "S3LV007-001",
+      venue_order_id: "1001",
+      original_quantity: "0.00001000",
+      filled_quantity: "0",
+      remaining_quantity: "0.00001000",
       status: "accepted",
       terminal: false,
       new_orders_blocked: true,
@@ -270,6 +270,7 @@ describe("product API generated client", () => {
       last_error: null,
       updated_at_unix_ms: 1786406403000,
     };
+    running.data.execution_order_state_sha256 = `sha256:${"a".repeat(64)}`;
     running.data.audit_anchor.revision = 4;
     running.data.audit_anchor.workspace_revision = 4;
     running.data.audit_anchor.receipt_ref = `sha256:${"8".repeat(64)}`;
@@ -286,6 +287,88 @@ describe("product API generated client", () => {
     expect(result.boundaries.order_submission_allowed).toBe(false);
     expect(result.boundaries.cancel_order_allowed).toBe(false);
     expect(result.boundaries.replace_order_allowed).toBe(false);
+  });
+
+  it("submits one owner cancel approval without automatic retry", async () => {
+    const running: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    running.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    running.data.lifecycle = "market_data_running";
+    running.data.preflight_at_unix_ms = 1786406401000;
+    running.data.account_connected = true;
+    running.data.account_can_trade_verified = true;
+    running.data.runtime_started = true;
+    running.data.market_data_connected = true;
+    running.data.runtime_node_id = running.data.run_id;
+    running.data.runtime_process_state = "running";
+    running.data.order_admission = {
+      status: "consumed_single_shot",
+      submit: "blocked",
+      cancel: "dual_approval_required",
+      replace: "blocked",
+      fill_reconciliation: "explicit_manual_available",
+      owner_approved: true,
+      risk_approved: true,
+      operator_approved: true,
+      blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
+    };
+    running.data.execution_order = {
+      schema_version: "ntpro.s3.live_execution_order_state.v2",
+      admission_id: "manual-001",
+      strategy_version_id: running.data.strategy_version_id,
+      instrument_id: "BTCUSDT.BINANCE",
+      client_order_id: "S3LV008-001",
+      venue_order_id: "1001",
+      original_quantity: "0.00001000",
+      filled_quantity: "0.00000400",
+      remaining_quantity: "0.00000600",
+      status: "partially_filled",
+      terminal: false,
+      new_orders_blocked: true,
+      actual_submission_attempted: true,
+      automatic_retry_attempted: false,
+      cancel_attempted: false,
+      replace_attempted: false,
+      last_error: null,
+      updated_at_unix_ms: 1786406403000,
+    };
+    running.data.execution_order_state_sha256 = `sha256:${"a".repeat(64)}`;
+    running.data.audit_anchor.revision = 4;
+    running.data.audit_anchor.workspace_revision = 4;
+    running.data.audit_anchor.receipt_ref = `sha256:${"8".repeat(64)}`;
+    running.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+    running.boundaries.cancel_order_allowed = true;
+    running.boundaries.fill_reconciliation_allowed = true;
+    running.boundaries.execution_adapter_send_attempted = true;
+    running.boundaries.real_orders_submitted = true;
+    const request = {
+      run_id: running.data.run_id,
+      request_id: "cancel-owner-001",
+      client_order_id: "S3LV008-001",
+      source_order_state_sha256: running.data.execution_order_state_sha256,
+      expires_at_unix_ms: 1786406700000,
+      user_confirmed: true as const,
+    };
+    const fetch = jsonFetch(running);
+
+    const result = await createProductApiClient({
+      fetch,
+    }).approveLiveExecutionCancelAsOwner(running.data.run_id, request);
+
+    expect(result.data.execution_order?.remaining_quantity).toBe("0.00000600");
+    expect(result.boundaries.cancel_order_allowed).toBe(true);
+    expect(result.boundaries.replace_order_allowed).toBe(false);
+    expect(result.boundaries.automatic_retry_allowed).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [input] = fetch.mock.calls[0];
+    const submitted = input as Request;
+    expect(submitted.url).toContain(
+      `/api/product/v1/live-run-candidates/${running.data.run_id}/cancel-approvals/owner`,
+    );
+    expect(submitted.method).toBe("POST");
+    expect(await submitted.clone().json()).toEqual(request);
   });
 
   it("accepts an expired admission that failed before any adapter send", async () => {
@@ -305,24 +388,24 @@ describe("product API generated client", () => {
     failed.data.order_admission = {
       status: "consumed_single_shot",
       submit: "blocked",
-      cancel: "blocked",
+      cancel: "dual_approval_required",
       replace: "blocked",
-      fill_reconciliation: "runtime_event_projection",
+      fill_reconciliation: "explicit_manual_available",
       owner_approved: true,
       risk_approved: true,
       operator_approved: true,
-      blockers: [
-        "single_shot_admission_consumed",
-        "additional_orders_blocked",
-        "manual_review_required_for_follow_up",
-      ],
+      blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
     };
     failed.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v1",
+      schema_version: "ntpro.s3.live_execution_order_state.v2",
       admission_id: "manual-001",
       strategy_version_id: failed.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: null,
+      venue_order_id: null,
+      original_quantity: "0.00001000",
+      filled_quantity: "0",
+      remaining_quantity: "0.00001000",
       status: "submission_failed",
       terminal: true,
       new_orders_blocked: true,
@@ -333,6 +416,7 @@ describe("product API generated client", () => {
       last_error: "execution admission expired before submission",
       updated_at_unix_ms: 1786406403000,
     };
+    failed.data.execution_order_state_sha256 = `sha256:${"b".repeat(64)}`;
     failed.data.audit_anchor.revision = 4;
     failed.data.audit_anchor.workspace_revision = 4;
     failed.data.audit_anchor.receipt_ref = `sha256:${"9".repeat(64)}`;

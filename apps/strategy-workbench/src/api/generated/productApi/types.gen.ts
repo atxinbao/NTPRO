@@ -825,7 +825,11 @@ export type CreateLiveRunCandidateRequest = {
 };
 
 export type LiveRunCandidateAction =
-  "preflight" | "start_market_data" | "start_execution" | "stop";
+  | "preflight"
+  | "start_market_data"
+  | "start_execution"
+  | "reconcile_order"
+  | "stop";
 
 export type LiveRunCandidateActionRequest = {
   run_id: RunId;
@@ -859,16 +863,25 @@ export type LiveExecutionAdmissionRequest = {
   user_confirmed: true;
 };
 
+export type LiveExecutionCancelRequest = {
+  run_id: RunId;
+  request_id: string;
+  client_order_id: string;
+  source_order_state_sha256: ContentHash;
+  expires_at_unix_ms: number;
+  user_confirmed: true;
+};
+
 export type LiveOrderAdmissionSnapshot = {
   status: "blocked" | "authorized_single_shot" | "consumed_single_shot";
   submit: "blocked" | "authorized_single_shot";
-  cancel: "blocked";
+  cancel: string;
   replace: "blocked";
-  fill_reconciliation: "blocked" | "runtime_event_projection";
+  fill_reconciliation: string;
   owner_approved: boolean;
   risk_approved: boolean;
   operator_approved: boolean;
-  blockers: [string, string, string];
+  blockers: Array<string>;
 };
 
 export type LiveRunAuditAnchorSnapshot = {
@@ -884,11 +897,15 @@ export type LiveRunAuditAnchorSnapshot = {
 };
 
 export type LiveExecutionOrderSnapshot = {
-  schema_version: "ntpro.s3.live_execution_order_state.v1";
+  schema_version: "ntpro.s3.live_execution_order_state.v2";
   admission_id: string;
   strategy_version_id: StrategyVersionId;
   instrument_id: string;
   client_order_id: string | null;
+  venue_order_id: string | null;
+  original_quantity: string;
+  filled_quantity: string;
+  remaining_quantity: string;
   status:
     | "waiting_for_instrument"
     | "submission_requested"
@@ -905,10 +922,40 @@ export type LiveExecutionOrderSnapshot = {
   new_orders_blocked: true;
   actual_submission_attempted: boolean;
   automatic_retry_attempted: false;
-  cancel_attempted: false;
+  cancel_attempted: boolean;
   replace_attempted: false;
   last_error: string | null;
   updated_at_unix_ms: number;
+};
+
+export type LiveExecutionControlSnapshot = {
+  schema_version: "ntpro.s3.live_execution_control_result.v1";
+  request_sha256: ContentHash;
+  request_id: string;
+  action: "reconcile" | "cancel";
+  run_id: RunId;
+  admission_id: string;
+  strategy_version_id: StrategyVersionId;
+  instrument_id: string;
+  client_order_id: string;
+  venue_order_id: string | null;
+  status:
+    | "reconciled"
+    | "cancel_confirmed"
+    | "cancel_sent_readback_pending"
+    | "cancel_not_required_terminal_or_pending"
+    | "unknown_manual_review";
+  exchange_order_status: string | null;
+  original_quantity: string | null;
+  filled_quantity: string | null;
+  remaining_quantity: string | null;
+  query_attempted: boolean;
+  cancel_attempted: boolean;
+  cancel_confirmed: boolean;
+  automatic_retry_attempted: false;
+  manual_review_required: boolean;
+  error_code: string | null;
+  completed_at_unix_ms: number;
 };
 
 export type LiveRunCandidate = (
@@ -1018,6 +1065,8 @@ export type LiveRunCandidate = (
   audit_anchor: LiveRunAuditAnchorSnapshot;
   order_admission: LiveOrderAdmissionSnapshot;
   execution_order: LiveExecutionOrderSnapshot | null;
+  execution_order_state_sha256: ContentHash | null;
+  execution_control: LiveExecutionControlSnapshot | null;
   source_refs: [string, string, string, ContentHash];
 };
 
@@ -1029,9 +1078,9 @@ export type LiveRunCandidateBoundaries = {
   external_market_data_connection_allowed: true;
   order_endpoint_access_allowed: boolean;
   order_submission_allowed: boolean;
-  cancel_order_allowed: false;
+  cancel_order_allowed: boolean;
   replace_order_allowed: false;
-  fill_reconciliation_allowed: false;
+  fill_reconciliation_allowed: boolean;
   automatic_retry_allowed: false;
   automatic_remediation_allowed: false;
   automatic_recovery_allowed: false;
@@ -1077,6 +1126,7 @@ export type LiveRunCandidateGateRefs = [
   "NTPRO_S3_LIVE_RUN_OWNER_APPROVED",
   "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND",
   "NTPRO_S3_LIVE_RUN_MANUAL_STOP",
+  "NTPRO_S3_LIVE_ORDER_CONTROL",
   "NTPRO_S3_LIVE_RUN_RISK_APPROVED",
   "NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT",
 ];
@@ -2073,6 +2123,120 @@ export type ApproveLiveExecutionAsOperatorResponses = {
 
 export type ApproveLiveExecutionAsOperatorResponse =
   ApproveLiveExecutionAsOperatorResponses[keyof ApproveLiveExecutionAsOperatorResponses];
+
+export type ApproveLiveExecutionCancelAsOwnerData = {
+  body: LiveExecutionCancelRequest;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/live-run-candidates/{run_id}/cancel-approvals/owner";
+};
+
+export type ApproveLiveExecutionCancelAsOwnerErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品命令 API 仅允许 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  422: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type ApproveLiveExecutionCancelAsOwnerError =
+  ApproveLiveExecutionCancelAsOwnerErrors[keyof ApproveLiveExecutionCancelAsOwnerErrors];
+
+export type ApproveLiveExecutionCancelAsOwnerResponses = {
+  /**
+   * 机构撤单申请已锚定，等待当班操作员确认
+   */
+  200: LiveRunCandidateActionResponse;
+};
+
+export type ApproveLiveExecutionCancelAsOwnerResponse =
+  ApproveLiveExecutionCancelAsOwnerResponses[keyof ApproveLiveExecutionCancelAsOwnerResponses];
+
+export type ApproveLiveExecutionCancelAsOperatorData = {
+  body: LiveExecutionCancelRequest;
+  path: {
+    run_id: RunId;
+  };
+  query?: never;
+  url: "/live-run-candidates/{run_id}/cancel-approvals/operator";
+};
+
+export type ApproveLiveExecutionCancelAsOperatorErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品命令 API 仅允许 POST
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  409: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  422: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type ApproveLiveExecutionCancelAsOperatorError =
+  ApproveLiveExecutionCancelAsOperatorErrors[keyof ApproveLiveExecutionCancelAsOperatorErrors];
+
+export type ApproveLiveExecutionCancelAsOperatorResponses = {
+  /**
+   * 同一撤单申请已双重确认并进入 Runtime 单次消费队列
+   */
+  200: LiveRunCandidateActionResponse;
+};
+
+export type ApproveLiveExecutionCancelAsOperatorResponse =
+  ApproveLiveExecutionCancelAsOperatorResponses[keyof ApproveLiveExecutionCancelAsOperatorResponses];
 
 export type ListRunsData = {
   body?: never;
