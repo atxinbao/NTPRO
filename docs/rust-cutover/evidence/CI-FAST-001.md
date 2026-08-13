@@ -51,6 +51,19 @@ Status: LOCAL_VALIDATION_PASSED_REVIEW_REQUIRED
 - 下一 head 将复用完全相同的 Cargo lockfile、Rust 1.95 和 job cache key，记录热缓存耗时
   后再判断 required gate 是否达到提速目标。
 
+## Hosted 热缓存验收
+
+- PR #1305 / Rust Cutover Smoke run `31703895576`：success；
+- `rust-tests` 2 分 11 秒、`rust-lint` 4 分 34 秒、`smoke-core` 6 分 50 秒，最终
+  required `smoke` 8 秒并成功聚合；
+- 对比 PR #1303 修改前 run `31696445012` 的约 10 分 59 秒，本次修改 workflow 自身、
+  因而强制执行完整 MVP/门户验收的最坏路径减少约 4 分 09 秒，约 38%；
+- 普通非冻结 Rust 变更不会再启动 MVP acceptance/fault，且三条 lane 并行，预计由约
+  4 分 34 秒的 lint lane 决定等待时间；实际长期分位数应在后续普通产品 PR 中持续观察；
+- security run `31703895709` 全部成功；该 head 仍未触发 Backend Performance；
+- branch protection `strict=true`，唯一 required context 仍为 `smoke`；
+- Hosted 结构、并行调度、缓存复用和 required 聚合均验证通过，等待独立 review。
+
 ## 行为影响
 
 只改变 CI 调度和等待时间，不修改产品运行时、公开 API、交易语义、真实 Live 权限、
