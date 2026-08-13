@@ -3,7 +3,7 @@
 use std::{
     collections::BTreeSet,
     fs,
-    io::{ErrorKind, Read},
+    io::{ErrorKind, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     dashboard::ApiStatusResult,
+    process::process_start_time_secs,
     supervisor::{
         RegisterNodeRequest, StartNodeRequest, StopNodeRequest, SupervisorProcessState,
         SupervisorRegistryStore, SupervisorRunOwnership, SupervisorRunTerminalAnchor,
@@ -42,7 +43,10 @@ use super::{
         LiveRunAnchorAppendRequest, LiveRunAnchorReceipt, LiveRunAnchorRevision,
         anchor_config_refs,
     },
-    run::{open_absolute_directory_nofollow, publish_new_run_file, write_new_run_file},
+    run::{
+        PromotableStrategyOrderIntent, load_promotable_demo_order_intent,
+        open_absolute_directory_nofollow, publish_new_run_file, write_new_run_file,
+    },
     *,
 };
 
@@ -67,6 +71,7 @@ const LIVE_RUN_ACTIVE_FILE: &str = ".active-candidate.json";
 const LIVE_RUN_STATE_HEAD_FILE: &str = "state-head.json";
 const LIVE_RUN_STATE_HEAD_NEXT_FILE: &str = ".state-head.next.json";
 const LIVE_RUN_MUTATION_LOCK_FILE: &str = ".live-run-mutation.lock";
+const LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION: &str = "ntpro.live_run_mutation_lock.v1";
 const LIVE_RUN_STATE_COMMIT_DIRECTORY: &str = "live-run-state-commits";
 const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE: &str = "live-run-audit-anchor-head.json";
 const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE: &str = ".live-run-audit-anchor-head.next.json";
@@ -74,9 +79,11 @@ const LIVE_RUN_ARTIFACT_MAX_BYTES: u64 = 64 * 1024;
 const LIVE_RUN_STOP_CLOCK_SKEW_MS: u64 = 5_000;
 const LIVE_MARKET_DATA_STARTUP_TIMEOUT_MS: u64 = 20_000;
 const LIVE_EXECUTION_ADMISSION_SCHEMA_VERSION: &str =
-    "ntpro.product_api.live_execution_admission.v1";
+    "ntpro.product_api.live_execution_admission.v2";
 const LIVE_EXECUTION_ADMISSION_FILE: &str = "execution-admission.json";
-const LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION: &str = "ntpro.product_api.live_execution_approval.v1";
+const LIVE_STRATEGY_INTENT_SCHEMA_VERSION: &str = "ntpro.s3.live_strategy_order_intent.v1";
+const LIVE_STRATEGY_INTENT_FILE: &str = "strategy-order-intent.json";
+const LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION: &str = "ntpro.product_api.live_execution_approval.v2";
 const LIVE_EXECUTION_OWNER_APPROVAL_FILE: &str = "execution-owner-approval.json";
 const LIVE_EXECUTION_RISK_APPROVAL_FILE: &str = "execution-risk-approval.json";
 const LIVE_EXECUTION_OPERATOR_APPROVAL_FILE: &str = "execution-operator-approval.json";
@@ -84,7 +91,11 @@ const LIVE_EXECUTION_OWNER_APPROVAL_RECEIPT_FILE: &str = "execution-owner-approv
 const LIVE_EXECUTION_RISK_APPROVAL_RECEIPT_FILE: &str = "execution-risk-approval-receipt.json";
 const LIVE_EXECUTION_OPERATOR_APPROVAL_RECEIPT_FILE: &str =
     "execution-operator-approval-receipt.json";
-const LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v2";
+const LIVE_EXECUTION_OWNER_APPROVAL_STAGE_FILE: &str = ".execution-owner-approval-publication.json";
+const LIVE_EXECUTION_RISK_APPROVAL_STAGE_FILE: &str = ".execution-risk-approval-publication.json";
+const LIVE_EXECUTION_OPERATOR_APPROVAL_STAGE_FILE: &str =
+    ".execution-operator-approval-publication.json";
+const LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v3";
 const LIVE_EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
 const LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION: &str =
     "ntpro.s3.live_execution_control_request.v1";
@@ -169,6 +180,8 @@ pub(in crate::dashboard) struct LiveExecutionAdmissionRequest {
     account_ref: String,
     venue_ref: String,
     admission_id: String,
+    source_demo_run_id: String,
+    strategy_intent_id: String,
     instrument_id: String,
     side: String,
     order_type: String,
@@ -178,6 +191,48 @@ pub(in crate::dashboard) struct LiveExecutionAdmissionRequest {
     max_notional: String,
     expires_at_unix_ms: u64,
     user_confirmed: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveStrategyOrderIntentArtifact {
+    schema_version: String,
+    source_demo_run_id: String,
+    strategy_id: String,
+    strategy_version_id: String,
+    intent_id: String,
+    instrument_id: String,
+    side: String,
+    source_order_type: String,
+    quantity: String,
+    source_signal: String,
+    confidence: String,
+    market_event_seq: u64,
+    created_at_unix_ms: u64,
+    source_manifest_sha256: String,
+    source_result_sha256: String,
+}
+
+impl From<PromotableStrategyOrderIntent> for LiveStrategyOrderIntentArtifact {
+    fn from(value: PromotableStrategyOrderIntent) -> Self {
+        Self {
+            schema_version: LIVE_STRATEGY_INTENT_SCHEMA_VERSION.to_string(),
+            source_demo_run_id: value.source_run_id,
+            strategy_id: value.strategy_id,
+            strategy_version_id: value.strategy_version_id,
+            intent_id: value.intent_id,
+            instrument_id: value.instrument_id,
+            side: value.side,
+            source_order_type: value.source_order_type,
+            quantity: value.quantity,
+            source_signal: value.source_signal,
+            confidence: value.confidence,
+            market_event_seq: value.market_event_seq,
+            created_at_unix_ms: value.created_at_unix_ms,
+            source_manifest_sha256: value.source_manifest_sha256,
+            source_result_sha256: value.source_result_sha256,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -275,6 +330,14 @@ impl LiveExecutionApprovalRole {
             Self::Operator => LIVE_EXECUTION_OPERATOR_APPROVAL_RECEIPT_FILE,
         }
     }
+
+    const fn publication_stage_file(self) -> &'static str {
+        match self {
+            Self::Owner => LIVE_EXECUTION_OWNER_APPROVAL_STAGE_FILE,
+            Self::Risk => LIVE_EXECUTION_RISK_APPROVAL_STAGE_FILE,
+            Self::Operator => LIVE_EXECUTION_OPERATOR_APPROVAL_STAGE_FILE,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -283,6 +346,7 @@ struct LiveExecutionApprovalArtifact {
     schema_version: String,
     role: LiveExecutionApprovalRole,
     proposal_sha256: String,
+    strategy_intent_sha256: String,
     source_manifest_sha256: String,
     run_id: String,
     strategy_version_id: String,
@@ -291,6 +355,37 @@ struct LiveExecutionApprovalArtifact {
     risk_policy_ref: String,
     approved_at_unix_ms: u64,
     expires_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionApprovalPublicationStage {
+    schema_version: String,
+    role: LiveExecutionApprovalRole,
+    request: LiveExecutionAdmissionRequest,
+    strategy_intent: LiveStrategyOrderIntentArtifact,
+    approval: LiveExecutionApprovalArtifact,
+    admission: Option<LiveExecutionAdmissionArtifact>,
+    admission_state: Option<LiveRunCandidateState>,
+    base_state: LiveRunCandidateState,
+    base_state_sha256: String,
+    manifest_sha256: String,
+    previous_workspace_receipt: LiveRunAnchorReceipt,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ApprovalPublicationStep {
+    ExternalAnchor,
+    Approval,
+    Receipt,
+    WorkspaceHead,
+    Admission,
+    StateExternalAnchor,
+    State,
+    StateCommit,
+    StateReceipt,
+    StateHead,
+    StateWorkspaceHead,
 }
 
 struct LiveExecutionApprovalRecord {
@@ -307,6 +402,7 @@ struct LiveExecutionApprovalBinding<'a> {
     strategy_version_id: &'a str,
     admission_id: &'a str,
     proposal_sha256: &'a str,
+    strategy_intent_sha256: &'a str,
     risk_policy: &'a LiveExecutionRiskPolicy,
 }
 
@@ -321,6 +417,9 @@ struct LiveExecutionAdmissionArtifact {
     account_ref: String,
     venue_ref: String,
     admission_id: String,
+    source_demo_run_id: String,
+    strategy_intent_id: String,
+    strategy_intent_sha256: String,
     instrument_id: String,
     side: String,
     order_type: String,
@@ -444,12 +543,37 @@ struct LiveRunStateHead {
 }
 
 struct LiveRunMutationLock {
-    artifact_root: cap_std::fs::Dir,
+    file: fs::File,
+    _process_reservation: LiveRunProcessMutationReservation,
+}
+
+struct LiveRunProcessMutationReservation {
+    artifact_root: PathBuf,
+}
+
+static LIVE_RUN_PROCESS_MUTATION_LOCKS: std::sync::LazyLock<std::sync::Mutex<BTreeSet<PathBuf>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(BTreeSet::new()));
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveRunMutationLockArtifact {
+    schema_version: String,
+    pid: u32,
+    process_start_time_secs: u64,
+    acquired_at_unix_ms: u64,
 }
 
 impl Drop for LiveRunMutationLock {
     fn drop(&mut self) {
-        let _ = self.artifact_root.remove_file(LIVE_RUN_MUTATION_LOCK_FILE);
+        let _ = self.file.unlock();
+    }
+}
+
+impl Drop for LiveRunProcessMutationReservation {
+    fn drop(&mut self) {
+        if let Ok(mut locks) = LIVE_RUN_PROCESS_MUTATION_LOCKS.lock() {
+            locks.remove(&self.artifact_root);
+        }
     }
 }
 
@@ -561,6 +685,8 @@ struct LiveRunCandidate {
     runtime_error: Option<String>,
     audit_anchor: LiveRunAuditAnchorSnapshot,
     order_admission: LiveOrderAdmissionSnapshot,
+    strategy_intent: Option<LiveStrategyOrderIntentArtifact>,
+    strategy_intent_sha256: Option<String>,
     execution_order: Option<LiveExecutionOrderSnapshot>,
     execution_order_state_sha256: Option<String>,
     execution_control: Option<LiveExecutionControlSnapshot>,
@@ -572,6 +698,9 @@ struct LiveRunCandidate {
 struct LiveExecutionOrderSnapshot {
     schema_version: String,
     admission_id: String,
+    source_demo_run_id: String,
+    strategy_intent_id: String,
+    strategy_intent_sha256: String,
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
@@ -1145,7 +1274,14 @@ fn authorize_live_execution(
     authorize_live_execution_with_source_validator(state, path_run_id, request, role, |manifest| {
         validate_live_candidate_against_current_source(state, manifest)?;
         let source = load_product_source(state, unix_time_ms())?;
-        evaluate_live_execution_risk_policy(&source)
+        let risk = evaluate_live_execution_risk_policy(&source)?;
+        let intent = load_promotable_demo_order_intent(
+            state,
+            &request.source_demo_run_id,
+            &manifest.strategy_id,
+            &manifest.strategy_version_id,
+        )?;
+        Ok((risk, intent))
     })
 }
 
@@ -1157,11 +1293,56 @@ fn authorize_live_execution_with_source_validator<F>(
     source_validator: F,
 ) -> Result<LiveRunCandidate, ProductError>
 where
-    F: FnOnce(&LiveRunCandidateManifest) -> Result<LiveExecutionRiskPolicy, ProductError>,
+    F: FnOnce(
+        &LiveRunCandidateManifest,
+    )
+        -> Result<(LiveExecutionRiskPolicy, PromotableStrategyOrderIntent), ProductError>,
+{
+    authorize_live_execution_with_publication_failure(
+        state,
+        path_run_id,
+        request,
+        role,
+        source_validator,
+        None,
+    )
+}
+
+fn authorize_live_execution_with_publication_failure<F>(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveExecutionAdmissionRequest,
+    role: LiveExecutionApprovalRole,
+    source_validator: F,
+    fail_after: Option<ApprovalPublicationStep>,
+) -> Result<LiveRunCandidate, ProductError>
+where
+    F: FnOnce(
+        &LiveRunCandidateManifest,
+    )
+        -> Result<(LiveExecutionRiskPolicy, PromotableStrategyOrderIntent), ProductError>,
 {
     let _workspace_lock = acquire_live_run_mutation_lock(state)?;
     validate_identifier("run_id", path_run_id)?;
     validate_identifier("execution_admission_id", &request.admission_id)?;
+    validate_identifier("source_demo_run_id", &request.source_demo_run_id)?;
+    validate_identifier("strategy_intent_id", &request.strategy_intent_id)?;
+    let candidate_root = canonical_live_run_root(state, false)?.join(path_run_id);
+    if candidate_root.join(role.publication_stage_file()).exists() {
+        let (manifest, _) = load_live_run_manifest(state, path_run_id)?;
+        let (risk_policy, promoted) = source_validator(&manifest)?;
+        let intent = LiveStrategyOrderIntentArtifact::from(promoted);
+        resume_live_execution_approval_publication(
+            state,
+            path_run_id,
+            request,
+            role,
+            &risk_policy,
+            &intent,
+            fail_after,
+        )?;
+        return load_live_run_candidate(state, path_run_id);
+    }
     let (candidate, manifest, manifest_raw) = load_live_run_candidate_snapshot(state, path_run_id)?;
     if request.run_id != path_run_id
         || request.strategy_version_id != manifest.strategy_version_id
@@ -1196,7 +1377,25 @@ where
             "live_execution_order_quantity",
         )
     })?;
-    let risk_policy = source_validator(&manifest)?;
+    let (risk_policy, promoted) = source_validator(&manifest)?;
+    let intent = LiveStrategyOrderIntentArtifact::from(promoted);
+    ensure_strategy_intent_is_unconsumed(state, path_run_id, &intent)?;
+    let intent_raw = serde_json::to_vec_pretty(&intent).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_strategy_intent",
+        )
+    })?;
+    if request.strategy_intent_id != intent.intent_id
+        || request.instrument_id != intent.instrument_id
+        || request.side != intent.side
+        || request.quantity != intent.quantity
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent_binding",
+        ));
+    }
     let max_notional = Decimal::from_str_exact(&request.max_notional)
         .map_err(|_| product_error(ProductErrorKind::BadRequest, "live_execution_max_notional"))?;
     let risk_policy_max_notional = Decimal::from_str_exact(&risk_policy.max_order_notional)
@@ -1238,6 +1437,7 @@ where
         schema_version: LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION.to_string(),
         role,
         proposal_sha256: proposal_sha256.clone(),
+        strategy_intent_sha256: sha256_ref(&intent_raw),
         source_manifest_sha256: manifest_sha256.clone(),
         run_id: path_run_id.to_string(),
         strategy_version_id: manifest.strategy_version_id.clone(),
@@ -1247,14 +1447,23 @@ where
         approved_at_unix_ms: now,
         expires_at_unix_ms: request.expires_at_unix_ms,
     };
-    let approval_raw = serde_json::to_vec_pretty(&approval).map_err(|_| {
-        product_error(
-            ProductErrorKind::LiveExecutionFailed,
-            "live_execution_approval",
-        )
-    })?;
-    let candidate_root = canonical_live_run_root(state, false)?.join(path_run_id);
     let directory = open_absolute_directory_nofollow(&candidate_root)?;
+    if let Some((existing, existing_raw)) =
+        read_optional_artifact_with_raw::<LiveStrategyOrderIntentArtifact>(
+            &candidate_root.join(LIVE_STRATEGY_INTENT_FILE),
+            "live_strategy_intent",
+        )?
+    {
+        validate_live_strategy_intent_artifact(&existing, &manifest)?;
+        if existing_raw != intent_raw {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_strategy_intent",
+            ));
+        }
+    } else {
+        write_new_run_file(&directory, LIVE_STRATEGY_INTENT_FILE, &intent_raw)?;
+    }
     if candidate_root.join(role.artifact_file()).exists()
         || candidate_root.join(role.receipt_file()).exists()
     {
@@ -1263,6 +1472,7 @@ where
             "live_execution_approval",
         ));
     }
+    let mut approvals = Vec::new();
     for existing_role in [
         LiveExecutionApprovalRole::Owner,
         LiveExecutionApprovalRole::Risk,
@@ -1281,63 +1491,32 @@ where
                     strategy_version_id: &manifest.strategy_version_id,
                     admission_id: &request.admission_id,
                     proposal_sha256: &proposal_sha256,
+                    strategy_intent_sha256: &sha256_ref(&intent_raw),
                     risk_policy: &risk_policy,
                 },
             )?;
+            approvals.push((existing_role, existing));
         }
     }
-    write_and_anchor_live_execution_approval(
-        state,
-        path_run_id,
-        current_state.revision,
-        &manifest_sha256,
-        role,
-        &approval_raw,
-        &directory,
-    )?;
-    let mut approvals = Vec::new();
-    for approval_role in [
-        LiveExecutionApprovalRole::Owner,
-        LiveExecutionApprovalRole::Risk,
-        LiveExecutionApprovalRole::Operator,
-    ] {
-        let Some((artifact, _)) = read_optional_artifact_with_raw::<LiveExecutionApprovalArtifact>(
-            &candidate_root.join(approval_role.artifact_file()),
-            "live_execution_approval",
-        )?
-        else {
-            return load_live_run_candidate(state, path_run_id);
-        };
-        approvals.push((approval_role, artifact));
-    }
-    for (approval_role, existing) in &approvals {
-        validate_live_execution_approval(
-            existing,
-            &LiveExecutionApprovalBinding {
-                role: *approval_role,
-                manifest_sha256: &manifest_sha256,
-                run_id: path_run_id,
-                strategy_version_id: &manifest.strategy_version_id,
-                admission_id: &request.admission_id,
-                proposal_sha256: &proposal_sha256,
-                risk_policy: &risk_policy,
-            },
-        )?;
-    }
+    approvals.push((role, approval.clone()));
+    let all_roles_approved = approvals.len() == 3;
     let authorized_at = approvals
         .iter()
         .map(|(_, approval)| approval.approved_at_unix_ms)
         .max()
         .unwrap_or(now);
-    let artifact = LiveExecutionAdmissionArtifact {
+    let admission = all_roles_approved.then(|| LiveExecutionAdmissionArtifact {
         schema_version: LIVE_EXECUTION_ADMISSION_SCHEMA_VERSION.to_string(),
-        request_sha256: proposal_sha256,
+        request_sha256: proposal_sha256.clone(),
         source_manifest_sha256: manifest_sha256.clone(),
         run_id: path_run_id.to_string(),
-        strategy_version_id: manifest.strategy_version_id,
-        account_ref: manifest.account_ref,
-        venue_ref: manifest.venue_ref,
+        strategy_version_id: manifest.strategy_version_id.clone(),
+        account_ref: manifest.account_ref.clone(),
+        venue_ref: manifest.venue_ref.clone(),
         admission_id: request.admission_id.clone(),
+        source_demo_run_id: request.source_demo_run_id.clone(),
+        strategy_intent_id: request.strategy_intent_id.clone(),
+        strategy_intent_sha256: sha256_ref(&intent_raw),
         instrument_id: request.instrument_id.clone(),
         side: request.side.clone(),
         order_type: request.order_type.clone(),
@@ -1345,11 +1524,11 @@ where
         price: request.price.clone(),
         quantity: request.quantity.clone(),
         max_notional: request.max_notional.clone(),
-        risk_policy_max_notional: risk_policy.max_order_notional,
-        risk_policy_ref: risk_policy.source_ref,
-        owner_authority_ref: risk_policy.owner_authority_ref,
-        risk_authority_ref: risk_policy.risk_authority_ref,
-        operator_authority_ref: risk_policy.operator_authority_ref,
+        risk_policy_max_notional: risk_policy.max_order_notional.clone(),
+        risk_policy_ref: risk_policy.source_ref.clone(),
+        owner_authority_ref: risk_policy.owner_authority_ref.clone(),
+        risk_authority_ref: risk_policy.risk_authority_ref.clone(),
+        operator_authority_ref: risk_policy.operator_authority_ref.clone(),
         authorized_at_unix_ms: authorized_at,
         expires_at_unix_ms: request.expires_at_unix_ms,
         owner_confirmed: true,
@@ -1362,43 +1541,116 @@ where
         replace_order_allowed: false,
         automatic_retry_allowed: false,
         automatic_recovery_allowed: false,
-    };
-    let raw = serde_json::to_vec_pretty(&artifact).map_err(|_| {
+    });
+    let admission_raw = admission
+        .as_ref()
+        .map(serde_json::to_vec_pretty)
+        .transpose()
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::LiveExecutionFailed,
+                "live_execution_admission",
+            )
+        })?;
+    let admission_state = admission_raw.as_ref().map(|raw| LiveRunCandidateState {
+        schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+        run_id: path_run_id.to_string(),
+        source_manifest_sha256: manifest_sha256.clone(),
+        revision: current_state.revision + 1,
+        previous_state_sha256: Some(sha256_ref(&current_state_raw)),
+        lifecycle: LiveRunCandidateLifecycle::PreflightReady,
+        preflight_sha256: current_state.preflight_sha256.clone(),
+        execution_admission_sha256: Some(sha256_ref(raw)),
+        execution_runtime_config_sha256: None,
+        stop_sha256: None,
+        updated_at_unix_ms: authorized_at,
+    });
+    let previous_workspace_receipt = validate_workspace_anchor_head(state)?.ok_or_else(|| {
         product_error(
-            ProductErrorKind::LiveExecutionFailed,
-            "live_execution_admission",
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
         )
     })?;
-    write_new_run_file(&directory, LIVE_EXECUTION_ADMISSION_FILE, &raw)?;
-    let state_result = write_live_run_state(
+    let stage = LiveExecutionApprovalPublicationStage {
+        schema_version: "ntpro.s3.live_execution_approval_publication.v1".to_string(),
+        role,
+        request: request.clone(),
+        strategy_intent: intent.clone(),
+        approval,
+        admission,
+        admission_state,
+        base_state: current_state,
+        base_state_sha256: sha256_ref(&current_state_raw),
+        manifest_sha256,
+        previous_workspace_receipt,
+    };
+    publish_new_run_file(
+        &directory,
+        role.publication_stage_file(),
+        &serde_json::to_vec_pretty(&stage).map_err(|_| {
+            product_error(
+                ProductErrorKind::LiveExecutionFailed,
+                "live_execution_approval_publication",
+            )
+        })?,
+    )?;
+    complete_live_execution_approval_publication(
         state,
         path_run_id,
-        &LiveRunCandidateState {
-            schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
-            run_id: path_run_id.to_string(),
-            source_manifest_sha256: manifest_sha256,
-            revision: current_state.revision + 1,
-            previous_state_sha256: Some(sha256_ref(&current_state_raw)),
-            lifecycle: LiveRunCandidateLifecycle::PreflightReady,
-            preflight_sha256: current_state.preflight_sha256,
-            execution_admission_sha256: Some(sha256_ref(&raw)),
-            execution_runtime_config_sha256: None,
-            stop_sha256: None,
-            updated_at_unix_ms: authorized_at,
-        },
-    );
-    if let Err(error) = state_result {
-        directory
-            .remove_file(LIVE_EXECUTION_ADMISSION_FILE)
-            .map_err(|_| {
-                product_error(
-                    ProductErrorKind::LiveExecutionFailed,
-                    "live_execution_admission_cleanup",
-                )
-            })?;
-        return Err(error);
-    }
+        &stage,
+        &risk_policy,
+        &intent,
+        fail_after,
+    )?;
     load_live_run_candidate(state, path_run_id)
+}
+
+fn ensure_strategy_intent_is_unconsumed(
+    state: &DashboardServerState,
+    current_run_id: &str,
+    intent: &LiveStrategyOrderIntentArtifact,
+) -> Result<(), ProductError> {
+    let root = canonical_live_run_root(state, false)?;
+    if !root.exists() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(&root)
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "live_run_root"))?
+    {
+        let entry = entry
+            .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "live_run_root"))?;
+        let file_type = entry
+            .file_type()
+            .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "live_run_root"))?;
+        if !file_type.is_dir() || file_type.is_symlink() {
+            continue;
+        }
+        let run_id = entry
+            .file_name()
+            .into_string()
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_run_root"))?;
+        validate_identifier("run_id", &run_id)?;
+        if run_id == current_run_id {
+            continue;
+        }
+        let path = entry.path().join(LIVE_STRATEGY_INTENT_FILE);
+        if !path.exists() {
+            continue;
+        }
+        let existing_raw = read_live_run_artifact_bytes(&path, "live_strategy_intent")?;
+        let existing: LiveStrategyOrderIntentArtifact = serde_json::from_slice(&existing_raw)
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_strategy_intent"))?;
+        if existing.source_demo_run_id == intent.source_demo_run_id
+            && existing.intent_id == intent.intent_id
+            && existing.source_result_sha256 == intent.source_result_sha256
+        {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_strategy_intent_consumed",
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn validate_live_execution_approval(
@@ -1413,6 +1665,7 @@ fn validate_live_execution_approval(
     if approval.schema_version != LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION
         || approval.role != binding.role
         || approval.proposal_sha256 != binding.proposal_sha256
+        || approval.strategy_intent_sha256 != binding.strategy_intent_sha256
         || approval.source_manifest_sha256 != binding.manifest_sha256
         || approval.run_id != binding.run_id
         || approval.strategy_version_id != binding.strategy_version_id
@@ -2096,51 +2349,253 @@ fn fail_cancel_publication_after(
     }
 }
 
-fn write_and_anchor_live_execution_approval(
+fn fail_approval_publication_after(
+    fail_after: Option<ApprovalPublicationStep>,
+    completed: ApprovalPublicationStep,
+) -> Result<(), ProductError> {
+    if fail_after == Some(completed) {
+        Err(product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_execution_approval_publication_injected_failure",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+fn resume_live_execution_approval_publication(
     state: &DashboardServerState,
     run_id: &str,
-    run_revision: u64,
-    manifest_sha256: &str,
+    request: &LiveExecutionAdmissionRequest,
     role: LiveExecutionApprovalRole,
-    approval_raw: &[u8],
-    directory: &cap_std::fs::Dir,
+    risk_policy: &LiveExecutionRiskPolicy,
+    strategy_intent: &LiveStrategyOrderIntentArtifact,
+    fail_after: Option<ApprovalPublicationStep>,
 ) -> Result<(), ProductError> {
-    let approval: LiveExecutionApprovalArtifact = serde_json::from_slice(approval_raw)
-        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_execution_approval"))?;
-    let previous = validate_workspace_anchor_head(state)?.ok_or_else(|| {
+    let root = canonical_live_run_root(state, false)?.join(run_id);
+    let (stage, _) = read_optional_artifact_with_raw::<LiveExecutionApprovalPublicationStage>(
+        &root.join(role.publication_stage_file()),
+        "live_execution_approval_publication",
+    )?
+    .ok_or_else(|| {
         product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_execution_approval_publication",
+        )
+    })?;
+    if stage.schema_version != "ntpro.s3.live_execution_approval_publication.v1"
+        || stage.role != role
+        || stage.request != *request
+        || stage.request.run_id != run_id
+    {
+        return Err(product_error(
             ProductErrorKind::BoundaryViolation,
-            "live_run_workspace_anchor_head",
+            "live_execution_approval_publication",
+        ));
+    }
+    complete_live_execution_approval_publication(
+        state,
+        run_id,
+        &stage,
+        risk_policy,
+        strategy_intent,
+        fail_after,
+    )
+}
+
+fn complete_live_execution_approval_publication(
+    state: &DashboardServerState,
+    run_id: &str,
+    stage: &LiveExecutionApprovalPublicationStage,
+    risk_policy: &LiveExecutionRiskPolicy,
+    strategy_intent: &LiveStrategyOrderIntentArtifact,
+    fail_after: Option<ApprovalPublicationStep>,
+) -> Result<(), ProductError> {
+    let root = canonical_live_run_root(state, false)?.join(run_id);
+    let directory = open_absolute_directory_nofollow(&root)?;
+    let (manifest, manifest_raw) = load_live_run_manifest(state, run_id)?;
+    let intent_raw = serde_json::to_vec_pretty(&stage.strategy_intent).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_approval_publication",
+        )
+    })?;
+    let request_raw = serde_json::to_vec(&stage.request).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_approval_publication",
+        )
+    })?;
+    if sha256_ref(&manifest_raw) != stage.manifest_sha256
+        || stage.base_state.run_id != run_id
+        || stage.base_state.source_manifest_sha256 != stage.manifest_sha256
+        || stage.base_state.lifecycle != LiveRunCandidateLifecycle::PreflightReady
+        || stage.base_state.execution_admission_sha256.is_some()
+        || stage.base_state_sha256
+            != sha256_ref(&read_live_run_artifact_bytes(
+                &root.join(live_run_state_file_name(stage.base_state.revision)),
+                "live_run_state",
+            )?)
+        || stage.strategy_intent.intent_id != stage.request.strategy_intent_id
+        || stage.strategy_intent.source_demo_run_id != stage.request.source_demo_run_id
+        || stage.strategy_intent.instrument_id != stage.request.instrument_id
+        || stage.strategy_intent.side != stage.request.side
+        || stage.strategy_intent.quantity != stage.request.quantity
+        || stage.strategy_intent != *strategy_intent
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_approval_publication",
+        ));
+    }
+    validate_live_execution_approval(
+        &stage.approval,
+        &LiveExecutionApprovalBinding {
+            role: stage.role,
+            manifest_sha256: &stage.manifest_sha256,
+            run_id,
+            strategy_version_id: &manifest.strategy_version_id,
+            admission_id: &stage.request.admission_id,
+            proposal_sha256: &sha256_ref(&request_raw),
+            strategy_intent_sha256: &sha256_ref(&intent_raw),
+            risk_policy,
+        },
+    )?;
+    let approval_raw = serde_json::to_vec_pretty(&stage.approval).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_approval",
         )
     })?;
     let request = LiveRunAnchorAppendRequest::new(
         state.live_run_audit_anchor.namespace()?,
         run_id,
-        LiveRunAnchorRevision::new(run_revision, previous.workspace_revision + 1),
-        sha256_ref(approval_raw),
-        manifest_sha256.to_string(),
-        Some(previous.sha256()),
-        approval.approved_at_unix_ms,
+        LiveRunAnchorRevision::new(
+            stage.base_state.revision,
+            stage.previous_workspace_receipt.workspace_revision + 1,
+        ),
+        sha256_ref(&approval_raw),
+        stage.manifest_sha256.clone(),
+        Some(stage.previous_workspace_receipt.sha256()),
+        stage.approval.approved_at_unix_ms,
     );
-    let receipt = state.live_run_audit_anchor.append(&request)?;
+    let receipt = if let Some((persisted, _)) =
+        read_optional_artifact_with_raw::<LiveRunAnchorReceipt>(
+            &root.join(stage.role.receipt_file()),
+            "live_execution_approval_receipt",
+        )? {
+        persisted
+    } else {
+        let latest = state.live_run_audit_anchor.latest()?.ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_run_workspace_anchor_latest",
+            )
+        })?;
+        if latest == stage.previous_workspace_receipt {
+            state.live_run_audit_anchor.append(&request)?
+        } else {
+            latest
+        }
+    };
     state
         .live_run_audit_anchor
         .validate_receipt(&receipt, &request)?;
-    if state.live_run_audit_anchor.latest()?.as_ref() != Some(&receipt) {
-        return Err(product_error(
-            ProductErrorKind::BoundaryViolation,
-            "live_execution_approval_receipt",
-        ));
-    }
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::ExternalAnchor)?;
     let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
         product_error(
             ProductErrorKind::LiveExecutionFailed,
             "live_execution_approval_receipt",
         )
     })?;
-    write_new_run_file(directory, role.artifact_file(), approval_raw)?;
-    write_new_run_file(directory, role.receipt_file(), &receipt_raw)?;
-    publish_workspace_anchor_head(state, &receipt)
+    write_same_or_new_run_file(
+        &directory,
+        stage.role.artifact_file(),
+        &approval_raw,
+        "live_execution_approval",
+    )?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::Approval)?;
+    write_same_or_new_run_file(
+        &directory,
+        stage.role.receipt_file(),
+        &receipt_raw,
+        "live_execution_approval_receipt",
+    )?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::Receipt)?;
+    let local_head = load_local_workspace_anchor_head(state)?;
+    if local_head.as_ref() == Some(&stage.previous_workspace_receipt)
+        || local_head.as_ref() == Some(&receipt)
+    {
+        recover_workspace_anchor_head_for_publication(
+            state,
+            &stage.previous_workspace_receipt,
+            &receipt,
+        )?;
+    }
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::WorkspaceHead)?;
+
+    if let (Some(admission), Some(candidate_state)) = (&stage.admission, &stage.admission_state) {
+        let admission_raw = serde_json::to_vec_pretty(admission).map_err(|_| {
+            product_error(
+                ProductErrorKind::LiveExecutionFailed,
+                "live_execution_admission",
+            )
+        })?;
+        validate_execution_admission_artifact(
+            &manifest,
+            &stage.manifest_sha256,
+            admission,
+            strategy_intent,
+            &intent_raw,
+            candidate_state.lifecycle,
+        )?;
+        if admission.risk_policy_max_notional != risk_policy.max_order_notional
+            || admission.risk_policy_ref != risk_policy.source_ref
+            || admission.owner_authority_ref != risk_policy.owner_authority_ref
+            || admission.risk_authority_ref != risk_policy.risk_authority_ref
+            || admission.operator_authority_ref != risk_policy.operator_authority_ref
+            || candidate_state.execution_admission_sha256.as_deref()
+                != Some(sha256_ref(&admission_raw).as_str())
+            || candidate_state.previous_state_sha256.as_deref()
+                != Some(stage.base_state_sha256.as_str())
+            || candidate_state.revision != stage.base_state.revision + 1
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_approval_publication",
+            ));
+        }
+        write_same_or_new_run_file(
+            &directory,
+            LIVE_EXECUTION_ADMISSION_FILE,
+            &admission_raw,
+            "live_execution_admission",
+        )?;
+        fail_approval_publication_after(fail_after, ApprovalPublicationStep::Admission)?;
+        write_live_run_state_recoverable(
+            state,
+            run_id,
+            candidate_state,
+            &stage.base_state,
+            &stage.base_state_sha256,
+            &receipt,
+            fail_after,
+        )?;
+    } else if stage.admission.is_some() || stage.admission_state.is_some() {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_approval_publication",
+        ));
+    }
+    directory
+        .remove_file(stage.role.publication_stage_file())
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_execution_approval_publication",
+            )
+        })?;
+    Ok(())
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -2850,10 +3305,21 @@ where
                             "live_execution_admission",
                         )
                     })?;
+                let (intent, intent_raw) =
+                    read_optional_artifact_with_raw::<LiveStrategyOrderIntentArtifact>(
+                        &root.join(LIVE_STRATEGY_INTENT_FILE),
+                        "live_strategy_intent",
+                    )?
+                    .ok_or_else(|| {
+                        product_error(ProductErrorKind::BoundaryViolation, "live_strategy_intent")
+                    })?;
+                validate_live_strategy_intent_artifact(&intent, &manifest)?;
                 validate_execution_admission_artifact(
                     &manifest,
                     &manifest_sha256,
                     &admission,
+                    &intent,
+                    &intent_raw,
                     current.lifecycle,
                 )?;
                 if admission.expires_at_unix_ms <= starting_at || admission.consumed {
@@ -3861,7 +4327,7 @@ fn write_live_node_config(
     let execution_section = execution.map_or_else(String::new, |admission| {
         format!(
             "\n[live_execution]\n\
-             schema_version = \"ntpro.s3.live_execution_node.v1\"\n\
+             schema_version = \"ntpro.s3.live_execution_node.v2\"\n\
              source_manifest_sha256 = \"{}\"\n\
              execution_admission_sha256 = \"{}\"\n\
              runtime_artifact_root = \"{}\"\n\
@@ -3871,6 +4337,9 @@ fn write_live_node_config(
              risk_authority_ref = \"{}\"\n\
              operator_authority_ref = \"{}\"\n\
              admission_id = \"{}\"\n\
+             source_demo_run_id = \"{}\"\n\
+             strategy_intent_id = \"{}\"\n\
+             strategy_intent_sha256 = \"{}\"\n\
              strategy_version_id = \"{}\"\n\
              account_id = \"BINANCE-001\"\n\
              instrument_id = \"{}\"\n\
@@ -3902,6 +4371,9 @@ fn write_live_node_config(
             admission.risk_authority_ref,
             admission.operator_authority_ref,
             admission.admission_id,
+            admission.source_demo_run_id,
+            admission.strategy_intent_id,
+            admission.strategy_intent_sha256,
             admission.strategy_version_id,
             admission.instrument_id,
             admission.side,
@@ -4037,6 +4509,10 @@ fn load_live_run_candidate_snapshot(
         &root.join(LIVE_EXECUTION_ADMISSION_FILE),
         "live_execution_admission",
     )?;
+    let strategy_intent = read_optional_artifact_with_raw::<LiveStrategyOrderIntentArtifact>(
+        &root.join(LIVE_STRATEGY_INTENT_FILE),
+        "live_strategy_intent",
+    )?;
     let execution_approvals = load_live_execution_approvals(&root)?;
     validate_action_artifacts(
         &manifest,
@@ -4052,11 +4528,27 @@ fn load_live_run_candidate_snapshot(
         execution_admission.as_ref(),
         stop.as_ref(),
     )?;
+    if let Some((intent, _)) = &strategy_intent {
+        validate_live_strategy_intent_artifact(intent, &manifest)?;
+    }
+    if execution_admission.is_some() && strategy_intent.is_none()
+        || !execution_approvals.is_empty() && strategy_intent.is_none()
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent",
+        ));
+    }
     if let Some((admission, _)) = &execution_admission {
+        let (intent, intent_raw) = strategy_intent.as_ref().ok_or_else(|| {
+            product_error(ProductErrorKind::BoundaryViolation, "live_strategy_intent")
+        })?;
         validate_execution_admission_artifact(
             &manifest,
             &manifest_sha256,
             admission,
+            intent,
+            intent_raw,
             candidate_state.lifecycle,
         )?;
     }
@@ -4064,6 +4556,7 @@ fn load_live_run_candidate_snapshot(
         &execution_approvals,
         &manifest,
         &manifest_sha256,
+        strategy_intent.as_ref().map(|(_, raw)| raw.as_slice()),
         execution_admission.as_ref().map(|(value, _)| value),
     )?;
     let execution_order_path = mvp_workspace_root(&state.registry_path)?
@@ -4325,6 +4818,11 @@ fn load_live_run_candidate_snapshot(
             preflight: preflight.as_ref().map(|(value, _)| value),
             stop: stop.as_ref().map(|(value, _)| value),
             execution_admission: execution_admission.as_ref().map(|(value, _)| value),
+            strategy_intent: strategy_intent.as_ref().map(|(value, _)| value),
+            strategy_intent_sha256: strategy_intent
+                .as_ref()
+                .map(|(_, raw)| sha256_ref(raw))
+                .as_deref(),
             execution_approvals: &execution_approvals,
             execution_order: execution_order.as_ref().map(|(value, _)| value),
             execution_order_state_sha256: execution_order
@@ -4495,6 +4993,8 @@ fn validate_execution_admission_artifact(
     manifest: &LiveRunCandidateManifest,
     manifest_sha256: &str,
     admission: &LiveExecutionAdmissionArtifact,
+    intent: &LiveStrategyOrderIntentArtifact,
+    intent_raw: &[u8],
     lifecycle: LiveRunCandidateLifecycle,
 ) -> Result<(), ProductError> {
     let reconstructed_request = LiveExecutionAdmissionRequest {
@@ -4503,6 +5003,8 @@ fn validate_execution_admission_artifact(
         account_ref: admission.account_ref.clone(),
         venue_ref: admission.venue_ref.clone(),
         admission_id: admission.admission_id.clone(),
+        source_demo_run_id: admission.source_demo_run_id.clone(),
+        strategy_intent_id: admission.strategy_intent_id.clone(),
         instrument_id: admission.instrument_id.clone(),
         side: admission.side.clone(),
         order_type: admission.order_type.clone(),
@@ -4530,6 +5032,13 @@ fn validate_execution_admission_artifact(
         || admission.strategy_version_id != manifest.strategy_version_id
         || admission.account_ref != manifest.account_ref
         || admission.venue_ref != manifest.venue_ref
+        || admission.source_demo_run_id != intent.source_demo_run_id
+        || admission.strategy_intent_id != intent.intent_id
+        || admission.strategy_intent_sha256 != sha256_ref(intent_raw)
+        || admission.strategy_version_id != intent.strategy_version_id
+        || admission.instrument_id != intent.instrument_id
+        || admission.side != intent.side
+        || admission.quantity != intent.quantity
         || !manifest.data_symbols.contains(&admission.instrument_id)
         || !matches!(admission.side.as_str(), "BUY" | "SELL")
         || admission.order_type != "LIMIT"
@@ -4576,6 +5085,35 @@ fn validate_execution_admission_artifact(
     Ok(())
 }
 
+fn validate_live_strategy_intent_artifact(
+    intent: &LiveStrategyOrderIntentArtifact,
+    manifest: &LiveRunCandidateManifest,
+) -> Result<(), ProductError> {
+    let quantity = Decimal::from_str_exact(&intent.quantity).ok();
+    let confidence = Decimal::from_str_exact(&intent.confidence).ok();
+    if intent.schema_version != LIVE_STRATEGY_INTENT_SCHEMA_VERSION
+        || intent.strategy_id != manifest.strategy_id
+        || intent.strategy_version_id != manifest.strategy_version_id
+        || !manifest.data_symbols.contains(&intent.instrument_id)
+        || !matches!(intent.side.as_str(), "BUY" | "SELL")
+        || intent.source_order_type != "market"
+        || quantity.is_none_or(|value| value <= Decimal::ZERO)
+        || confidence.is_none_or(|value| value < Decimal::ZERO || value > Decimal::ONE)
+        || intent.market_event_seq == 0
+        || intent.created_at_unix_ms == 0
+        || !intent.source_manifest_sha256.starts_with("sha256:")
+        || intent.source_manifest_sha256.len() != 71
+        || !intent.source_result_sha256.starts_with("sha256:")
+        || intent.source_result_sha256.len() != 71
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent",
+        ));
+    }
+    Ok(())
+}
+
 fn load_live_execution_approvals(
     root: &Path,
 ) -> Result<Vec<LiveExecutionApprovalRecord>, ProductError> {
@@ -4617,6 +5155,7 @@ fn validate_live_execution_approval_set(
     approvals: &[LiveExecutionApprovalRecord],
     manifest: &LiveRunCandidateManifest,
     manifest_sha256: &str,
+    strategy_intent_raw: Option<&[u8]>,
     admission: Option<&LiveExecutionAdmissionArtifact>,
 ) -> Result<(), ProductError> {
     let proposal_sha256 = approvals
@@ -4639,6 +5178,8 @@ fn validate_live_execution_approval_set(
             || approval.source_manifest_sha256 != manifest_sha256
             || approval.run_id != manifest.run_id
             || approval.strategy_version_id != manifest.strategy_version_id
+            || strategy_intent_raw
+                .is_none_or(|raw| approval.strategy_intent_sha256 != sha256_ref(raw))
             || proposal_sha256 != Some(approval.proposal_sha256.as_str())
             || admission_id != Some(approval.admission_id.as_str())
             || !approval.proposal_sha256.starts_with("sha256:")
@@ -4715,6 +5256,9 @@ fn validate_execution_order_snapshot(
         order.status == "submission_failed" && !order.actual_submission_attempted;
     if order.schema_version != LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION
         || order.admission_id != admission.admission_id
+        || order.source_demo_run_id != admission.source_demo_run_id
+        || order.strategy_intent_id != admission.strategy_intent_id
+        || order.strategy_intent_sha256 != admission.strategy_intent_sha256
         || order.strategy_version_id != admission.strategy_version_id
         || order.instrument_id != admission.instrument_id
         || !status_valid
@@ -4842,6 +5386,8 @@ struct LiveRunProjectionArtifacts<'a> {
     preflight: Option<&'a LiveRunPreflightArtifact>,
     stop: Option<&'a LiveRunStopArtifact>,
     execution_admission: Option<&'a LiveExecutionAdmissionArtifact>,
+    strategy_intent: Option<&'a LiveStrategyOrderIntentArtifact>,
+    strategy_intent_sha256: Option<&'a str>,
     execution_approvals: &'a [LiveExecutionApprovalRecord],
     execution_order: Option<&'a LiveExecutionOrderSnapshot>,
     execution_order_state_sha256: Option<&'a str>,
@@ -4928,6 +5474,8 @@ fn project_candidate(
                     .any(|record| record.role == LiveExecutionApprovalRole::Operator),
             )
         },
+        strategy_intent: artifacts.strategy_intent.cloned(),
+        strategy_intent_sha256: artifacts.strategy_intent_sha256.map(str::to_string),
         execution_order: artifacts.execution_order.cloned(),
         execution_order_state_sha256: artifacts.execution_order_state_sha256.map(str::to_string),
         execution_control: artifacts.execution_control.cloned(),
@@ -5169,6 +5717,210 @@ fn write_live_run_state(
         ));
     }
     Ok(())
+}
+
+fn write_live_run_state_recoverable(
+    server_state: &DashboardServerState,
+    run_id: &str,
+    candidate_state: &LiveRunCandidateState,
+    previous_state: &LiveRunCandidateState,
+    previous_state_sha256: &str,
+    previous_workspace_receipt: &LiveRunAnchorReceipt,
+    fail_after: Option<ApprovalPublicationStep>,
+) -> Result<(), ProductError> {
+    validate_live_run_state_transition(previous_state, candidate_state)?;
+    if candidate_state.previous_state_sha256.as_deref() != Some(previous_state_sha256) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_state_transition",
+        ));
+    }
+    let run_root = canonical_live_run_root(server_state, false)?.join(run_id);
+    let run_directory = open_absolute_directory_nofollow(&run_root)?;
+    let state_raw = serde_json::to_vec_pretty(candidate_state)
+        .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_run_state"))?;
+    let previous_commit_raw =
+        load_live_run_state_commit_raw(server_state, run_id, previous_state.revision)?;
+    let previous_commit_sha256 = sha256_ref(&previous_commit_raw);
+    let commit = LiveRunStateCommit {
+        schema_version: LIVE_RUN_STATE_COMMIT_SCHEMA_VERSION.to_string(),
+        run_id: run_id.to_string(),
+        revision: candidate_state.revision,
+        state_sha256: sha256_ref(&state_raw),
+        previous_commit_sha256: Some(previous_commit_sha256.clone()),
+        committed_at_unix_ms: candidate_state.updated_at_unix_ms,
+    };
+    let commit_raw = serde_json::to_vec_pretty(&commit).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_run_state_commit",
+        )
+    })?;
+    let anchor_request = LiveRunAnchorAppendRequest::new(
+        server_state.live_run_audit_anchor.namespace()?,
+        run_id,
+        LiveRunAnchorRevision::new(
+            candidate_state.revision,
+            previous_workspace_receipt.workspace_revision + 1,
+        ),
+        sha256_ref(&state_raw),
+        sha256_ref(&commit_raw),
+        Some(previous_workspace_receipt.sha256()),
+        candidate_state.updated_at_unix_ms,
+    );
+    let receipt_path = run_root.join(live_run_anchor_receipt_file_name(candidate_state.revision));
+    let receipt = if let Some((persisted, _)) = read_optional_artifact_with_raw::<
+        LiveRunAnchorReceipt,
+    >(
+        &receipt_path, "live_run_audit_anchor_receipt"
+    )? {
+        persisted
+    } else {
+        let latest = server_state
+            .live_run_audit_anchor
+            .latest()?
+            .ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_run_workspace_anchor_latest",
+                )
+            })?;
+        if latest == *previous_workspace_receipt {
+            server_state.live_run_audit_anchor.append(&anchor_request)?
+        } else {
+            latest
+        }
+    };
+    server_state
+        .live_run_audit_anchor
+        .validate_receipt(&receipt, &anchor_request)?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::StateExternalAnchor)?;
+    let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_run_audit_anchor_receipt",
+        )
+    })?;
+    write_same_or_new_run_file(
+        &run_directory,
+        &live_run_state_file_name(candidate_state.revision),
+        &state_raw,
+        "live_run_state",
+    )?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::State)?;
+    let commit_directory = open_live_run_state_commit_directory(server_state, true)?;
+    write_same_or_new_run_file(
+        &commit_directory,
+        &live_run_state_commit_file_name(run_id, candidate_state.revision),
+        &commit_raw,
+        "live_run_state_commit",
+    )?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::StateCommit)?;
+    write_same_or_new_run_file(
+        &run_directory,
+        &live_run_anchor_receipt_file_name(candidate_state.revision),
+        &receipt_raw,
+        "live_run_audit_anchor_receipt",
+    )?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::StateReceipt)?;
+    recover_live_run_state_head_for_publication(
+        &run_directory,
+        previous_state,
+        candidate_state,
+        &state_raw,
+        &commit_raw,
+        &receipt,
+        &previous_commit_sha256,
+    )?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::StateHead)?;
+    recover_workspace_anchor_head_for_publication(
+        server_state,
+        previous_workspace_receipt,
+        &receipt,
+    )?;
+    fail_approval_publication_after(fail_after, ApprovalPublicationStep::StateWorkspaceHead)?;
+    let (persisted, persisted_raw) = load_live_run_state(
+        server_state,
+        run_id,
+        &candidate_state.source_manifest_sha256,
+    )?;
+    if persisted != *candidate_state || persisted_raw != state_raw {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_run_state",
+        ));
+    }
+    Ok(())
+}
+
+fn recover_live_run_state_head_for_publication(
+    directory: &cap_std::fs::Dir,
+    previous_state: &LiveRunCandidateState,
+    state: &LiveRunCandidateState,
+    state_raw: &[u8],
+    commit_raw: &[u8],
+    receipt: &LiveRunAnchorReceipt,
+    previous_commit_sha256: &str,
+) -> Result<(), ProductError> {
+    let target = LiveRunStateHead {
+        schema_version: LIVE_RUN_STATE_HEAD_SCHEMA_VERSION.to_string(),
+        run_id: state.run_id.clone(),
+        revision: state.revision,
+        state_sha256: sha256_ref(state_raw),
+        commit_sha256: sha256_ref(commit_raw),
+        anchor_receipt_sha256: receipt.sha256(),
+        updated_at_unix_ms: state.updated_at_unix_ms,
+    };
+    let target_raw = serde_json::to_vec_pretty(&target)
+        .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_run_state_head"))?;
+    if let Ok(current_raw) =
+        read_run_file_from_directory(directory, LIVE_RUN_STATE_HEAD_FILE, "live_run_state_head")
+    {
+        if current_raw == target_raw {
+            return Ok(());
+        }
+        let current: LiveRunStateHead = serde_json::from_slice(&current_raw)
+            .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_run_state_head"))?;
+        if current.run_id != previous_state.run_id
+            || current.revision != previous_state.revision
+            || current.state_sha256 != previous_state_sha256_for_head(previous_state)?
+            || current.commit_sha256 != previous_commit_sha256
+            || current.updated_at_unix_ms > state.updated_at_unix_ms
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_run_state_head",
+            ));
+        }
+    }
+    write_same_or_new_run_file(
+        directory,
+        LIVE_RUN_STATE_HEAD_NEXT_FILE,
+        &target_raw,
+        "live_run_state_head",
+    )?;
+    directory
+        .rename(
+            LIVE_RUN_STATE_HEAD_NEXT_FILE,
+            directory,
+            LIVE_RUN_STATE_HEAD_FILE,
+        )
+        .map_err(|_| product_error(ProductErrorKind::SourceUnavailable, "live_run_state_head"))?;
+    let persisted =
+        read_run_file_from_directory(directory, LIVE_RUN_STATE_HEAD_FILE, "live_run_state_head")?;
+    if persisted != target_raw {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_run_state_head",
+        ));
+    }
+    Ok(())
+}
+
+fn previous_state_sha256_for_head(state: &LiveRunCandidateState) -> Result<String, ProductError> {
+    serde_json::to_vec_pretty(state)
+        .map(|raw| sha256_ref(&raw))
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_run_state_head"))
 }
 
 fn publish_live_run_state_head(
@@ -5700,6 +6452,10 @@ fn validate_candidate_directory_entries(
     if state.execution_admission_sha256.is_some() {
         expected.insert(LIVE_EXECUTION_ADMISSION_FILE.to_string());
     }
+    let strategy_intent_exists = root.join(LIVE_STRATEGY_INTENT_FILE).exists();
+    if strategy_intent_exists {
+        expected.insert(LIVE_STRATEGY_INTENT_FILE.to_string());
+    }
     let mut approval_count = 0;
     for role in [
         LiveExecutionApprovalRole::Owner,
@@ -5724,6 +6480,12 @@ fn validate_candidate_directory_entries(
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
             "live_execution_approval",
+        ));
+    }
+    if approval_count > 0 && !strategy_intent_exists {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent",
         ));
     }
     let claim_exists = validate_live_execution_runtime_claim(root, state)?;
@@ -6461,21 +7223,96 @@ fn acquire_live_run_mutation_lock(
     let artifact_root_path = live_run_root
         .parent()
         .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "live_run_mutation_lock"))?;
-    let artifact_root = open_absolute_directory_nofollow(artifact_root_path)?;
-    let owner = format!("pid={}\n", std::process::id());
-    write_new_run_file(
-        &artifact_root,
-        LIVE_RUN_MUTATION_LOCK_FILE,
-        owner.as_bytes(),
-    )
-    .map_err(|error| {
-        if error.kind == ProductErrorKind::Conflict {
-            product_error(ProductErrorKind::LiveConflict, "live_run_mutation_lock")
-        } else {
-            error
+    let process_reservation = {
+        let mut locks = LIVE_RUN_PROCESS_MUTATION_LOCKS.lock().map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            )
+        })?;
+        if !locks.insert(artifact_root_path.to_path_buf()) {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_run_mutation_lock",
+            ));
         }
+        LiveRunProcessMutationReservation {
+            artifact_root: artifact_root_path.to_path_buf(),
+        }
+    };
+    let artifact_root = open_absolute_directory_nofollow(artifact_root_path)?;
+    let mut options = cap_std::fs::OpenOptions::new();
+    options.read(true).write(true).create(true);
+    options.follow(FollowSymlinks::No);
+    let mut file = artifact_root
+        .open_with(LIVE_RUN_MUTATION_LOCK_FILE, &options)
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            )
+        })?
+        .into_std();
+    match file.try_lock() {
+        Ok(()) => {}
+        Err(fs::TryLockError::WouldBlock) => {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_run_mutation_lock",
+            ));
+        }
+        Err(fs::TryLockError::Error(error))
+            if matches!(
+                error.kind(),
+                ErrorKind::WouldBlock | ErrorKind::ResourceBusy
+            ) =>
+        {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_run_mutation_lock",
+            ));
+        }
+        Err(fs::TryLockError::Error(_)) => {
+            return Err(product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            ));
+        }
+    }
+    let pid = std::process::id();
+    let process_start_time_secs = process_start_time_secs(pid).ok_or_else(|| {
+        product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_run_mutation_lock",
+        )
     })?;
-    Ok(LiveRunMutationLock { artifact_root })
+    let owner = LiveRunMutationLockArtifact {
+        schema_version: LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION.to_string(),
+        pid,
+        process_start_time_secs,
+        acquired_at_unix_ms: unix_time_ms(),
+    };
+    let mut raw = serde_json::to_vec_pretty(&owner).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_run_mutation_lock",
+        )
+    })?;
+    raw.push(b'\n');
+    file.set_len(0)
+        .and_then(|()| file.seek(SeekFrom::Start(0)).map(|_| ()))
+        .and_then(|()| file.write_all(&raw))
+        .and_then(|()| file.sync_all())
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            )
+        })?;
+    Ok(LiveRunMutationLock {
+        file,
+        _process_reservation: process_reservation,
+    })
 }
 
 fn read_optional_artifact_with_raw<T>(
@@ -6634,6 +7471,9 @@ mod tests {
         let mut order: LiveExecutionOrderSnapshot = serde_json::from_value(serde_json::json!({
             "schema_version": LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION,
             "admission_id": "admission-001",
+            "source_demo_run_id": "demo-source-001",
+            "strategy_intent_id": "intent-001",
+            "strategy_intent_sha256": format!("sha256:{}", "5".repeat(64)),
             "strategy_version_id": "strategy@v1",
             "instrument_id": "BTCUSDT.BINANCE",
             "client_order_id": "S3LV007-001",
@@ -6677,6 +7517,9 @@ mod tests {
         let source: LiveExecutionOrderSnapshot = serde_json::from_value(serde_json::json!({
             "schema_version": LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION,
             "admission_id": "admission-001",
+            "source_demo_run_id": "demo-source-001",
+            "strategy_intent_id": "intent-001",
+            "strategy_intent_sha256": format!("sha256:{}", "5".repeat(64)),
             "strategy_version_id": "strategy@v1",
             "instrument_id": "BTCUSDT.BINANCE",
             "client_order_id": "S3LV008-001",
@@ -6957,6 +7800,9 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         let mut order = LiveExecutionOrderSnapshot {
             schema_version: LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
             admission_id: "admission-001".to_string(),
+            source_demo_run_id: "demo-source-001".to_string(),
+            strategy_intent_id: "intent-001".to_string(),
+            strategy_intent_sha256: format!("sha256:{}", "5".repeat(64)),
             strategy_version_id: "ema-cross@v1".to_string(),
             instrument_id: "BTCUSDT.BINANCE".to_string(),
             client_order_id: Some("S3LV007-001".to_string()),
@@ -7229,12 +8075,15 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     }
 
     fn execution_admission_request(run_id: &str) -> LiveExecutionAdmissionRequest {
+        let intent = test_live_strategy_intent();
         LiveExecutionAdmissionRequest {
             run_id: run_id.to_string(),
             strategy_version_id: "ema-cross@v1".to_string(),
             account_ref: "account://live/binance/primary".to_string(),
             venue_ref: "venue://live/BINANCE".to_string(),
             admission_id: "admission-001".to_string(),
+            source_demo_run_id: intent.source_demo_run_id,
+            strategy_intent_id: intent.intent_id,
             instrument_id: "BTCUSDT.BINANCE".to_string(),
             side: "BUY".to_string(),
             order_type: "LIMIT".to_string(),
@@ -7247,6 +8096,26 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         }
     }
 
+    fn test_live_strategy_intent() -> LiveStrategyOrderIntentArtifact {
+        LiveStrategyOrderIntentArtifact {
+            schema_version: LIVE_STRATEGY_INTENT_SCHEMA_VERSION.to_string(),
+            source_demo_run_id: "demo-source-001".to_string(),
+            strategy_id: "ema-cross".to_string(),
+            strategy_version_id: "ema-cross@v1".to_string(),
+            intent_id: "intent-001".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            side: "BUY".to_string(),
+            source_order_type: "market".to_string(),
+            quantity: "0.00001000".to_string(),
+            source_signal: "long".to_string(),
+            confidence: "0.72".to_string(),
+            market_event_seq: 1,
+            created_at_unix_ms: 100,
+            source_manifest_sha256: format!("sha256:{}", "5".repeat(64)),
+            source_result_sha256: format!("sha256:{}", "6".repeat(64)),
+        }
+    }
+
     fn execution_risk_policy() -> LiveExecutionRiskPolicy {
         LiveExecutionRiskPolicy {
             max_order_notional: "1.00".to_string(),
@@ -7255,6 +8124,52 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             operator_authority_ref: "role://operations-operator".to_string(),
             source_ref: format!("risk-config-sha256:{}", "3".repeat(64)),
         }
+    }
+
+    fn promotable_strategy_intent() -> PromotableStrategyOrderIntent {
+        let intent = test_live_strategy_intent();
+        PromotableStrategyOrderIntent {
+            source_run_id: intent.source_demo_run_id,
+            strategy_id: intent.strategy_id,
+            strategy_version_id: intent.strategy_version_id,
+            intent_id: intent.intent_id,
+            instrument_id: intent.instrument_id,
+            side: intent.side,
+            source_order_type: intent.source_order_type,
+            quantity: intent.quantity,
+            source_signal: intent.source_signal,
+            confidence: intent.confidence,
+            market_event_seq: intent.market_event_seq,
+            created_at_unix_ms: intent.created_at_unix_ms,
+            source_manifest_sha256: intent.source_manifest_sha256,
+            source_result_sha256: intent.source_result_sha256,
+        }
+    }
+
+    fn execution_source() -> (LiveExecutionRiskPolicy, PromotableStrategyOrderIntent) {
+        (execution_risk_policy(), promotable_strategy_intent())
+    }
+
+    #[test]
+    fn strategy_intent_is_single_use_across_live_runs() {
+        let fixture = LiveRunFixture::new("strategy-intent-single-use");
+        let root = canonical_live_run_root(&fixture.state, true).unwrap();
+        let historical = root.join("live-candidate-historical");
+        fs::create_dir_all(&historical).unwrap();
+        let intent = test_live_strategy_intent();
+        fs::write(
+            historical.join(LIVE_STRATEGY_INTENT_FILE),
+            serde_json::to_vec_pretty(&intent).unwrap(),
+        )
+        .unwrap();
+
+        ensure_strategy_intent_is_unconsumed(&fixture.state, "live-candidate-historical", &intent)
+            .unwrap();
+        let error =
+            ensure_strategy_intent_is_unconsumed(&fixture.state, "live-candidate-current", &intent)
+                .unwrap_err();
+        assert_eq!(error.kind, ProductErrorKind::LiveConflict);
+        assert_eq!(error.field, "live_strategy_intent_consumed");
     }
 
     fn setup_cancel_publication(
@@ -7282,7 +8197,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                 &ready.run_id,
                 &admission_request,
                 role,
-                |_| Ok(execution_risk_policy()),
+                |_| Ok(execution_source()),
             )
             .unwrap();
         }
@@ -7353,6 +8268,9 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         let order = LiveExecutionOrderSnapshot {
             schema_version: LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
             admission_id: admission.admission_id.clone(),
+            source_demo_run_id: admission.source_demo_run_id.clone(),
+            strategy_intent_id: admission.strategy_intent_id.clone(),
+            strategy_intent_sha256: admission.strategy_intent_sha256.clone(),
             strategy_version_id: admission.strategy_version_id.clone(),
             instrument_id: admission.instrument_id.clone(),
             client_order_id: Some("S3LV008-001".to_string()),
@@ -7483,11 +8401,31 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             &ready.run_id,
             &rejected,
             LiveExecutionApprovalRole::Owner,
-            |_| Ok(execution_risk_policy()),
+            |_| Ok(execution_source()),
         )
         .unwrap_err();
         assert_eq!(error.kind, ProductErrorKind::BoundaryViolation);
         assert_eq!(error.field, "live_execution_admission");
+
+        for field in ["side", "quantity", "intent"] {
+            let mut drifted = execution_admission_request(&ready.run_id);
+            match field {
+                "side" => drifted.side = "SELL".to_string(),
+                "quantity" => drifted.quantity = "0.00002000".to_string(),
+                "intent" => drifted.strategy_intent_id = "intent-002".to_string(),
+                _ => unreachable!(),
+            }
+            let error = authorize_live_execution_with_source_validator(
+                &fixture.state,
+                &ready.run_id,
+                &drifted,
+                LiveExecutionApprovalRole::Owner,
+                |_| Ok(execution_source()),
+            )
+            .unwrap_err();
+            assert_eq!(error.kind, ProductErrorKind::BoundaryViolation, "{field}");
+            assert_eq!(error.field, "live_strategy_intent_binding", "{field}");
+        }
 
         let request = execution_admission_request(&ready.run_id);
         let owner_approved = authorize_live_execution_with_source_validator(
@@ -7495,7 +8433,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             &ready.run_id,
             &request,
             LiveExecutionApprovalRole::Owner,
-            |_| Ok(execution_risk_policy()),
+            |_| Ok(execution_source()),
         )
         .unwrap();
         assert_eq!(owner_approved.order_admission.status, "blocked");
@@ -7507,7 +8445,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             &ready.run_id,
             &request,
             LiveExecutionApprovalRole::Risk,
-            |_| Ok(execution_risk_policy()),
+            |_| Ok(execution_source()),
         )
         .unwrap();
         assert_eq!(risk_approved.order_admission.status, "blocked");
@@ -7519,7 +8457,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             &ready.run_id,
             &request,
             LiveExecutionApprovalRole::Operator,
-            |_| Ok(execution_risk_policy()),
+            |_| Ok(execution_source()),
         )
         .unwrap();
         assert_eq!(
@@ -7550,6 +8488,9 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         let mut order = LiveExecutionOrderSnapshot {
             schema_version: LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
             admission_id: admission_artifact.admission_id.clone(),
+            source_demo_run_id: admission_artifact.source_demo_run_id.clone(),
+            strategy_intent_id: admission_artifact.strategy_intent_id.clone(),
+            strategy_intent_sha256: admission_artifact.strategy_intent_sha256.clone(),
             strategy_version_id: admission_artifact.strategy_version_id.clone(),
             instrument_id: admission_artifact.instrument_id.clone(),
             client_order_id: Some("S3LV007-001".to_string()),
@@ -7626,7 +8567,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             &ready.run_id,
             &request,
             LiveExecutionApprovalRole::Owner,
-            |_| Ok(execution_risk_policy()),
+            |_| Ok(execution_source()),
         )
         .unwrap_err();
         assert_eq!(duplicate.kind, ProductErrorKind::LiveConflict);
@@ -7646,6 +8587,123 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             market_only_start.field,
             "live_execution_admission_requires_execution_start"
         );
+    }
+
+    #[test]
+    fn execution_approval_publication_recovers_every_write_boundary() {
+        let cases = [
+            (
+                LiveExecutionApprovalRole::Owner,
+                vec![
+                    ApprovalPublicationStep::ExternalAnchor,
+                    ApprovalPublicationStep::Approval,
+                    ApprovalPublicationStep::Receipt,
+                    ApprovalPublicationStep::WorkspaceHead,
+                ],
+            ),
+            (
+                LiveExecutionApprovalRole::Risk,
+                vec![
+                    ApprovalPublicationStep::ExternalAnchor,
+                    ApprovalPublicationStep::Approval,
+                    ApprovalPublicationStep::Receipt,
+                    ApprovalPublicationStep::WorkspaceHead,
+                ],
+            ),
+            (
+                LiveExecutionApprovalRole::Operator,
+                vec![
+                    ApprovalPublicationStep::ExternalAnchor,
+                    ApprovalPublicationStep::Approval,
+                    ApprovalPublicationStep::Receipt,
+                    ApprovalPublicationStep::WorkspaceHead,
+                    ApprovalPublicationStep::Admission,
+                    ApprovalPublicationStep::StateExternalAnchor,
+                    ApprovalPublicationStep::State,
+                    ApprovalPublicationStep::StateCommit,
+                    ApprovalPublicationStep::StateReceipt,
+                    ApprovalPublicationStep::StateHead,
+                    ApprovalPublicationStep::StateWorkspaceHead,
+                ],
+            ),
+        ];
+        for (role, steps) in cases {
+            for step in steps {
+                let fixture = LiveRunFixture::new(&format!("approval-recovery-{role:?}-{step:?}"));
+                let ready = create_preflight_ready_candidate(
+                    &fixture,
+                    &format!("product-recovery-{role:?}-{step:?}").to_lowercase(),
+                );
+                let request = execution_admission_request(&ready.run_id);
+                for prior in [
+                    LiveExecutionApprovalRole::Owner,
+                    LiveExecutionApprovalRole::Risk,
+                ] {
+                    if prior == role {
+                        break;
+                    }
+                    authorize_live_execution_with_source_validator(
+                        &fixture.state,
+                        &ready.run_id,
+                        &request,
+                        prior,
+                        |_| Ok(execution_source()),
+                    )
+                    .unwrap();
+                }
+                let error = authorize_live_execution_with_publication_failure(
+                    &fixture.state,
+                    &ready.run_id,
+                    &request,
+                    role,
+                    |_| Ok(execution_source()),
+                    Some(step),
+                )
+                .unwrap_err();
+                assert_eq!(
+                    error.field, "live_execution_approval_publication_injected_failure",
+                    "{role:?} {step:?}"
+                );
+                let source = execution_source();
+                let mut drifted = source.1.clone();
+                drifted.quantity = "0.2".to_string();
+                let drift_error = authorize_live_execution_with_source_validator(
+                    &fixture.state,
+                    &ready.run_id,
+                    &request,
+                    role,
+                    |_| Ok((source.0.clone(), drifted)),
+                )
+                .unwrap_err();
+                assert_eq!(
+                    drift_error.field, "live_execution_approval_publication",
+                    "{role:?} {step:?}"
+                );
+                let recovered = authorize_live_execution_with_source_validator(
+                    &fixture.state,
+                    &ready.run_id,
+                    &request,
+                    role,
+                    |_| Ok(execution_source()),
+                )
+                .unwrap();
+                assert!(
+                    !fixture
+                        .root
+                        .join("artifacts/live-runs")
+                        .join(&ready.run_id)
+                        .join(role.publication_stage_file())
+                        .exists(),
+                    "{role:?} {step:?}"
+                );
+                if role == LiveExecutionApprovalRole::Operator {
+                    assert_eq!(
+                        recovered.order_admission.status, "authorized_single_shot",
+                        "{step:?}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
@@ -8931,7 +9989,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     }
 
     #[test]
-    fn stale_mutation_lock_fails_closed_without_publishing_candidate() {
+    fn live_mutation_lock_refuses_an_active_owner_without_publishing_candidate() {
         let fixture = LiveRunFixture::new("stale-mutation-lock");
         let lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
         let error = create_live_run_candidate(
@@ -8964,6 +10022,160 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn live_mutation_lock_rewrites_stale_diagnostics_after_lock_release() {
+        let fixture = LiveRunFixture::new("dead-mutation-lock");
+        canonical_live_run_root(&fixture.state, true).unwrap();
+        let canonical_root = fs::canonicalize(&fixture.root).unwrap();
+        let artifact_root =
+            open_absolute_directory_nofollow(&canonical_root.join("artifacts")).unwrap();
+        let stale = LiveRunMutationLockArtifact {
+            schema_version: LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION.to_string(),
+            pid: std::process::id(),
+            process_start_time_secs: u64::MAX,
+            acquired_at_unix_ms: 1,
+        };
+        write_new_run_file(
+            &artifact_root,
+            LIVE_RUN_MUTATION_LOCK_FILE,
+            &serde_json::to_vec_pretty(&stale).unwrap(),
+        )
+        .unwrap();
+        let lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        let current: LiveRunMutationLockArtifact = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .root
+                    .join("artifacts")
+                    .join(LIVE_RUN_MUTATION_LOCK_FILE),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(current.pid, std::process::id());
+        assert_ne!(current.process_start_time_secs, u64::MAX);
+        assert_eq!(
+            process_start_time_secs(current.pid),
+            Some(current.process_start_time_secs)
+        );
+        drop(lock);
+        assert!(
+            fixture
+                .root
+                .join("artifacts")
+                .join(LIVE_RUN_MUTATION_LOCK_FILE)
+                .exists()
+        );
+    }
+
+    #[test]
+    fn live_mutation_lock_crash_helper() {
+        let Ok(root) = std::env::var("NTPRO_LIVE_RUN_CRASH_HELPER_ROOT") else {
+            return;
+        };
+        let root = PathBuf::from(root);
+        fs::create_dir_all(root.join("supervisor")).unwrap();
+        fs::create_dir_all(root.join("artifacts")).unwrap();
+        let state = DashboardServerState {
+            registry_path: root.join("supervisor/registry.json"),
+            workflow_root: None,
+            ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
+            lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
+            backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+            live_run_audit_anchor: std::sync::Arc::new(
+                super::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test(),
+            ),
+        };
+        let live_root = canonical_live_run_root(&state, true).unwrap();
+        let _lock = acquire_live_run_mutation_lock(&state).unwrap();
+        let run_root = live_root.join("crash-recovery-run");
+        fs::create_dir(&run_root).unwrap();
+        fs::write(
+            run_root.join(LIVE_EXECUTION_OWNER_APPROVAL_STAGE_FILE),
+            b"persisted-before-crash",
+        )
+        .unwrap();
+        fs::write(root.join("crash-helper-ready"), b"ready").unwrap();
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+        }
+    }
+
+    #[test]
+    fn live_mutation_lock_recovers_after_forced_process_termination() {
+        let fixture = LiveRunFixture::new("mutation-lock-process-crash");
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("--exact")
+            .arg("dashboard::product_api::live_run::tests::live_mutation_lock_crash_helper")
+            .arg("--nocapture")
+            .env("NTPRO_LIVE_RUN_CRASH_HELPER_ROOT", &fixture.root)
+            .spawn()
+            .unwrap();
+        let ready = fixture.root.join("crash-helper-ready");
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while !ready.exists() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        assert!(ready.exists());
+        assert!(crate::process::process_is_alive(child.id()));
+        crate::process::send_kill(child.id()).unwrap();
+        assert!(crate::process::wait_for_process_exit(
+            child.id(),
+            Duration::from_secs(10)
+        ));
+        let _ = child.wait();
+        let stage = fixture
+            .root
+            .join("artifacts/live-runs/crash-recovery-run")
+            .join(LIVE_EXECUTION_OWNER_APPROVAL_STAGE_FILE);
+        assert_eq!(fs::read(&stage).unwrap(), b"persisted-before-crash");
+        let recovered = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        assert!(stage.exists());
+        drop(recovered);
+    }
+
+    #[test]
+    fn live_mutation_lock_allows_only_one_concurrent_recovery_writer() {
+        let fixture = LiveRunFixture::new("mutation-lock-concurrent-recovery");
+        canonical_live_run_root(&fixture.state, true).unwrap();
+        let state = std::sync::Arc::new(fixture.independent_state());
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+        let release = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut handles = Vec::new();
+        for _ in 0..2 {
+            let state = state.clone();
+            let barrier = barrier.clone();
+            let release = release.clone();
+            let sender = sender.clone();
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                match acquire_live_run_mutation_lock(&state) {
+                    Ok(lock) => {
+                        sender.send(true).unwrap();
+                        release.wait();
+                        drop(lock);
+                    }
+                    Err(error) => {
+                        assert_eq!(error.kind, ProductErrorKind::LiveConflict);
+                        sender.send(false).unwrap();
+                    }
+                }
+            }));
+        }
+        barrier.wait();
+        let first = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        let second = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(
+            [first, second].into_iter().filter(|value| *value).count(),
+            1
+        );
+        release.wait();
+        for handle in handles {
+            handle.join().unwrap();
+        }
     }
 
     #[test]

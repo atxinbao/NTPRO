@@ -852,6 +852,8 @@ export type LiveExecutionAdmissionRequest = {
   account_ref: "account://live/binance/primary";
   venue_ref: "venue://live/BINANCE";
   admission_id: string;
+  source_demo_run_id: RunId;
+  strategy_intent_id: string;
   instrument_id: string;
   side: "BUY" | "SELL";
   order_type: "LIMIT";
@@ -915,8 +917,11 @@ export type LiveExecutionOrderSnapshot = (
       client_order_id?: string;
     }
 ) & {
-  schema_version: "ntpro.s3.live_execution_order_state.v2";
+  schema_version: "ntpro.s3.live_execution_order_state.v3";
   admission_id: string;
+  source_demo_run_id: RunId;
+  strategy_intent_id: string;
+  strategy_intent_sha256: ContentHash;
   strategy_version_id: StrategyVersionId;
   instrument_id: string;
   client_order_id: string | null;
@@ -944,6 +949,24 @@ export type LiveExecutionOrderSnapshot = (
   replace_attempted: false;
   last_error: string | null;
   updated_at_unix_ms: number;
+};
+
+export type LiveStrategyOrderIntent = {
+  schema_version: "ntpro.s3.live_strategy_order_intent.v1";
+  source_demo_run_id: RunId;
+  strategy_id: StrategyId;
+  strategy_version_id: StrategyVersionId;
+  intent_id: string;
+  instrument_id: string;
+  side: "BUY" | "SELL";
+  source_order_type: "market";
+  quantity: string;
+  source_signal: string;
+  confidence: string;
+  market_event_seq: number;
+  created_at_unix_ms: number;
+  source_manifest_sha256: ContentHash;
+  source_result_sha256: ContentHash;
 };
 
 export type LiveExecutionControlSnapshot = (
@@ -1142,6 +1165,8 @@ export type LiveRunCandidate = (
   runtime_error: string | null;
   audit_anchor: LiveRunAuditAnchorSnapshot;
   order_admission: LiveOrderAdmissionSnapshot;
+  strategy_intent: LiveStrategyOrderIntent | null;
+  strategy_intent_sha256: ContentHash | null;
   execution_order: LiveExecutionOrderSnapshot | null;
   execution_order_state_sha256: ContentHash | null;
   execution_control: LiveExecutionControlSnapshot | null;

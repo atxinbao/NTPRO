@@ -131,9 +131,14 @@ function liveExecutionControlResponse(): Record<string, any> {
     operator_approved: true,
     blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
   };
+  running.data.strategy_intent = strategyIntent(running.data);
+  running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
   running.data.execution_order = {
-    schema_version: "ntpro.s3.live_execution_order_state.v2",
+    schema_version: "ntpro.s3.live_execution_order_state.v3",
     admission_id: "manual-001",
+    source_demo_run_id: "demo-source-001",
+    strategy_intent_id: "intent-001",
+    strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
     strategy_version_id: running.data.strategy_version_id,
     instrument_id: "BTCUSDT.BINANCE",
     client_order_id: "S3LV008-001",
@@ -183,6 +188,26 @@ function liveExecutionControlResponse(): Record<string, any> {
   running.boundaries.execution_adapter_send_attempted = true;
   running.boundaries.real_orders_submitted = true;
   return running;
+}
+
+function strategyIntent(candidate: Record<string, any>) {
+  return {
+    schema_version: "ntpro.s3.live_strategy_order_intent.v1",
+    source_demo_run_id: "demo-source-001",
+    strategy_id: candidate.strategy_id,
+    strategy_version_id: candidate.strategy_version_id,
+    intent_id: "intent-001",
+    instrument_id: "BTCUSDT.BINANCE",
+    side: "BUY",
+    source_order_type: "market",
+    quantity: "0.00001000",
+    source_signal: "long",
+    confidence: "0.72",
+    market_event_seq: 1,
+    created_at_unix_ms: 1786406300000,
+    source_manifest_sha256: `sha256:${"5".repeat(64)}`,
+    source_result_sha256: `sha256:${"6".repeat(64)}`,
+  };
 }
 
 describe("product API generated client", () => {
@@ -268,6 +293,8 @@ describe("product API generated client", () => {
         "replace_not_scoped",
       ],
     };
+    authorized.data.strategy_intent = strategyIntent(authorized.data);
+    authorized.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
     authorized.data.audit_anchor.revision = 2;
     authorized.data.audit_anchor.workspace_revision = 2;
     authorized.data.audit_anchor.receipt_ref = `sha256:${"7".repeat(64)}`;
@@ -282,6 +309,8 @@ describe("product API generated client", () => {
       account_ref: "account://live/binance/primary" as const,
       venue_ref: "venue://live/BINANCE" as const,
       admission_id: "manual-001",
+      source_demo_run_id: "demo-source-001",
+      strategy_intent_id: "intent-001",
       instrument_id: "BTCUSDT.BINANCE",
       side: "BUY" as const,
       order_type: "LIMIT" as const,
@@ -327,9 +356,14 @@ describe("product API generated client", () => {
       operator_approved: true,
       blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
     };
+    running.data.strategy_intent = strategyIntent(running.data);
+    running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
     running.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v2",
+      schema_version: "ntpro.s3.live_execution_order_state.v3",
       admission_id: "manual-001",
+      source_demo_run_id: "demo-source-001",
+      strategy_intent_id: "intent-001",
+      strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
       strategy_version_id: running.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: "S3LV007-001",
@@ -391,9 +425,14 @@ describe("product API generated client", () => {
       operator_approved: true,
       blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
     };
+    running.data.strategy_intent = strategyIntent(running.data);
+    running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
     running.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v2",
+      schema_version: "ntpro.s3.live_execution_order_state.v3",
       admission_id: "manual-001",
+      source_demo_run_id: "demo-source-001",
+      strategy_intent_id: "intent-001",
+      strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
       strategy_version_id: running.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: "S3LV008-001",
@@ -580,9 +619,14 @@ describe("product API generated client", () => {
       operator_approved: true,
       blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
     };
+    failed.data.strategy_intent = strategyIntent(failed.data);
+    failed.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
     failed.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v2",
+      schema_version: "ntpro.s3.live_execution_order_state.v3",
       admission_id: "manual-001",
+      source_demo_run_id: "demo-source-001",
+      strategy_intent_id: "intent-001",
+      strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
       strategy_version_id: failed.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: null,

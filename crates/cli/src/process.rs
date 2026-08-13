@@ -38,6 +38,17 @@ pub(crate) fn process_is_alive(pid: u32) -> bool {
         .is_some_and(|process| process_status_is_alive(process.status()))
 }
 
+#[must_use]
+pub(crate) fn process_start_time_secs(pid: u32) -> Option<u64> {
+    let sys_pid = Pid::from_u32(pid);
+    let mut system = System::new();
+    system.refresh_processes(ProcessesToUpdate::Some(&[sys_pid]), true);
+    system
+        .process(sys_pid)
+        .filter(|process| process_status_is_alive(process.status()))
+        .map(sysinfo::Process::start_time)
+}
+
 /// # Errors
 ///
 /// Returns an error if the process exists but the operating system rejects the

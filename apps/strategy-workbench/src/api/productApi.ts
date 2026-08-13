@@ -613,6 +613,23 @@ function assertLiveRunCandidate(
     !boundaries.order_submission_allowed &&
     !boundaries.trading_controls_enabled;
   const executionOrder = candidate.execution_order;
+  const strategyIntent = candidate.strategy_intent;
+  const strategyIntentValid =
+    (strategyIntent === null &&
+      candidate.strategy_intent_sha256 === null &&
+      admissionStatus === "blocked" &&
+      !candidate.order_admission.owner_approved &&
+      !candidate.order_admission.risk_approved &&
+      !candidate.order_admission.operator_approved) ||
+    (strategyIntent !== null &&
+      candidate.strategy_intent_sha256 !== null &&
+      /^sha256:[a-f0-9]{64}$/u.test(candidate.strategy_intent_sha256) &&
+      strategyIntent.strategy_id === candidate.strategy_id &&
+      strategyIntent.strategy_version_id === candidate.strategy_version_id &&
+      strategyIntent.source_order_type === "market" &&
+      Number(strategyIntent.quantity) > 0 &&
+      Number(strategyIntent.confidence) >= 0 &&
+      Number(strategyIntent.confidence) <= 1);
   const executionAttempted =
     executionOrder?.actual_submission_attempted ?? false;
   const failedBeforeAttempt =
@@ -644,7 +661,18 @@ function assertLiveRunCandidate(
   const executionOrderValid =
     executionOrder === null ||
     (admissionStatus === "consumed_single_shot" &&
+      strategyIntent !== null &&
+      candidate.strategy_intent_sha256 !== null &&
+      executionOrder.source_demo_run_id === strategyIntent.source_demo_run_id &&
+      executionOrder.strategy_intent_id === strategyIntent.intent_id &&
+      executionOrder.strategy_intent_sha256 ===
+        candidate.strategy_intent_sha256 &&
       executionOrder.strategy_version_id === candidate.strategy_version_id &&
+      executionOrder.instrument_id === strategyIntent.instrument_id &&
+      decimalEquals(
+        executionOrder.original_quantity,
+        strategyIntent.quantity,
+      ) &&
       executionOrder.terminal === terminalOrderStatus &&
       executionOrder.new_orders_blocked &&
       !executionOrder.automatic_retry_attempted &&
@@ -714,6 +742,7 @@ function assertLiveRunCandidate(
       lifecycleTimesValid &&
       auditAnchorValid &&
       (blockedAdmission || authorizedAdmission || consumedAdmission) &&
+      strategyIntentValid &&
       executionOrderValid &&
       executionControlValid &&
       (executionOrder === null

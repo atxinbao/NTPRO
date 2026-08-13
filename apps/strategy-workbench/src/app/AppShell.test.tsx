@@ -17,6 +17,7 @@ import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-
 import {
   backtestComparisonResponse,
   createdBacktestResponse,
+  createdDemo,
   createdDemoResponse,
   demoActionResponse,
   demoSnapshotResponse,
@@ -590,6 +591,114 @@ describe("strategy workbench product slice", () => {
     expect(listGets).toBeGreaterThan(listGetsBeforeStop);
   });
 
+  it("binds owner approval to the latest frozen Demo strategy intent", async () => {
+    const stoppedDemo: Run = {
+      ...structuredClone(createdDemo),
+      lifecycle: "stopped",
+      started_at_unix_ms: 1_786_400_000_000,
+      completed_at_unix_ms: 1_786_400_001_000,
+      runtime: {
+        ...structuredClone(createdDemo.runtime!),
+        process_state: "stopped",
+        lifecycle_state: "stopped",
+      },
+    };
+    const candidate: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    candidate.schema_version =
+      "ntpro.product_api.live_run_candidate_list.response.v1";
+    candidate.data.lifecycle = "preflight_ready";
+    candidate.data.preflight_at_unix_ms = 1_786_406_401_000;
+    candidate.data.account_connected = true;
+    candidate.data.account_can_trade_verified = true;
+    candidate.data.audit_anchor.revision = 1;
+    candidate.data.audit_anchor.workspace_revision = 1;
+    candidate.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
+    candidate.data.audit_anchor.anchored_at_unix_ms = 1_786_406_401_000;
+    let ownerApprovalBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get("/api/product/v1/runs", () => {
+        const data = [...structuredClone(runListFixture.data), stoppedDemo];
+        return HttpResponse.json({
+          ...structuredClone(runListFixture),
+          data,
+          page: {
+            ...structuredClone(runListFixture.page),
+            returned_count: data.length,
+          },
+        });
+      }),
+      http.get("/api/product/v1/runs/:runId/demo-snapshot", () =>
+        HttpResponse.json(demoSnapshotResponse(stoppedDemo)),
+      ),
+      http.get("/api/product/v1/live-run-candidates", () =>
+        HttpResponse.json({ ...candidate, data: [candidate.data] }),
+      ),
+      http.post(
+        "/api/product/v1/live-run-candidates/:runId/execution-approvals/owner",
+        async ({ request }) => {
+          ownerApprovalBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({
+            ...candidate,
+            schema_version:
+              "ntpro.product_api.live_run_candidate_action.response.v1",
+          });
+        },
+      ),
+    );
+
+    renderWorkbench("/live");
+    const region = await screen.findByRole("region", {
+      name: "Live Run 候选",
+    });
+    const executionForm = await within(region).findByRole("form", {
+      name: "单笔真实限价单准入",
+    });
+    expect(within(executionForm).getByLabelText("交易标的")).toHaveValue(
+      "BTCUSDT.BINANCE",
+    );
+    expect(within(executionForm).getByLabelText("方向")).toHaveValue("SELL");
+    expect(within(executionForm).getByLabelText("数量")).toHaveValue("1");
+    expect(within(executionForm).getByLabelText("来源 Demo Run")).toHaveValue(
+      stoppedDemo.run_id,
+    );
+    expect(within(executionForm).getByLabelText("策略意图")).toHaveValue(
+      "intent-demo-001",
+    );
+    const ownerApproval = within(executionForm).getByRole("button", {
+      name: "提交负责人审批",
+    });
+    expect(ownerApproval).toBeDisabled();
+    await userEvent.type(
+      within(executionForm).getByLabelText("限价"),
+      "100.50",
+    );
+    await userEvent.type(
+      within(executionForm).getByLabelText("最大名义金额"),
+      "100.50",
+    );
+    await userEvent.click(
+      within(executionForm).getByRole("checkbox", { name: /真实订单/ }),
+    );
+    await userEvent.click(ownerApproval);
+    await waitFor(() => expect(ownerApprovalBody).not.toBeNull());
+    expect(ownerApprovalBody).toMatchObject({
+      run_id: candidate.data.run_id,
+      strategy_version_id: "ema-cross@v1",
+      source_demo_run_id: stoppedDemo.run_id,
+      strategy_intent_id: "intent-demo-001",
+      instrument_id: "BTCUSDT.BINANCE",
+      side: "SELL",
+      order_type: "LIMIT",
+      time_in_force: "GTC",
+      price: "100.50",
+      quantity: "1",
+      max_notional: "100.50",
+      user_confirmed: true,
+    });
+  });
+
   it("shows partial-fill reconciliation and submits one owner cancel request", async () => {
     const running: Record<string, any> = structuredClone(
       liveRunCandidateFixture,
@@ -615,9 +724,30 @@ describe("strategy workbench product slice", () => {
       operator_approved: true,
       blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
     };
+    running.data.strategy_intent = {
+      schema_version: "ntpro.s3.live_strategy_order_intent.v1",
+      source_demo_run_id: "demo-source-001",
+      strategy_id: running.data.strategy_id,
+      strategy_version_id: running.data.strategy_version_id,
+      intent_id: "intent-001",
+      instrument_id: "BTCUSDT.BINANCE",
+      side: "BUY",
+      source_order_type: "market",
+      quantity: "0.00001000",
+      source_signal: "long",
+      confidence: "0.72",
+      market_event_seq: 1,
+      created_at_unix_ms: 1786406300000,
+      source_manifest_sha256: `sha256:${"5".repeat(64)}`,
+      source_result_sha256: `sha256:${"6".repeat(64)}`,
+    };
+    running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
     running.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v2",
+      schema_version: "ntpro.s3.live_execution_order_state.v3",
       admission_id: "manual-001",
+      source_demo_run_id: "demo-source-001",
+      strategy_intent_id: "intent-001",
+      strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
       strategy_version_id: running.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: "S3LV008-001",

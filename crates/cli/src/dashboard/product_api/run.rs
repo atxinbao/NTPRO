@@ -502,6 +502,24 @@ struct DemoOrderIntentSnapshot {
     submission_status: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(super) struct PromotableStrategyOrderIntent {
+    pub(super) source_run_id: String,
+    pub(super) strategy_id: String,
+    pub(super) strategy_version_id: String,
+    pub(super) intent_id: String,
+    pub(super) instrument_id: String,
+    pub(super) side: String,
+    pub(super) source_order_type: String,
+    pub(super) quantity: String,
+    pub(super) source_signal: String,
+    pub(super) confidence: String,
+    pub(super) market_event_seq: u64,
+    pub(super) created_at_unix_ms: u64,
+    pub(super) source_manifest_sha256: String,
+    pub(super) source_result_sha256: String,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 struct DemoRiskDecisionSnapshot {
@@ -1907,6 +1925,99 @@ fn load_demo_snapshot_by_id(
     )
 }
 
+pub(super) fn load_promotable_demo_order_intent(
+    state: &DashboardServerState,
+    run_id: &str,
+    strategy_id: &str,
+    strategy_version_id: &str,
+) -> Result<PromotableStrategyOrderIntent, ProductError> {
+    validate_identifier("source_demo_run_id", run_id)?;
+    let run = load_product_runs_unlocked(state, unix_time_ms())?
+        .into_iter()
+        .find(|run| run.run_id == run_id && run.environment == RunEnvironment::Sandbox)
+        .ok_or_else(|| product_error(ProductErrorKind::RunNotFound, "source_demo_run_id"))?;
+    if run.strategy_id != strategy_id
+        || run.strategy_version_id != strategy_version_id
+        || run.lifecycle != RunLifecycle::Stopped
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent_source",
+        ));
+    }
+    let snapshot = load_frozen_demo_result(state, &run)?;
+    let intent = snapshot.latest_order_intent.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent_source",
+        )
+    })?;
+    let source_manifest_sha256 = snapshot.provenance.manifest_sha256.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent_source",
+        )
+    })?;
+    let source_result_sha256 = snapshot.provenance.result_sha256.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent_source",
+        )
+    })?;
+    let side = match intent.side.as_str() {
+        "buy" => "BUY",
+        "sell" | "flatten" => "SELL",
+        _ => {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_strategy_intent_side",
+            ));
+        }
+    };
+    if intent.order_type != "market"
+        || !intent.quantity.is_finite()
+        || intent.quantity <= 0.0
+        || intent.created_at_unix_ms == 0
+        || intent.submission_allowed
+        || intent.submission_status.trim().is_empty()
+        || !snapshot.latest_risk_decision.as_ref().is_some_and(|risk| {
+            risk.intent_id == intent.intent_id
+                && risk.decision == "rejected"
+                && !risk.actual_submission
+        })
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_strategy_intent_source",
+        ));
+    }
+    Ok(PromotableStrategyOrderIntent {
+        source_run_id: run_id.to_string(),
+        strategy_id: strategy_id.to_string(),
+        strategy_version_id: strategy_version_id.to_string(),
+        intent_id: intent.intent_id,
+        instrument_id: intent.symbol,
+        side: side.to_string(),
+        source_order_type: intent.order_type,
+        quantity: normalized_f64_decimal(intent.quantity, "live_strategy_intent_quantity")?,
+        source_signal: intent.source_signal,
+        confidence: normalized_f64_decimal(intent.confidence, "live_strategy_intent_confidence")?,
+        market_event_seq: intent.market_event_seq,
+        created_at_unix_ms: intent.created_at_unix_ms,
+        source_manifest_sha256,
+        source_result_sha256,
+    })
+}
+
+fn normalized_f64_decimal(value: f64, field: &'static str) -> Result<String, ProductError> {
+    if !value.is_finite() {
+        return Err(product_error(ProductErrorKind::BoundaryViolation, field));
+    }
+    Decimal::from_str_exact(&value.to_string())
+        .map(|value| value.normalize().to_string())
+        .map_err(|_| product_error(ProductErrorKind::BoundaryViolation, field))
+}
+
 fn load_frozen_demo_result(
     state: &DashboardServerState,
     run: &ProductRun,
@@ -2675,6 +2786,16 @@ fn snapshot_unix_ms(
 #[cfg(test)]
 mod strategy_record_validation_tests {
     use super::*;
+
+    #[test]
+    fn canonicalizes_demo_intent_decimals_for_live_requests() {
+        for (value, expected) in [(0.1, "0.1"), (0.001, "0.001"), (0.00001, "0.00001")] {
+            assert_eq!(
+                normalized_f64_decimal(value, "live_strategy_intent_quantity").unwrap(),
+                expected
+            );
+        }
+    }
 
     #[test]
     fn rejects_invalid_or_forbidden_early_jsonl_records() {
