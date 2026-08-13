@@ -55,7 +55,9 @@ use nautilus_model::{
         OrderAccepted, OrderCanceled, OrderDenied, OrderExpired, OrderFilled, OrderRejected,
         OrderSubmitted,
     },
-    identifiers::{AccountId, ClientId, ClientOrderId, InstrumentId, StrategyId, TraderId, Venue},
+    identifiers::{
+        AccountId, ClientId, ClientOrderId, InstrumentId, StrategyId, TraderId, Venue, VenueOrderId,
+    },
     instruments::{Instrument, InstrumentAny},
     orders::Order,
     reports::OrderStatusReport,

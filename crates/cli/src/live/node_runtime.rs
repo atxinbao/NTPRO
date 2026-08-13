@@ -152,6 +152,64 @@ struct ProductionExecutionControlContext<'a> {
     api_secret: &'a str,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ExecutionControlAttemptState {
+    Fresh,
+    Interrupted,
+    ResultExists,
+}
+
+trait ProductionExecutionVenue {
+    async fn prepare_instruments(&self) -> anyhow::Result<()>;
+
+    async fn query_order(
+        &self,
+        account_id: AccountId,
+        instrument_id: InstrumentId,
+        venue_order_id: Option<VenueOrderId>,
+        client_order_id: Option<ClientOrderId>,
+    ) -> anyhow::Result<Option<OrderStatusReport>>;
+
+    async fn cancel_order_once(
+        &self,
+        instrument_id: InstrumentId,
+        venue_order_id: Option<VenueOrderId>,
+        client_order_id: Option<ClientOrderId>,
+    ) -> anyhow::Result<VenueOrderId>;
+}
+
+impl ProductionExecutionVenue for BinanceSpotHttpClient {
+    async fn prepare_instruments(&self) -> anyhow::Result<()> {
+        let instruments = self
+            .request_instruments()
+            .await
+            .map_err(|error| anyhow::anyhow!(error))?;
+        self.cache_instruments(instruments);
+        Ok(())
+    }
+
+    async fn query_order(
+        &self,
+        account_id: AccountId,
+        instrument_id: InstrumentId,
+        venue_order_id: Option<VenueOrderId>,
+        client_order_id: Option<ClientOrderId>,
+    ) -> anyhow::Result<Option<OrderStatusReport>> {
+        self.request_order_status_report(account_id, instrument_id, venue_order_id, client_order_id)
+            .await
+    }
+
+    async fn cancel_order_once(
+        &self,
+        instrument_id: InstrumentId,
+        venue_order_id: Option<VenueOrderId>,
+        client_order_id: Option<ClientOrderId>,
+    ) -> anyhow::Result<VenueOrderId> {
+        self.cancel_order(instrument_id, venue_order_id, client_order_id)
+            .await
+    }
+}
+
 pub(super) async fn run_production_market_data_node_with_command(
     config_path: &Path,
     requested_run_id: Option<&str>,
@@ -469,47 +527,32 @@ async fn process_production_execution_control(
     let request_sha256 = execution_sha256_ref(&request_raw);
     let result_path = context.candidate_root.join(result_file);
     let result_receipt_path = context.candidate_root.join(result_receipt_file);
-    if result_path.exists() {
-        let result_raw = read_bounded_execution_authority_file(&result_path)
-            .context("live execution control result is invalid")?;
-        let result: ProductionExecutionControlResult = serde_json::from_slice(&result_raw)
-            .context("live execution control result is invalid")?;
-        if result.schema_version != EXECUTION_CONTROL_RESULT_SCHEMA_VERSION
-            || result.request_sha256 != request_sha256
-            || result.request_id != request.request_id
-            || result.action != expected_action
-            || result.run_id != context.run_id
-        {
-            anyhow::bail!("live execution control result identity is invalid");
-        }
-        publish_execution_control_result(context, &request_sha256, &result)?;
-        return Ok(());
-    }
-    if result_receipt_path.exists() {
-        anyhow::bail!("live execution control result receipt exists without result bytes");
-    }
     let attempt_path = context.candidate_root.join(attempt_file);
-    if attempt_path.exists() {
-        let attempt_raw = read_bounded_execution_authority_file(&attempt_path)?;
-        if attempt_raw != request_raw {
-            anyhow::bail!("live execution control attempt does not match its request");
-        }
-        publish_execution_control_result(
-            context,
-            &request_sha256,
-            &interrupted_execution_control_result(&request, &request_sha256),
-        )?;
-        return Ok(());
-    }
-    atomic_write_text(
+    let attempt_state = prepare_execution_control_attempt(
+        &request_raw,
         &attempt_path,
-        std::str::from_utf8(&request_raw).context("live execution control request is not UTF-8")?,
+        &result_path,
+        &result_receipt_path,
     )?;
-
+    let result_exists = attempt_state == ExecutionControlAttemptState::ResultExists;
+    match attempt_state {
+        ExecutionControlAttemptState::Interrupted => {
+            publish_execution_control_result(
+                context,
+                &request_sha256,
+                &interrupted_execution_control_result(&request, &request_sha256),
+            )?;
+            return Ok(());
+        }
+        ExecutionControlAttemptState::Fresh | ExecutionControlAttemptState::ResultExists => {}
+    }
     let order_state_raw = read_bounded_execution_authority_file(
         &context.output_dir.join(EXECUTION_ORDER_STATE_FILE),
     )?;
     if request.source_order_state_sha256 != execution_sha256_ref(&order_state_raw) {
+        if result_exists {
+            anyhow::bail!("live execution control result source order state has drifted");
+        }
         publish_execution_control_result(
             context,
             &request_sha256,
@@ -527,6 +570,9 @@ async fn process_production_execution_control(
         match serde_json::from_slice(&order_state_raw) {
             Ok(order_state) => order_state,
             Err(_) => {
+                if result_exists {
+                    anyhow::bail!("live execution control result source order state is invalid");
+                }
                 publish_execution_control_result(
                     context,
                     &request_sha256,
@@ -542,6 +588,9 @@ async fn process_production_execution_control(
             }
         };
     if !execution_control_source_order_matches(context, &request, &order_state) {
+        if result_exists {
+            anyhow::bail!("live execution control result source identity is invalid");
+        }
         publish_execution_control_result(
             context,
             &request_sha256,
@@ -556,6 +605,21 @@ async fn process_production_execution_control(
         return Ok(());
     }
 
+    if result_exists {
+        let result_raw = read_bounded_execution_authority_file(&result_path)
+            .context("live execution control result is invalid")?;
+        let result: ProductionExecutionControlResult = serde_json::from_slice(&result_raw)
+            .context("live execution control result is invalid")?;
+        validate_execution_control_result(
+            context,
+            &request,
+            &request_sha256,
+            &order_state,
+            &result,
+        )?;
+        publish_execution_control_result(context, &request_sha256, &result)?;
+        return Ok(());
+    }
     let client = match BinanceSpotHttpClient::new(
         BinanceEnvironment::Live,
         get_atomic_clock_realtime(),
@@ -582,83 +646,80 @@ async fn process_production_execution_control(
             return Ok(());
         }
     };
-    let instruments = match client.request_instruments().await {
-        Ok(instruments) => instruments,
-        Err(_) => {
-            publish_execution_control_result(
-                context,
-                &request_sha256,
-                &failed_execution_control_result(
-                    &request,
-                    &request_sha256,
-                    "exchange_instrument_query_failed",
-                    false,
-                    false,
-                ),
-            )?;
-            return Ok(());
-        }
-    };
-    client.cache_instruments(instruments);
+    let result = execute_production_execution_control_with_venue(
+        &client,
+        context,
+        &request,
+        &request_sha256,
+        &order_state,
+        expected_action,
+    )
+    .await?;
+    publish_execution_control_result(context, &request_sha256, &result)?;
+    Ok(())
+}
+
+async fn execute_production_execution_control_with_venue<V: ProductionExecutionVenue>(
+    venue: &V,
+    context: &ProductionExecutionControlContext<'_>,
+    request: &ProductionExecutionControlRequest,
+    request_sha256: &str,
+    order_state: &ProductionExecutionOrderStateSnapshot,
+    expected_action: &str,
+) -> anyhow::Result<ProductionExecutionControlResult> {
+    if venue.prepare_instruments().await.is_err() {
+        return Ok(failed_execution_control_result(
+            request,
+            request_sha256,
+            "exchange_instrument_query_failed",
+            false,
+            false,
+        ));
+    }
     let instrument_id = match InstrumentId::from_str(&request.instrument_id) {
         Ok(instrument_id) => instrument_id,
         Err(_) => {
-            publish_execution_control_result(
-                context,
-                &request_sha256,
-                &failed_execution_control_result(
-                    &request,
-                    &request_sha256,
-                    "control_instrument_invalid",
-                    false,
-                    false,
-                ),
-            )?;
-            return Ok(());
+            return Ok(failed_execution_control_result(
+                request,
+                request_sha256,
+                "control_instrument_invalid",
+                false,
+                false,
+            ));
         }
     };
     let client_order_id = ClientOrderId::from(request.client_order_id.as_str());
     let account_id = AccountId::from(context.execution.account_id.as_str());
-    let before = match client
-        .request_order_status_report(account_id, instrument_id, None, Some(client_order_id))
+    let before = match venue
+        .query_order(account_id, instrument_id, None, Some(client_order_id))
         .await
     {
         Ok(report) => report,
         Err(_) => {
-            publish_execution_control_result(
-                context,
-                &request_sha256,
-                &failed_execution_control_result(
-                    &request,
-                    &request_sha256,
-                    "exchange_order_query_failed",
-                    true,
-                    false,
-                ),
-            )?;
-            return Ok(());
+            return Ok(failed_execution_control_result(
+                request,
+                request_sha256,
+                "exchange_order_query_failed",
+                true,
+                false,
+            ));
         }
     };
     let Some(before) = before else {
-        publish_execution_control_result(
-            context,
-            &request_sha256,
-            &failed_execution_control_result(
-                &request,
-                &request_sha256,
-                "order_not_found_at_venue",
-                true,
-                false,
-            ),
-        )?;
-        return Ok(());
+        return Ok(failed_execution_control_result(
+            request,
+            request_sha256,
+            "order_not_found_at_venue",
+            true,
+            false,
+        ));
     };
-    validate_execution_order_report(context, &request, &order_state, &before)?;
+    validate_execution_order_report(context, request, order_state, &before)?;
 
     let result = if expected_action == "reconcile" {
         execution_control_result_from_report(
-            &request,
-            &request_sha256,
+            request,
+            request_sha256,
             &before,
             "reconciled",
             true,
@@ -674,19 +735,19 @@ async fn process_production_execution_control(
         )
     {
         execution_control_result_from_report(
-            &request,
-            &request_sha256,
+            request,
+            request_sha256,
             &before,
             "cancel_not_required_terminal_or_pending",
             true,
             false,
-            before.order_status == OrderStatus::Canceled,
+            false,
             false,
             None,
         )
     } else {
-        let venue_order_id = match client
-            .cancel_order(
+        let venue_order_id = match venue
+            .cancel_order_once(
                 instrument_id,
                 Some(before.venue_order_id),
                 Some(client_order_id),
@@ -695,22 +756,17 @@ async fn process_production_execution_control(
         {
             Ok(venue_order_id) => venue_order_id,
             Err(_) => {
-                publish_execution_control_result(
-                    context,
-                    &request_sha256,
-                    &failed_execution_control_result(
-                        &request,
-                        &request_sha256,
-                        "exchange_cancel_request_failed",
-                        true,
-                        true,
-                    ),
-                )?;
-                return Ok(());
+                return Ok(failed_execution_control_result(
+                    request,
+                    request_sha256,
+                    "exchange_cancel_request_failed",
+                    true,
+                    true,
+                ));
             }
         };
-        let after = match client
-            .request_order_status_report(
+        let after = match venue
+            .query_order(
                 account_id,
                 instrument_id,
                 Some(venue_order_id),
@@ -720,27 +776,22 @@ async fn process_production_execution_control(
         {
             Ok(report) => report,
             Err(_) => {
-                publish_execution_control_result(
-                    context,
-                    &request_sha256,
-                    &failed_execution_control_result(
-                        &request,
-                        &request_sha256,
-                        "exchange_cancel_readback_failed",
-                        true,
-                        true,
-                    ),
-                )?;
-                return Ok(());
+                return Ok(failed_execution_control_result(
+                    request,
+                    request_sha256,
+                    "exchange_cancel_readback_failed",
+                    true,
+                    true,
+                ));
             }
         };
         match after {
             Some(after) => {
-                validate_execution_order_report(context, &request, &order_state, &after)?;
+                validate_execution_order_report(context, request, order_state, &after)?;
                 let confirmed = after.order_status == OrderStatus::Canceled;
                 execution_control_result_from_report(
-                    &request,
-                    &request_sha256,
+                    request,
+                    request_sha256,
                     &after,
                     if confirmed {
                         "cancel_confirmed"
@@ -755,16 +806,46 @@ async fn process_production_execution_control(
                 )
             }
             None => failed_execution_control_result(
-                &request,
-                &request_sha256,
+                request,
+                request_sha256,
                 "cancel_sent_order_not_found_on_readback",
                 true,
                 true,
             ),
         }
     };
-    publish_execution_control_result(context, &request_sha256, &result)?;
-    Ok(())
+    Ok(result)
+}
+
+fn prepare_execution_control_attempt(
+    request_raw: &[u8],
+    attempt_path: &Path,
+    result_path: &Path,
+    result_receipt_path: &Path,
+) -> anyhow::Result<ExecutionControlAttemptState> {
+    let result_exists = result_path.exists();
+    if result_receipt_path.exists() && !result_exists {
+        anyhow::bail!("live execution control result receipt exists without result bytes");
+    }
+    if attempt_path.exists() {
+        let attempt_raw = read_bounded_execution_authority_file(attempt_path)?;
+        if attempt_raw != request_raw {
+            anyhow::bail!("live execution control attempt does not match its request");
+        }
+        return Ok(if result_exists {
+            ExecutionControlAttemptState::ResultExists
+        } else {
+            ExecutionControlAttemptState::Interrupted
+        });
+    }
+    if result_exists {
+        anyhow::bail!("live execution control result exists without its attempt");
+    }
+    atomic_write_text(
+        attempt_path,
+        std::str::from_utf8(request_raw).context("live execution control request is not UTF-8")?,
+    )?;
+    Ok(ExecutionControlAttemptState::Fresh)
 }
 
 fn publish_execution_control_result(
@@ -872,6 +953,111 @@ fn execution_control_source_order_matches(
             .is_none_or(|value| !value.trim().is_empty())
 }
 
+fn validate_execution_control_result(
+    context: &ProductionExecutionControlContext<'_>,
+    request: &ProductionExecutionControlRequest,
+    request_sha256: &str,
+    source_order: &ProductionExecutionOrderStateSnapshot,
+    result: &ProductionExecutionControlResult,
+) -> anyhow::Result<()> {
+    let quantities_valid = match (
+        result.original_quantity.as_deref(),
+        result.filled_quantity.as_deref(),
+        result.remaining_quantity.as_deref(),
+    ) {
+        (Some(original), Some(filled), Some(remaining)) => {
+            let original = Decimal::from_str_exact(original).ok();
+            let filled = Decimal::from_str_exact(filled).ok();
+            let remaining = Decimal::from_str_exact(remaining).ok();
+            let admitted = Decimal::from_str_exact(&context.execution.quantity).ok();
+            let source_filled = Decimal::from_str_exact(&source_order.filled_quantity).ok();
+            matches!(
+                (original, filled, remaining, admitted, source_filled),
+                (Some(o), Some(f), Some(r), Some(a), Some(s))
+                    if o == a && f >= s && f <= o && r >= Decimal::ZERO && f + r == o
+            )
+        }
+        (None, None, None) => result.manual_review_required,
+        _ => false,
+    };
+    let status_valid = match (result.action.as_str(), result.status.as_str()) {
+        ("reconcile", "reconciled") => {
+            result.query_attempted
+                && !result.cancel_attempted
+                && !result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+        }
+        ("reconcile", "unknown_manual_review") => {
+            !result.cancel_attempted
+                && !result.cancel_confirmed
+                && result.manual_review_required
+                && result.error_code.is_some()
+        }
+        ("cancel", "cancel_confirmed") => {
+            result.query_attempted
+                && result.cancel_attempted
+                && result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+                && result.exchange_order_status.as_deref() == Some("canceled")
+        }
+        ("cancel", "cancel_sent_readback_pending") => {
+            result.query_attempted
+                && result.cancel_attempted
+                && !result.cancel_confirmed
+                && result.manual_review_required
+                && result.error_code.is_none()
+        }
+        ("cancel", "cancel_not_required_terminal_or_pending") => {
+            result.query_attempted
+                && !result.cancel_attempted
+                && !result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+        }
+        ("cancel", "unknown_manual_review") => {
+            !result.cancel_confirmed && result.manual_review_required && result.error_code.is_some()
+        }
+        _ => false,
+    };
+    let result_has_exchange_identity = result.original_quantity.is_some();
+    if result.schema_version != EXECUTION_CONTROL_RESULT_SCHEMA_VERSION
+        || result.request_sha256 != request_sha256
+        || result.request_id != request.request_id
+        || result.action != request.action
+        || result.run_id != context.run_id
+        || result.admission_id != context.execution.admission_id
+        || result.strategy_version_id != context.execution.strategy_version_id
+        || result.instrument_id != context.execution.instrument_id
+        || result.client_order_id != request.client_order_id
+        || result
+            .venue_order_id
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+        || result
+            .exchange_order_status
+            .as_deref()
+            .is_some_and(|value| value.trim().is_empty())
+        || source_order.venue_order_id.as_deref().is_some_and(|value| {
+            result
+                .venue_order_id
+                .as_deref()
+                .is_some_and(|result| result != value)
+        })
+        || result_has_exchange_identity != result.venue_order_id.is_some()
+        || result_has_exchange_identity != result.exchange_order_status.is_some()
+        || !status_valid
+        || !quantities_valid
+        || result.automatic_retry_attempted
+        || result.completed_at_unix_ms < request.requested_at_unix_ms
+        || result.completed_at_unix_ms > current_unix_timestamp_millis()
+    {
+        anyhow::bail!("live execution control result contract is invalid");
+    }
+    Ok(())
+}
+
 fn validate_execution_order_report(
     context: &ProductionExecutionControlContext<'_>,
     request: &ProductionExecutionControlRequest,
@@ -880,6 +1066,8 @@ fn validate_execution_order_report(
 ) -> anyhow::Result<()> {
     let admitted_quantity = Quantity::from_str(&context.execution.quantity)
         .map_err(|error| anyhow::anyhow!("admitted execution quantity is invalid: {error}"))?;
+    let source_filled = Quantity::from_str(&source_order.filled_quantity)
+        .map_err(|error| anyhow::anyhow!("source filled quantity is invalid: {error}"))?;
     if report.account_id != AccountId::from(context.execution.account_id.as_str())
         || report.instrument_id != InstrumentId::from_str(&request.instrument_id)?
         || report.client_order_id != Some(ClientOrderId::from(request.client_order_id.as_str()))
@@ -888,6 +1076,7 @@ fn validate_execution_order_report(
             .as_deref()
             .is_some_and(|value| report.venue_order_id.to_string() != value)
         || report.quantity != admitted_quantity
+        || report.filled_qty < source_filled
         || report.filled_qty > report.quantity
     {
         anyhow::bail!(
@@ -1080,11 +1269,74 @@ fn execution_sha256_ref(raw: &[u8]) -> String {
 
 #[cfg(test)]
 mod execution_authority_tests {
+    use std::{
+        collections::VecDeque,
+        sync::{
+            Mutex,
+            atomic::{AtomicUsize, Ordering},
+        },
+    };
+
     use nautilus_core::UnixNanos;
     use nautilus_model::{enums::OrderType, identifiers::VenueOrderId};
     use tempfile::tempdir;
 
     use super::*;
+
+    enum MockQuery {
+        Report(Box<Option<OrderStatusReport>>),
+        Error,
+    }
+
+    struct MockVenue {
+        queries: Mutex<VecDeque<MockQuery>>,
+        prepare_calls: AtomicUsize,
+        query_calls: AtomicUsize,
+        cancel_calls: AtomicUsize,
+    }
+
+    impl MockVenue {
+        fn new(queries: impl IntoIterator<Item = MockQuery>) -> Self {
+            Self {
+                queries: Mutex::new(queries.into_iter().collect()),
+                prepare_calls: AtomicUsize::new(0),
+                query_calls: AtomicUsize::new(0),
+                cancel_calls: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    impl ProductionExecutionVenue for MockVenue {
+        async fn prepare_instruments(&self) -> anyhow::Result<()> {
+            self.prepare_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+
+        async fn query_order(
+            &self,
+            _account_id: AccountId,
+            _instrument_id: InstrumentId,
+            _venue_order_id: Option<VenueOrderId>,
+            _client_order_id: Option<ClientOrderId>,
+        ) -> anyhow::Result<Option<OrderStatusReport>> {
+            self.query_calls.fetch_add(1, Ordering::SeqCst);
+            match self.queries.lock().unwrap().pop_front() {
+                Some(MockQuery::Report(report)) => Ok(*report),
+                Some(MockQuery::Error) => anyhow::bail!("mock query failed"),
+                None => anyhow::bail!("unexpected mock query"),
+            }
+        }
+
+        async fn cancel_order_once(
+            &self,
+            _instrument_id: InstrumentId,
+            _venue_order_id: Option<VenueOrderId>,
+            _client_order_id: Option<ClientOrderId>,
+        ) -> anyhow::Result<VenueOrderId> {
+            self.cancel_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(VenueOrderId::from("1001"))
+        }
+    }
 
     fn execution_section(runtime_root: &Path, control_root: &Path) -> ProductionExecutionSection {
         ProductionExecutionSection {
@@ -1216,6 +1468,12 @@ mod execution_authority_tests {
             validate_production_execution_control_request(&context, &invalid_cancel, "cancel")
                 .is_err()
         );
+        let mut expired = control_request("cancel");
+        expired.requested_at_unix_ms = 1;
+        expired.expires_at_unix_ms = 2;
+        assert!(
+            validate_production_execution_control_request(&context, &expired, "cancel").is_err()
+        );
     }
 
     #[test]
@@ -1275,6 +1533,189 @@ mod execution_authority_tests {
             validate_execution_order_report(&context, &request, &source_order, &wrong_venue_order)
                 .is_err()
         );
+
+        let mut regressed_fill = partial_fill_report();
+        regressed_fill.filled_qty = Quantity::from("0.00300000");
+        assert!(
+            validate_execution_order_report(&context, &request, &source_order, &regressed_fill)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn persisted_control_result_requires_complete_identity_and_monotonic_quantity() {
+        let temp = tempdir().unwrap();
+        let execution = execution_section(temp.path(), temp.path());
+        let context = ProductionExecutionControlContext {
+            candidate_root: temp.path(),
+            output_dir: temp.path(),
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let request = control_request("reconcile");
+        let source_order = partial_fill_order_state();
+        let request_sha256 = "sha256:request";
+        let mut result = execution_control_result_from_report(
+            &request,
+            request_sha256,
+            &partial_fill_report(),
+            "reconciled",
+            true,
+            false,
+            false,
+            false,
+            None,
+        );
+        validate_execution_control_result(
+            &context,
+            &request,
+            request_sha256,
+            &source_order,
+            &result,
+        )
+        .unwrap();
+
+        result.admission_id = "different-admission".to_string();
+        assert!(
+            validate_execution_control_result(
+                &context,
+                &request,
+                request_sha256,
+                &source_order,
+                &result,
+            )
+            .is_err()
+        );
+        result.admission_id = request.admission_id.clone();
+        result.filled_quantity = Some("0.00300000".to_string());
+        result.remaining_quantity = Some("0.00700000".to_string());
+        assert!(
+            validate_execution_control_result(
+                &context,
+                &request,
+                request_sha256,
+                &source_order,
+                &result,
+            )
+            .is_err()
+        );
+        result.filled_quantity = Some("0.00400000".to_string());
+        result.remaining_quantity = Some("0.00600000".to_string());
+        result.query_attempted = false;
+        assert!(
+            validate_execution_control_result(
+                &context,
+                &request,
+                request_sha256,
+                &source_order,
+                &result,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn execution_control_attempt_is_single_use_across_restart() {
+        let temp = tempdir().unwrap();
+        let attempt = temp.path().join("attempt.json");
+        let result = temp.path().join("result.json");
+        let receipt = temp.path().join("receipt.json");
+        let request_raw = br#"{"request":"one"}"#;
+
+        assert_eq!(
+            prepare_execution_control_attempt(request_raw, &attempt, &result, &receipt).unwrap(),
+            ExecutionControlAttemptState::Fresh
+        );
+        assert_eq!(
+            prepare_execution_control_attempt(request_raw, &attempt, &result, &receipt).unwrap(),
+            ExecutionControlAttemptState::Interrupted
+        );
+        fs::write(&result, b"result").unwrap();
+        assert_eq!(
+            prepare_execution_control_attempt(request_raw, &attempt, &result, &receipt).unwrap(),
+            ExecutionControlAttemptState::ResultExists
+        );
+        assert!(
+            prepare_execution_control_attempt(b"different", &attempt, &result, &receipt).is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_flow_queries_once_sends_once_reads_back_once_and_never_retries() {
+        let temp = tempdir().unwrap();
+        let execution = execution_section(temp.path(), temp.path());
+        let context = ProductionExecutionControlContext {
+            candidate_root: temp.path(),
+            output_dir: temp.path(),
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let request = control_request("cancel");
+        let source_order = partial_fill_order_state();
+        let before = partial_fill_report();
+        let mut after = partial_fill_report();
+        after.order_status = OrderStatus::Canceled;
+        let venue = MockVenue::new([
+            MockQuery::Report(Box::new(Some(before))),
+            MockQuery::Report(Box::new(Some(after))),
+        ]);
+
+        let result = execute_production_execution_control_with_venue(
+            &venue,
+            &context,
+            &request,
+            "sha256:request",
+            &source_order,
+            "cancel",
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.status, "cancel_confirmed");
+        assert!(result.cancel_attempted);
+        assert!(result.cancel_confirmed);
+        assert!(!result.automatic_retry_attempted);
+        assert_eq!(venue.prepare_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(venue.query_calls.load(Ordering::SeqCst), 2);
+        assert_eq!(venue.cancel_calls.load(Ordering::SeqCst), 1);
+
+        let failed_venue = MockVenue::new([MockQuery::Error]);
+        let failed = execute_production_execution_control_with_venue(
+            &failed_venue,
+            &context,
+            &request,
+            "sha256:request",
+            &source_order,
+            "cancel",
+        )
+        .await
+        .unwrap();
+        assert_eq!(failed.status, "unknown_manual_review");
+        assert!(!failed.automatic_retry_attempted);
+        assert_eq!(failed_venue.query_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(failed_venue.cancel_calls.load(Ordering::SeqCst), 0);
+
+        let mut canceled = partial_fill_report();
+        canceled.order_status = OrderStatus::Canceled;
+        let terminal_venue = MockVenue::new([MockQuery::Report(Box::new(Some(canceled)))]);
+        let terminal = execute_production_execution_control_with_venue(
+            &terminal_venue,
+            &context,
+            &request,
+            "sha256:request",
+            &source_order,
+            "cancel",
+        )
+        .await
+        .unwrap();
+        assert_eq!(terminal.status, "cancel_not_required_terminal_or_pending");
+        assert!(!terminal.cancel_attempted);
+        assert!(!terminal.cancel_confirmed);
+        assert_eq!(terminal_venue.query_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(terminal_venue.cancel_calls.load(Ordering::SeqCst), 0);
     }
 
     #[test]

@@ -1939,13 +1939,7 @@ fn validate_execution_control_snapshot(
         ) {
             (Some(local_original), Some(local_filled), Some(original), Some(filled)) => {
                 Decimal::from_str_exact(original).ok() == Some(local_original)
-                    && Decimal::from_str_exact(filled).is_ok_and(|value| {
-                        if result.completed_at_unix_ms >= order.updated_at_unix_ms {
-                            value >= local_filled
-                        } else {
-                            local_filled >= value
-                        }
-                    })
+                    && Decimal::from_str_exact(filled).is_ok_and(|value| value >= local_filled)
             }
             (_, _, None, None) => result.manual_review_required,
             _ => false,
