@@ -2992,7 +2992,26 @@
           "replace_attempted": { "const": false },
           "last_error": { "type": ["string", "null"], "minLength": 1, "maxLength": 512 },
           "updated_at_unix_ms": { "type": "integer", "minimum": 1 }
-        }
+        },
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "cancel_attempted": { "const": false }
+                }
+              },
+              {
+                "properties": {
+                  "cancel_attempted": { "const": true },
+                  "status": { "enum": ["submission_requested", "submitted", "accepted", "rejected", "expired", "partially_filled", "filled", "canceled"] },
+                  "actual_submission_attempted": { "const": true },
+                  "client_order_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+                }
+              }
+            ]
+          }
+        ]
       },
       "LiveExecutionControlSnapshot": {
         "type": "object",

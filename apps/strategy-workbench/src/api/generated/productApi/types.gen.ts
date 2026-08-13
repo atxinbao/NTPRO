@@ -896,7 +896,25 @@ export type LiveRunAuditAnchorSnapshot = {
   trading_authority_granted: false;
 };
 
-export type LiveExecutionOrderSnapshot = {
+export type LiveExecutionOrderSnapshot = (
+  | {
+      cancel_attempted?: false;
+    }
+  | {
+      cancel_attempted?: true;
+      status?:
+        | "submission_requested"
+        | "submitted"
+        | "accepted"
+        | "rejected"
+        | "expired"
+        | "partially_filled"
+        | "filled"
+        | "canceled";
+      actual_submission_attempted?: true;
+      client_order_id?: string;
+    }
+) & {
   schema_version: "ntpro.s3.live_execution_order_state.v2";
   admission_id: string;
   strategy_version_id: StrategyVersionId;

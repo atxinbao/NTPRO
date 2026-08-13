@@ -1465,12 +1465,7 @@ fn authorize_live_execution_cancel(
         || order.client_order_id.as_deref() != Some(request.client_order_id.as_str())
         || request.source_order_state_sha256 != sha256_ref(&order_raw)
         || order.replace_attempted
-        || (order.cancel_attempted
-            && (!order.actual_submission_attempted
-                || !matches!(
-                    order.status.as_str(),
-                    "accepted" | "partially_filled" | "canceled"
-                )))
+        || !execution_order_cancel_attempt_is_valid(&order)
     {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -1748,16 +1743,17 @@ fn response(
 
 fn execution_order_has_confirmed_submission(order: &LiveExecutionOrderSnapshot) -> bool {
     order.actual_submission_attempted
-        && matches!(
-            order.status.as_str(),
-            "submitted"
-                | "accepted"
-                | "rejected"
-                | "expired"
-                | "partially_filled"
-                | "filled"
-                | "canceled"
-        )
+        && ((order.status == "submission_requested" && order.cancel_attempted)
+            || matches!(
+                order.status.as_str(),
+                "submitted"
+                    | "accepted"
+                    | "rejected"
+                    | "expired"
+                    | "partially_filled"
+                    | "filled"
+                    | "canceled"
+            ))
 }
 
 fn create_live_run_candidate_with_symbols(
@@ -3757,6 +3753,18 @@ fn load_live_run_candidate_snapshot(
             "live_execution_cancel_venue_attempt",
         ));
     }
+    if let Some((order, _)) = &execution_order {
+        let admission = execution_admission
+            .as_ref()
+            .map(|(value, _)| value)
+            .ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_execution_cancel_venue_attempt",
+                )
+            })?;
+        validate_execution_order_snapshot(order, admission)?;
+    }
     if let Some((control, control_raw)) = &reconcile_result {
         let (request, request_raw) = reconcile_request.as_ref().ok_or_else(|| {
             product_error(
@@ -4235,18 +4243,7 @@ fn validate_execution_order_snapshot(
         || ((waiting || failed_before_attempt) && order.client_order_id.is_some())
         || (!waiting && !failed_before_attempt && order.client_order_id.is_none())
         || order.automatic_retry_attempted
-        || (order.cancel_attempted
-            && (!order.actual_submission_attempted
-                || order.client_order_id.is_none()
-                || !matches!(
-                    order.status.as_str(),
-                    "accepted"
-                        | "partially_filled"
-                        | "canceled"
-                        | "filled"
-                        | "expired"
-                        | "rejected"
-                )))
+        || !execution_order_cancel_attempt_is_valid(order)
         || order.replace_attempted
         || order.updated_at_unix_ms < admission.authorized_at_unix_ms
     {
@@ -4256,6 +4253,23 @@ fn validate_execution_order_snapshot(
         ));
     }
     Ok(())
+}
+
+fn execution_order_cancel_attempt_is_valid(order: &LiveExecutionOrderSnapshot) -> bool {
+    !order.cancel_attempted
+        || (order.actual_submission_attempted
+            && order.client_order_id.is_some()
+            && matches!(
+                order.status.as_str(),
+                "submission_requested"
+                    | "submitted"
+                    | "accepted"
+                    | "partially_filled"
+                    | "canceled"
+                    | "filled"
+                    | "expired"
+                    | "rejected"
+            ))
 }
 
 fn validate_execution_order_progression(
@@ -6158,6 +6172,18 @@ mod tests {
         assert!(!project_execution_cancel_attempt(Some(&mut order), false));
         order.cancel_attempted = true;
         assert!(project_execution_cancel_attempt(Some(&mut order), true));
+        for status in ["submission_requested", "submitted"] {
+            order.status = status.to_string();
+            order.cancel_attempted = false;
+            assert!(project_execution_cancel_attempt(Some(&mut order), true));
+            assert!(order.cancel_attempted, "{status}");
+            assert!(execution_order_cancel_attempt_is_valid(&order), "{status}");
+        }
+        for status in ["waiting_for_instrument", "denied", "submission_failed"] {
+            order.status = status.to_string();
+            order.cancel_attempted = true;
+            assert!(!execution_order_cancel_attempt_is_valid(&order), "{status}");
+        }
     }
 
     #[test]
@@ -6474,6 +6500,10 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             order.status = status.to_string();
             assert!(execution_order_has_confirmed_submission(&order), "{status}");
         }
+        order.status = "submission_requested".to_string();
+        order.cancel_attempted = true;
+        assert!(execution_order_has_confirmed_submission(&order));
+        order.cancel_attempted = false;
         for status in [
             "waiting_for_instrument",
             "submission_requested",

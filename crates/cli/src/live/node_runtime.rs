@@ -2113,6 +2113,80 @@ mod execution_authority_tests {
     }
 
     #[tokio::test]
+    async fn marker_ahead_submission_states_recover_without_constructing_a_venue_request() {
+        for status in ["submission_requested", "submitted"] {
+            let temp = tempdir().unwrap();
+            let execution = execution_section(temp.path(), temp.path());
+            let context = ProductionExecutionControlContext {
+                candidate_root: temp.path(),
+                output_dir: temp.path(),
+                run_id: "live-candidate-authority-test",
+                execution: &execution,
+                api_key: "invalid-offline-key",
+                api_secret: "invalid-offline-secret",
+            };
+            let mut request = control_request("cancel");
+            request.requested_at_unix_ms = 1;
+            request.expires_at_unix_ms = 2;
+            let mut source = partial_fill_order_state();
+            source.status = status.to_string();
+            source.venue_order_id = None;
+            source.filled_quantity = "0".to_string();
+            source.remaining_quantity = source.original_quantity.clone();
+            let source_raw = serde_json::to_vec_pretty(&source).unwrap();
+            request.source_order_state_sha256 = execution_sha256_ref(&source_raw);
+            let request_raw = serde_json::to_vec_pretty(&request).unwrap();
+            fs::write(
+                temp.path().join(EXECUTION_CANCEL_REQUEST_FILE),
+                &request_raw,
+            )
+            .unwrap();
+            fs::write(
+                temp.path().join("execution-cancel-attempt.json"),
+                &request_raw,
+            )
+            .unwrap();
+            fs::write(
+                temp.path().join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE),
+                execution_sha256_ref(&request_raw),
+            )
+            .unwrap();
+            fs::write(
+                temp.path().join(EXECUTION_CANCEL_SOURCE_ORDER_FILE),
+                &source_raw,
+            )
+            .unwrap();
+            fs::write(temp.path().join(EXECUTION_ORDER_STATE_FILE), &source_raw).unwrap();
+            let published = Mutex::new(None);
+
+            process_production_execution_control_with_publisher(
+                &context,
+                "cancel",
+                EXECUTION_CANCEL_REQUEST_FILE,
+                EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+                "execution-cancel-attempt.json",
+                EXECUTION_CANCEL_RESULT_FILE,
+                EXECUTION_CANCEL_RESULT_RECEIPT_FILE,
+                |_, _, result| {
+                    *published.lock().unwrap() = Some(result.clone());
+                    Ok(())
+                },
+            )
+            .await
+            .unwrap();
+            let result = published.lock().unwrap().clone().unwrap();
+            assert_eq!(result.status, "unknown_manual_review", "{status}");
+            assert_eq!(
+                result.error_code.as_deref(),
+                Some("previous_attempt_interrupted_no_retry"),
+                "{status}"
+            );
+            assert!(result.cancel_attempted, "{status}");
+            assert!(!result.automatic_retry_attempted, "{status}");
+        }
+    }
+
+    #[tokio::test]
     async fn cancel_flow_queries_once_sends_once_reads_back_once_and_never_retries() {
         let temp = tempdir().unwrap();
         let execution = execution_section(temp.path(), temp.path());

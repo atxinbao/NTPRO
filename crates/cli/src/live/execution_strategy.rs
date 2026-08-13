@@ -380,7 +380,20 @@ fn load_existing_execution_state(
                 | "canceled"
                 | "submission_failed"
         )
-        || (state.cancel_attempted && state.client_order_id.is_none())
+        || (state.cancel_attempted
+            && (!state.actual_submission_attempted
+                || state.client_order_id.is_none()
+                || !matches!(
+                    state.status.as_str(),
+                    "submission_requested"
+                        | "submitted"
+                        | "accepted"
+                        | "rejected"
+                        | "expired"
+                        | "partially_filled"
+                        | "filled"
+                        | "canceled"
+                )))
         || !quantities_valid
     {
         anyhow::bail!("existing execution order state does not match the admitted single shot");
@@ -581,14 +594,19 @@ mod tests {
         .unwrap();
         ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
 
-        state.cancel_attempted = false;
-        atomic_write_json(&temp.path().join("execution-order-state.json"), &state).unwrap();
-        ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
-        let recovered: ProductionExecutionOrderState = serde_json::from_slice(
-            &fs::read(temp.path().join("execution-order-state.json")).unwrap(),
-        )
-        .unwrap();
-        assert!(recovered.cancel_attempted);
+        for status in ["submission_requested", "submitted", "accepted"] {
+            state.status = status.to_string();
+            state.venue_order_id = (status == "accepted").then(|| "1001".to_string());
+            state.cancel_attempted = false;
+            atomic_write_json(&temp.path().join("execution-order-state.json"), &state).unwrap();
+            ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
+            let recovered: ProductionExecutionOrderState = serde_json::from_slice(
+                &fs::read(temp.path().join("execution-order-state.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(recovered.status, status);
+            assert!(recovered.cancel_attempted);
+        }
 
         fs::remove_file(
             section

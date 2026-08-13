@@ -952,38 +952,62 @@ export const zLiveRunAuditAnchorSnapshot = z.object({
   trading_authority_granted: z.literal(false),
 });
 
-export const zLiveExecutionOrderSnapshot = z.object({
-  schema_version: z.literal("ntpro.s3.live_execution_order_state.v2"),
-  admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
-  strategy_version_id: zStrategyVersionId,
-  instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
-  client_order_id: z.string().min(1).max(128).nullable(),
-  venue_order_id: z.string().min(1).max(128).nullable(),
-  original_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
-  filled_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
-  remaining_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
-  status: z.enum([
-    "waiting_for_instrument",
-    "submission_requested",
-    "submitted",
-    "accepted",
-    "rejected",
-    "denied",
-    "expired",
-    "partially_filled",
-    "filled",
-    "canceled",
-    "submission_failed",
+export const zLiveExecutionOrderSnapshot = z.intersection(
+  z.union([
+    z.object({
+      cancel_attempted: z.literal(false).optional(),
+    }),
+    z.object({
+      cancel_attempted: z.literal(true).optional(),
+      status: z
+        .enum([
+          "submission_requested",
+          "submitted",
+          "accepted",
+          "rejected",
+          "expired",
+          "partially_filled",
+          "filled",
+          "canceled",
+        ])
+        .optional(),
+      actual_submission_attempted: z.literal(true).optional(),
+      client_order_id: z.string().min(1).max(128).optional(),
+    }),
   ]),
-  terminal: z.boolean(),
-  new_orders_blocked: z.literal(true),
-  actual_submission_attempted: z.boolean(),
-  automatic_retry_attempted: z.literal(false),
-  cancel_attempted: z.boolean(),
-  replace_attempted: z.literal(false),
-  last_error: z.string().min(1).max(512).nullable(),
-  updated_at_unix_ms: z.int().gte(1),
-});
+  z.object({
+    schema_version: z.literal("ntpro.s3.live_execution_order_state.v2"),
+    admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+    strategy_version_id: zStrategyVersionId,
+    instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
+    client_order_id: z.string().min(1).max(128).nullable(),
+    venue_order_id: z.string().min(1).max(128).nullable(),
+    original_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+    filled_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+    remaining_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+    status: z.enum([
+      "waiting_for_instrument",
+      "submission_requested",
+      "submitted",
+      "accepted",
+      "rejected",
+      "denied",
+      "expired",
+      "partially_filled",
+      "filled",
+      "canceled",
+      "submission_failed",
+    ]),
+    terminal: z.boolean(),
+    new_orders_blocked: z.literal(true),
+    actual_submission_attempted: z.boolean(),
+    automatic_retry_attempted: z.literal(false),
+    cancel_attempted: z.boolean(),
+    replace_attempted: z.literal(false),
+    last_error: z.string().min(1).max(512).nullable(),
+    updated_at_unix_ms: z.int().gte(1),
+  }),
+);
 
 export const zLiveExecutionControlSnapshot = z.intersection(
   z.union([

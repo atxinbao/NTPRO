@@ -476,6 +476,41 @@ describe("product API generated client", () => {
     expect(result.data.execution_control?.manual_review_required).toBe(true);
   });
 
+  it.each(["submission_requested", "submitted"])(
+    "accepts marker-ahead %s manual-review projection",
+    async (status) => {
+      const running = liveExecutionControlResponse();
+      running.data.execution_order.status = status;
+      running.data.execution_order.terminal = false;
+      running.data.execution_order.venue_order_id = null;
+      running.data.execution_order.filled_quantity = "0";
+      running.data.execution_order.remaining_quantity = "0.00001000";
+      running.data.execution_control.status = "unknown_manual_review";
+      running.data.execution_control.venue_order_id = null;
+      running.data.execution_control.exchange_order_status = null;
+      running.data.execution_control.original_quantity = null;
+      running.data.execution_control.filled_quantity = null;
+      running.data.execution_control.remaining_quantity = null;
+      running.data.execution_control.query_attempted = true;
+      running.data.execution_control.cancel_confirmed = false;
+      running.data.execution_control.manual_review_required = true;
+      running.data.execution_control.error_code =
+        "previous_attempt_interrupted_no_retry";
+
+      const result = await createProductApiClient({
+        fetch: jsonFetch(running),
+      }).actOnLiveRunCandidate(running.data.run_id, "start_execution");
+      expect(result.data.execution_order?.status).toBe(status);
+      expect(result.data.execution_order?.cancel_attempted).toBe(true);
+      expect(result.data.execution_order_state_sha256).toBe(
+        running.data.execution_order_state_sha256,
+      );
+      expect(result.data.execution_control?.status).toBe(
+        "unknown_manual_review",
+      );
+    },
+  );
+
   it.each([
     [
       "cross-action status",

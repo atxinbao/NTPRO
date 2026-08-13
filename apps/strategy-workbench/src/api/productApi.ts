@@ -620,15 +620,17 @@ function assertLiveRunCandidate(
   const realOrderSubmitted =
     executionOrder !== null &&
     executionAttempted &&
-    [
-      "submitted",
-      "accepted",
-      "rejected",
-      "expired",
-      "partially_filled",
-      "filled",
-      "canceled",
-    ].includes(executionOrder.status);
+    ((executionOrder.status === "submission_requested" &&
+      executionOrder.cancel_attempted) ||
+      [
+        "submitted",
+        "accepted",
+        "rejected",
+        "expired",
+        "partially_filled",
+        "filled",
+        "canceled",
+      ].includes(executionOrder.status));
   const terminalOrderStatus =
     executionOrder !== null &&
     [
@@ -648,6 +650,8 @@ function assertLiveRunCandidate(
       !executionOrder.automatic_retry_attempted &&
       (!executionOrder.cancel_attempted ||
         [
+          "submission_requested",
+          "submitted",
           "accepted",
           "partially_filled",
           "canceled",
