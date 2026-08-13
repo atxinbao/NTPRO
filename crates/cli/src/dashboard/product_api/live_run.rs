@@ -3,7 +3,7 @@
 use std::{
     collections::BTreeSet,
     fs,
-    io::{ErrorKind, Read},
+    io::{ErrorKind, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     dashboard::ApiStatusResult,
-    process::{process_matches_start_time, process_start_time_secs},
+    process::process_start_time_secs,
     supervisor::{
         RegisterNodeRequest, StartNodeRequest, StopNodeRequest, SupervisorProcessState,
         SupervisorRegistryStore, SupervisorRunOwnership, SupervisorRunTerminalAnchor,
@@ -543,8 +543,16 @@ struct LiveRunStateHead {
 }
 
 struct LiveRunMutationLock {
-    artifact_root: cap_std::fs::Dir,
+    file: fs::File,
+    _process_reservation: LiveRunProcessMutationReservation,
 }
+
+struct LiveRunProcessMutationReservation {
+    artifact_root: PathBuf,
+}
+
+static LIVE_RUN_PROCESS_MUTATION_LOCKS: std::sync::LazyLock<std::sync::Mutex<BTreeSet<PathBuf>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(BTreeSet::new()));
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -557,7 +565,15 @@ struct LiveRunMutationLockArtifact {
 
 impl Drop for LiveRunMutationLock {
     fn drop(&mut self) {
-        let _ = self.artifact_root.remove_file(LIVE_RUN_MUTATION_LOCK_FILE);
+        let _ = self.file.unlock();
+    }
+}
+
+impl Drop for LiveRunProcessMutationReservation {
+    fn drop(&mut self) {
+        if let Ok(mut locks) = LIVE_RUN_PROCESS_MUTATION_LOCKS.lock() {
+            locks.remove(&self.artifact_root);
+        }
     }
 }
 
@@ -7207,7 +7223,62 @@ fn acquire_live_run_mutation_lock(
     let artifact_root_path = live_run_root
         .parent()
         .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "live_run_mutation_lock"))?;
+    let process_reservation = {
+        let mut locks = LIVE_RUN_PROCESS_MUTATION_LOCKS.lock().map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            )
+        })?;
+        if !locks.insert(artifact_root_path.to_path_buf()) {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_run_mutation_lock",
+            ));
+        }
+        LiveRunProcessMutationReservation {
+            artifact_root: artifact_root_path.to_path_buf(),
+        }
+    };
     let artifact_root = open_absolute_directory_nofollow(artifact_root_path)?;
+    let mut options = cap_std::fs::OpenOptions::new();
+    options.read(true).write(true).create(true);
+    options.follow(FollowSymlinks::No);
+    let mut file = artifact_root
+        .open_with(LIVE_RUN_MUTATION_LOCK_FILE, &options)
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            )
+        })?
+        .into_std();
+    match file.try_lock() {
+        Ok(()) => {}
+        Err(fs::TryLockError::WouldBlock) => {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_run_mutation_lock",
+            ));
+        }
+        Err(fs::TryLockError::Error(error))
+            if matches!(
+                error.kind(),
+                ErrorKind::WouldBlock | ErrorKind::ResourceBusy
+            ) =>
+        {
+            return Err(product_error(
+                ProductErrorKind::LiveConflict,
+                "live_run_mutation_lock",
+            ));
+        }
+        Err(fs::TryLockError::Error(_)) => {
+            return Err(product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            ));
+        }
+    }
     let pid = std::process::id();
     let process_start_time_secs = process_start_time_secs(pid).ok_or_else(|| {
         product_error(
@@ -7221,50 +7292,27 @@ fn acquire_live_run_mutation_lock(
         process_start_time_secs,
         acquired_at_unix_ms: unix_time_ms(),
     };
-    let raw = serde_json::to_vec_pretty(&owner).map_err(|_| {
+    let mut raw = serde_json::to_vec_pretty(&owner).map_err(|_| {
         product_error(
             ProductErrorKind::LiveExecutionFailed,
             "live_run_mutation_lock",
         )
     })?;
-    loop {
-        match write_new_run_file(&artifact_root, LIVE_RUN_MUTATION_LOCK_FILE, &raw) {
-            Ok(()) => break,
-            Err(error) if error.kind == ProductErrorKind::Conflict => {
-                let existing_raw = read_run_file_from_directory(
-                    &artifact_root,
-                    LIVE_RUN_MUTATION_LOCK_FILE,
-                    "live_run_mutation_lock",
-                )?;
-                let existing: LiveRunMutationLockArtifact = serde_json::from_slice(&existing_raw)
-                    .map_err(|_| {
-                    product_error(ProductErrorKind::LiveConflict, "live_run_mutation_lock")
-                })?;
-                if existing.schema_version != LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION
-                    || existing.pid == 0
-                    || existing.process_start_time_secs == 0
-                    || process_matches_start_time(existing.pid, existing.process_start_time_secs)
-                {
-                    return Err(product_error(
-                        ProductErrorKind::LiveConflict,
-                        "live_run_mutation_lock",
-                    ));
-                }
-                match artifact_root.remove_file(LIVE_RUN_MUTATION_LOCK_FILE) {
-                    Ok(()) => {}
-                    Err(remove_error) if remove_error.kind() == ErrorKind::NotFound => {}
-                    Err(_) => {
-                        return Err(product_error(
-                            ProductErrorKind::SourceUnavailable,
-                            "live_run_mutation_lock",
-                        ));
-                    }
-                }
-            }
-            Err(error) => return Err(error),
-        }
-    }
-    Ok(LiveRunMutationLock { artifact_root })
+    raw.push(b'\n');
+    file.set_len(0)
+        .and_then(|()| file.seek(SeekFrom::Start(0)).map(|_| ()))
+        .and_then(|()| file.write_all(&raw))
+        .and_then(|()| file.sync_all())
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_run_mutation_lock",
+            )
+        })?;
+    Ok(LiveRunMutationLock {
+        file,
+        _process_reservation: process_reservation,
+    })
 }
 
 fn read_optional_artifact_with_raw<T>(
@@ -9977,7 +10025,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     }
 
     #[test]
-    fn live_mutation_lock_recovers_a_dead_or_reused_owner() {
+    fn live_mutation_lock_rewrites_stale_diagnostics_after_lock_release() {
         let fixture = LiveRunFixture::new("dead-mutation-lock");
         canonical_live_run_root(&fixture.state, true).unwrap();
         let canonical_root = fs::canonicalize(&fixture.root).unwrap();
@@ -10008,13 +10056,13 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         .unwrap();
         assert_eq!(current.pid, std::process::id());
         assert_ne!(current.process_start_time_secs, u64::MAX);
-        assert!(process_matches_start_time(
-            current.pid,
-            current.process_start_time_secs
-        ));
+        assert_eq!(
+            process_start_time_secs(current.pid),
+            Some(current.process_start_time_secs)
+        );
         drop(lock);
         assert!(
-            !fixture
+            fixture
                 .root
                 .join("artifacts")
                 .join(LIVE_RUN_MUTATION_LOCK_FILE)
@@ -10086,6 +10134,48 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         let recovered = acquire_live_run_mutation_lock(&fixture.state).unwrap();
         assert!(stage.exists());
         drop(recovered);
+    }
+
+    #[test]
+    fn live_mutation_lock_allows_only_one_concurrent_recovery_writer() {
+        let fixture = LiveRunFixture::new("mutation-lock-concurrent-recovery");
+        canonical_live_run_root(&fixture.state, true).unwrap();
+        let state = std::sync::Arc::new(fixture.independent_state());
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(3));
+        let release = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut handles = Vec::new();
+        for _ in 0..2 {
+            let state = state.clone();
+            let barrier = barrier.clone();
+            let release = release.clone();
+            let sender = sender.clone();
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                match acquire_live_run_mutation_lock(&state) {
+                    Ok(lock) => {
+                        sender.send(true).unwrap();
+                        release.wait();
+                        drop(lock);
+                    }
+                    Err(error) => {
+                        assert_eq!(error.kind, ProductErrorKind::LiveConflict);
+                        sender.send(false).unwrap();
+                    }
+                }
+            }));
+        }
+        barrier.wait();
+        let first = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        let second = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(
+            [first, second].into_iter().filter(|value| *value).count(),
+            1
+        );
+        release.wait();
+        for handle in handles {
+            handle.join().unwrap();
+        }
     }
 
     #[test]

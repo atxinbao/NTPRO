@@ -49,11 +49,6 @@ pub(crate) fn process_start_time_secs(pid: u32) -> Option<u64> {
         .map(sysinfo::Process::start_time)
 }
 
-#[must_use]
-pub(crate) fn process_matches_start_time(pid: u32, expected_start_time_secs: u64) -> bool {
-    process_start_time_secs(pid) == Some(expected_start_time_secs)
-}
-
 /// # Errors
 ///
 /// Returns an error if the process exists but the operating system rejects the
