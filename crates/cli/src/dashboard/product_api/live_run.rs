@@ -3588,7 +3588,7 @@ fn load_live_run_candidate_snapshot(
         .join("artifacts/live-market-data-runtime")
         .join(run_id)
         .join(LIVE_EXECUTION_ORDER_STATE_FILE);
-    let execution_order = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+    let mut execution_order = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
         &execution_order_path,
         "live_execution_order_state",
     )?;
@@ -3748,8 +3748,8 @@ fn load_live_run_candidate_snapshot(
     } else {
         false
     };
-    if !execution_cancel_attempt_matches_order(
-        execution_order.as_ref().map(|(order, _)| order),
+    if !project_execution_cancel_attempt(
+        execution_order.as_mut().map(|(order, _)| order),
         cancel_venue_attempted,
     ) {
         return Err(product_error(
@@ -3844,11 +3844,19 @@ fn load_live_run_candidate_snapshot(
     Ok((candidate, manifest, manifest_raw))
 }
 
-fn execution_cancel_attempt_matches_order(
-    order: Option<&LiveExecutionOrderSnapshot>,
+fn project_execution_cancel_attempt(
+    order: Option<&mut LiveExecutionOrderSnapshot>,
     cancel_venue_attempted: bool,
 ) -> bool {
-    order.is_some_and(|order| order.cancel_attempted) == cancel_venue_attempted
+    match (order, cancel_venue_attempted) {
+        (None, false) => true,
+        (None, true) => false,
+        (Some(order), false) => !order.cancel_attempted,
+        (Some(order), true) => {
+            order.cancel_attempted = true;
+            true
+        }
+    }
 }
 
 fn load_live_run_manifest(
@@ -6120,9 +6128,9 @@ mod tests {
     }
 
     #[test]
-    fn execution_order_cancel_state_requires_the_same_venue_attempt_fact() {
-        assert!(execution_cancel_attempt_matches_order(None, false));
-        assert!(!execution_cancel_attempt_matches_order(None, true));
+    fn execution_order_cancel_state_projects_marker_ahead_and_rejects_false_claims() {
+        assert!(project_execution_cancel_attempt(None, false));
+        assert!(!project_execution_cancel_attempt(None, true));
         let mut order: LiveExecutionOrderSnapshot = serde_json::from_value(serde_json::json!({
             "schema_version": LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION,
             "admission_id": "admission-001",
@@ -6144,11 +6152,12 @@ mod tests {
             "updated_at_unix_ms": 1
         }))
         .unwrap();
-        assert!(execution_cancel_attempt_matches_order(Some(&order), false));
-        assert!(!execution_cancel_attempt_matches_order(Some(&order), true));
+        assert!(project_execution_cancel_attempt(Some(&mut order), false));
+        assert!(project_execution_cancel_attempt(Some(&mut order), true));
+        assert!(order.cancel_attempted);
+        assert!(!project_execution_cancel_attempt(Some(&mut order), false));
         order.cancel_attempted = true;
-        assert!(!execution_cancel_attempt_matches_order(Some(&order), false));
-        assert!(execution_cancel_attempt_matches_order(Some(&order), true));
+        assert!(project_execution_cancel_attempt(Some(&mut order), true));
     }
 
     #[test]

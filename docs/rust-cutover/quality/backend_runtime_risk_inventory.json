@@ -35,14 +35,14 @@
     "validator": "scripts/ai/check_backend_runtime_risk_inventory.sh",
     "canonical_row": "ownership<TAB>signal<TAB>path<TAB>line",
     "summary": {
-      "total_matches": 30366,
+      "total_matches": 30370,
       "matched_files": 1230,
       "by_ownership": {
         "ffi": 674,
         "generated": 646,
         "production": 2703,
         "test": 15312,
-        "test_inline": 11031
+        "test_inline": 11035
       },
       "by_signal": {
         "TODO": 163,
@@ -52,9 +52,9 @@
         "todo_macro": 18,
         "unsafe": 1922,
         "unused": 96,
-        "unwrap": 20151
+        "unwrap": 20155
       },
-      "canonical_sha256": "36332e87adb992f625fa063628193aaceca57cf2e146cbe19b2c3e07ac6a61f8"
+      "canonical_sha256": "2e4dd16f98ff031e49f860802c8fc45d6c787b48ced63b9ccb46d42019b3d278"
     },
     "limitations": [
       "Dedicated tests, benches, test_kit, testing, stubs, tests.rs, and *_test.rs files are test-owned.",

@@ -65,17 +65,24 @@ impl ProductionSingleShotExecutionStrategy {
         })?;
         let strategy_id = StrategyId::from(format!("S3-LIVE-{}", execution.admission_id));
         let state_path = output_dir.join("execution-order-state.json");
-        let persisted = load_existing_execution_state(&state_path, execution, &instrument_id)?;
+        let mut persisted = load_existing_execution_state(&state_path, execution, &instrument_id)?;
         let venue_cancel_attempted =
             validated_cancel_venue_attempt_exists(&execution.control_artifact_root)?;
-        if persisted
-            .as_ref()
-            .is_some_and(|state| state.cancel_attempted)
-            != venue_cancel_attempted
-        {
-            anyhow::bail!(
-                "persisted execution cancel state does not match the venue attempt artifact"
-            );
+        match persisted.as_mut() {
+            Some(state) if state.cancel_attempted && !venue_cancel_attempted => {
+                anyhow::bail!(
+                    "persisted execution cancel state does not match the venue attempt artifact"
+                );
+            }
+            Some(state) if venue_cancel_attempted && !state.cancel_attempted => {
+                state.cancel_attempted = true;
+                state.updated_at_unix_ms = current_unix_timestamp_millis();
+                atomic_write_json(&state_path, state)?;
+            }
+            None if venue_cancel_attempted => {
+                anyhow::bail!("live execution cancel venue attempt exists without an order state");
+            }
+            _ => {}
         }
         let submitted = persisted.is_some();
         let client_order_id = persisted
@@ -528,7 +535,7 @@ mod tests {
     }
 
     #[test]
-    fn execution_strategy_restart_rejects_cancel_state_and_venue_attempt_drift() {
+    fn execution_strategy_restart_recovers_marker_ahead_and_rejects_false_cancel_claim() {
         let temp = tempdir().unwrap();
         let mut section = execution_section();
         section.control_artifact_root = temp.path().join("control");
@@ -576,6 +583,19 @@ mod tests {
 
         state.cancel_attempted = false;
         atomic_write_json(&temp.path().join("execution-order-state.json"), &state).unwrap();
+        ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
+        let recovered: ProductionExecutionOrderState = serde_json::from_slice(
+            &fs::read(temp.path().join("execution-order-state.json")).unwrap(),
+        )
+        .unwrap();
+        assert!(recovered.cancel_attempted);
+
+        fs::remove_file(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+        )
+        .unwrap();
         assert!(ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).is_err());
     }
 
