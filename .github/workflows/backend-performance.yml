@@ -1,20 +1,6 @@
 name: Backend Performance
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - ".github/workflows/backend-performance.yml"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "crates/**"
-      - "scripts/ai/check_backend_performance_hosted.sh"
-      - "scripts/ai/run_backend_benchmark_workload.sh"
-      - "docs/rust-cutover/governance/backend_performance_baseline.json"
-      - "docs/rust-cutover/governance/backend_performance_hosted_contract.json"
-      - "docs/product/mvp_freeze_manifest.json"
-      - "docs/product/mvp_release_and_rollback.md"
-      - "scripts/ai/check_mvp_freeze_baseline.sh"
   schedule:
     - cron: "31 3 * * 0"
   workflow_dispatch:
@@ -32,8 +18,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   benchmark:
@@ -57,7 +43,7 @@ jobs:
       - name: Checkout candidate
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.event.pull_request.head.sha || inputs.candidate_sha || github.sha }}
+          ref: ${{ inputs.candidate_sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -78,27 +64,19 @@ jobs:
       - name: Resolve baseline and candidate commits
         id: commits
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           INPUT_BASE_SHA: ${{ inputs.baseline_sha }}
           INPUT_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
           set -euo pipefail
           candidate_sha="$(git rev-parse HEAD)"
-          if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            baseline_sha="$PR_BASE_SHA"
-            [[ "$candidate_sha" == "$PR_HEAD_SHA" ]]
+          if [[ -n "$INPUT_CANDIDATE_SHA" ]]; then
+            candidate_sha="$(git rev-parse "$INPUT_CANDIDATE_SHA^{commit}")"
+            [[ "$(git rev-parse HEAD)" == "$candidate_sha" ]]
+          fi
+          if [[ -n "$INPUT_BASE_SHA" ]]; then
+            baseline_sha="$(git rev-parse "$INPUT_BASE_SHA^{commit}")"
           else
-            if [[ -n "$INPUT_CANDIDATE_SHA" ]]; then
-              candidate_sha="$(git rev-parse "$INPUT_CANDIDATE_SHA^{commit}")"
-              [[ "$(git rev-parse HEAD)" == "$candidate_sha" ]]
-            fi
-            if [[ -n "$INPUT_BASE_SHA" ]]; then
-              baseline_sha="$(git rev-parse "$INPUT_BASE_SHA^{commit}")"
-            else
-              baseline_sha="$(git rev-parse "$candidate_sha^")"
-            fi
+            baseline_sha="$(git rev-parse "$candidate_sha^")"
           fi
           [[ "$baseline_sha" =~ ^[0-9a-f]{40}$ ]]
           [[ "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]

@@ -211,12 +211,7 @@ fn validate_contract(value: &Value) -> Result<BackendBenchmarkContractCounts> {
     );
     let triggers = string_set(contract, "triggers")?;
     ensure!(
-        triggers
-            == BTreeSet::from([
-                "pull_request".to_string(),
-                "schedule".to_string(),
-                "workflow_dispatch".to_string(),
-            ]),
+        triggers == BTreeSet::from(["schedule".to_string(), "workflow_dispatch".to_string(),]),
         "hosted benchmark trigger set mismatch"
     );
     let stable = string_set(contract, "stable_workloads")?;

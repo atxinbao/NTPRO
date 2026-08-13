@@ -31,8 +31,10 @@ NTPRO_MVP_FAULT_EVIDENCE_DIR=/tmp/ntpro-mvp-fault-matrix \
 ```
 
 浏览器验收必须在 `1440x1000` 与 `390x844` 两个视口分别覆盖机构工作台和控制中心。
-GitHub PR 必须同时通过 `Rust Cutover Smoke` 的四类 MVP artifact、六组
-`Backend Performance` same-runner 对比、独立审查和其他 required checks。
+GitHub PR 必须通过按变更范围启动的 `Rust Cutover Smoke`、独立审查和其他 required
+checks。六组 `Backend Performance` same-runner 对比由每周定时任务持续监测；性能敏感或
+发布候选变更必须通过 `workflow_dispatch` 显式传入 baseline/candidate SHA 后完成对比，
+不再阻塞每个普通 PR。
 
 ## 本地启动
 

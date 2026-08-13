@@ -15,7 +15,6 @@
     "target_policy": "separate_ephemeral_baseline_and_candidate_targets"
   },
   "triggers": [
-    "pull_request",
     "schedule",
     "workflow_dispatch"
   ],
