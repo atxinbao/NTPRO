@@ -42,7 +42,7 @@ use super::{
         LiveRunAnchorAppendRequest, LiveRunAnchorReceipt, LiveRunAnchorRevision,
         anchor_config_refs,
     },
-    run::{open_absolute_directory_nofollow, write_new_run_file},
+    run::{open_absolute_directory_nofollow, publish_new_run_file, write_new_run_file},
     *,
 };
 
@@ -84,8 +84,33 @@ const LIVE_EXECUTION_OWNER_APPROVAL_RECEIPT_FILE: &str = "execution-owner-approv
 const LIVE_EXECUTION_RISK_APPROVAL_RECEIPT_FILE: &str = "execution-risk-approval-receipt.json";
 const LIVE_EXECUTION_OPERATOR_APPROVAL_RECEIPT_FILE: &str =
     "execution-operator-approval-receipt.json";
-const LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v1";
+const LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v2";
 const LIVE_EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
+const LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION: &str =
+    "ntpro.s3.live_execution_control_request.v1";
+const LIVE_EXECUTION_CONTROL_RESULT_SCHEMA_VERSION: &str =
+    "ntpro.s3.live_execution_control_result.v1";
+const LIVE_EXECUTION_RECONCILE_REQUEST_FILE: &str = "execution-reconcile-request.json";
+const LIVE_EXECUTION_RECONCILE_SOURCE_ORDER_FILE: &str =
+    "execution-reconcile-source-order-state.json";
+const LIVE_EXECUTION_RECONCILE_RECEIPT_FILE: &str = "execution-reconcile-request-receipt.json";
+const LIVE_EXECUTION_RECONCILE_RESULT_FILE: &str = "execution-reconcile-result.json";
+const LIVE_EXECUTION_RECONCILE_RESULT_RECEIPT_FILE: &str =
+    "execution-reconcile-result-receipt.json";
+const LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE: &str = "execution-cancel-owner-approval.json";
+const LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE: &str =
+    "execution-cancel-owner-approval-receipt.json";
+const LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE: &str =
+    "execution-cancel-operator-approval.json";
+const LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE: &str =
+    "execution-cancel-operator-approval-receipt.json";
+const LIVE_EXECUTION_CANCEL_OWNER_STAGE_FILE: &str = ".execution-cancel-owner-publication.json";
+const LIVE_EXECUTION_CANCEL_OPERATOR_STAGE_FILE: &str =
+    ".execution-cancel-operator-publication.json";
+const LIVE_EXECUTION_CANCEL_REQUEST_FILE: &str = "execution-cancel-request.json";
+const LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE: &str = "execution-cancel-source-order-state.json";
+const LIVE_EXECUTION_CANCEL_RESULT_FILE: &str = "execution-cancel-result.json";
+const LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE: &str = "execution-cancel-result-receipt.json";
 
 const LIVE_RUN_GATE_CREATE: &str = "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE";
 const LIVE_RUN_GATE_OWNER_APPROVED: &str = "NTPRO_S3_LIVE_RUN_OWNER_APPROVED";
@@ -93,6 +118,7 @@ const LIVE_RUN_GATE_NO_ORDER_SEND: &str = "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND";
 const LIVE_RUN_GATE_MANUAL_STOP: &str = "NTPRO_S3_LIVE_RUN_MANUAL_STOP";
 const LIVE_RUN_GATE_RISK_APPROVED: &str = "NTPRO_S3_LIVE_RUN_RISK_APPROVED";
 const LIVE_RUN_GATE_EXECUTION_SINGLE_SHOT: &str = "NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT";
+const LIVE_RUN_GATE_ORDER_CONTROL: &str = "NTPRO_S3_LIVE_ORDER_CONTROL";
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -112,6 +138,7 @@ enum LiveRunCandidateAction {
     Preflight,
     StartMarketData,
     StartExecution,
+    ReconcileOrder,
     Stop,
 }
 
@@ -151,6 +178,77 @@ pub(in crate::dashboard) struct LiveExecutionAdmissionRequest {
     max_notional: String,
     expires_at_unix_ms: u64,
     user_confirmed: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::dashboard) struct LiveExecutionCancelRequest {
+    run_id: String,
+    request_id: String,
+    client_order_id: String,
+    source_order_state_sha256: String,
+    expires_at_unix_ms: u64,
+    user_confirmed: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionControlRequestArtifact {
+    schema_version: String,
+    request_id: String,
+    action: String,
+    run_id: String,
+    admission_id: String,
+    strategy_version_id: String,
+    instrument_id: String,
+    client_order_id: String,
+    source_order_state_sha256: String,
+    owner_confirmed: bool,
+    operator_confirmed: bool,
+    requested_at_unix_ms: u64,
+    expires_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionCancelApprovalArtifact {
+    schema_version: String,
+    role: LiveExecutionApprovalRole,
+    proposal_sha256: String,
+    source_manifest_sha256: String,
+    run_id: String,
+    admission_id: String,
+    strategy_version_id: String,
+    instrument_id: String,
+    client_order_id: String,
+    source_order_state_sha256: String,
+    authority_ref: String,
+    approved_at_unix_ms: u64,
+    expires_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionCancelPublicationStage {
+    schema_version: String,
+    role: LiveExecutionApprovalRole,
+    request: LiveExecutionCancelRequest,
+    source_order_raw: String,
+    approval: LiveExecutionCancelApprovalArtifact,
+    control_request: Option<LiveExecutionControlRequestArtifact>,
+    run_revision: u64,
+    manifest_sha256: String,
+    previous_workspace_receipt: LiveRunAnchorReceipt,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CancelPublicationStep {
+    SourceOrder,
+    ExternalAnchor,
+    Approval,
+    Receipt,
+    WorkspaceHead,
+    ControlRequest,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -464,6 +562,8 @@ struct LiveRunCandidate {
     audit_anchor: LiveRunAuditAnchorSnapshot,
     order_admission: LiveOrderAdmissionSnapshot,
     execution_order: Option<LiveExecutionOrderSnapshot>,
+    execution_order_state_sha256: Option<String>,
+    execution_control: Option<LiveExecutionControlSnapshot>,
     source_refs: Vec<String>,
 }
 
@@ -475,6 +575,10 @@ struct LiveExecutionOrderSnapshot {
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
+    venue_order_id: Option<String>,
+    original_quantity: String,
+    filled_quantity: String,
+    remaining_quantity: String,
     status: String,
     terminal: bool,
     new_orders_blocked: bool,
@@ -484,6 +588,33 @@ struct LiveExecutionOrderSnapshot {
     replace_attempted: bool,
     last_error: Option<String>,
     updated_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionControlSnapshot {
+    schema_version: String,
+    request_sha256: String,
+    request_id: String,
+    action: String,
+    run_id: String,
+    admission_id: String,
+    strategy_version_id: String,
+    instrument_id: String,
+    client_order_id: String,
+    venue_order_id: Option<String>,
+    status: String,
+    exchange_order_status: Option<String>,
+    original_quantity: Option<String>,
+    filled_quantity: Option<String>,
+    remaining_quantity: Option<String>,
+    query_attempted: bool,
+    cancel_attempted: bool,
+    cancel_confirmed: bool,
+    automatic_retry_attempted: bool,
+    manual_review_required: bool,
+    error_code: Option<String>,
+    completed_at_unix_ms: u64,
 }
 
 struct LiveExecutionStopActivity {
@@ -529,6 +660,7 @@ struct LiveRunCandidateBoundaries {
 impl LiveRunCandidateBoundaries {
     const fn enforced(
         order_authorized: bool,
+        order_control_allowed: bool,
         execution_adapter_send_attempted: bool,
         real_orders_submitted: bool,
     ) -> Self {
@@ -540,9 +672,9 @@ impl LiveRunCandidateBoundaries {
             external_market_data_connection_allowed: true,
             order_endpoint_access_allowed: order_authorized,
             order_submission_allowed: order_authorized,
-            cancel_order_allowed: false,
+            cancel_order_allowed: order_control_allowed,
             replace_order_allowed: false,
-            fill_reconciliation_allowed: false,
+            fill_reconciliation_allowed: order_control_allowed,
             automatic_retry_allowed: false,
             automatic_remediation_allowed: false,
             automatic_recovery_allowed: false,
@@ -583,6 +715,7 @@ struct LiveRunGateState {
     manual_stop: bool,
     risk_approved: bool,
     execution_single_shot: bool,
+    order_control: bool,
 }
 
 impl LiveRunGateState {
@@ -601,6 +734,7 @@ impl LiveRunGateState {
             manual_stop: reader(LIVE_RUN_GATE_MANUAL_STOP),
             risk_approved: reader(LIVE_RUN_GATE_RISK_APPROVED),
             execution_single_shot: reader(LIVE_RUN_GATE_EXECUTION_SINGLE_SHOT),
+            order_control: reader(LIVE_RUN_GATE_ORDER_CONTROL),
         }
     }
 
@@ -618,6 +752,7 @@ impl LiveRunGateState {
             LIVE_RUN_GATE_OWNER_APPROVED.to_string(),
             LIVE_RUN_GATE_NO_ORDER_SEND.to_string(),
             LIVE_RUN_GATE_MANUAL_STOP.to_string(),
+            LIVE_RUN_GATE_ORDER_CONTROL.to_string(),
             LIVE_RUN_GATE_RISK_APPROVED.to_string(),
             LIVE_RUN_GATE_EXECUTION_SINGLE_SHOT.to_string(),
         ]
@@ -732,6 +867,14 @@ pub(in crate::dashboard) async fn live_run_candidate_list_api(
                 .as_ref()
                 .is_some_and(execution_order_has_confirmed_submission)
         });
+        let order_control_allowed = LiveRunGateState::from_environment().order_control
+            && data.iter().any(|candidate| {
+                candidate.lifecycle == LiveRunCandidateLifecycle::MarketDataRunning
+                    && candidate
+                        .execution_order
+                        .as_ref()
+                        .is_some_and(|order| !order.terminal && order.client_order_id.is_some())
+            });
         Ok(LiveRunCandidateListResponse {
             schema_version: LIVE_RUN_CANDIDATE_LIST_SCHEMA_VERSION.to_string(),
             contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
@@ -741,6 +884,7 @@ pub(in crate::dashboard) async fn live_run_candidate_list_api(
             audit_anchor_config_refs: anchor_config_refs(),
             boundaries: LiveRunCandidateBoundaries::enforced(
                 order_authorized,
+                order_control_allowed,
                 execution_adapter_send_attempted,
                 real_orders_submitted,
             ),
@@ -815,6 +959,17 @@ pub(in crate::dashboard) async fn live_run_candidate_action_api(
             &request_id,
         ));
     }
+    if request.action == LiveRunCandidateAction::ReconcileOrder
+        && !LiveRunGateState::from_environment().order_control
+    {
+        return Err(product_error_response(
+            &product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_order_control_gate",
+            ),
+            &request_id,
+        ));
+    }
     let worker_state = state.clone();
     tokio::task::spawn_blocking(move || {
         let _guard = worker_state.lifecycle_action_lock.lock().map_err(|_| {
@@ -863,6 +1018,77 @@ pub(in crate::dashboard) async fn live_execution_operator_approval_api(
         payload,
     )
     .await
+}
+
+pub(in crate::dashboard) async fn live_execution_cancel_owner_approval_api(
+    state: State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<LiveExecutionCancelRequest>, JsonRejection>,
+) -> ApiResult<LiveRunCandidateResponse> {
+    live_execution_cancel_approval_api(LiveExecutionApprovalRole::Owner, state, run_path, payload)
+        .await
+}
+
+pub(in crate::dashboard) async fn live_execution_cancel_operator_approval_api(
+    state: State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<LiveExecutionCancelRequest>, JsonRejection>,
+) -> ApiResult<LiveRunCandidateResponse> {
+    live_execution_cancel_approval_api(
+        LiveExecutionApprovalRole::Operator,
+        state,
+        run_path,
+        payload,
+    )
+    .await
+}
+
+async fn live_execution_cancel_approval_api(
+    role: LiveExecutionApprovalRole,
+    State(state): State<DashboardServerState>,
+    run_path: Result<AxumPath<String>, PathRejection>,
+    payload: Result<Json<LiveExecutionCancelRequest>, JsonRejection>,
+) -> ApiResult<LiveRunCandidateResponse> {
+    let request_id = product_request_id();
+    let run_id = run_path.map(|AxumPath(value)| value).map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "run_id"),
+            &request_id,
+        )
+    })?;
+    let Json(request) = payload.map_err(|_| {
+        product_error_response(
+            &product_error(ProductErrorKind::BadRequest, "request_body"),
+            &request_id,
+        )
+    })?;
+    if !LiveRunGateState::from_environment().order_control {
+        return Err(product_error_response(
+            &product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_order_control_gate",
+            ),
+            &request_id,
+        ));
+    }
+    let worker_state = state.clone();
+    tokio::task::spawn_blocking(move || {
+        let _guard = worker_state.lifecycle_action_lock.lock().map_err(|_| {
+            product_error(ProductErrorKind::LiveConflict, "live_candidate_action_lock")
+        })?;
+        authorize_live_execution_cancel(&worker_state, &run_id, &request, role)
+    })
+    .await
+    .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_action_worker"))
+    .and_then(|result| result)
+    .map(|data| {
+        Json(response(
+            LIVE_RUN_CANDIDATE_ACTION_SCHEMA_VERSION,
+            request_id.clone(),
+            data,
+        ))
+    })
+    .map_err(|error| product_error_response(&error, &request_id))
 }
 
 async fn live_execution_approval_api(
@@ -1204,6 +1430,672 @@ fn validate_live_execution_approval(
     Ok(())
 }
 
+fn authorize_live_execution_cancel(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveExecutionCancelRequest,
+    role: LiveExecutionApprovalRole,
+) -> Result<LiveRunCandidate, ProductError> {
+    authorize_live_execution_cancel_with_failure(state, path_run_id, request, role, None)
+}
+
+fn authorize_live_execution_cancel_with_failure(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveExecutionCancelRequest,
+    role: LiveExecutionApprovalRole,
+    fail_after: Option<CancelPublicationStep>,
+) -> Result<LiveRunCandidate, ProductError> {
+    if role == LiveExecutionApprovalRole::Risk {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_role",
+        ));
+    }
+    let _workspace_lock = acquire_live_run_mutation_lock(state)?;
+    validate_identifier("run_id", path_run_id)?;
+    validate_identifier("execution_cancel_request_id", &request.request_id)?;
+    let candidate_root = canonical_live_run_root(state, false)?.join(path_run_id);
+    let stage_file = cancel_publication_stage_file(role)?;
+    if candidate_root.join(stage_file).exists() {
+        resume_live_execution_cancel_publication(state, path_run_id, request, role, fail_after)?;
+        return load_live_run_candidate(state, path_run_id);
+    }
+    let (candidate, _manifest, manifest_raw) =
+        load_live_run_candidate_snapshot(state, path_run_id)?;
+    if candidate.lifecycle != LiveRunCandidateLifecycle::MarketDataRunning
+        || request.run_id != path_run_id
+        || !request.user_confirmed
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_request",
+        ));
+    }
+    let now = unix_time_ms();
+    if request.expires_at_unix_ms <= now
+        || request.expires_at_unix_ms > now.saturating_add(5 * 60 * 1_000)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_expiry",
+        ));
+    }
+    let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+        &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+        "live_execution_admission",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_admission",
+        )
+    })?;
+    let runtime_root = live_market_data_runtime_root(state, path_run_id)?;
+    let (order, order_raw) = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+        &runtime_root.join(LIVE_EXECUTION_ORDER_STATE_FILE),
+        "live_execution_order_state",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_order",
+        )
+    })?;
+    validate_execution_order_snapshot(&order, &admission)?;
+    let (source_order, source_order_raw) = if role == LiveExecutionApprovalRole::Operator {
+        read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+            &candidate_root.join(LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE),
+            "live_execution_cancel_source_order",
+        )?
+        .ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_source_order",
+            )
+        })?
+    } else {
+        (order.clone(), order_raw)
+    };
+    validate_execution_cancel_request_order(
+        request,
+        &source_order,
+        &source_order_raw,
+        &order,
+        &admission,
+    )?;
+    let manifest_sha256 = sha256_ref(&manifest_raw);
+    let (current_state, _) = load_live_run_state(state, path_run_id, &manifest_sha256)?;
+    let proposal_raw = serde_json::to_vec(request).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_cancel_request",
+        )
+    })?;
+    let proposal_sha256 = sha256_ref(&proposal_raw);
+    let authority_ref = match role {
+        LiveExecutionApprovalRole::Owner => &admission.owner_authority_ref,
+        LiveExecutionApprovalRole::Operator => &admission.operator_authority_ref,
+        LiveExecutionApprovalRole::Risk => unreachable!(),
+    };
+    let approval = LiveExecutionCancelApprovalArtifact {
+        schema_version: "ntpro.s3.live_execution_cancel_approval.v1".to_string(),
+        role,
+        proposal_sha256: proposal_sha256.clone(),
+        source_manifest_sha256: manifest_sha256.clone(),
+        run_id: path_run_id.to_string(),
+        admission_id: admission.admission_id.clone(),
+        strategy_version_id: admission.strategy_version_id.clone(),
+        instrument_id: admission.instrument_id.clone(),
+        client_order_id: request.client_order_id.clone(),
+        source_order_state_sha256: request.source_order_state_sha256.clone(),
+        authority_ref: authority_ref.clone(),
+        approved_at_unix_ms: now,
+        expires_at_unix_ms: request.expires_at_unix_ms,
+    };
+    let (approval_file, receipt_file) = match role {
+        LiveExecutionApprovalRole::Owner => (
+            LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE,
+            LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE,
+        ),
+        LiveExecutionApprovalRole::Operator => (
+            LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE,
+            LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE,
+        ),
+        LiveExecutionApprovalRole::Risk => unreachable!(),
+    };
+    if candidate_root.join(approval_file).exists()
+        || candidate_root.join(receipt_file).exists()
+        || candidate_root
+            .join(LIVE_EXECUTION_CANCEL_RESULT_FILE)
+            .exists()
+    {
+        return Err(product_error(
+            ProductErrorKind::LiveConflict,
+            "live_execution_cancel_approval",
+        ));
+    }
+    if role == LiveExecutionApprovalRole::Operator {
+        let (owner, _) = read_optional_artifact_with_raw::<LiveExecutionCancelApprovalArtifact>(
+            &candidate_root.join(LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE),
+            "live_execution_cancel_owner_approval",
+        )?
+        .ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_owner_approval",
+            )
+        })?;
+        if owner.schema_version != "ntpro.s3.live_execution_cancel_approval.v1"
+            || owner.role != LiveExecutionApprovalRole::Owner
+            || owner.proposal_sha256 != proposal_sha256
+            || owner.source_manifest_sha256 != manifest_sha256
+            || owner.run_id != path_run_id
+            || owner.admission_id != admission.admission_id
+            || owner.strategy_version_id != admission.strategy_version_id
+            || owner.instrument_id != admission.instrument_id
+            || owner.client_order_id != request.client_order_id
+            || owner.source_order_state_sha256 != request.source_order_state_sha256
+            || owner.authority_ref != admission.owner_authority_ref
+            || owner.expires_at_unix_ms != request.expires_at_unix_ms
+            || owner.expires_at_unix_ms <= now
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_owner_approval",
+            ));
+        }
+    }
+    let control_request = if role == LiveExecutionApprovalRole::Operator {
+        Some(LiveExecutionControlRequestArtifact {
+            schema_version: LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION.to_string(),
+            request_id: request.request_id.clone(),
+            action: "cancel".to_string(),
+            run_id: path_run_id.to_string(),
+            admission_id: admission.admission_id,
+            strategy_version_id: admission.strategy_version_id,
+            instrument_id: admission.instrument_id,
+            client_order_id: request.client_order_id.clone(),
+            source_order_state_sha256: request.source_order_state_sha256.clone(),
+            owner_confirmed: true,
+            operator_confirmed: true,
+            requested_at_unix_ms: now,
+            expires_at_unix_ms: request.expires_at_unix_ms,
+        })
+    } else {
+        None
+    };
+    let previous_workspace_receipt = validate_workspace_anchor_head(state)?.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        )
+    })?;
+    let stage = LiveExecutionCancelPublicationStage {
+        schema_version: "ntpro.s3.live_execution_cancel_publication.v1".to_string(),
+        role,
+        request: request.clone(),
+        source_order_raw: String::from_utf8(source_order_raw).map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "live_execution_cancel_source_order",
+            )
+        })?,
+        approval,
+        control_request,
+        run_revision: current_state.revision,
+        manifest_sha256,
+        previous_workspace_receipt,
+    };
+    let stage_raw = serde_json::to_vec_pretty(&stage).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_cancel_publication",
+        )
+    })?;
+    let directory = open_absolute_directory_nofollow(&candidate_root)?;
+    publish_new_run_file(&directory, stage_file, &stage_raw)?;
+    complete_live_execution_cancel_publication(state, path_run_id, &stage, fail_after)?;
+    load_live_run_candidate(state, path_run_id)
+}
+
+fn cancel_publication_stage_file(
+    role: LiveExecutionApprovalRole,
+) -> Result<&'static str, ProductError> {
+    match role {
+        LiveExecutionApprovalRole::Owner => Ok(LIVE_EXECUTION_CANCEL_OWNER_STAGE_FILE),
+        LiveExecutionApprovalRole::Operator => Ok(LIVE_EXECUTION_CANCEL_OPERATOR_STAGE_FILE),
+        LiveExecutionApprovalRole::Risk => Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_role",
+        )),
+    }
+}
+
+fn validate_execution_cancel_request_order(
+    request: &LiveExecutionCancelRequest,
+    source: &LiveExecutionOrderSnapshot,
+    source_raw: &[u8],
+    current: &LiveExecutionOrderSnapshot,
+    admission: &LiveExecutionAdmissionArtifact,
+) -> Result<(), ProductError> {
+    validate_execution_cancel_order_progression(request, source, source_raw, current, admission)?;
+    if current.terminal {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_order",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_cancel_order_progression(
+    request: &LiveExecutionCancelRequest,
+    source: &LiveExecutionOrderSnapshot,
+    source_raw: &[u8],
+    current: &LiveExecutionOrderSnapshot,
+    admission: &LiveExecutionAdmissionArtifact,
+) -> Result<(), ProductError> {
+    validate_execution_order_snapshot(source, admission)?;
+    validate_execution_order_snapshot(current, admission)?;
+    validate_execution_order_progression(source, current)?;
+    if source.client_order_id.as_deref() != Some(request.client_order_id.as_str())
+        || request.source_order_state_sha256 != sha256_ref(source_raw)
+        || current.replace_attempted
+        || !execution_order_cancel_attempt_is_valid(current)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_order",
+        ));
+    }
+    Ok(())
+}
+
+fn resume_live_execution_cancel_publication(
+    state: &DashboardServerState,
+    run_id: &str,
+    request: &LiveExecutionCancelRequest,
+    role: LiveExecutionApprovalRole,
+    fail_after: Option<CancelPublicationStep>,
+) -> Result<(), ProductError> {
+    let candidate_root = canonical_live_run_root(state, false)?.join(run_id);
+    let stage_file = cancel_publication_stage_file(role)?;
+    let (stage, _) = read_optional_artifact_with_raw::<LiveExecutionCancelPublicationStage>(
+        &candidate_root.join(stage_file),
+        "live_execution_cancel_publication",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_execution_cancel_publication",
+        )
+    })?;
+    if stage.schema_version != "ntpro.s3.live_execution_cancel_publication.v1"
+        || stage.role != role
+        || stage.request != *request
+        || stage.request.run_id != run_id
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    complete_live_execution_cancel_publication(state, run_id, &stage, fail_after)
+}
+
+fn complete_live_execution_cancel_publication(
+    state: &DashboardServerState,
+    run_id: &str,
+    stage: &LiveExecutionCancelPublicationStage,
+    fail_after: Option<CancelPublicationStep>,
+) -> Result<(), ProductError> {
+    let candidate_root = canonical_live_run_root(state, false)?.join(run_id);
+    let directory = open_absolute_directory_nofollow(&candidate_root)?;
+    let (_manifest, manifest_raw) = load_live_run_manifest(state, run_id)?;
+    if sha256_ref(&manifest_raw) != stage.manifest_sha256 {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    let (current_state, _) = load_live_run_state(state, run_id, &stage.manifest_sha256)?;
+    if current_state.revision != stage.run_revision
+        || current_state.lifecycle != LiveRunCandidateLifecycle::MarketDataRunning
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+        &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+        "live_execution_cancel_admission",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_admission",
+        )
+    })?;
+    let source_raw = stage.source_order_raw.as_bytes();
+    let source_order: LiveExecutionOrderSnapshot =
+        serde_json::from_slice(source_raw).map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "live_execution_cancel_source_order",
+            )
+        })?;
+    let runtime_root = live_market_data_runtime_root(state, run_id)?;
+    let (current_order, _) = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+        &runtime_root.join(LIVE_EXECUTION_ORDER_STATE_FILE),
+        "live_execution_cancel_order",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_order",
+        )
+    })?;
+    validate_execution_cancel_order_progression(
+        &stage.request,
+        &source_order,
+        source_raw,
+        &current_order,
+        &admission,
+    )?;
+    let proposal_raw = serde_json::to_vec(&stage.request).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_cancel_publication",
+        )
+    })?;
+    if stage.approval.proposal_sha256 != sha256_ref(&proposal_raw)
+        || stage.approval.source_order_state_sha256 != stage.request.source_order_state_sha256
+        || stage.approval.source_manifest_sha256 != stage.manifest_sha256
+        || stage.approval.run_id != run_id
+        || stage.approval.role != stage.role
+        || stage.approval.client_order_id != stage.request.client_order_id
+        || stage.approval.admission_id != admission.admission_id
+        || stage.approval.strategy_version_id != admission.strategy_version_id
+        || stage.approval.instrument_id != admission.instrument_id
+        || stage.approval.approved_at_unix_ms == 0
+        || stage.approval.approved_at_unix_ms > stage.approval.expires_at_unix_ms
+        || stage.approval.expires_at_unix_ms != stage.request.expires_at_unix_ms
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    let authority_ref = match stage.role {
+        LiveExecutionApprovalRole::Owner => &admission.owner_authority_ref,
+        LiveExecutionApprovalRole::Operator => &admission.operator_authority_ref,
+        LiveExecutionApprovalRole::Risk => unreachable!(),
+    };
+    if stage.approval.authority_ref != *authority_ref {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    if stage.role == LiveExecutionApprovalRole::Operator {
+        let (owner, _) = read_optional_artifact_with_raw::<LiveExecutionCancelApprovalArtifact>(
+            &candidate_root.join(LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE),
+            "live_execution_cancel_owner_approval",
+        )?
+        .ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_owner_approval",
+            )
+        })?;
+        if owner.proposal_sha256 != stage.approval.proposal_sha256
+            || owner.source_order_state_sha256 != stage.approval.source_order_state_sha256
+            || owner.expires_at_unix_ms != stage.approval.expires_at_unix_ms
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_owner_approval",
+            ));
+        }
+        let control = stage.control_request.as_ref().ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_request",
+            )
+        })?;
+        if control.schema_version != LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION
+            || control.request_id != stage.request.request_id
+            || control.action != "cancel"
+            || control.run_id != run_id
+            || control.admission_id != admission.admission_id
+            || control.strategy_version_id != admission.strategy_version_id
+            || control.instrument_id != admission.instrument_id
+            || control.client_order_id != stage.request.client_order_id
+            || control.source_order_state_sha256 != stage.request.source_order_state_sha256
+            || !control.owner_confirmed
+            || !control.operator_confirmed
+            || control.requested_at_unix_ms != stage.approval.approved_at_unix_ms
+            || control.expires_at_unix_ms != stage.request.expires_at_unix_ms
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_request",
+            ));
+        }
+    } else if stage.control_request.is_some() {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_request",
+        ));
+    }
+    let approval_raw = serde_json::to_vec_pretty(&stage.approval).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_cancel_approval",
+        )
+    })?;
+    let (approval_file, receipt_file) = match stage.role {
+        LiveExecutionApprovalRole::Owner => (
+            LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE,
+            LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE,
+        ),
+        LiveExecutionApprovalRole::Operator => (
+            LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE,
+            LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE,
+        ),
+        LiveExecutionApprovalRole::Risk => unreachable!(),
+    };
+    if stage.role == LiveExecutionApprovalRole::Owner {
+        write_same_or_new_run_file(
+            &directory,
+            LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+            source_raw,
+            "live_execution_cancel_source_order",
+        )?;
+        fail_cancel_publication_after(fail_after, CancelPublicationStep::SourceOrder)?;
+    } else {
+        let persisted_source = read_run_file_from_directory(
+            &directory,
+            LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+            "live_execution_cancel_source_order",
+        )?;
+        if persisted_source != source_raw {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_source_order",
+            ));
+        }
+    }
+    let anchor_request = LiveRunAnchorAppendRequest::new(
+        state.live_run_audit_anchor.namespace()?,
+        run_id,
+        LiveRunAnchorRevision::new(
+            stage.run_revision,
+            stage.previous_workspace_receipt.workspace_revision + 1,
+        ),
+        sha256_ref(&approval_raw),
+        stage.manifest_sha256.clone(),
+        Some(stage.previous_workspace_receipt.sha256()),
+        stage.approval.approved_at_unix_ms,
+    );
+    let latest = state.live_run_audit_anchor.latest()?.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_latest",
+        )
+    })?;
+    let receipt = if latest == stage.previous_workspace_receipt {
+        state.live_run_audit_anchor.append(&anchor_request)?
+    } else {
+        latest
+    };
+    state
+        .live_run_audit_anchor
+        .validate_receipt(&receipt, &anchor_request)?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::ExternalAnchor)?;
+    let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_cancel_receipt",
+        )
+    })?;
+    write_same_or_new_run_file(
+        &directory,
+        approval_file,
+        &approval_raw,
+        "live_execution_cancel_approval",
+    )?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::Approval)?;
+    write_same_or_new_run_file(
+        &directory,
+        receipt_file,
+        &receipt_raw,
+        "live_execution_cancel_receipt",
+    )?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::Receipt)?;
+    recover_workspace_anchor_head_for_publication(
+        state,
+        &stage.previous_workspace_receipt,
+        &receipt,
+    )?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::WorkspaceHead)?;
+    if let Some(control) = &stage.control_request {
+        let control_raw = serde_json::to_vec_pretty(control).map_err(|_| {
+            product_error(
+                ProductErrorKind::LiveExecutionFailed,
+                "live_execution_cancel_request",
+            )
+        })?;
+        write_same_or_new_run_file(
+            &directory,
+            LIVE_EXECUTION_CANCEL_REQUEST_FILE,
+            &control_raw,
+            "live_execution_cancel_request",
+        )?;
+        fail_cancel_publication_after(fail_after, CancelPublicationStep::ControlRequest)?;
+    }
+    directory
+        .remove_file(cancel_publication_stage_file(stage.role)?)
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_execution_cancel_publication",
+            )
+        })?;
+    if let Ok(parent) = directory.open(".") {
+        let _ = parent.sync_all();
+    }
+    Ok(())
+}
+
+fn write_same_or_new_run_file(
+    directory: &cap_std::fs::Dir,
+    name: &str,
+    raw: &[u8],
+    field: &'static str,
+) -> Result<(), ProductError> {
+    match publish_new_run_file(directory, name, raw) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind == ProductErrorKind::Conflict => {
+            let existing = read_run_file_from_directory(directory, name, field)?;
+            if existing == raw {
+                Ok(())
+            } else {
+                Err(product_error(ProductErrorKind::BoundaryViolation, field))
+            }
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn recover_workspace_anchor_head_for_publication(
+    state: &DashboardServerState,
+    previous: &LiveRunAnchorReceipt,
+    receipt: &LiveRunAnchorReceipt,
+) -> Result<(), ProductError> {
+    let head_path = live_run_workspace_anchor_head_path(state)?;
+    let next_path = head_path.with_file_name(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE);
+    if next_path.exists() {
+        let next_raw = read_live_run_artifact_bytes(&next_path, "live_run_workspace_anchor_head")?;
+        let next: LiveRunAnchorReceipt = serde_json::from_slice(&next_raw).map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "live_run_workspace_anchor_head",
+            )
+        })?;
+        if next != *receipt {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_run_workspace_anchor_head",
+            ));
+        }
+        let artifacts = open_absolute_directory_nofollow(
+            head_path
+                .parent()
+                .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "artifact_root"))?,
+        )?;
+        artifacts
+            .rename(
+                LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE,
+                &artifacts,
+                LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE,
+            )
+            .map_err(|_| {
+                product_error(
+                    ProductErrorKind::SourceUnavailable,
+                    "live_run_workspace_anchor_head",
+                )
+            })?;
+    }
+    let local = load_local_workspace_anchor_head(state)?;
+    if local.as_ref() == Some(receipt) {
+        return Ok(());
+    }
+    if local.as_ref() != Some(previous) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        ));
+    }
+    publish_workspace_anchor_head(state, receipt)
+}
+
+fn fail_cancel_publication_after(
+    fail_after: Option<CancelPublicationStep>,
+    completed: CancelPublicationStep,
+) -> Result<(), ProductError> {
+    if fail_after == Some(completed) {
+        Err(product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_execution_cancel_publication_injected_failure",
+        ))
+    } else {
+        Ok(())
+    }
+}
+
 fn write_and_anchor_live_execution_approval(
     state: &DashboardServerState,
     run_id: &str,
@@ -1251,6 +2143,54 @@ fn write_and_anchor_live_execution_approval(
     publish_workspace_anchor_head(state, &receipt)
 }
 
+#[expect(clippy::too_many_arguments)]
+fn write_and_anchor_execution_control_artifact(
+    state: &DashboardServerState,
+    run_id: &str,
+    run_revision: u64,
+    manifest_sha256: &str,
+    artifact_raw: &[u8],
+    created_at_unix_ms: u64,
+    artifact_file: &str,
+    receipt_file: &str,
+    directory: &cap_std::fs::Dir,
+) -> Result<(), ProductError> {
+    let previous = validate_workspace_anchor_head(state)?.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        )
+    })?;
+    let request = LiveRunAnchorAppendRequest::new(
+        state.live_run_audit_anchor.namespace()?,
+        run_id,
+        LiveRunAnchorRevision::new(run_revision, previous.workspace_revision + 1),
+        sha256_ref(artifact_raw),
+        manifest_sha256.to_string(),
+        Some(previous.sha256()),
+        created_at_unix_ms,
+    );
+    let receipt = state.live_run_audit_anchor.append(&request)?;
+    state
+        .live_run_audit_anchor
+        .validate_receipt(&receipt, &request)?;
+    if state.live_run_audit_anchor.latest()?.as_ref() != Some(&receipt) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_control_receipt",
+        ));
+    }
+    let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_control_receipt",
+        )
+    })?;
+    write_new_run_file(directory, artifact_file, artifact_raw)?;
+    write_new_run_file(directory, receipt_file, &receipt_raw)?;
+    publish_workspace_anchor_head(state, &receipt)
+}
+
 fn response(
     schema_version: &str,
     request_id: String,
@@ -1265,6 +2205,12 @@ fn response(
         .execution_order
         .as_ref()
         .is_some_and(execution_order_has_confirmed_submission);
+    let order_control_allowed = LiveRunGateState::from_environment().order_control
+        && data.lifecycle == LiveRunCandidateLifecycle::MarketDataRunning
+        && data
+            .execution_order
+            .as_ref()
+            .is_some_and(|order| !order.terminal && order.client_order_id.is_some());
     LiveRunCandidateResponse {
         schema_version: schema_version.to_string(),
         contract_version: PRODUCT_API_CONTRACT_VERSION.to_string(),
@@ -1274,6 +2220,7 @@ fn response(
         audit_anchor_config_refs: anchor_config_refs(),
         boundaries: LiveRunCandidateBoundaries::enforced(
             order_authorized,
+            order_control_allowed,
             execution_adapter_send_attempted,
             real_orders_submitted,
         ),
@@ -1282,16 +2229,17 @@ fn response(
 
 fn execution_order_has_confirmed_submission(order: &LiveExecutionOrderSnapshot) -> bool {
     order.actual_submission_attempted
-        && matches!(
-            order.status.as_str(),
-            "submitted"
-                | "accepted"
-                | "rejected"
-                | "expired"
-                | "partially_filled"
-                | "filled"
-                | "canceled"
-        )
+        && ((order.status == "submission_requested" && order.cancel_attempted)
+            || matches!(
+                order.status.as_str(),
+                "submitted"
+                    | "accepted"
+                    | "rejected"
+                    | "expired"
+                    | "partially_filled"
+                    | "filled"
+                    | "canceled"
+            ))
 }
 
 fn create_live_run_candidate_with_symbols(
@@ -1421,6 +2369,359 @@ fn validate_create_request(
         return Err(product_error(
             ProductErrorKind::LiveExecutionFailed,
             "live_candidate_admission",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_control_snapshot(
+    result: &LiveExecutionControlSnapshot,
+    request: &LiveExecutionControlRequestArtifact,
+    request_raw: &[u8],
+    manifest: &LiveRunCandidateManifest,
+    admission: Option<&LiveExecutionAdmissionArtifact>,
+    order: Option<&LiveExecutionOrderSnapshot>,
+    cancel_venue_attempted: bool,
+) -> Result<(), ProductError> {
+    let admission = admission.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_control_admission",
+        )
+    })?;
+    let status_valid = execution_control_status_is_valid(result);
+    let quantities_valid = match (
+        result.original_quantity.as_deref(),
+        result.filled_quantity.as_deref(),
+        result.remaining_quantity.as_deref(),
+    ) {
+        (Some(original), Some(filled), Some(remaining)) => {
+            let original = Decimal::from_str_exact(original).ok();
+            let filled = Decimal::from_str_exact(filled).ok();
+            let remaining = Decimal::from_str_exact(remaining).ok();
+            let admitted = Decimal::from_str_exact(&admission.quantity).ok();
+            matches!((original, filled, remaining, admitted), (Some(o), Some(f), Some(r), Some(a)) if o == a && f >= Decimal::ZERO && r >= Decimal::ZERO && f + r == o)
+        }
+        (None, None, None) => result.manual_review_required,
+        _ => false,
+    };
+    let monotonic_with_runtime = order.is_some_and(|order| {
+        let local_original = Decimal::from_str_exact(&order.original_quantity).ok();
+        let local_filled = Decimal::from_str_exact(&order.filled_quantity).ok();
+        match (
+            local_original,
+            local_filled,
+            result.original_quantity.as_deref(),
+            result.filled_quantity.as_deref(),
+        ) {
+            (Some(local_original), Some(local_filled), Some(original), Some(filled)) => {
+                Decimal::from_str_exact(original).ok() == Some(local_original)
+                    && Decimal::from_str_exact(filled).is_ok_and(|value| value >= local_filled)
+            }
+            (_, _, None, None) => result.manual_review_required,
+            _ => false,
+        }
+    });
+    let has_exchange_identity = result.original_quantity.is_some();
+    let venue_identity_valid = order.is_some_and(|order| {
+        order
+            .venue_order_id
+            .as_ref()
+            .is_none_or(|venue_order_id| result.venue_order_id.as_ref() == Some(venue_order_id))
+    });
+    if result.schema_version != LIVE_EXECUTION_CONTROL_RESULT_SCHEMA_VERSION
+        || request.schema_version != LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION
+        || result.request_sha256 != sha256_ref(request_raw)
+        || result.request_id != request.request_id
+        || result.action != request.action
+        || result.run_id != request.run_id
+        || result.admission_id != request.admission_id
+        || result.strategy_version_id != request.strategy_version_id
+        || result.instrument_id != request.instrument_id
+        || result.client_order_id != request.client_order_id
+        || result.run_id != manifest.run_id
+        || result.admission_id != admission.admission_id
+        || result.strategy_version_id != admission.strategy_version_id
+        || result.instrument_id != admission.instrument_id
+        || !status_valid
+        || result.cancel_attempted != cancel_venue_attempted
+        || has_exchange_identity != result.venue_order_id.is_some()
+        || has_exchange_identity != result.exchange_order_status.is_some()
+        || !venue_identity_valid
+        || result.automatic_retry_attempted
+        || !quantities_valid
+        || !monotonic_with_runtime
+        || result.completed_at_unix_ms < request.requested_at_unix_ms
+        || result.completed_at_unix_ms > unix_time_ms()
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_control_result",
+        ));
+    }
+    Ok(())
+}
+
+fn execution_control_status_is_valid(result: &LiveExecutionControlSnapshot) -> bool {
+    match (result.action.as_str(), result.status.as_str()) {
+        ("reconcile", "reconciled") => {
+            result.query_attempted
+                && !result.cancel_attempted
+                && !result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+        }
+        ("reconcile", "unknown_manual_review") => {
+            !result.cancel_attempted
+                && !result.cancel_confirmed
+                && result.manual_review_required
+                && result.error_code.is_some()
+        }
+        ("cancel", "cancel_confirmed") => {
+            result.query_attempted
+                && result.cancel_attempted
+                && result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+                && result.exchange_order_status.as_deref() == Some("canceled")
+        }
+        ("cancel", "cancel_sent_readback_pending") => {
+            result.query_attempted
+                && result.cancel_attempted
+                && !result.cancel_confirmed
+                && result.manual_review_required
+                && result.error_code.is_none()
+        }
+        ("cancel", "cancel_not_required_terminal_or_pending") => {
+            result.query_attempted
+                && !result.cancel_attempted
+                && !result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+                && matches!(
+                    result.exchange_order_status.as_deref(),
+                    Some(
+                        "filled"
+                            | "canceled"
+                            | "expired"
+                            | "rejected"
+                            | "pending_cancel"
+                            | "pending_update"
+                    )
+                )
+        }
+        ("cancel", "unknown_manual_review") => {
+            !result.cancel_confirmed && result.manual_review_required && result.error_code.is_some()
+        }
+        _ => false,
+    }
+}
+
+#[expect(clippy::too_many_arguments)]
+fn validate_execution_control_request_artifact(
+    request: &LiveExecutionControlRequestArtifact,
+    request_raw: &[u8],
+    receipt_file: Option<&Path>,
+    expected_action: &str,
+    manifest: &LiveRunCandidateManifest,
+    manifest_sha256: &str,
+    admission: &LiveExecutionAdmissionArtifact,
+    order: &LiveExecutionOrderSnapshot,
+    order_raw: &[u8],
+) -> Result<(), ProductError> {
+    let roles_valid = match expected_action {
+        "reconcile" => request.owner_confirmed && !request.operator_confirmed,
+        "cancel" => request.owner_confirmed && request.operator_confirmed,
+        _ => false,
+    };
+    if request.schema_version != LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION
+        || request.action != expected_action
+        || request.run_id != manifest.run_id
+        || request.admission_id != admission.admission_id
+        || request.strategy_version_id != admission.strategy_version_id
+        || request.instrument_id != admission.instrument_id
+        || request.client_order_id != order.client_order_id.as_deref().unwrap_or_default()
+        || request.source_order_state_sha256 != sha256_ref(order_raw)
+        || !roles_valid
+        || request.requested_at_unix_ms < manifest.created_at_unix_ms
+        || request.expires_at_unix_ms <= request.requested_at_unix_ms
+        || request.expires_at_unix_ms > request.requested_at_unix_ms.saturating_add(5 * 60 * 1_000)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_control_request",
+        ));
+    }
+    if let Some(receipt_file) = receipt_file {
+        validate_execution_control_receipt(
+            receipt_file,
+            request_raw,
+            &manifest.run_id,
+            manifest_sha256,
+            request.requested_at_unix_ms,
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_execution_control_receipt(
+    receipt_file: &Path,
+    artifact_raw: &[u8],
+    run_id: &str,
+    expected_commit_sha256: &str,
+    created_at_unix_ms: u64,
+) -> Result<(), ProductError> {
+    let receipt_raw = read_live_run_artifact_bytes(receipt_file, "live_execution_control_receipt")?;
+    let receipt: LiveRunAnchorReceipt = serde_json::from_slice(&receipt_raw).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_control_receipt",
+        )
+    })?;
+    if receipt.schema_version != LIVE_RUN_ANCHOR_RECEIPT_SCHEMA_VERSION
+        || receipt.run_id != run_id
+        || receipt.state_sha256 != sha256_ref(artifact_raw)
+        || receipt.commit_sha256 != expected_commit_sha256
+        || receipt.anchored_at_unix_ms < created_at_unix_ms
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_control_receipt",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_cancel_approval_artifacts(
+    root: &Path,
+    manifest: &LiveRunCandidateManifest,
+    manifest_sha256: &str,
+    admission: &LiveExecutionAdmissionArtifact,
+    order: &LiveExecutionOrderSnapshot,
+    order_raw: &[u8],
+    cancel_request: Option<(&LiveExecutionControlRequestArtifact, &[u8])>,
+) -> Result<(), ProductError> {
+    let owner = read_optional_artifact_with_raw::<LiveExecutionCancelApprovalArtifact>(
+        &root.join(LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE),
+        "live_execution_cancel_owner_approval",
+    )?;
+    let operator = read_optional_artifact_with_raw::<LiveExecutionCancelApprovalArtifact>(
+        &root.join(LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE),
+        "live_execution_cancel_operator_approval",
+    )?;
+    let Some((owner, owner_raw)) = owner else {
+        if operator.is_some() || cancel_request.is_some() {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_approval",
+            ));
+        }
+        return Ok(());
+    };
+    validate_execution_cancel_approval(
+        &owner,
+        LiveExecutionApprovalRole::Owner,
+        manifest,
+        manifest_sha256,
+        admission,
+        order,
+        order_raw,
+    )?;
+    validate_execution_control_receipt(
+        &root.join(LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE),
+        &owner_raw,
+        &manifest.run_id,
+        manifest_sha256,
+        owner.approved_at_unix_ms,
+    )?;
+    if let Some((operator, operator_raw)) = operator {
+        validate_execution_cancel_approval(
+            &operator,
+            LiveExecutionApprovalRole::Operator,
+            manifest,
+            manifest_sha256,
+            admission,
+            order,
+            order_raw,
+        )?;
+        if operator.proposal_sha256 != owner.proposal_sha256
+            || operator.client_order_id != owner.client_order_id
+            || operator.source_order_state_sha256 != owner.source_order_state_sha256
+            || operator.expires_at_unix_ms != owner.expires_at_unix_ms
+            || operator.approved_at_unix_ms < owner.approved_at_unix_ms
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_approval",
+            ));
+        }
+        validate_execution_control_receipt(
+            &root.join(LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE),
+            &operator_raw,
+            &manifest.run_id,
+            manifest_sha256,
+            operator.approved_at_unix_ms,
+        )?;
+        let request = cancel_request.ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_request",
+            )
+        })?;
+        if request.0.request_id.is_empty()
+            || request.0.client_order_id != operator.client_order_id
+            || request.0.source_order_state_sha256 != operator.source_order_state_sha256
+            || request.0.expires_at_unix_ms != operator.expires_at_unix_ms
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_request",
+            ));
+        }
+    } else if cancel_request.is_some() {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_request",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_cancel_approval(
+    approval: &LiveExecutionCancelApprovalArtifact,
+    role: LiveExecutionApprovalRole,
+    manifest: &LiveRunCandidateManifest,
+    manifest_sha256: &str,
+    admission: &LiveExecutionAdmissionArtifact,
+    order: &LiveExecutionOrderSnapshot,
+    order_raw: &[u8],
+) -> Result<(), ProductError> {
+    let authority = match role {
+        LiveExecutionApprovalRole::Owner => &admission.owner_authority_ref,
+        LiveExecutionApprovalRole::Operator => &admission.operator_authority_ref,
+        LiveExecutionApprovalRole::Risk => {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_approval",
+            ));
+        }
+    };
+    if approval.schema_version != "ntpro.s3.live_execution_cancel_approval.v1"
+        || approval.role != role
+        || approval.source_manifest_sha256 != manifest_sha256
+        || approval.run_id != manifest.run_id
+        || approval.admission_id != admission.admission_id
+        || approval.strategy_version_id != admission.strategy_version_id
+        || approval.instrument_id != admission.instrument_id
+        || approval.client_order_id != order.client_order_id.as_deref().unwrap_or_default()
+        || approval.source_order_state_sha256 != sha256_ref(order_raw)
+        || approval.authority_ref != *authority
+        || approval.approved_at_unix_ms < manifest.created_at_unix_ms
+        || approval.approved_at_unix_ms > approval.expires_at_unix_ms
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_approval",
         ));
     }
     Ok(())
@@ -1745,6 +3046,94 @@ where
                     "live_runtime_state_publish",
                 ));
             }
+        }
+        LiveRunCandidateAction::ReconcileOrder
+            if current.lifecycle == LiveRunCandidateLifecycle::MarketDataRunning =>
+        {
+            let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+                &canonical_live_run_root(state, false)?
+                    .join(path_run_id)
+                    .join(LIVE_EXECUTION_ADMISSION_FILE),
+                "live_execution_admission",
+            )?
+            .ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_execution_reconcile_admission",
+                )
+            })?;
+            let runtime_root = live_market_data_runtime_root(state, path_run_id)?;
+            let (order, order_raw) = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+                &runtime_root.join(LIVE_EXECUTION_ORDER_STATE_FILE),
+                "live_execution_order_state",
+            )?
+            .ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_execution_reconcile_order",
+                )
+            })?;
+            validate_execution_order_snapshot(&order, &admission)?;
+            let client_order_id = order.client_order_id.ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_execution_reconcile_order",
+                )
+            })?;
+            let candidate_root = canonical_live_run_root(state, false)?.join(path_run_id);
+            if candidate_root
+                .join(LIVE_EXECUTION_RECONCILE_REQUEST_FILE)
+                .exists()
+                || candidate_root
+                    .join(LIVE_EXECUTION_RECONCILE_SOURCE_ORDER_FILE)
+                    .exists()
+                || candidate_root
+                    .join(LIVE_EXECUTION_RECONCILE_RESULT_FILE)
+                    .exists()
+            {
+                return Err(product_error(
+                    ProductErrorKind::LiveConflict,
+                    "live_execution_reconcile_request",
+                ));
+            }
+            let now = unix_time_ms();
+            let control = LiveExecutionControlRequestArtifact {
+                schema_version: LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION.to_string(),
+                request_id: format!("reconcile-{now}"),
+                action: "reconcile".to_string(),
+                run_id: path_run_id.to_string(),
+                admission_id: admission.admission_id,
+                strategy_version_id: admission.strategy_version_id,
+                instrument_id: admission.instrument_id,
+                client_order_id,
+                source_order_state_sha256: sha256_ref(&order_raw),
+                owner_confirmed: true,
+                operator_confirmed: false,
+                requested_at_unix_ms: now,
+                expires_at_unix_ms: now.saturating_add(5 * 60 * 1_000),
+            };
+            let control_raw = serde_json::to_vec_pretty(&control).map_err(|_| {
+                product_error(
+                    ProductErrorKind::LiveExecutionFailed,
+                    "live_execution_reconcile_request",
+                )
+            })?;
+            write_new_run_file(
+                &directory,
+                LIVE_EXECUTION_RECONCILE_SOURCE_ORDER_FILE,
+                &order_raw,
+            )?;
+            write_and_anchor_execution_control_artifact(
+                state,
+                path_run_id,
+                current_state.revision,
+                &manifest_sha256,
+                &control_raw,
+                now,
+                LIVE_EXECUTION_RECONCILE_REQUEST_FILE,
+                LIVE_EXECUTION_RECONCILE_RECEIPT_FILE,
+                &directory,
+            )?;
         }
         LiveRunCandidateAction::Stop
             if matches!(
@@ -2458,6 +3847,7 @@ fn write_live_node_config(
         .join(", ");
     let run_id = &manifest.run_id;
     let runtime_artifact_root = live_market_data_runtime_root(state, run_id)?;
+    let control_artifact_root = canonical_live_run_root(state, false)?.join(run_id);
     let execution_admission_sha256 = execution
         .map(|_| {
             read_run_file_from_directory(
@@ -2475,6 +3865,7 @@ fn write_live_node_config(
              source_manifest_sha256 = \"{}\"\n\
              execution_admission_sha256 = \"{}\"\n\
              runtime_artifact_root = \"{}\"\n\
+             control_artifact_root = \"{}\"\n\
              risk_policy_ref = \"{}\"\n\
              owner_authority_ref = \"{}\"\n\
              risk_authority_ref = \"{}\"\n\
@@ -2505,6 +3896,7 @@ fn write_live_node_config(
             admission.source_manifest_sha256,
             execution_admission_sha256.as_deref().unwrap_or_default(),
             runtime_artifact_root.display(),
+            control_artifact_root.display(),
             admission.risk_policy_ref,
             admission.owner_authority_ref,
             admission.risk_authority_ref,
@@ -2678,7 +4070,7 @@ fn load_live_run_candidate_snapshot(
         .join("artifacts/live-market-data-runtime")
         .join(run_id)
         .join(LIVE_EXECUTION_ORDER_STATE_FILE);
-    let execution_order = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+    let mut execution_order = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
         &execution_order_path,
         "live_execution_order_state",
     )?;
@@ -2695,6 +4087,219 @@ fn load_live_run_candidate_snapshot(
         validate_execution_order_snapshot(order, admission)?;
         validate_execution_order_runtime_context(&root, candidate_state.lifecycle)?;
     }
+    let reconcile_request = read_optional_artifact_with_raw::<LiveExecutionControlRequestArtifact>(
+        &root.join(LIVE_EXECUTION_RECONCILE_REQUEST_FILE),
+        "live_execution_reconcile_request",
+    )?;
+    let cancel_request = read_optional_artifact_with_raw::<LiveExecutionControlRequestArtifact>(
+        &root.join(LIVE_EXECUTION_CANCEL_REQUEST_FILE),
+        "live_execution_cancel_request",
+    )?;
+    let reconcile_source_order = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+        &root.join(LIVE_EXECUTION_RECONCILE_SOURCE_ORDER_FILE),
+        "live_execution_reconcile_source_order",
+    )?;
+    let cancel_source_order = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+        &root.join(LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE),
+        "live_execution_cancel_source_order",
+    )?;
+    let cancel_approval_present = root
+        .join(LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE)
+        .exists()
+        || root
+            .join(LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE)
+            .exists();
+    if reconcile_request.is_some()
+        || cancel_request.is_some()
+        || reconcile_source_order.is_some()
+        || cancel_source_order.is_some()
+        || cancel_approval_present
+    {
+        let admission = execution_admission
+            .as_ref()
+            .map(|(value, _)| value)
+            .ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_execution_control_admission",
+                )
+            })?;
+        let (order, order_raw) = execution_order.as_ref().ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_control_order",
+            )
+        })?;
+        if let Some((request, request_raw)) = &reconcile_request {
+            let (source_order, source_order_raw) =
+                reconcile_source_order.as_ref().ok_or_else(|| {
+                    product_error(
+                        ProductErrorKind::BoundaryViolation,
+                        "live_execution_reconcile_source_order",
+                    )
+                })?;
+            validate_execution_order_snapshot(source_order, admission)?;
+            validate_execution_order_progression(source_order, order)?;
+            validate_execution_control_request_artifact(
+                request,
+                request_raw,
+                Some(&root.join(LIVE_EXECUTION_RECONCILE_RECEIPT_FILE)),
+                "reconcile",
+                &manifest,
+                &manifest_sha256,
+                admission,
+                source_order,
+                source_order_raw,
+            )?;
+        } else if reconcile_source_order.is_some() {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_reconcile_source_order",
+            ));
+        }
+        if let Some((request, request_raw)) = &cancel_request {
+            let (source_order, source_order_raw) =
+                cancel_source_order.as_ref().ok_or_else(|| {
+                    product_error(
+                        ProductErrorKind::BoundaryViolation,
+                        "live_execution_cancel_source_order",
+                    )
+                })?;
+            validate_execution_order_snapshot(source_order, admission)?;
+            validate_execution_order_progression(source_order, order)?;
+            validate_execution_control_request_artifact(
+                request,
+                request_raw,
+                None,
+                "cancel",
+                &manifest,
+                &manifest_sha256,
+                admission,
+                source_order,
+                source_order_raw,
+            )?;
+        } else if cancel_source_order.is_some() && !cancel_approval_present {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_source_order",
+            ));
+        }
+        let (cancel_source, cancel_source_raw) = cancel_source_order
+            .as_ref()
+            .map_or((order, order_raw.as_slice()), |(value, raw)| {
+                (value, raw.as_slice())
+            });
+        validate_execution_cancel_approval_artifacts(
+            &root,
+            &manifest,
+            &manifest_sha256,
+            admission,
+            cancel_source,
+            cancel_source_raw,
+            cancel_request
+                .as_ref()
+                .map(|(request, raw)| (request, raw.as_slice())),
+        )?;
+    }
+    let reconcile_result = read_optional_artifact_with_raw::<LiveExecutionControlSnapshot>(
+        &root.join(LIVE_EXECUTION_RECONCILE_RESULT_FILE),
+        "live_execution_reconcile_result",
+    )?;
+    let cancel_result = read_optional_artifact_with_raw::<LiveExecutionControlSnapshot>(
+        &root.join(LIVE_EXECUTION_CANCEL_RESULT_FILE),
+        "live_execution_cancel_result",
+    )?;
+    let cancel_venue_attempted = if root.join("execution-cancel-venue-attempt.json").exists() {
+        let (_, request_raw) = cancel_request.as_ref().ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_venue_attempt",
+            )
+        })?;
+        let attempt_raw = read_live_run_artifact_bytes(
+            &root.join("execution-cancel-venue-attempt.json"),
+            "live_execution_cancel_venue_attempt",
+        )?;
+        if attempt_raw != sha256_ref(request_raw).as_bytes() {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_venue_attempt",
+            ));
+        }
+        true
+    } else {
+        false
+    };
+    if !project_execution_cancel_attempt(
+        execution_order.as_mut().map(|(order, _)| order),
+        cancel_venue_attempted,
+    ) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_venue_attempt",
+        ));
+    }
+    if let Some((order, _)) = &execution_order {
+        let admission = execution_admission
+            .as_ref()
+            .map(|(value, _)| value)
+            .ok_or_else(|| {
+                product_error(
+                    ProductErrorKind::BoundaryViolation,
+                    "live_execution_cancel_venue_attempt",
+                )
+            })?;
+        validate_execution_order_snapshot(order, admission)?;
+    }
+    if let Some((control, control_raw)) = &reconcile_result {
+        let (request, request_raw) = reconcile_request.as_ref().ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_control_request",
+            )
+        })?;
+        validate_execution_control_snapshot(
+            control,
+            request,
+            request_raw,
+            &manifest,
+            execution_admission.as_ref().map(|(value, _)| value),
+            reconcile_source_order.as_ref().map(|(value, _)| value),
+            false,
+        )?;
+        validate_execution_control_receipt(
+            &root.join(LIVE_EXECUTION_RECONCILE_RESULT_RECEIPT_FILE),
+            control_raw,
+            &manifest.run_id,
+            &sha256_ref(request_raw),
+            control.completed_at_unix_ms,
+        )?;
+    }
+    if let Some((control, control_raw)) = &cancel_result {
+        let (request, request_raw) = cancel_request.as_ref().ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_control_request",
+            )
+        })?;
+        validate_execution_control_snapshot(
+            control,
+            request,
+            request_raw,
+            &manifest,
+            execution_admission.as_ref().map(|(value, _)| value),
+            cancel_source_order.as_ref().map(|(value, _)| value),
+            cancel_venue_attempted,
+        )?;
+        validate_execution_control_receipt(
+            &root.join(LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE),
+            control_raw,
+            &manifest.run_id,
+            &sha256_ref(request_raw),
+            control.completed_at_unix_ms,
+        )?;
+    }
+    let execution_control = cancel_result.as_ref().or(reconcile_result.as_ref());
     if let Some((stop, _)) = &stop
         && stop.execution_order_sha256.as_deref()
             != execution_order
@@ -2722,10 +4327,30 @@ fn load_live_run_candidate_snapshot(
             execution_admission: execution_admission.as_ref().map(|(value, _)| value),
             execution_approvals: &execution_approvals,
             execution_order: execution_order.as_ref().map(|(value, _)| value),
+            execution_order_state_sha256: execution_order
+                .as_ref()
+                .map(|(_, raw)| sha256_ref(raw))
+                .as_deref(),
+            execution_control: execution_control.map(|(value, _)| value),
         },
         &receipt,
     );
     Ok((candidate, manifest, manifest_raw))
+}
+
+fn project_execution_cancel_attempt(
+    order: Option<&mut LiveExecutionOrderSnapshot>,
+    cancel_venue_attempted: bool,
+) -> bool {
+    match (order, cancel_venue_attempted) {
+        (None, false) => true,
+        (None, true) => false,
+        (Some(order), false) => !order.cancel_attempted,
+        (Some(order), true) => {
+            order.cancel_attempted = true;
+            true
+        }
+    }
 }
 
 fn load_live_run_manifest(
@@ -3054,6 +4679,18 @@ fn validate_execution_order_snapshot(
     order: &LiveExecutionOrderSnapshot,
     admission: &LiveExecutionAdmissionArtifact,
 ) -> Result<(), ProductError> {
+    let quantities_valid = Decimal::from_str_exact(&order.original_quantity)
+        .ok()
+        .zip(Decimal::from_str_exact(&order.filled_quantity).ok())
+        .zip(Decimal::from_str_exact(&order.remaining_quantity).ok())
+        .zip(Decimal::from_str_exact(&admission.quantity).ok())
+        .is_some_and(|(((original, filled), remaining), admitted)| {
+            original > Decimal::ZERO
+                && original == admitted
+                && filled >= Decimal::ZERO
+                && remaining >= Decimal::ZERO
+                && filled + remaining == original
+        });
     let terminal_status = matches!(
         order.status.as_str(),
         "rejected" | "denied" | "expired" | "filled" | "canceled" | "submission_failed"
@@ -3081,6 +4718,7 @@ fn validate_execution_order_snapshot(
         || order.strategy_version_id != admission.strategy_version_id
         || order.instrument_id != admission.instrument_id
         || !status_valid
+        || !quantities_valid
         || order.terminal != terminal_status
         || !order.new_orders_blocked
         || (waiting && order.actual_submission_attempted)
@@ -3091,13 +4729,68 @@ fn validate_execution_order_snapshot(
         || ((waiting || failed_before_attempt) && order.client_order_id.is_some())
         || (!waiting && !failed_before_attempt && order.client_order_id.is_none())
         || order.automatic_retry_attempted
-        || order.cancel_attempted
+        || !execution_order_cancel_attempt_is_valid(order)
         || order.replace_attempted
         || order.updated_at_unix_ms < admission.authorized_at_unix_ms
     {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
             "live_execution_order_state",
+        ));
+    }
+    Ok(())
+}
+
+fn execution_order_cancel_attempt_is_valid(order: &LiveExecutionOrderSnapshot) -> bool {
+    !order.cancel_attempted
+        || (order.actual_submission_attempted
+            && order.client_order_id.is_some()
+            && matches!(
+                order.status.as_str(),
+                "submission_requested"
+                    | "submitted"
+                    | "accepted"
+                    | "partially_filled"
+                    | "canceled"
+                    | "filled"
+                    | "expired"
+                    | "rejected"
+            ))
+}
+
+fn validate_execution_order_progression(
+    source: &LiveExecutionOrderSnapshot,
+    current: &LiveExecutionOrderSnapshot,
+) -> Result<(), ProductError> {
+    let source_filled = Decimal::from_str_exact(&source.filled_quantity).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_order_progression",
+        )
+    })?;
+    let current_filled = Decimal::from_str_exact(&current.filled_quantity).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_order_progression",
+        )
+    })?;
+    if source.admission_id != current.admission_id
+        || source.strategy_version_id != current.strategy_version_id
+        || source.instrument_id != current.instrument_id
+        || source.client_order_id != current.client_order_id
+        || source.original_quantity != current.original_quantity
+        || source
+            .venue_order_id
+            .as_ref()
+            .is_some_and(|source| current.venue_order_id.as_ref() != Some(source))
+        || current_filled < source_filled
+        || current.updated_at_unix_ms < source.updated_at_unix_ms
+        || (source.terminal && !current.terminal)
+        || (source.cancel_attempted && !current.cancel_attempted)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_order_progression",
         ));
     }
     Ok(())
@@ -3151,6 +4844,8 @@ struct LiveRunProjectionArtifacts<'a> {
     execution_admission: Option<&'a LiveExecutionAdmissionArtifact>,
     execution_approvals: &'a [LiveExecutionApprovalRecord],
     execution_order: Option<&'a LiveExecutionOrderSnapshot>,
+    execution_order_state_sha256: Option<&'a str>,
+    execution_control: Option<&'a LiveExecutionControlSnapshot>,
 }
 
 fn project_candidate(
@@ -3200,7 +4895,20 @@ fn project_candidate(
                 .is_ok_and(|raw| raw.contains("[live_execution]"))
             });
             if consumed {
-                LiveOrderAdmissionSnapshot::consumed()
+                let mut snapshot = LiveOrderAdmissionSnapshot::consumed();
+                snapshot.cancel = "dual_approval_required".to_string();
+                snapshot.fill_reconciliation = "explicit_manual_available".to_string();
+                snapshot
+                    .blockers
+                    .retain(|value| value != "manual_review_required_for_follow_up");
+                if let Some(control) = artifacts.execution_control {
+                    if control.action == "reconcile" {
+                        snapshot.fill_reconciliation = control.status.clone();
+                    } else if control.action == "cancel" {
+                        snapshot.cancel = control.status.clone();
+                    }
+                }
+                snapshot
             } else {
                 LiveOrderAdmissionSnapshot::authorized()
             }
@@ -3221,6 +4929,8 @@ fn project_candidate(
             )
         },
         execution_order: artifacts.execution_order.cloned(),
+        execution_order_state_sha256: artifacts.execution_order_state_sha256.map(str::to_string),
+        execution_control: artifacts.execution_control.cloned(),
         source_refs: manifest.source_refs.clone(),
     }
 }
@@ -4035,6 +5745,100 @@ fn validate_candidate_directory_entries(
         expected.insert(LIVE_EXECUTION_RUNTIME_CLAIM_FILE.to_string());
         expected.insert(LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE.to_string());
     }
+    let reconcile_request = root.join(LIVE_EXECUTION_RECONCILE_REQUEST_FILE).exists();
+    let reconcile_source = root
+        .join(LIVE_EXECUTION_RECONCILE_SOURCE_ORDER_FILE)
+        .exists();
+    let reconcile_receipt = root.join(LIVE_EXECUTION_RECONCILE_RECEIPT_FILE).exists();
+    let reconcile_attempt = root.join("execution-reconcile-attempt.json").exists();
+    let reconcile_result = root.join(LIVE_EXECUTION_RECONCILE_RESULT_FILE).exists();
+    let reconcile_result_receipt = root
+        .join(LIVE_EXECUTION_RECONCILE_RESULT_RECEIPT_FILE)
+        .exists();
+    if reconcile_request != reconcile_receipt
+        || reconcile_request != reconcile_source
+        || reconcile_attempt && !reconcile_request
+        || reconcile_result && !reconcile_attempt
+        || reconcile_result != reconcile_result_receipt
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_reconcile_artifacts",
+        ));
+    }
+    if reconcile_request {
+        expected.insert(LIVE_EXECUTION_RECONCILE_REQUEST_FILE.to_string());
+        expected.insert(LIVE_EXECUTION_RECONCILE_SOURCE_ORDER_FILE.to_string());
+        expected.insert(LIVE_EXECUTION_RECONCILE_RECEIPT_FILE.to_string());
+    }
+    if reconcile_attempt {
+        expected.insert("execution-reconcile-attempt.json".to_string());
+    }
+    if reconcile_result {
+        expected.insert(LIVE_EXECUTION_RECONCILE_RESULT_FILE.to_string());
+        expected.insert(LIVE_EXECUTION_RECONCILE_RESULT_RECEIPT_FILE.to_string());
+    }
+    let cancel_owner = root
+        .join(LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE)
+        .exists();
+    let cancel_source = root.join(LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE).exists();
+    let cancel_owner_receipt = root.join(LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE).exists();
+    let cancel_operator = root
+        .join(LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE)
+        .exists();
+    let cancel_operator_receipt = root
+        .join(LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE)
+        .exists();
+    let cancel_request = root.join(LIVE_EXECUTION_CANCEL_REQUEST_FILE).exists();
+    let cancel_attempt = root.join("execution-cancel-attempt.json").exists();
+    let cancel_venue_attempt = root.join("execution-cancel-venue-attempt.json").exists();
+    let cancel_result = root.join(LIVE_EXECUTION_CANCEL_RESULT_FILE).exists();
+    let cancel_result_receipt = root
+        .join(LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE)
+        .exists();
+    if cancel_owner != cancel_owner_receipt
+        || cancel_owner != cancel_source
+        || cancel_operator != cancel_operator_receipt
+        || cancel_operator && !cancel_owner
+        || cancel_request != cancel_operator
+        || cancel_attempt && !cancel_request
+        || cancel_venue_attempt && !cancel_attempt
+        || cancel_result && !cancel_attempt
+        || cancel_result != cancel_result_receipt
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_artifacts",
+        ));
+    }
+    for (present, file) in [
+        (cancel_owner, LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE),
+        (cancel_source, LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE),
+        (
+            cancel_owner_receipt,
+            LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE,
+        ),
+        (
+            cancel_operator,
+            LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE,
+        ),
+        (
+            cancel_operator_receipt,
+            LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE,
+        ),
+        (cancel_request, LIVE_EXECUTION_CANCEL_REQUEST_FILE),
+        (cancel_attempt, "execution-cancel-attempt.json"),
+        (cancel_venue_attempt, "execution-cancel-venue-attempt.json"),
+        (cancel_result, LIVE_EXECUTION_CANCEL_RESULT_FILE),
+        (
+            cancel_result_receipt,
+            LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE,
+        ),
+    ] {
+        if present {
+            expected.insert(file.to_string());
+        }
+    }
     if state_history.iter().any(|(state, _)| {
         matches!(
             state.lifecycle,
@@ -4292,6 +6096,11 @@ fn load_workspace_anchor_receipts(
                     LIVE_EXECUTION_OWNER_APPROVAL_RECEIPT_FILE
                         | LIVE_EXECUTION_RISK_APPROVAL_RECEIPT_FILE
                         | LIVE_EXECUTION_OPERATOR_APPROVAL_RECEIPT_FILE
+                        | LIVE_EXECUTION_RECONCILE_RECEIPT_FILE
+                        | LIVE_EXECUTION_RECONCILE_RESULT_RECEIPT_FILE
+                        | LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE
+                        | LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE
+                        | LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE
                 )
             {
                 let (receipt, _) = read_optional_artifact_with_raw::<LiveRunAnchorReceipt>(
@@ -4761,6 +6570,153 @@ mod tests {
 
     static LIVE_RUNTIME_PROCESS_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    fn execution_control_snapshot(action: &str, status: &str) -> LiveExecutionControlSnapshot {
+        LiveExecutionControlSnapshot {
+            schema_version: LIVE_EXECUTION_CONTROL_RESULT_SCHEMA_VERSION.to_string(),
+            request_sha256: VERSION_HASH.to_string(),
+            request_id: "control-001".to_string(),
+            action: action.to_string(),
+            run_id: "live-candidate-control".to_string(),
+            admission_id: "admission-001".to_string(),
+            strategy_version_id: "strategy@v1".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            client_order_id: "S3LV007-001".to_string(),
+            venue_order_id: Some("1001".to_string()),
+            status: status.to_string(),
+            exchange_order_status: Some("accepted".to_string()),
+            original_quantity: Some("0.01".to_string()),
+            filled_quantity: Some("0".to_string()),
+            remaining_quantity: Some("0.01".to_string()),
+            query_attempted: true,
+            cancel_attempted: false,
+            cancel_confirmed: false,
+            automatic_retry_attempted: false,
+            manual_review_required: false,
+            error_code: None,
+            completed_at_unix_ms: 1,
+        }
+    }
+
+    #[test]
+    fn execution_control_status_matrix_rejects_cross_action_and_flag_drift() {
+        let reconcile = execution_control_snapshot("reconcile", "reconciled");
+        assert!(execution_control_status_is_valid(&reconcile));
+
+        let mut invalid = reconcile.clone();
+        invalid.action = "cancel".to_string();
+        assert!(!execution_control_status_is_valid(&invalid));
+
+        invalid = reconcile;
+        invalid.manual_review_required = true;
+        assert!(!execution_control_status_is_valid(&invalid));
+
+        let mut terminal =
+            execution_control_snapshot("cancel", "cancel_not_required_terminal_or_pending");
+        terminal.exchange_order_status = Some("filled".to_string());
+        assert!(execution_control_status_is_valid(&terminal));
+
+        terminal.action = "reconcile".to_string();
+        assert!(!execution_control_status_is_valid(&terminal));
+
+        let mut confirmed = execution_control_snapshot("cancel", "cancel_confirmed");
+        confirmed.exchange_order_status = Some("canceled".to_string());
+        confirmed.cancel_attempted = true;
+        confirmed.cancel_confirmed = true;
+        assert!(execution_control_status_is_valid(&confirmed));
+        confirmed.manual_review_required = true;
+        assert!(!execution_control_status_is_valid(&confirmed));
+    }
+
+    #[test]
+    fn execution_order_cancel_state_projects_marker_ahead_and_rejects_false_claims() {
+        assert!(project_execution_cancel_attempt(None, false));
+        assert!(!project_execution_cancel_attempt(None, true));
+        let mut order: LiveExecutionOrderSnapshot = serde_json::from_value(serde_json::json!({
+            "schema_version": LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION,
+            "admission_id": "admission-001",
+            "strategy_version_id": "strategy@v1",
+            "instrument_id": "BTCUSDT.BINANCE",
+            "client_order_id": "S3LV007-001",
+            "venue_order_id": "1001",
+            "original_quantity": "0.01",
+            "filled_quantity": "0",
+            "remaining_quantity": "0.01",
+            "status": "accepted",
+            "terminal": false,
+            "new_orders_blocked": true,
+            "actual_submission_attempted": true,
+            "automatic_retry_attempted": false,
+            "cancel_attempted": false,
+            "replace_attempted": false,
+            "last_error": null,
+            "updated_at_unix_ms": 1
+        }))
+        .unwrap();
+        assert!(project_execution_cancel_attempt(Some(&mut order), false));
+        assert!(project_execution_cancel_attempt(Some(&mut order), true));
+        assert!(order.cancel_attempted);
+        assert!(!project_execution_cancel_attempt(Some(&mut order), false));
+        order.cancel_attempted = true;
+        assert!(project_execution_cancel_attempt(Some(&mut order), true));
+        for status in ["submission_requested", "submitted"] {
+            order.status = status.to_string();
+            order.cancel_attempted = false;
+            assert!(project_execution_cancel_attempt(Some(&mut order), true));
+            assert!(order.cancel_attempted, "{status}");
+            assert!(execution_order_cancel_attempt_is_valid(&order), "{status}");
+        }
+        for status in ["waiting_for_instrument", "denied", "submission_failed"] {
+            order.status = status.to_string();
+            order.cancel_attempted = true;
+            assert!(!execution_order_cancel_attempt_is_valid(&order), "{status}");
+        }
+    }
+
+    #[test]
+    fn execution_order_progression_accepts_partial_fill_and_rejects_regression() {
+        let source: LiveExecutionOrderSnapshot = serde_json::from_value(serde_json::json!({
+            "schema_version": LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION,
+            "admission_id": "admission-001",
+            "strategy_version_id": "strategy@v1",
+            "instrument_id": "BTCUSDT.BINANCE",
+            "client_order_id": "S3LV008-001",
+            "venue_order_id": "1001",
+            "original_quantity": "0.00001000",
+            "filled_quantity": "0.00000400",
+            "remaining_quantity": "0.00000600",
+            "status": "partially_filled",
+            "terminal": false,
+            "new_orders_blocked": true,
+            "actual_submission_attempted": true,
+            "automatic_retry_attempted": false,
+            "cancel_attempted": false,
+            "replace_attempted": false,
+            "last_error": null,
+            "updated_at_unix_ms": 10
+        }))
+        .unwrap();
+        let mut progressed = source.clone();
+        progressed.filled_quantity = "0.00000700".to_string();
+        progressed.remaining_quantity = "0.00000300".to_string();
+        progressed.updated_at_unix_ms = 11;
+        assert!(validate_execution_order_progression(&source, &progressed).is_ok());
+
+        let mut regressed = progressed.clone();
+        regressed.filled_quantity = "0.00000300".to_string();
+        regressed.remaining_quantity = "0.00000700".to_string();
+        regressed.updated_at_unix_ms = 12;
+        assert!(validate_execution_order_progression(&source, &regressed).is_err());
+
+        let mut changed_venue = progressed;
+        changed_venue.venue_order_id = Some("1002".to_string());
+        assert!(validate_execution_order_progression(&source, &changed_venue).is_err());
+
+        let mut missing_venue = source.clone();
+        missing_venue.venue_order_id = None;
+        missing_venue.updated_at_unix_ms += 1;
+        assert!(validate_execution_order_progression(&source, &missing_venue).is_err());
+    }
+
     struct LiveRunFixture {
         root: PathBuf,
         state: DashboardServerState,
@@ -4923,6 +6879,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             manual_stop: true,
             risk_approved: true,
             execution_single_shot: true,
+            order_control: true,
         }
     }
 
@@ -4932,7 +6889,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[test]
     fn live_run_candidate_requires_every_independent_gate() {
         for missing in 0..5 {
-            let mut values = [true; 6];
+            let mut values = [true; 7];
             values[missing] = false;
             let mut index = 0;
             let state = LiveRunGateState::from_reader(|_| {
@@ -5003,6 +6960,10 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             strategy_version_id: "ema-cross@v1".to_string(),
             instrument_id: "BTCUSDT.BINANCE".to_string(),
             client_order_id: Some("S3LV007-001".to_string()),
+            venue_order_id: Some("1001".to_string()),
+            original_quantity: "0.01".to_string(),
+            filled_quantity: "0".to_string(),
+            remaining_quantity: "0.01".to_string(),
             status: "submitted".to_string(),
             terminal: false,
             new_orders_blocked: true,
@@ -5025,6 +6986,10 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             order.status = status.to_string();
             assert!(execution_order_has_confirmed_submission(&order), "{status}");
         }
+        order.status = "submission_requested".to_string();
+        order.cancel_attempted = true;
+        assert!(execution_order_has_confirmed_submission(&order));
+        order.cancel_attempted = false;
         for status in [
             "waiting_for_instrument",
             "submission_requested",
@@ -5292,6 +7257,220 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         }
     }
 
+    fn setup_cancel_publication(
+        name: &str,
+    ) -> (
+        LiveRunFixture,
+        String,
+        LiveExecutionAdmissionArtifact,
+        LiveExecutionOrderSnapshot,
+        Vec<u8>,
+    ) {
+        let fixture = LiveRunFixture::new(name);
+        let ready = create_preflight_ready_candidate(
+            &fixture,
+            &format!("product-{name}-cancel-publication"),
+        );
+        let admission_request = execution_admission_request(&ready.run_id);
+        for role in [
+            LiveExecutionApprovalRole::Owner,
+            LiveExecutionApprovalRole::Risk,
+            LiveExecutionApprovalRole::Operator,
+        ] {
+            authorize_live_execution_with_source_validator(
+                &fixture.state,
+                &ready.run_id,
+                &admission_request,
+                role,
+                |_| Ok(execution_risk_policy()),
+            )
+            .unwrap();
+        }
+        let candidate_root = canonical_live_run_root(&fixture.state, false)
+            .unwrap()
+            .join(&ready.run_id);
+        let directory = open_absolute_directory_nofollow(&candidate_root).unwrap();
+        let (manifest, manifest_raw) =
+            load_live_run_manifest(&fixture.state, &ready.run_id).unwrap();
+        let manifest_sha256 = sha256_ref(&manifest_raw);
+        let (preflight_ready, preflight_ready_raw) =
+            load_live_run_state(&fixture.state, &ready.run_id, &manifest_sha256).unwrap();
+        write_live_node_config(
+            &fixture.state,
+            &directory,
+            &manifest,
+            read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+                &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+                "live_execution_admission",
+            )
+            .unwrap()
+            .as_ref()
+            .map(|(value, _)| value),
+        )
+        .unwrap();
+        let runtime_config_raw =
+            fs::read(candidate_root.join(LIVE_MARKET_DATA_NODE_CONFIG_FILE)).unwrap();
+        let starting = LiveRunCandidateState {
+            schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+            run_id: ready.run_id.clone(),
+            source_manifest_sha256: manifest_sha256.clone(),
+            revision: preflight_ready.revision + 1,
+            previous_state_sha256: Some(sha256_ref(&preflight_ready_raw)),
+            lifecycle: LiveRunCandidateLifecycle::Starting,
+            preflight_sha256: preflight_ready.preflight_sha256,
+            execution_admission_sha256: preflight_ready.execution_admission_sha256,
+            execution_runtime_config_sha256: Some(sha256_ref(&runtime_config_raw)),
+            stop_sha256: None,
+            updated_at_unix_ms: unix_time_ms(),
+        };
+        write_live_run_state(&fixture.state, &ready.run_id, &starting).unwrap();
+        let (starting, starting_raw) =
+            load_live_run_state(&fixture.state, &ready.run_id, &manifest_sha256).unwrap();
+        write_live_run_state(
+            &fixture.state,
+            &ready.run_id,
+            &LiveRunCandidateState {
+                schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+                run_id: ready.run_id.clone(),
+                source_manifest_sha256: manifest_sha256,
+                revision: starting.revision + 1,
+                previous_state_sha256: Some(sha256_ref(&starting_raw)),
+                lifecycle: LiveRunCandidateLifecycle::MarketDataRunning,
+                preflight_sha256: starting.preflight_sha256,
+                execution_admission_sha256: starting.execution_admission_sha256,
+                execution_runtime_config_sha256: starting.execution_runtime_config_sha256,
+                stop_sha256: None,
+                updated_at_unix_ms: unix_time_ms(),
+            },
+        )
+        .unwrap();
+        let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+            &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+            "live_execution_admission",
+        )
+        .unwrap()
+        .unwrap();
+        let order = LiveExecutionOrderSnapshot {
+            schema_version: LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
+            admission_id: admission.admission_id.clone(),
+            strategy_version_id: admission.strategy_version_id.clone(),
+            instrument_id: admission.instrument_id.clone(),
+            client_order_id: Some("S3LV008-001".to_string()),
+            venue_order_id: Some("1001".to_string()),
+            original_quantity: admission.quantity.clone(),
+            filled_quantity: "0".to_string(),
+            remaining_quantity: admission.quantity.clone(),
+            status: "accepted".to_string(),
+            terminal: false,
+            new_orders_blocked: true,
+            actual_submission_attempted: true,
+            automatic_retry_attempted: false,
+            cancel_attempted: false,
+            replace_attempted: false,
+            last_error: None,
+            updated_at_unix_ms: unix_time_ms().max(admission.authorized_at_unix_ms),
+        };
+        let order_raw = serde_json::to_vec_pretty(&order).unwrap();
+        let runtime_root = live_market_data_runtime_root(&fixture.state, &ready.run_id).unwrap();
+        fs::write(
+            runtime_root.join(LIVE_EXECUTION_ORDER_STATE_FILE),
+            &order_raw,
+        )
+        .unwrap();
+        (fixture, ready.run_id, admission, order, order_raw)
+    }
+
+    fn cancel_request(run_id: &str, order_raw: &[u8]) -> LiveExecutionCancelRequest {
+        LiveExecutionCancelRequest {
+            run_id: run_id.to_string(),
+            request_id: "cancel-001".to_string(),
+            client_order_id: "S3LV008-001".to_string(),
+            source_order_state_sha256: sha256_ref(order_raw),
+            expires_at_unix_ms: unix_time_ms() + 60_000,
+            user_confirmed: true,
+        }
+    }
+
+    fn stage_cancel_publication(
+        fixture: &LiveRunFixture,
+        run_id: &str,
+        request: &LiveExecutionCancelRequest,
+        role: LiveExecutionApprovalRole,
+        source_order_raw: &[u8],
+    ) -> LiveExecutionCancelPublicationStage {
+        let candidate_root = canonical_live_run_root(&fixture.state, false)
+            .unwrap()
+            .join(run_id);
+        let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+            &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+            "live_execution_admission",
+        )
+        .unwrap()
+        .unwrap();
+        let (_, manifest_raw) = load_live_run_manifest(&fixture.state, run_id).unwrap();
+        let manifest_sha256 = sha256_ref(&manifest_raw);
+        let (state, _) = load_live_run_state(&fixture.state, run_id, &manifest_sha256).unwrap();
+        let approved_at_unix_ms = unix_time_ms();
+        let proposal_sha256 = sha256_ref(&serde_json::to_vec(request).unwrap());
+        let approval = LiveExecutionCancelApprovalArtifact {
+            schema_version: "ntpro.s3.live_execution_cancel_approval.v1".to_string(),
+            role,
+            proposal_sha256,
+            source_manifest_sha256: manifest_sha256.clone(),
+            run_id: run_id.to_string(),
+            admission_id: admission.admission_id.clone(),
+            strategy_version_id: admission.strategy_version_id.clone(),
+            instrument_id: admission.instrument_id.clone(),
+            client_order_id: request.client_order_id.clone(),
+            source_order_state_sha256: request.source_order_state_sha256.clone(),
+            authority_ref: match role {
+                LiveExecutionApprovalRole::Owner => admission.owner_authority_ref.clone(),
+                LiveExecutionApprovalRole::Operator => admission.operator_authority_ref.clone(),
+                LiveExecutionApprovalRole::Risk => unreachable!(),
+            },
+            approved_at_unix_ms,
+            expires_at_unix_ms: request.expires_at_unix_ms,
+        };
+        let control_request = (role == LiveExecutionApprovalRole::Operator).then(|| {
+            LiveExecutionControlRequestArtifact {
+                schema_version: LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION.to_string(),
+                request_id: request.request_id.clone(),
+                action: "cancel".to_string(),
+                run_id: run_id.to_string(),
+                admission_id: admission.admission_id,
+                strategy_version_id: admission.strategy_version_id,
+                instrument_id: admission.instrument_id,
+                client_order_id: request.client_order_id.clone(),
+                source_order_state_sha256: request.source_order_state_sha256.clone(),
+                owner_confirmed: true,
+                operator_confirmed: true,
+                requested_at_unix_ms: approved_at_unix_ms,
+                expires_at_unix_ms: request.expires_at_unix_ms,
+            }
+        });
+        let stage = LiveExecutionCancelPublicationStage {
+            schema_version: "ntpro.s3.live_execution_cancel_publication.v1".to_string(),
+            role,
+            request: request.clone(),
+            source_order_raw: String::from_utf8(source_order_raw.to_vec()).unwrap(),
+            approval,
+            control_request,
+            run_revision: state.revision,
+            manifest_sha256,
+            previous_workspace_receipt: validate_workspace_anchor_head(&fixture.state)
+                .unwrap()
+                .unwrap(),
+        };
+        let directory = open_absolute_directory_nofollow(&candidate_root).unwrap();
+        publish_new_run_file(
+            &directory,
+            cancel_publication_stage_file(role).unwrap(),
+            &serde_json::to_vec_pretty(&stage).unwrap(),
+        )
+        .unwrap();
+        stage
+    }
+
     #[test]
     fn live_execution_admission_is_fail_closed_single_use_and_externally_anchored() {
         let fixture = LiveRunFixture::new("execution-admission");
@@ -5374,6 +7553,10 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             strategy_version_id: admission_artifact.strategy_version_id.clone(),
             instrument_id: admission_artifact.instrument_id.clone(),
             client_order_id: Some("S3LV007-001".to_string()),
+            venue_order_id: Some("1001".to_string()),
+            original_quantity: admission_artifact.quantity.clone(),
+            filled_quantity: "0".to_string(),
+            remaining_quantity: admission_artifact.quantity.clone(),
             status: "accepted".to_string(),
             terminal: false,
             new_orders_blocked: true,
@@ -5387,6 +7570,22 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         validate_execution_order_snapshot(&order, &admission_artifact).unwrap();
         order.automatic_retry_attempted = true;
         assert!(validate_execution_order_snapshot(&order, &admission_artifact).is_err());
+        order.automatic_retry_attempted = false;
+        order.original_quantity = "0.02".to_string();
+        order.remaining_quantity = "0.02".to_string();
+        assert!(validate_execution_order_snapshot(&order, &admission_artifact).is_err());
+        order.original_quantity = admission_artifact.quantity.clone();
+        order.filled_quantity = admission_artifact.quantity.clone();
+        order.remaining_quantity = "0".to_string();
+        order.cancel_attempted = true;
+        for status in ["filled", "expired", "rejected"] {
+            order.status = status.to_string();
+            order.terminal = true;
+            assert!(
+                validate_execution_order_snapshot(&order, &admission_artifact).is_ok(),
+                "{status}"
+            );
+        }
 
         let candidate_root = canonical_live_run_root(&fixture.state, false)
             .unwrap()
@@ -5446,6 +7645,200 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         assert_eq!(
             market_only_start.field,
             "live_execution_admission_requires_execution_start"
+        );
+    }
+
+    #[test]
+    fn cancel_operator_approval_accepts_current_order_progress_from_owner_source() {
+        let (fixture, run_id, admission, mut order, order_raw) =
+            setup_cancel_publication("cancel-progress");
+        let request = cancel_request(&run_id, &order_raw);
+        let owner_stage = stage_cancel_publication(
+            &fixture,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            &order_raw,
+        );
+        complete_live_execution_cancel_publication(&fixture.state, &run_id, &owner_stage, None)
+            .unwrap();
+
+        order.status = "partially_filled".to_string();
+        order.filled_quantity = "0.00000400".to_string();
+        order.remaining_quantity = "0.00000600".to_string();
+        order.updated_at_unix_ms += 1;
+        fs::write(
+            fixture
+                .root
+                .join("artifacts/live-market-data-runtime")
+                .join(&run_id)
+                .join(LIVE_EXECUTION_ORDER_STATE_FILE),
+            serde_json::to_vec_pretty(&order).unwrap(),
+        )
+        .unwrap();
+
+        validate_execution_cancel_request_order(
+            &request,
+            &serde_json::from_slice(&order_raw).unwrap(),
+            &order_raw,
+            &order,
+            &admission,
+        )
+        .unwrap();
+        let operator_stage = stage_cancel_publication(
+            &fixture,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Operator,
+            &order_raw,
+        );
+        complete_live_execution_cancel_publication(&fixture.state, &run_id, &operator_stage, None)
+            .unwrap();
+        let root = fixture.root.join("artifacts/live-runs").join(&run_id);
+        assert_eq!(
+            fs::read(root.join(LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE)).unwrap(),
+            order_raw
+        );
+        assert!(root.join(LIVE_EXECUTION_CANCEL_REQUEST_FILE).is_file());
+    }
+
+    #[test]
+    fn cancel_publication_recovers_every_owner_and_operator_write_boundary() {
+        for role in [
+            LiveExecutionApprovalRole::Owner,
+            LiveExecutionApprovalRole::Operator,
+        ] {
+            let steps: &[CancelPublicationStep] = if role == LiveExecutionApprovalRole::Owner {
+                &[
+                    CancelPublicationStep::SourceOrder,
+                    CancelPublicationStep::ExternalAnchor,
+                    CancelPublicationStep::Approval,
+                    CancelPublicationStep::Receipt,
+                    CancelPublicationStep::WorkspaceHead,
+                ]
+            } else {
+                &[
+                    CancelPublicationStep::ExternalAnchor,
+                    CancelPublicationStep::Approval,
+                    CancelPublicationStep::Receipt,
+                    CancelPublicationStep::WorkspaceHead,
+                    CancelPublicationStep::ControlRequest,
+                ]
+            };
+            for step in steps {
+                let name = format!("cancel-recovery-{role:?}-{step:?}");
+                let (fixture, run_id, _admission, _order, order_raw) =
+                    setup_cancel_publication(&name);
+                let request = cancel_request(&run_id, &order_raw);
+                if role == LiveExecutionApprovalRole::Operator {
+                    let owner_stage = stage_cancel_publication(
+                        &fixture,
+                        &run_id,
+                        &request,
+                        LiveExecutionApprovalRole::Owner,
+                        &order_raw,
+                    );
+                    complete_live_execution_cancel_publication(
+                        &fixture.state,
+                        &run_id,
+                        &owner_stage,
+                        None,
+                    )
+                    .unwrap();
+                }
+                let stage = stage_cancel_publication(&fixture, &run_id, &request, role, &order_raw);
+                let error = complete_live_execution_cancel_publication(
+                    &fixture.state,
+                    &run_id,
+                    &stage,
+                    Some(*step),
+                )
+                .unwrap_err();
+                assert_eq!(
+                    error.field, "live_execution_cancel_publication_injected_failure",
+                    "{role:?} {step:?}"
+                );
+                resume_live_execution_cancel_publication(
+                    &fixture.state,
+                    &run_id,
+                    &request,
+                    role,
+                    None,
+                )
+                .unwrap();
+                let root = fixture.root.join("artifacts/live-runs").join(&run_id);
+                assert!(
+                    !root
+                        .join(cancel_publication_stage_file(role).unwrap())
+                        .exists(),
+                    "{role:?} {step:?}"
+                );
+                assert!(
+                    root.join(match role {
+                        LiveExecutionApprovalRole::Owner => {
+                            LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE
+                        }
+                        LiveExecutionApprovalRole::Operator => {
+                            LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE
+                        }
+                        LiveExecutionApprovalRole::Risk => unreachable!(),
+                    })
+                    .is_file(),
+                    "{role:?} {step:?}"
+                );
+                if role == LiveExecutionApprovalRole::Operator {
+                    assert!(root.join(LIVE_EXECUTION_CANCEL_REQUEST_FILE).is_file());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cancel_publication_recovery_completes_after_order_becomes_terminal() {
+        let (fixture, run_id, _admission, mut order, order_raw) =
+            setup_cancel_publication("cancel-terminal-recovery");
+        let request = cancel_request(&run_id, &order_raw);
+        let stage = stage_cancel_publication(
+            &fixture,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            &order_raw,
+        );
+        complete_live_execution_cancel_publication(
+            &fixture.state,
+            &run_id,
+            &stage,
+            Some(CancelPublicationStep::ExternalAnchor),
+        )
+        .unwrap_err();
+        order.status = "filled".to_string();
+        order.filled_quantity = order.original_quantity.clone();
+        order.remaining_quantity = "0".to_string();
+        order.terminal = true;
+        order.updated_at_unix_ms += 1;
+        fs::write(
+            live_market_data_runtime_root(&fixture.state, &run_id)
+                .unwrap()
+                .join(LIVE_EXECUTION_ORDER_STATE_FILE),
+            serde_json::to_vec_pretty(&order).unwrap(),
+        )
+        .unwrap();
+        resume_live_execution_cancel_publication(
+            &fixture.state,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            None,
+        )
+        .unwrap();
+        assert!(
+            !fixture
+                .root
+                .join("artifacts/live-runs")
+                .join(&run_id)
+                .join(LIVE_EXECUTION_CANCEL_OWNER_STAGE_FILE)
+                .exists()
         );
     }
 

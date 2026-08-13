@@ -24,6 +24,12 @@ import type {
   ApproveLiveExecutionAsRiskData,
   ApproveLiveExecutionAsRiskErrors,
   ApproveLiveExecutionAsRiskResponses,
+  ApproveLiveExecutionCancelAsOperatorData,
+  ApproveLiveExecutionCancelAsOperatorErrors,
+  ApproveLiveExecutionCancelAsOperatorResponses,
+  ApproveLiveExecutionCancelAsOwnerData,
+  ApproveLiveExecutionCancelAsOwnerErrors,
+  ApproveLiveExecutionCancelAsOwnerResponses,
   CompareRunsData,
   CompareRunsErrors,
   CompareRunsResponses,
@@ -492,6 +498,70 @@ export const approveLiveExecutionAsOperator = <
       },
     ],
     url: "/live-run-candidates/{run_id}/execution-approvals/operator",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 机构负责人申请撤销当前单笔真实订单的未成交部分
+ */
+export const approveLiveExecutionCancelAsOwner = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ApproveLiveExecutionCancelAsOwnerData, ThrowOnError>,
+): RequestResult<
+  ApproveLiveExecutionCancelAsOwnerResponses,
+  ApproveLiveExecutionCancelAsOwnerErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ApproveLiveExecutionCancelAsOwnerResponses,
+    ApproveLiveExecutionCancelAsOwnerErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates/{run_id}/cancel-approvals/owner",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * 当班操作员确认同一机构撤单申请并生成一次性撤单请求
+ */
+export const approveLiveExecutionCancelAsOperator = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ApproveLiveExecutionCancelAsOperatorData, ThrowOnError>,
+): RequestResult<
+  ApproveLiveExecutionCancelAsOperatorResponses,
+  ApproveLiveExecutionCancelAsOperatorErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    ApproveLiveExecutionCancelAsOperatorResponses,
+    ApproveLiveExecutionCancelAsOperatorErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/live-run-candidates/{run_id}/cancel-approvals/operator",
     ...options,
     headers: {
       "Content-Type": "application/json",

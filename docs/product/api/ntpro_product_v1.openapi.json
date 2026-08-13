@@ -609,6 +609,32 @@
         }
       }
     },
+    "/live-run-candidates/{run_id}/cancel-approvals/owner": {
+      "post": {
+        "operationId": "approveLiveExecutionCancelAsOwner",
+        "summary": "机构负责人申请撤销当前单笔真实订单的未成交部分",
+        "security": [{ "InstitutionCookie": [] }],
+        "parameters": [{ "name": "run_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/RunId" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveExecutionCancelRequest" } } } },
+        "responses": {
+          "200": { "description": "机构撤单申请已锚定，等待当班操作员确认", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveRunCandidateActionResponse" } } } },
+          "400": { "$ref": "#/components/responses/ProductError" }, "403": { "$ref": "#/components/responses/ProductError" }, "404": { "$ref": "#/components/responses/ProductError" }, "405": { "$ref": "#/components/responses/ProductCommandMethodNotAllowed" }, "409": { "$ref": "#/components/responses/ProductError" }, "422": { "$ref": "#/components/responses/ProductError" }, "500": { "$ref": "#/components/responses/ProductError" }, "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
+    "/live-run-candidates/{run_id}/cancel-approvals/operator": {
+      "post": {
+        "operationId": "approveLiveExecutionCancelAsOperator",
+        "summary": "当班操作员确认同一机构撤单申请并生成一次性撤单请求",
+        "security": [{ "OperatorCookie": [] }],
+        "parameters": [{ "name": "run_id", "in": "path", "required": true, "schema": { "$ref": "#/components/schemas/RunId" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveExecutionCancelRequest" } } } },
+        "responses": {
+          "200": { "description": "同一撤单申请已双重确认并进入 Runtime 单次消费队列", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LiveRunCandidateActionResponse" } } } },
+          "400": { "$ref": "#/components/responses/ProductError" }, "403": { "$ref": "#/components/responses/ProductError" }, "404": { "$ref": "#/components/responses/ProductError" }, "405": { "$ref": "#/components/responses/ProductCommandMethodNotAllowed" }, "409": { "$ref": "#/components/responses/ProductError" }, "422": { "$ref": "#/components/responses/ProductError" }, "500": { "$ref": "#/components/responses/ProductError" }, "503": { "$ref": "#/components/responses/ProductError" }
+        }
+      }
+    },
     "/runs": {
       "get": {
         "operationId": "listRuns",
@@ -2856,7 +2882,7 @@
       },
       "LiveRunCandidateAction": {
         "type": "string",
-        "enum": ["preflight", "start_market_data", "start_execution", "stop"]
+        "enum": ["preflight", "start_market_data", "start_execution", "reconcile_order", "stop"]
       },
       "LiveRunCandidateActionRequest": {
         "type": "object",
@@ -2893,6 +2919,19 @@
           "user_confirmed": { "const": true }
         }
       },
+      "LiveExecutionCancelRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "request_id", "client_order_id", "source_order_state_sha256", "expires_at_unix_ms", "user_confirmed"],
+        "properties": {
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "request_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$" },
+          "client_order_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "source_order_state_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "expires_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "user_confirmed": { "const": true }
+        }
+      },
       "LiveOrderAdmissionSnapshot": {
         "type": "object",
         "additionalProperties": false,
@@ -2900,15 +2939,15 @@
         "properties": {
           "status": { "enum": ["blocked", "authorized_single_shot", "consumed_single_shot"] },
           "submit": { "enum": ["blocked", "authorized_single_shot"] },
-          "cancel": { "const": "blocked" },
+          "cancel": { "type": "string", "minLength": 1 },
           "replace": { "const": "blocked" },
-          "fill_reconciliation": { "enum": ["blocked", "runtime_event_projection"] },
+          "fill_reconciliation": { "type": "string", "minLength": 1 },
           "owner_approved": { "type": "boolean" },
           "risk_approved": { "type": "boolean" },
           "operator_approved": { "type": "boolean" },
           "blockers": {
             "type": "array",
-            "minItems": 3,
+            "minItems": 2,
             "maxItems": 3,
             "items": { "type": "string", "minLength": 1 }
           }
@@ -2933,28 +2972,151 @@
       "LiveExecutionOrderSnapshot": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schema_version", "admission_id", "strategy_version_id", "instrument_id", "client_order_id", "status", "terminal", "new_orders_blocked", "actual_submission_attempted", "automatic_retry_attempted", "cancel_attempted", "replace_attempted", "last_error", "updated_at_unix_ms"],
+        "required": ["schema_version", "admission_id", "strategy_version_id", "instrument_id", "client_order_id", "venue_order_id", "original_quantity", "filled_quantity", "remaining_quantity", "status", "terminal", "new_orders_blocked", "actual_submission_attempted", "automatic_retry_attempted", "cancel_attempted", "replace_attempted", "last_error", "updated_at_unix_ms"],
         "properties": {
-          "schema_version": { "const": "ntpro.s3.live_execution_order_state.v1" },
+          "schema_version": { "const": "ntpro.s3.live_execution_order_state.v2" },
           "admission_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
           "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
           "instrument_id": { "type": "string", "pattern": "^[A-Z0-9]+\\.BINANCE$" },
           "client_order_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 },
+          "venue_order_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 },
+          "original_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "filled_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "remaining_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
           "status": { "enum": ["waiting_for_instrument", "submission_requested", "submitted", "accepted", "rejected", "denied", "expired", "partially_filled", "filled", "canceled", "submission_failed"] },
           "terminal": { "type": "boolean" },
           "new_orders_blocked": { "const": true },
           "actual_submission_attempted": { "type": "boolean" },
           "automatic_retry_attempted": { "const": false },
-          "cancel_attempted": { "const": false },
+          "cancel_attempted": { "type": "boolean" },
           "replace_attempted": { "const": false },
           "last_error": { "type": ["string", "null"], "minLength": 1, "maxLength": 512 },
           "updated_at_unix_ms": { "type": "integer", "minimum": 1 }
-        }
+        },
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "cancel_attempted": { "const": false }
+                }
+              },
+              {
+                "properties": {
+                  "cancel_attempted": { "const": true },
+                  "status": { "enum": ["submission_requested", "submitted", "accepted", "rejected", "expired", "partially_filled", "filled", "canceled"] },
+                  "actual_submission_attempted": { "const": true },
+                  "client_order_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "LiveExecutionControlSnapshot": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "request_sha256", "request_id", "action", "run_id", "admission_id", "strategy_version_id", "instrument_id", "client_order_id", "venue_order_id", "status", "exchange_order_status", "original_quantity", "filled_quantity", "remaining_quantity", "query_attempted", "cancel_attempted", "cancel_confirmed", "automatic_retry_attempted", "manual_review_required", "error_code", "completed_at_unix_ms"],
+        "properties": {
+          "schema_version": { "const": "ntpro.s3.live_execution_control_result.v1" },
+          "request_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "request_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,128}$" },
+          "action": { "enum": ["reconcile", "cancel"] },
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "admission_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
+          "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
+          "instrument_id": { "type": "string", "pattern": "^[A-Z0-9]+\\.BINANCE$" },
+          "client_order_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "venue_order_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 },
+          "status": { "enum": ["reconciled", "cancel_confirmed", "cancel_sent_readback_pending", "cancel_not_required_terminal_or_pending", "unknown_manual_review"] },
+          "exchange_order_status": { "type": ["string", "null"], "minLength": 1 },
+          "original_quantity": { "type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "filled_quantity": { "type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "remaining_quantity": { "type": ["string", "null"], "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "query_attempted": { "type": "boolean" },
+          "cancel_attempted": { "type": "boolean" },
+          "cancel_confirmed": { "type": "boolean" },
+          "automatic_retry_attempted": { "const": false },
+          "manual_review_required": { "type": "boolean" },
+          "error_code": { "type": ["string", "null"], "minLength": 1 },
+          "completed_at_unix_ms": { "type": "integer", "minimum": 1 }
+        },
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "action": { "const": "reconcile" },
+                  "status": { "const": "reconciled" },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": false },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": false },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "reconcile" },
+                  "status": { "const": "unknown_manual_review" },
+                  "cancel_attempted": { "const": false },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": true },
+                  "error_code": { "type": "string", "minLength": 1 }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "cancel_confirmed" },
+                  "exchange_order_status": { "const": "canceled" },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": true },
+                  "cancel_confirmed": { "const": true },
+                  "manual_review_required": { "const": false },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "cancel_sent_readback_pending" },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": true },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": true },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "cancel_not_required_terminal_or_pending" },
+                  "exchange_order_status": { "enum": ["filled", "canceled", "expired", "rejected", "pending_cancel", "pending_update"] },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": false },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": false },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "unknown_manual_review" },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": true },
+                  "error_code": { "type": "string", "minLength": 1 }
+                }
+              }
+            ]
+          }
+        ]
       },
       "LiveRunCandidate": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "market_data_connected", "runtime_node_id", "runtime_process_state", "runtime_error", "audit_anchor", "order_admission", "execution_order", "source_refs"],
+        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "market_data_connected", "runtime_node_id", "runtime_process_state", "runtime_error", "audit_anchor", "order_admission", "execution_order", "execution_order_state_sha256", "execution_control", "source_refs"],
         "properties": {
           "run_id": { "$ref": "#/components/schemas/RunId" },
           "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
@@ -2978,6 +3140,18 @@
           "execution_order": {
             "anyOf": [
               { "$ref": "#/components/schemas/LiveExecutionOrderSnapshot" },
+              { "type": "null" }
+            ]
+          },
+          "execution_order_state_sha256": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/ContentHash" },
+              { "type": "null" }
+            ]
+          },
+          "execution_control": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/LiveExecutionControlSnapshot" },
               { "type": "null" }
             ]
           },
@@ -3113,9 +3287,9 @@
           "external_market_data_connection_allowed": { "const": true },
           "order_endpoint_access_allowed": { "type": "boolean" },
           "order_submission_allowed": { "type": "boolean" },
-          "cancel_order_allowed": { "const": false },
+          "cancel_order_allowed": { "type": "boolean" },
           "replace_order_allowed": { "const": false },
-          "fill_reconciliation_allowed": { "const": false },
+          "fill_reconciliation_allowed": { "type": "boolean" },
           "automatic_retry_allowed": { "const": false },
           "automatic_remediation_allowed": { "const": false },
           "automatic_recovery_allowed": { "const": false },
@@ -3170,13 +3344,14 @@
       },
       "LiveRunCandidateGateRefs": {
             "type": "array",
-            "minItems": 6,
-            "maxItems": 6,
+            "minItems": 7,
+            "maxItems": 7,
             "prefixItems": [
               { "const": "NTPRO_S3_LIVE_RUN_CANDIDATE_CREATE" },
               { "const": "NTPRO_S3_LIVE_RUN_OWNER_APPROVED" },
               { "const": "NTPRO_S3_LIVE_RUN_NO_ORDER_SEND" },
               { "const": "NTPRO_S3_LIVE_RUN_MANUAL_STOP" },
+              { "const": "NTPRO_S3_LIVE_ORDER_CONTROL" },
               { "const": "NTPRO_S3_LIVE_RUN_RISK_APPROVED" },
               { "const": "NTPRO_S3_LIVE_RUN_EXECUTION_SINGLE_SHOT" }
             ],

@@ -1,8 +1,9 @@
 //! 生产执行准入后的单次订单策略边界。
 
+use super::node_runtime::{execution_sha256_ref, read_bounded_execution_authority_file};
 use super::*;
 
-const EXECUTION_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v1";
+const EXECUTION_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v2";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -12,6 +13,10 @@ struct ProductionExecutionOrderState {
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
+    venue_order_id: Option<String>,
+    original_quantity: String,
+    filled_quantity: String,
+    remaining_quantity: String,
     status: String,
     terminal: bool,
     new_orders_blocked: bool,
@@ -34,8 +39,11 @@ pub(super) struct ProductionSingleShotExecutionStrategy {
     quantity: Quantity,
     expires_at_unix_ms: u64,
     state_path: PathBuf,
+    control_artifact_root: PathBuf,
     submitted: bool,
     client_order_id: Option<String>,
+    venue_order_id: Option<String>,
+    filled_quantity: Quantity,
 }
 
 impl ProductionSingleShotExecutionStrategy {
@@ -57,7 +65,39 @@ impl ProductionSingleShotExecutionStrategy {
         })?;
         let strategy_id = StrategyId::from(format!("S3-LIVE-{}", execution.admission_id));
         let state_path = output_dir.join("execution-order-state.json");
-        let persisted = load_existing_execution_state(&state_path, execution, &instrument_id)?;
+        let mut persisted = load_existing_execution_state(&state_path, execution, &instrument_id)?;
+        let venue_cancel_attempted =
+            validated_cancel_venue_attempt_exists(&execution.control_artifact_root)?;
+        match persisted.as_mut() {
+            Some(state) if state.cancel_attempted && !venue_cancel_attempted => {
+                anyhow::bail!(
+                    "persisted execution cancel state does not match the venue attempt artifact"
+                );
+            }
+            Some(state) if venue_cancel_attempted && !state.cancel_attempted => {
+                state.cancel_attempted = true;
+                state.updated_at_unix_ms = current_unix_timestamp_millis();
+                atomic_write_json(&state_path, state)?;
+            }
+            None if venue_cancel_attempted => {
+                anyhow::bail!("live execution cancel venue attempt exists without an order state");
+            }
+            _ => {}
+        }
+        let submitted = persisted.is_some();
+        let client_order_id = persisted
+            .as_ref()
+            .and_then(|state| state.client_order_id.clone());
+        let venue_order_id = persisted
+            .as_ref()
+            .and_then(|state| state.venue_order_id.clone());
+        let filled_quantity = persisted
+            .as_ref()
+            .map_or_else(
+                || Ok(Quantity::zero(quantity.precision)),
+                |state| Quantity::from_str(&state.filled_quantity),
+            )
+            .map_err(|error| anyhow::anyhow!("persisted filled quantity is invalid: {error}"))?;
         Ok(Self {
             core: StrategyCore::new(StrategyConfig {
                 strategy_id: Some(strategy_id),
@@ -73,8 +113,11 @@ impl ProductionSingleShotExecutionStrategy {
             quantity,
             expires_at_unix_ms: execution.expires_at_unix_ms,
             state_path,
-            submitted: persisted.is_some(),
-            client_order_id: persisted.and_then(|state| state.client_order_id),
+            control_artifact_root: execution.control_artifact_root.clone(),
+            submitted,
+            client_order_id,
+            venue_order_id,
+            filled_quantity,
         })
     }
 
@@ -129,6 +172,8 @@ impl ProductionSingleShotExecutionStrategy {
         actual_submission_attempted: bool,
         last_error: Option<String>,
     ) -> anyhow::Result<()> {
+        let remaining_quantity = self.quantity.saturating_sub(self.filled_quantity);
+        let cancel_attempted = self.cancel_request_exists()?;
         atomic_write_json(
             &self.state_path,
             &ProductionExecutionOrderState {
@@ -137,12 +182,16 @@ impl ProductionSingleShotExecutionStrategy {
                 strategy_version_id: self.strategy_version_id.clone(),
                 instrument_id: self.instrument_id.to_string(),
                 client_order_id: self.client_order_id.clone(),
+                venue_order_id: self.venue_order_id.clone(),
+                original_quantity: self.quantity.to_string(),
+                filled_quantity: self.filled_quantity.to_string(),
+                remaining_quantity: remaining_quantity.to_string(),
                 status: status.to_string(),
                 terminal,
                 new_orders_blocked: true,
                 actual_submission_attempted,
                 automatic_retry_attempted: false,
-                cancel_attempted: false,
+                cancel_attempted,
                 replace_attempted: false,
                 last_error,
                 updated_at_unix_ms: current_unix_timestamp_millis(),
@@ -152,6 +201,10 @@ impl ProductionSingleShotExecutionStrategy {
 
     fn instrument_ready(&self) -> bool {
         self.cache().instrument(&self.instrument_id).is_some()
+    }
+
+    fn cancel_request_exists(&self) -> anyhow::Result<bool> {
+        validated_cancel_venue_attempt_exists(&self.control_artifact_root)
     }
 }
 
@@ -167,6 +220,7 @@ nautilus_strategy!(ProductionSingleShotExecutionStrategy, {
 
     fn on_order_accepted(&mut self, event: OrderAccepted) {
         self.client_order_id = Some(event.client_order_id.to_string());
+        self.venue_order_id = Some(event.venue_order_id.to_string());
         let _ = self.write_state("accepted", false, true, None);
     }
 
@@ -217,10 +271,14 @@ impl DataActor for ProductionSingleShotExecutionStrategy {
 
     fn on_order_filled(&mut self, event: &OrderFilled) -> anyhow::Result<()> {
         self.client_order_id = Some(event.client_order_id.to_string());
-        let terminal = self
+        self.venue_order_id = Some(event.venue_order_id.to_string());
+        let (terminal, filled_quantity) = self
             .cache()
             .order(&event.client_order_id)
-            .is_some_and(|order| order.is_closed());
+            .map_or((false, self.filled_quantity), |order| {
+                (order.is_closed(), order.filled_qty())
+            });
+        self.filled_quantity = filled_quantity;
         self.write_state(
             if terminal {
                 "filled"
@@ -235,6 +293,9 @@ impl DataActor for ProductionSingleShotExecutionStrategy {
 
     fn on_order_canceled(&mut self, event: &OrderCanceled) -> anyhow::Result<()> {
         self.client_order_id = Some(event.client_order_id.to_string());
+        if let Some(venue_order_id) = event.venue_order_id {
+            self.venue_order_id = Some(venue_order_id.to_string());
+        }
         self.write_state("canceled", true, true, None)
     }
 
@@ -251,6 +312,21 @@ fn deterministic_client_order_id(admission_id: &str) -> String {
         encoded.push_str(&format!("{byte:02x}"));
     }
     encoded
+}
+
+fn validated_cancel_venue_attempt_exists(control_artifact_root: &Path) -> anyhow::Result<bool> {
+    let attempt_path = control_artifact_root.join("execution-cancel-venue-attempt.json");
+    if !attempt_path.exists() {
+        return Ok(false);
+    }
+    let attempt = read_bounded_execution_authority_file(&attempt_path)?;
+    let request = read_bounded_execution_authority_file(
+        &control_artifact_root.join("execution-cancel-request.json"),
+    )?;
+    if attempt != execution_sha256_ref(&request).as_bytes() {
+        anyhow::bail!("live execution cancel venue attempt does not match its request");
+    }
+    Ok(true)
 }
 
 fn load_existing_execution_state(
@@ -272,13 +348,23 @@ fn load_existing_execution_state(
         .client_order_id
         .as_deref()
         .is_none_or(|value| value == deterministic_client_order_id(&execution.admission_id));
+    let quantities_valid = Decimal::from_str_exact(&state.original_quantity)
+        .ok()
+        .zip(Decimal::from_str_exact(&state.filled_quantity).ok())
+        .zip(Decimal::from_str_exact(&state.remaining_quantity).ok())
+        .is_some_and(|((original, filled), remaining)| {
+            original > Decimal::ZERO
+                && filled >= Decimal::ZERO
+                && remaining >= Decimal::ZERO
+                && filled + remaining == original
+                && original == Decimal::from_str_exact(&execution.quantity).unwrap_or_default()
+        });
     if state.schema_version != EXECUTION_STATE_SCHEMA_VERSION
         || state.admission_id != execution.admission_id
         || state.strategy_version_id != execution.strategy_version_id
         || state.instrument_id != instrument_id.to_string()
         || !state.new_orders_blocked
         || state.automatic_retry_attempted
-        || state.cancel_attempted
         || state.replace_attempted
         || !valid_client_order_id
         || !matches!(
@@ -294,6 +380,21 @@ fn load_existing_execution_state(
                 | "canceled"
                 | "submission_failed"
         )
+        || (state.cancel_attempted
+            && (!state.actual_submission_attempted
+                || state.client_order_id.is_none()
+                || !matches!(
+                    state.status.as_str(),
+                    "submission_requested"
+                        | "submitted"
+                        | "accepted"
+                        | "rejected"
+                        | "expired"
+                        | "partially_filled"
+                        | "filled"
+                        | "canceled"
+                )))
+        || !quantities_valid
     {
         anyhow::bail!("existing execution order state does not match the admitted single shot");
     }
@@ -312,6 +413,7 @@ mod tests {
             source_manifest_sha256: format!("sha256:{}", "1".repeat(64)),
             execution_admission_sha256: format!("sha256:{}", "2".repeat(64)),
             runtime_artifact_root: PathBuf::from("/tmp/ntpro-s3-lv-007-runtime"),
+            control_artifact_root: PathBuf::from("/tmp/ntpro-s3-lv-007-control"),
             risk_policy_ref: format!("risk-config-sha256:{}", "3".repeat(64)),
             owner_authority_ref: "role://institution-owner".to_string(),
             risk_authority_ref: "policy://risk/test-v1".to_string(),
@@ -411,6 +513,10 @@ mod tests {
                 strategy_version_id: section.strategy_version_id.clone(),
                 instrument_id: section.instrument_id.clone(),
                 client_order_id: Some(expected_id.clone()),
+                venue_order_id: None,
+                original_quantity: section.quantity.clone(),
+                filled_quantity: "0".to_string(),
+                remaining_quantity: section.quantity.clone(),
                 status: "submission_requested".to_string(),
                 terminal: false,
                 new_orders_blocked: true,
@@ -442,6 +548,76 @@ mod tests {
     }
 
     #[test]
+    fn execution_strategy_restart_recovers_marker_ahead_and_rejects_false_cancel_claim() {
+        let temp = tempdir().unwrap();
+        let mut section = execution_section();
+        section.control_artifact_root = temp.path().join("control");
+        fs::create_dir_all(&section.control_artifact_root).unwrap();
+        let expected_id = deterministic_client_order_id(&section.admission_id);
+        let mut state = ProductionExecutionOrderState {
+            schema_version: EXECUTION_STATE_SCHEMA_VERSION.to_string(),
+            admission_id: section.admission_id.clone(),
+            strategy_version_id: section.strategy_version_id.clone(),
+            instrument_id: section.instrument_id.clone(),
+            client_order_id: Some(expected_id),
+            venue_order_id: Some("1001".to_string()),
+            original_quantity: section.quantity.clone(),
+            filled_quantity: "0".to_string(),
+            remaining_quantity: section.quantity.clone(),
+            status: "accepted".to_string(),
+            terminal: false,
+            new_orders_blocked: true,
+            actual_submission_attempted: true,
+            automatic_retry_attempted: false,
+            cancel_attempted: true,
+            replace_attempted: false,
+            last_error: None,
+            updated_at_unix_ms: 1,
+        };
+        atomic_write_json(&temp.path().join("execution-order-state.json"), &state).unwrap();
+        assert!(ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).is_err());
+
+        let request = b"approved control request";
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-request.json"),
+            request,
+        )
+        .unwrap();
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+            execution_sha256_ref(request),
+        )
+        .unwrap();
+        ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
+
+        for status in ["submission_requested", "submitted", "accepted"] {
+            state.status = status.to_string();
+            state.venue_order_id = (status == "accepted").then(|| "1001".to_string());
+            state.cancel_attempted = false;
+            atomic_write_json(&temp.path().join("execution-order-state.json"), &state).unwrap();
+            ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
+            let recovered: ProductionExecutionOrderState = serde_json::from_slice(
+                &fs::read(temp.path().join("execution-order-state.json")).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(recovered.status, status);
+            assert!(recovered.cancel_attempted);
+        }
+
+        fs::remove_file(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+        )
+        .unwrap();
+        assert!(ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).is_err());
+    }
+
+    #[test]
     fn execution_strategy_rejects_tampered_persisted_client_order_id() {
         let temp = tempdir().unwrap();
         let section = execution_section();
@@ -453,6 +629,10 @@ mod tests {
                 strategy_version_id: section.strategy_version_id.clone(),
                 instrument_id: section.instrument_id.clone(),
                 client_order_id: Some("attacker-controlled-id".to_string()),
+                venue_order_id: None,
+                original_quantity: section.quantity.clone(),
+                filled_quantity: "0".to_string(),
+                remaining_quantity: section.quantity.clone(),
                 status: "submitted".to_string(),
                 terminal: false,
                 new_orders_blocked: true,
@@ -470,5 +650,71 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("does not match the admitted single shot"));
+    }
+
+    #[test]
+    fn execution_strategy_marks_cancel_only_after_a_real_venue_attempt() {
+        let temp = tempdir().unwrap();
+        let mut section = execution_section();
+        section.control_artifact_root = temp.path().join("control");
+        fs::create_dir_all(&section.control_artifact_root).unwrap();
+        let strategy =
+            ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
+
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-attempt.json"),
+            b"approved control request",
+        )
+        .unwrap();
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-request.json"),
+            b"approved control request",
+        )
+        .unwrap();
+        assert!(!strategy.cancel_request_exists().unwrap());
+
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+            execution_sha256_ref(b"approved control request"),
+        )
+        .unwrap();
+        assert!(strategy.cancel_request_exists().unwrap());
+
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+            b"sha256:tampered",
+        )
+        .unwrap();
+        assert!(strategy.cancel_request_exists().is_err());
+    }
+
+    #[test]
+    fn canceled_event_without_venue_id_preserves_existing_exchange_identity() {
+        let temp = tempdir().unwrap();
+        let mut strategy =
+            ProductionSingleShotExecutionStrategy::from_config(&execution_section(), temp.path())
+                .unwrap();
+        strategy.venue_order_id = Some("1001".to_string());
+        let event = OrderCanceled {
+            client_order_id: ClientOrderId::from("S3LV007-001"),
+            venue_order_id: None,
+            ..Default::default()
+        };
+
+        strategy.on_order_canceled(&event).unwrap();
+
+        let state: ProductionExecutionOrderState = serde_json::from_slice(
+            &fs::read(temp.path().join("execution-order-state.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(state.venue_order_id.as_deref(), Some("1001"));
     }
 }

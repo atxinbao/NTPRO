@@ -61,6 +61,7 @@ mod tests;
 
 pub(super) use live_admission::{live_account_refresh_api, live_admission_api};
 pub(super) use live_run::{
+    live_execution_cancel_operator_approval_api, live_execution_cancel_owner_approval_api,
     live_execution_operator_approval_api, live_execution_owner_approval_api,
     live_execution_risk_approval_api, live_run_candidate_action_api, live_run_candidate_create_api,
     live_run_candidate_detail_api, live_run_candidate_list_api,

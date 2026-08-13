@@ -10,6 +10,7 @@ import { useState } from "react";
 import { ProductApiRequestError } from "../api/productApi";
 import {
   useLiveAdmission,
+  useLiveExecutionCancelOwnerApproval,
   useLiveExecutionOwnerApproval,
   useLiveRunCandidates,
   useCreateLiveRunCandidate,
@@ -25,7 +26,7 @@ const blockerLabels: Record<string, string> = {
   production_network_not_authorized: "生产网络连接尚未授权",
   authenticated_account_read_not_authorized: "账户只读连接尚未授权",
   live_run_creation_not_authorized: "真实 Live Runtime 启动尚未授权",
-  follow_up_order_mutation_not_authorized: "追加、撤单与改单尚未授权",
+  follow_up_order_mutation_not_authorized: "追加与改单尚未授权，撤单需独立门禁",
   automatic_recovery_not_authorized: "自动恢复尚未授权",
   api_key_missing: "生产 API Key 尚未配置",
   api_secret_missing: "生产 API Secret 尚未配置",
@@ -33,6 +34,7 @@ const blockerLabels: Record<string, string> = {
 
 export function LivePage() {
   const [liveRunConfirmed, setLiveRunConfirmed] = useState(false);
+  const [cancelConfirmed, setCancelConfirmed] = useState(false);
   const [executionDraft, setExecutionDraft] = useState({
     side: "BUY" as "BUY" | "SELL",
     price: "",
@@ -53,6 +55,7 @@ export function LivePage() {
   const createLiveRun = useCreateLiveRunCandidate();
   const liveRunAction = useLiveRunCandidateAction();
   const executionOwnerApproval = useLiveExecutionOwnerApproval();
+  const executionCancelOwnerApproval = useLiveExecutionCancelOwnerApproval();
   const auditAnchorUnavailable =
     liveRunCandidates.error instanceof ProductApiRequestError &&
     liveRunCandidates.error.field === "live_run_audit_anchor_config";
@@ -78,6 +81,7 @@ export function LivePage() {
   const boundaries = admission.data.boundaries;
   const account = accountRefresh.data?.data;
   const liveRun = liveRunCandidates.data?.data[0];
+  const liveRunBoundaries = liveRunCandidates.data?.boundaries;
   const executionInstrument = product.version?.data_requirements.symbols[0];
   const executionConfirmationsComplete = executionDraft.userConfirmed;
   const canCreateLiveRun =
@@ -101,7 +105,7 @@ export function LivePage() {
           <p>生产行情与单笔真实限价单分别准入，每次执行都需要独立确认。</p>
         </div>
         <span className={styles.readOnlyBadge}>
-          <ShieldAlert aria-hidden="true" /> 只读边界
+          <ShieldAlert aria-hidden="true" /> 独立准入
         </span>
       </header>
 
@@ -138,7 +142,7 @@ export function LivePage() {
                 ? "单笔已消费"
                 : "未授权"}
           </strong>
-          <small>撤单、改单和自动重试仍阻断</small>
+          <small>人工撤单需双人确认；改单和自动重试阻断</small>
         </article>
       </section>
 
@@ -212,7 +216,14 @@ export function LivePage() {
               liveRun?.order_admission.status === "authorized_single_shot"
             }
           />
-          <Boundary label="撤单与改单" value="关闭" />
+          <Boundary
+            label="人工撤单"
+            value={
+              liveRunBoundaries?.cancel_order_allowed ? "双人确认" : "关闭"
+            }
+            enabled={liveRunBoundaries?.cancel_order_allowed}
+          />
+          <Boundary label="改单" value="关闭" />
           <Boundary label="自动恢复" value="关闭" />
           <Boundary label="人工停机" value="必须" enabled />
         </aside>
@@ -407,6 +418,26 @@ export function LivePage() {
                 value={liveRun.execution_order?.client_order_id ?? "尚未生成"}
               />
               <Detail
+                label="Venue Order ID"
+                value={liveRun.execution_order?.venue_order_id ?? "尚未返回"}
+              />
+              <Detail
+                label="原始数量"
+                value={liveRun.execution_order?.original_quantity ?? "-"}
+              />
+              <Detail
+                label="累计成交"
+                value={liveRun.execution_order?.filled_quantity ?? "-"}
+              />
+              <Detail
+                label="剩余数量"
+                value={liveRun.execution_order?.remaining_quantity ?? "-"}
+              />
+              <Detail
+                label="最近人工控制"
+                value={liveRun.execution_control?.status ?? "尚未执行"}
+              />
+              <Detail
                 label="追加订单"
                 value={
                   liveRun.execution_order?.new_orders_blocked === true
@@ -447,6 +478,11 @@ export function LivePage() {
             {executionOwnerApproval.error ? (
               <p className={styles.formError}>
                 {executionOwnerApproval.error.message}
+              </p>
+            ) : null}
+            {executionCancelOwnerApproval.error ? (
+              <p className={styles.formError}>
+                {executionCancelOwnerApproval.error.message}
               </p>
             ) : null}
             {liveRun.lifecycle === "preflight_ready" &&
@@ -588,8 +624,10 @@ export function LivePage() {
             <div className={styles.runActions}>
               <span>
                 {liveRun.order_admission.status === "authorized_single_shot"
-                  ? "已绑定单笔订单，启动后不能追加、撤销或改单。"
-                  : "普通行情启动不注册执行客户端。"}
+                  ? "已绑定单笔订单，启动后不能追加或改单；撤单需双人确认。"
+                  : liveRun.execution_order
+                    ? "可人工对账；撤单需机构申请并由当班操作员再次确认。"
+                    : "普通行情启动不注册执行客户端。"}
               </span>
               {liveRun.lifecycle === "created" ? (
                 <button
@@ -636,6 +674,69 @@ export function LivePage() {
                 >
                   启动单笔真实执行
                 </button>
+              ) : null}
+              {liveRun.lifecycle === "market_data_running" &&
+              liveRun.execution_order?.client_order_id &&
+              !liveRun.execution_order.terminal &&
+              liveRunBoundaries?.fill_reconciliation_allowed ? (
+                <button
+                  type="button"
+                  disabled={liveRunAction.isPending}
+                  onClick={() =>
+                    liveRunAction.mutate({
+                      runId: liveRun.run_id,
+                      action: "reconcile_order",
+                    })
+                  }
+                >
+                  <RefreshCw aria-hidden="true" />
+                  刷新交易所订单状态
+                </button>
+              ) : null}
+              {liveRun.lifecycle === "market_data_running" &&
+              liveRun.execution_order?.client_order_id &&
+              liveRun.execution_order_state_sha256 &&
+              !liveRun.execution_order.terminal &&
+              !liveRun.execution_order.cancel_attempted &&
+              liveRunBoundaries?.cancel_order_allowed ? (
+                <>
+                  <label className={styles.confirmationRow}>
+                    <input
+                      type="checkbox"
+                      checked={cancelConfirmed}
+                      onChange={(event) =>
+                        setCancelConfirmed(event.target.checked)
+                      }
+                    />
+                    <span>我确认申请撤销当前订单的剩余未成交数量。</span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={
+                      !cancelConfirmed || executionCancelOwnerApproval.isPending
+                    }
+                    onClick={() =>
+                      executionCancelOwnerApproval.mutate({
+                        runId: liveRun.run_id,
+                        request: {
+                          run_id: liveRun.run_id,
+                          request_id: `cancel-${Date.now()}`,
+                          client_order_id:
+                            liveRun.execution_order!.client_order_id!,
+                          source_order_state_sha256:
+                            liveRun.execution_order_state_sha256!,
+                          expires_at_unix_ms: Date.now() + 5 * 60 * 1_000,
+                          user_confirmed: true,
+                        },
+                      })
+                    }
+                  >
+                    <Unplug aria-hidden="true" />
+                    {executionCancelOwnerApproval.isPending
+                      ? "提交中"
+                      : "提交人工撤单申请"}
+                  </button>
+                </>
               ) : null}
               {["created", "preflight_ready", "market_data_running"].includes(
                 liveRun.lifecycle,
