@@ -1966,6 +1966,20 @@ fn validate_execution_control_snapshot(
         || result.automatic_retry_attempted
         || (result.action == "reconcile" && result.cancel_attempted)
         || (result.cancel_confirmed && (!result.cancel_attempted || result.action != "cancel"))
+        || (result.status == "cancel_confirmed"
+            && result.exchange_order_status.as_deref() != Some("canceled"))
+        || (result.status == "cancel_not_required_terminal_or_pending"
+            && !matches!(
+                result.exchange_order_status.as_deref(),
+                Some(
+                    "filled"
+                        | "canceled"
+                        | "expired"
+                        | "rejected"
+                        | "pending_cancel"
+                        | "pending_update"
+                )
+            ))
         || (result.status == "unknown_manual_review" && !result.manual_review_required)
         || !quantities_valid
         || !monotonic_with_runtime
@@ -4172,8 +4186,7 @@ fn validate_execution_order_progression(
         || source
             .venue_order_id
             .as_ref()
-            .zip(current.venue_order_id.as_ref())
-            .is_some_and(|(source, current)| source != current)
+            .is_some_and(|source| current.venue_order_id.as_ref() != Some(source))
         || current_filled < source_filled
         || current.updated_at_unix_ms < source.updated_at_unix_ms
         || (source.terminal && !current.terminal)
@@ -5996,6 +6009,11 @@ mod tests {
         let mut changed_venue = progressed;
         changed_venue.venue_order_id = Some("1002".to_string());
         assert!(validate_execution_order_progression(&source, &changed_venue).is_err());
+
+        let mut missing_venue = source.clone();
+        missing_venue.venue_order_id = None;
+        missing_venue.updated_at_unix_ms += 1;
+        assert!(validate_execution_order_progression(&source, &missing_venue).is_err());
     }
 
     struct LiveRunFixture {

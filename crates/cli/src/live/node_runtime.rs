@@ -576,17 +576,7 @@ where
         &result_receipt_path,
     )?;
     let result_exists = attempt_state == ExecutionControlAttemptState::ResultExists;
-    match attempt_state {
-        ExecutionControlAttemptState::Interrupted => {
-            publish_result(
-                context,
-                &request_sha256,
-                &interrupted_execution_control_result(&request, &request_sha256),
-            )?;
-            return Ok(());
-        }
-        ExecutionControlAttemptState::Fresh | ExecutionControlAttemptState::ResultExists => {}
-    }
+    let recovery_attempt = attempt_state != ExecutionControlAttemptState::Fresh;
     let source_order_state_raw =
         read_bounded_execution_authority_file(&context.candidate_root.join(source_order_file))?;
     if request.source_order_state_sha256 != execution_sha256_ref(&source_order_state_raw) {
@@ -606,7 +596,7 @@ where
         match serde_json::from_slice(&current_order_state_raw) {
             Ok(order_state) => order_state,
             Err(_) => {
-                if result_exists {
+                if recovery_attempt {
                     anyhow::bail!("live execution control result source order state is invalid");
                 }
                 publish_result(
@@ -626,7 +616,7 @@ where
     if !execution_control_source_order_matches(context, &request, &current_order_state)
         || !execution_control_order_progression_is_valid(&source_order_state, &current_order_state)
     {
-        if result_exists {
+        if recovery_attempt {
             anyhow::bail!("live execution control result source identity is invalid");
         }
         publish_result(
@@ -640,6 +630,19 @@ where
                 false,
             ),
         )?;
+        return Ok(());
+    }
+
+    if attempt_state == ExecutionControlAttemptState::Interrupted {
+        let result = interrupted_execution_control_result(&request, &request_sha256);
+        validate_execution_control_result(
+            context,
+            &request,
+            &request_sha256,
+            &source_order_state,
+            &result,
+        )?;
+        publish_result(context, &request_sha256, &result)?;
         return Ok(());
     }
 
@@ -1075,6 +1078,17 @@ fn validate_execution_control_result(
                 && !result.cancel_confirmed
                 && !result.manual_review_required
                 && result.error_code.is_none()
+                && matches!(
+                    result.exchange_order_status.as_deref(),
+                    Some(
+                        "filled"
+                            | "canceled"
+                            | "expired"
+                            | "rejected"
+                            | "pending_cancel"
+                            | "pending_update"
+                    )
+                )
         }
         ("cancel", "unknown_manual_review") => {
             !result.cancel_confirmed && result.manual_review_required && result.error_code.is_some()
@@ -1683,6 +1697,38 @@ mod execution_authority_tests {
             )
             .is_err()
         );
+
+        let cancel_request = control_request("cancel");
+        let mut invalid_terminal = execution_control_result_from_report(
+            &cancel_request,
+            request_sha256,
+            &partial_fill_report(),
+            "cancel_not_required_terminal_or_pending",
+            true,
+            false,
+            false,
+            false,
+            None,
+        );
+        assert!(
+            validate_execution_control_result(
+                &context,
+                &cancel_request,
+                request_sha256,
+                &source_order,
+                &invalid_terminal,
+            )
+            .is_err()
+        );
+        invalid_terminal.exchange_order_status = Some("pending_cancel".to_string());
+        validate_execution_control_result(
+            &context,
+            &cancel_request,
+            request_sha256,
+            &source_order,
+            &invalid_terminal,
+        )
+        .unwrap();
     }
 
     #[test]
@@ -1910,6 +1956,9 @@ mod execution_authority_tests {
         let mut request = control_request("cancel");
         request.requested_at_unix_ms = 1;
         request.expires_at_unix_ms = 2;
+        let source = partial_fill_order_state();
+        let source_raw = serde_json::to_vec_pretty(&source).unwrap();
+        request.source_order_state_sha256 = execution_sha256_ref(&source_raw);
         let request_raw = serde_json::to_vec_pretty(&request).unwrap();
         fs::write(
             temp.path().join(EXECUTION_CANCEL_REQUEST_FILE),
@@ -1921,6 +1970,12 @@ mod execution_authority_tests {
             &request_raw,
         )
         .unwrap();
+        fs::write(
+            temp.path().join(EXECUTION_CANCEL_SOURCE_ORDER_FILE),
+            &source_raw,
+        )
+        .unwrap();
+        fs::write(temp.path().join(EXECUTION_ORDER_STATE_FILE), &source_raw).unwrap();
         let published = Mutex::new(None);
 
         process_production_execution_control_with_publisher(
@@ -1945,6 +2000,22 @@ mod execution_authority_tests {
             Some("previous_attempt_interrupted_no_retry")
         );
         assert!(!result.automatic_retry_attempted);
+
+        fs::remove_file(temp.path().join(EXECUTION_CANCEL_SOURCE_ORDER_FILE)).unwrap();
+        assert!(
+            process_production_execution_control_with_publisher(
+                &context,
+                "cancel",
+                EXECUTION_CANCEL_REQUEST_FILE,
+                EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+                "execution-cancel-attempt.json",
+                EXECUTION_CANCEL_RESULT_FILE,
+                EXECUTION_CANCEL_RESULT_RECEIPT_FILE,
+                |_, _, _| Ok(()),
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[tokio::test]
