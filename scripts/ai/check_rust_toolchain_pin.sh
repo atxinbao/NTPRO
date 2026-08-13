@@ -90,30 +90,35 @@ for workflow in \
   .github/workflows/backend-performance.yml \
   .github/workflows/release-tag.yml \
   .github/workflows/release-publish.yml; do
-  workflow_toolchain_bindings=$((workflow_toolchain_bindings + 1))
-  actual_workflow_block="$(awk '
-    /^      - name: Resolve pinned Rust toolchain$/ { capture = 1 }
-    capture { print }
-    capture && /printf '\''toolchain=%s\\n'\'' "\$toolchain" >>"\$GITHUB_OUTPUT"/ { exit }
-  ' "$workflow")"
-  if [ "$actual_workflow_block" != "$expected_workflow_block" ]; then
-    echo "workflow toolchain resolution is not one ordered fail-closed block: $workflow" >&2
-    exit 1
+  expected_binding_count=1
+  if [ "$workflow" = ".github/workflows/rust-cutover-smoke.yml" ]; then
+    expected_binding_count=3
   fi
+  workflow_toolchain_bindings=$((workflow_toolchain_bindings + expected_binding_count))
+
+  resolution_count="$(grep -Fc '      - name: Resolve pinned Rust toolchain' "$workflow")"
   setup_action_count="$(grep -Ec "^[[:space:]]+(-[[:space:]]+)?uses:[[:space:]]+['\"]?actions-rust-lang/setup-rust-toolchain@" "$workflow")"
-  if [ "$setup_action_count" -ne 1 ]; then
-    echo "workflow must contain exactly one setup-rust-toolchain action: $workflow" >&2
+  if [ "$resolution_count" -ne "$expected_binding_count" ] \
+    || [ "$setup_action_count" -ne "$expected_binding_count" ]; then
+    echo "workflow Rust toolchain binding count mismatch: $workflow expected=$expected_binding_count resolution=$resolution_count setup=$setup_action_count" >&2
     exit 1
   fi
-  actual_setup_consumer="$(awk '
-    /^      - uses: actions-rust-lang\/setup-rust-toolchain@/ { capture = 1 }
-    capture { print }
-    capture && /^          toolchain:/ { exit }
-  ' "$workflow")"
-  if [ "$actual_setup_consumer" != "$expected_setup_consumer" ]; then
-    echo "workflow setup action does not consume the canonical toolchain output: $workflow" >&2
-    exit 1
-  fi
+
+  while IFS=: read -r line _; do
+    actual_workflow_block="$(sed -n "${line},$((line + 6))p" "$workflow")"
+    if [ "$actual_workflow_block" != "$expected_workflow_block" ]; then
+      echo "workflow toolchain resolution is not an ordered fail-closed block: $workflow:$line" >&2
+      exit 1
+    fi
+  done < <(grep -nF '      - name: Resolve pinned Rust toolchain' "$workflow")
+
+  while IFS=: read -r line _; do
+    actual_setup_consumer="$(sed -n "${line},$((line + 2))p" "$workflow")"
+    if [ "$actual_setup_consumer" != "$expected_setup_consumer" ]; then
+      echo "workflow setup action does not consume the canonical toolchain output: $workflow:$line" >&2
+      exit 1
+    fi
+  done < <(grep -nE '^      - uses: actions-rust-lang/setup-rust-toolchain@' "$workflow")
 done
 
 if ! grep -Eq '^override CARGO := \$\(NTPRO_RUSTUP_BIN\) run \$\(NTPRO_RUST_TOOLCHAIN\) cargo$' Makefile \

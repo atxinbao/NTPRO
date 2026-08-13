@@ -9,11 +9,12 @@ packages.
 
 ## Current Workflows
 
-- `rust-cutover-smoke.yml`: required pull-request smoke, governance, CLI, and
-  supervisor checks.
+- `rust-cutover-smoke.yml`: required pull-request gate with parallel core,
+  Rust lint, and Rust test lanes, aggregated by the stable `smoke` check.
 - `security-audit.yml`: Zizmor plus Cargo audit, deny, vet, and OSV scanning.
-- `backend-performance.yml`: backend performance baseline and regression
-  contract.
+- `backend-performance.yml`: scheduled or manually dispatched backend
+  performance baseline and regression contract; ordinary pull requests do not
+  run its six-workload matrix.
 - `release-tag.yml`: tag-push release gate for the current Rust-only release
   surface.
 - `release-publish.yml`: publishes a release only after a successful matching

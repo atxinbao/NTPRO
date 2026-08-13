@@ -47,7 +47,7 @@ if matches '^docs/product/api/ntpro_product_v1[.]openapi[.]json$'; then
   strategy_workbench=true
 fi
 
-if matches '^(\.github/(workflows|actions)/|scripts/ai/|docs/rust-cutover/(governance|release|golden_trace)/|tests/golden/|crates/governance/|scripts/ci/(classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
+if matches '^(\.github/(workflows|actions)/|scripts/ai/|docs/rust-cutover/(governance|release|golden_trace)/|tests/golden/|crates/governance/|scripts/ci/(aggregate-pr-smoke|classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
   release_verify=true
 fi
 
@@ -63,11 +63,11 @@ if matches '^(crates/cli/src/dashboard/(control_center\.rs|server\.rs|server/tes
   control_center=true
 fi
 
-if matches '^(Cargo\.(toml|lock)|\.cargo/.*|crates/.*|scripts/ai/test_mvp_acceptance\.mjs|configs/nodes/btc-ema-shadow\.toml|examples/rust/backtest/minimal_engine_smoke\.toml|\.github/workflows/rust-cutover-smoke\.yml|scripts/ci/(classify-ci-changes|test-ci-change-classifier)\.sh)$'; then
+if matches '^(scripts/ai/test_mvp_acceptance\.mjs|configs/nodes/btc-ema-shadow\.toml|examples/rust/backtest/minimal_engine_smoke\.toml|\.github/workflows/rust-cutover-smoke\.yml|scripts/ci/(classify-ci-changes|test-ci-change-classifier)\.sh)$'; then
   mvp_acceptance=true
 fi
 
-if matches '^(Cargo\.(toml|lock)|\.cargo/.*|crates/.*|scripts/ai/test_mvp_fault_matrix\.mjs|configs/nodes/btc-ema-shadow\.toml|\.github/workflows/rust-cutover-smoke\.yml|scripts/ci/(classify-ci-changes|test-ci-change-classifier)\.sh)$'; then
+if matches '^(scripts/ai/test_mvp_fault_matrix\.mjs|configs/nodes/btc-ema-shadow\.toml|\.github/workflows/rust-cutover-smoke\.yml|scripts/ci/(classify-ci-changes|test-ci-change-classifier)\.sh)$'; then
   mvp_fault_matrix=true
 fi
 
@@ -96,7 +96,7 @@ if [[ "$strategy_workbench" == "true" ]]; then
   frontend_app=true
 fi
 
-if matches '^(\.github/|\.zizmor\.yml$|scripts/ci/(classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
+if matches '^(\.github/|\.zizmor\.yml$|scripts/ci/(aggregate-pr-smoke|classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
   security_workflow=true
 fi
 
