@@ -928,7 +928,67 @@ export type LiveExecutionOrderSnapshot = {
   updated_at_unix_ms: number;
 };
 
-export type LiveExecutionControlSnapshot = {
+export type LiveExecutionControlSnapshot = (
+  | {
+      action?: "reconcile";
+      status?: "reconciled";
+      query_attempted?: true;
+      cancel_attempted?: false;
+      cancel_confirmed?: false;
+      manual_review_required?: false;
+      error_code?: null;
+    }
+  | {
+      action?: "reconcile";
+      status?: "unknown_manual_review";
+      cancel_attempted?: false;
+      cancel_confirmed?: false;
+      manual_review_required?: true;
+      error_code?: string;
+    }
+  | {
+      action?: "cancel";
+      status?: "cancel_confirmed";
+      exchange_order_status?: "canceled";
+      query_attempted?: true;
+      cancel_attempted?: true;
+      cancel_confirmed?: true;
+      manual_review_required?: false;
+      error_code?: null;
+    }
+  | {
+      action?: "cancel";
+      status?: "cancel_sent_readback_pending";
+      query_attempted?: true;
+      cancel_attempted?: true;
+      cancel_confirmed?: false;
+      manual_review_required?: true;
+      error_code?: null;
+    }
+  | {
+      action?: "cancel";
+      status?: "cancel_not_required_terminal_or_pending";
+      exchange_order_status?:
+        | "filled"
+        | "canceled"
+        | "expired"
+        | "rejected"
+        | "pending_cancel"
+        | "pending_update";
+      query_attempted?: true;
+      cancel_attempted?: false;
+      cancel_confirmed?: false;
+      manual_review_required?: false;
+      error_code?: null;
+    }
+  | {
+      action?: "cancel";
+      status?: "unknown_manual_review";
+      cancel_confirmed?: false;
+      manual_review_required?: true;
+      error_code?: string;
+    }
+) & {
   schema_version: "ntpro.s3.live_execution_control_result.v1";
   request_sha256: ContentHash;
   request_id: string;

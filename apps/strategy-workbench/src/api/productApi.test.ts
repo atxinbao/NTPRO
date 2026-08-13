@@ -108,6 +108,83 @@ function jsonFetch(payload: unknown, status = 200) {
   );
 }
 
+function liveExecutionControlResponse(): Record<string, any> {
+  const running: Record<string, any> = structuredClone(liveRunCandidateFixture);
+  running.schema_version =
+    "ntpro.product_api.live_run_candidate_action.response.v1";
+  running.data.lifecycle = "market_data_running";
+  running.data.preflight_at_unix_ms = 1786406401000;
+  running.data.account_connected = true;
+  running.data.account_can_trade_verified = true;
+  running.data.runtime_started = true;
+  running.data.market_data_connected = true;
+  running.data.runtime_node_id = running.data.run_id;
+  running.data.runtime_process_state = "running";
+  running.data.order_admission = {
+    status: "consumed_single_shot",
+    submit: "blocked",
+    cancel: "dual_approval_required",
+    replace: "blocked",
+    fill_reconciliation: "explicit_manual_available",
+    owner_approved: true,
+    risk_approved: true,
+    operator_approved: true,
+    blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
+  };
+  running.data.execution_order = {
+    schema_version: "ntpro.s3.live_execution_order_state.v2",
+    admission_id: "manual-001",
+    strategy_version_id: running.data.strategy_version_id,
+    instrument_id: "BTCUSDT.BINANCE",
+    client_order_id: "S3LV008-001",
+    venue_order_id: "1001",
+    original_quantity: "0.00001000",
+    filled_quantity: "0.00000400",
+    remaining_quantity: "0.00000600",
+    status: "canceled",
+    terminal: true,
+    new_orders_blocked: true,
+    actual_submission_attempted: true,
+    automatic_retry_attempted: false,
+    cancel_attempted: true,
+    replace_attempted: false,
+    last_error: null,
+    updated_at_unix_ms: 1786406404000,
+  };
+  running.data.execution_order_state_sha256 = `sha256:${"a".repeat(64)}`;
+  running.data.execution_control = {
+    schema_version: "ntpro.s3.live_execution_control_result.v1",
+    request_sha256: `sha256:${"b".repeat(64)}`,
+    request_id: "cancel-control-001",
+    action: "cancel",
+    run_id: running.data.run_id,
+    admission_id: "manual-001",
+    strategy_version_id: running.data.strategy_version_id,
+    instrument_id: "BTCUSDT.BINANCE",
+    client_order_id: "S3LV008-001",
+    venue_order_id: "1001",
+    status: "cancel_confirmed",
+    exchange_order_status: "canceled",
+    original_quantity: "0.00001000",
+    filled_quantity: "0.00000400",
+    remaining_quantity: "0.00000600",
+    query_attempted: true,
+    cancel_attempted: true,
+    cancel_confirmed: true,
+    automatic_retry_attempted: false,
+    manual_review_required: false,
+    error_code: null,
+    completed_at_unix_ms: 1786406403500,
+  };
+  running.data.audit_anchor.revision = 4;
+  running.data.audit_anchor.workspace_revision = 4;
+  running.data.audit_anchor.receipt_ref = `sha256:${"8".repeat(64)}`;
+  running.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+  running.boundaries.execution_adapter_send_attempted = true;
+  running.boundaries.real_orders_submitted = true;
+  return running;
+}
+
 describe("product API generated client", () => {
   it("creates and reads a fail-closed Live Run candidate", async () => {
     const createFetch = jsonFetch(liveRunCandidateFixture, 201);
@@ -369,6 +446,73 @@ describe("product API generated client", () => {
     );
     expect(submitted.method).toBe("POST");
     expect(await submitted.clone().json()).toEqual(request);
+  });
+
+  it("accepts a confirmed manual cancel result", async () => {
+    const running = liveExecutionControlResponse();
+    const result = await createProductApiClient({
+      fetch: jsonFetch(running),
+    }).actOnLiveRunCandidate(running.data.run_id, "start_execution");
+    expect(result.data.execution_control?.status).toBe("cancel_confirmed");
+    expect(result.data.execution_order?.cancel_attempted).toBe(true);
+  });
+
+  it("accepts a terminal fill after a real cancel attempt without claiming confirmation", async () => {
+    const running = liveExecutionControlResponse();
+    running.data.execution_order.status = "filled";
+    running.data.execution_order.filled_quantity = "0.00001000";
+    running.data.execution_order.remaining_quantity = "0";
+    running.data.execution_control.status = "cancel_sent_readback_pending";
+    running.data.execution_control.exchange_order_status = "filled";
+    running.data.execution_control.filled_quantity = "0.00001000";
+    running.data.execution_control.remaining_quantity = "0";
+    running.data.execution_control.cancel_confirmed = false;
+    running.data.execution_control.manual_review_required = true;
+
+    const result = await createProductApiClient({
+      fetch: jsonFetch(running),
+    }).actOnLiveRunCandidate(running.data.run_id, "start_execution");
+    expect(result.data.execution_order?.status).toBe("filled");
+    expect(result.data.execution_control?.manual_review_required).toBe(true);
+  });
+
+  it.each([
+    [
+      "cross-action status",
+      (value: Record<string, any>) =>
+        (value.data.execution_control.action = "reconcile"),
+    ],
+    [
+      "manual review on confirmed cancel",
+      (value: Record<string, any>) =>
+        (value.data.execution_control.manual_review_required = true),
+    ],
+    [
+      "cancel-not-required after venue send",
+      (value: Record<string, any>) => {
+        value.data.execution_control.status =
+          "cancel_not_required_terminal_or_pending";
+        value.data.execution_control.cancel_confirmed = false;
+      },
+    ],
+    [
+      "admitted quantity mismatch",
+      (value: Record<string, any>) =>
+        (value.data.execution_control.original_quantity = "0.00002000"),
+    ],
+    [
+      "venue order identity mismatch",
+      (value: Record<string, any>) =>
+        (value.data.execution_control.venue_order_id = "different-order"),
+    ],
+  ])("rejects Live execution control %s", async (_, mutate) => {
+    const running = liveExecutionControlResponse();
+    mutate(running);
+    await expect(
+      createProductApiClient({
+        fetch: jsonFetch(running),
+      }).actOnLiveRunCandidate(running.data.run_id, "start_execution"),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
   });
 
   it("accepts an expired admission that failed before any adapter send", async () => {

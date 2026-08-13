@@ -3021,7 +3021,78 @@
           "manual_review_required": { "type": "boolean" },
           "error_code": { "type": ["string", "null"], "minLength": 1 },
           "completed_at_unix_ms": { "type": "integer", "minimum": 1 }
-        }
+        },
+        "allOf": [
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "action": { "const": "reconcile" },
+                  "status": { "const": "reconciled" },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": false },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": false },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "reconcile" },
+                  "status": { "const": "unknown_manual_review" },
+                  "cancel_attempted": { "const": false },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": true },
+                  "error_code": { "type": "string", "minLength": 1 }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "cancel_confirmed" },
+                  "exchange_order_status": { "const": "canceled" },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": true },
+                  "cancel_confirmed": { "const": true },
+                  "manual_review_required": { "const": false },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "cancel_sent_readback_pending" },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": true },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": true },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "cancel_not_required_terminal_or_pending" },
+                  "exchange_order_status": { "enum": ["filled", "canceled", "expired", "rejected", "pending_cancel", "pending_update"] },
+                  "query_attempted": { "const": true },
+                  "cancel_attempted": { "const": false },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": false },
+                  "error_code": { "type": "null" }
+                }
+              },
+              {
+                "properties": {
+                  "action": { "const": "cancel" },
+                  "status": { "const": "unknown_manual_review" },
+                  "cancel_confirmed": { "const": false },
+                  "manual_review_required": { "const": true },
+                  "error_code": { "type": "string", "minLength": 1 }
+                }
+              }
+            ]
+          }
+        ]
       },
       "LiveRunCandidate": {
         "type": "object",

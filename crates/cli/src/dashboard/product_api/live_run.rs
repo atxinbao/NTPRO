@@ -1899,6 +1899,7 @@ fn validate_execution_control_snapshot(
     manifest: &LiveRunCandidateManifest,
     admission: Option<&LiveExecutionAdmissionArtifact>,
     order: Option<&LiveExecutionOrderSnapshot>,
+    cancel_venue_attempted: bool,
 ) -> Result<(), ProductError> {
     let admission = admission.ok_or_else(|| {
         product_error(
@@ -1906,14 +1907,7 @@ fn validate_execution_control_snapshot(
             "live_execution_control_admission",
         )
     })?;
-    let status_valid = matches!(
-        result.status.as_str(),
-        "reconciled"
-            | "cancel_confirmed"
-            | "cancel_sent_readback_pending"
-            | "cancel_not_required_terminal_or_pending"
-            | "unknown_manual_review"
-    );
+    let status_valid = execution_control_status_is_valid(result);
     let quantities_valid = match (
         result.original_quantity.as_deref(),
         result.filled_quantity.as_deref(),
@@ -1923,7 +1917,8 @@ fn validate_execution_control_snapshot(
             let original = Decimal::from_str_exact(original).ok();
             let filled = Decimal::from_str_exact(filled).ok();
             let remaining = Decimal::from_str_exact(remaining).ok();
-            matches!((original, filled, remaining), (Some(o), Some(f), Some(r)) if o > Decimal::ZERO && f >= Decimal::ZERO && r >= Decimal::ZERO && f + r == o)
+            let admitted = Decimal::from_str_exact(&admission.quantity).ok();
+            matches!((original, filled, remaining, admitted), (Some(o), Some(f), Some(r), Some(a)) if o == a && f >= Decimal::ZERO && r >= Decimal::ZERO && f + r == o)
         }
         (None, None, None) => result.manual_review_required,
         _ => false,
@@ -1945,6 +1940,13 @@ fn validate_execution_control_snapshot(
             _ => false,
         }
     });
+    let has_exchange_identity = result.original_quantity.is_some();
+    let venue_identity_valid = order.is_some_and(|order| {
+        order
+            .venue_order_id
+            .as_ref()
+            .is_none_or(|venue_order_id| result.venue_order_id.as_ref() == Some(venue_order_id))
+    });
     if result.schema_version != LIVE_EXECUTION_CONTROL_RESULT_SCHEMA_VERSION
         || request.schema_version != LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION
         || result.request_sha256 != sha256_ref(request_raw)
@@ -1959,31 +1961,16 @@ fn validate_execution_control_snapshot(
         || result.admission_id != admission.admission_id
         || result.strategy_version_id != admission.strategy_version_id
         || result.instrument_id != admission.instrument_id
-        || !matches!(result.action.as_str(), "reconcile" | "cancel")
         || !status_valid
-        || (!result.query_attempted
-            && (result.status != "unknown_manual_review" || result.error_code.is_none()))
+        || result.cancel_attempted != cancel_venue_attempted
+        || has_exchange_identity != result.venue_order_id.is_some()
+        || has_exchange_identity != result.exchange_order_status.is_some()
+        || !venue_identity_valid
         || result.automatic_retry_attempted
-        || (result.action == "reconcile" && result.cancel_attempted)
-        || (result.cancel_confirmed && (!result.cancel_attempted || result.action != "cancel"))
-        || (result.status == "cancel_confirmed"
-            && result.exchange_order_status.as_deref() != Some("canceled"))
-        || (result.status == "cancel_not_required_terminal_or_pending"
-            && !matches!(
-                result.exchange_order_status.as_deref(),
-                Some(
-                    "filled"
-                        | "canceled"
-                        | "expired"
-                        | "rejected"
-                        | "pending_cancel"
-                        | "pending_update"
-                )
-            ))
-        || (result.status == "unknown_manual_review" && !result.manual_review_required)
         || !quantities_valid
         || !monotonic_with_runtime
         || result.completed_at_unix_ms < request.requested_at_unix_ms
+        || result.completed_at_unix_ms > unix_time_ms()
     {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -1991,6 +1978,61 @@ fn validate_execution_control_snapshot(
         ));
     }
     Ok(())
+}
+
+fn execution_control_status_is_valid(result: &LiveExecutionControlSnapshot) -> bool {
+    match (result.action.as_str(), result.status.as_str()) {
+        ("reconcile", "reconciled") => {
+            result.query_attempted
+                && !result.cancel_attempted
+                && !result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+        }
+        ("reconcile", "unknown_manual_review") => {
+            !result.cancel_attempted
+                && !result.cancel_confirmed
+                && result.manual_review_required
+                && result.error_code.is_some()
+        }
+        ("cancel", "cancel_confirmed") => {
+            result.query_attempted
+                && result.cancel_attempted
+                && result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+                && result.exchange_order_status.as_deref() == Some("canceled")
+        }
+        ("cancel", "cancel_sent_readback_pending") => {
+            result.query_attempted
+                && result.cancel_attempted
+                && !result.cancel_confirmed
+                && result.manual_review_required
+                && result.error_code.is_none()
+        }
+        ("cancel", "cancel_not_required_terminal_or_pending") => {
+            result.query_attempted
+                && !result.cancel_attempted
+                && !result.cancel_confirmed
+                && !result.manual_review_required
+                && result.error_code.is_none()
+                && matches!(
+                    result.exchange_order_status.as_deref(),
+                    Some(
+                        "filled"
+                            | "canceled"
+                            | "expired"
+                            | "rejected"
+                            | "pending_cancel"
+                            | "pending_update"
+                    )
+                )
+        }
+        ("cancel", "unknown_manual_review") => {
+            !result.cancel_confirmed && result.manual_review_required && result.error_code.is_some()
+        }
+        _ => false,
+    }
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -3685,6 +3727,27 @@ fn load_live_run_candidate_snapshot(
         &root.join(LIVE_EXECUTION_CANCEL_RESULT_FILE),
         "live_execution_cancel_result",
     )?;
+    let cancel_venue_attempted = if root.join("execution-cancel-venue-attempt.json").exists() {
+        let (_, request_raw) = cancel_request.as_ref().ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_venue_attempt",
+            )
+        })?;
+        let attempt_raw = read_live_run_artifact_bytes(
+            &root.join("execution-cancel-venue-attempt.json"),
+            "live_execution_cancel_venue_attempt",
+        )?;
+        if attempt_raw != sha256_ref(request_raw).as_bytes() {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_venue_attempt",
+            ));
+        }
+        true
+    } else {
+        false
+    };
     if let Some((control, control_raw)) = &reconcile_result {
         let (request, request_raw) = reconcile_request.as_ref().ok_or_else(|| {
             product_error(
@@ -3699,6 +3762,7 @@ fn load_live_run_candidate_snapshot(
             &manifest,
             execution_admission.as_ref().map(|(value, _)| value),
             reconcile_source_order.as_ref().map(|(value, _)| value),
+            false,
         )?;
         validate_execution_control_receipt(
             &root.join(LIVE_EXECUTION_RECONCILE_RESULT_RECEIPT_FILE),
@@ -3722,6 +3786,7 @@ fn load_live_run_candidate_snapshot(
             &manifest,
             execution_admission.as_ref().map(|(value, _)| value),
             cancel_source_order.as_ref().map(|(value, _)| value),
+            cancel_venue_attempted,
         )?;
         validate_execution_control_receipt(
             &root.join(LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE),
@@ -4100,8 +4165,10 @@ fn validate_execution_order_snapshot(
         .ok()
         .zip(Decimal::from_str_exact(&order.filled_quantity).ok())
         .zip(Decimal::from_str_exact(&order.remaining_quantity).ok())
-        .is_some_and(|((original, filled), remaining)| {
+        .zip(Decimal::from_str_exact(&admission.quantity).ok())
+        .is_some_and(|(((original, filled), remaining), admitted)| {
             original > Decimal::ZERO
+                && original == admitted
                 && filled >= Decimal::ZERO
                 && remaining >= Decimal::ZERO
                 && filled + remaining == original
@@ -4149,7 +4216,12 @@ fn validate_execution_order_snapshot(
                 || order.client_order_id.is_none()
                 || !matches!(
                     order.status.as_str(),
-                    "accepted" | "partially_filled" | "canceled"
+                    "accepted"
+                        | "partially_filled"
+                        | "canceled"
+                        | "filled"
+                        | "expired"
+                        | "rejected"
                 )))
         || order.replace_attempted
         || order.updated_at_unix_ms < admission.authorized_at_unix_ms
@@ -5195,6 +5267,7 @@ fn validate_candidate_directory_entries(
         .exists();
     let cancel_request = root.join(LIVE_EXECUTION_CANCEL_REQUEST_FILE).exists();
     let cancel_attempt = root.join("execution-cancel-attempt.json").exists();
+    let cancel_venue_attempt = root.join("execution-cancel-venue-attempt.json").exists();
     let cancel_result = root.join(LIVE_EXECUTION_CANCEL_RESULT_FILE).exists();
     let cancel_result_receipt = root
         .join(LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE)
@@ -5205,6 +5278,7 @@ fn validate_candidate_directory_entries(
         || cancel_operator && !cancel_owner
         || cancel_request != cancel_operator
         || cancel_attempt && !cancel_request
+        || cancel_venue_attempt && !cancel_attempt
         || cancel_result && !cancel_attempt
         || cancel_result != cancel_result_receipt
     {
@@ -5230,6 +5304,7 @@ fn validate_candidate_directory_entries(
         ),
         (cancel_request, LIVE_EXECUTION_CANCEL_REQUEST_FILE),
         (cancel_attempt, "execution-cancel-attempt.json"),
+        (cancel_venue_attempt, "execution-cancel-venue-attempt.json"),
         (cancel_result, LIVE_EXECUTION_CANCEL_RESULT_FILE),
         (
             cancel_result_receipt,
@@ -5971,6 +6046,63 @@ mod tests {
 
     static LIVE_RUNTIME_PROCESS_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    fn execution_control_snapshot(action: &str, status: &str) -> LiveExecutionControlSnapshot {
+        LiveExecutionControlSnapshot {
+            schema_version: LIVE_EXECUTION_CONTROL_RESULT_SCHEMA_VERSION.to_string(),
+            request_sha256: VERSION_HASH.to_string(),
+            request_id: "control-001".to_string(),
+            action: action.to_string(),
+            run_id: "live-candidate-control".to_string(),
+            admission_id: "admission-001".to_string(),
+            strategy_version_id: "strategy@v1".to_string(),
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            client_order_id: "S3LV007-001".to_string(),
+            venue_order_id: Some("1001".to_string()),
+            status: status.to_string(),
+            exchange_order_status: Some("accepted".to_string()),
+            original_quantity: Some("0.01".to_string()),
+            filled_quantity: Some("0".to_string()),
+            remaining_quantity: Some("0.01".to_string()),
+            query_attempted: true,
+            cancel_attempted: false,
+            cancel_confirmed: false,
+            automatic_retry_attempted: false,
+            manual_review_required: false,
+            error_code: None,
+            completed_at_unix_ms: 1,
+        }
+    }
+
+    #[test]
+    fn execution_control_status_matrix_rejects_cross_action_and_flag_drift() {
+        let reconcile = execution_control_snapshot("reconcile", "reconciled");
+        assert!(execution_control_status_is_valid(&reconcile));
+
+        let mut invalid = reconcile.clone();
+        invalid.action = "cancel".to_string();
+        assert!(!execution_control_status_is_valid(&invalid));
+
+        invalid = reconcile;
+        invalid.manual_review_required = true;
+        assert!(!execution_control_status_is_valid(&invalid));
+
+        let mut terminal =
+            execution_control_snapshot("cancel", "cancel_not_required_terminal_or_pending");
+        terminal.exchange_order_status = Some("filled".to_string());
+        assert!(execution_control_status_is_valid(&terminal));
+
+        terminal.action = "reconcile".to_string();
+        assert!(!execution_control_status_is_valid(&terminal));
+
+        let mut confirmed = execution_control_snapshot("cancel", "cancel_confirmed");
+        confirmed.exchange_order_status = Some("canceled".to_string());
+        confirmed.cancel_attempted = true;
+        confirmed.cancel_confirmed = true;
+        assert!(execution_control_status_is_valid(&confirmed));
+        confirmed.manual_review_required = true;
+        assert!(!execution_control_status_is_valid(&confirmed));
+    }
+
     #[test]
     fn execution_order_progression_accepts_partial_fill_and_rejects_regression() {
         let source: LiveExecutionOrderSnapshot = serde_json::from_value(serde_json::json!({
@@ -6651,6 +6783,22 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         validate_execution_order_snapshot(&order, &admission_artifact).unwrap();
         order.automatic_retry_attempted = true;
         assert!(validate_execution_order_snapshot(&order, &admission_artifact).is_err());
+        order.automatic_retry_attempted = false;
+        order.original_quantity = "0.02".to_string();
+        order.remaining_quantity = "0.02".to_string();
+        assert!(validate_execution_order_snapshot(&order, &admission_artifact).is_err());
+        order.original_quantity = admission_artifact.quantity.clone();
+        order.filled_quantity = admission_artifact.quantity.clone();
+        order.remaining_quantity = "0".to_string();
+        order.cancel_attempted = true;
+        for status in ["filled", "expired", "rejected"] {
+            order.status = status.to_string();
+            order.terminal = true;
+            assert!(
+                validate_execution_order_snapshot(&order, &admission_artifact).is_ok(),
+                "{status}"
+            );
+        }
 
         let candidate_root = canonical_live_run_root(&fixture.state, false)
             .unwrap()

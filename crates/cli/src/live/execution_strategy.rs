@@ -1,5 +1,6 @@
 //! 生产执行准入后的单次订单策略边界。
 
+use super::node_runtime::{execution_sha256_ref, read_bounded_execution_authority_file};
 use super::*;
 
 const EXECUTION_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v2";
@@ -154,7 +155,7 @@ impl ProductionSingleShotExecutionStrategy {
         last_error: Option<String>,
     ) -> anyhow::Result<()> {
         let remaining_quantity = self.quantity.saturating_sub(self.filled_quantity);
-        let cancel_attempted = self.cancel_request_exists();
+        let cancel_attempted = self.cancel_request_exists()?;
         atomic_write_json(
             &self.state_path,
             &ProductionExecutionOrderState {
@@ -184,10 +185,23 @@ impl ProductionSingleShotExecutionStrategy {
         self.cache().instrument(&self.instrument_id).is_some()
     }
 
-    fn cancel_request_exists(&self) -> bool {
-        self.control_artifact_root
-            .join("execution-cancel-attempt.json")
-            .is_file()
+    fn cancel_request_exists(&self) -> anyhow::Result<bool> {
+        let attempt_path = self
+            .control_artifact_root
+            .join("execution-cancel-venue-attempt.json");
+        if !attempt_path.exists() {
+            return Ok(false);
+        }
+        let attempt = read_bounded_execution_authority_file(&attempt_path)?;
+        let request = read_bounded_execution_authority_file(
+            &self
+                .control_artifact_root
+                .join("execution-cancel-request.json"),
+        )?;
+        if attempt != execution_sha256_ref(&request).as_bytes() {
+            anyhow::bail!("live execution cancel venue attempt does not match its request");
+        }
+        Ok(true)
     }
 }
 
@@ -276,7 +290,9 @@ impl DataActor for ProductionSingleShotExecutionStrategy {
 
     fn on_order_canceled(&mut self, event: &OrderCanceled) -> anyhow::Result<()> {
         self.client_order_id = Some(event.client_order_id.to_string());
-        self.venue_order_id = event.venue_order_id.map(|value| value.to_string());
+        if let Some(venue_order_id) = event.venue_order_id {
+            self.venue_order_id = Some(venue_order_id.to_string());
+        }
         self.write_state("canceled", true, true, None)
     }
 
@@ -533,5 +549,71 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("does not match the admitted single shot"));
+    }
+
+    #[test]
+    fn execution_strategy_marks_cancel_only_after_a_real_venue_attempt() {
+        let temp = tempdir().unwrap();
+        let mut section = execution_section();
+        section.control_artifact_root = temp.path().join("control");
+        fs::create_dir_all(&section.control_artifact_root).unwrap();
+        let strategy =
+            ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
+
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-attempt.json"),
+            b"approved control request",
+        )
+        .unwrap();
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-request.json"),
+            b"approved control request",
+        )
+        .unwrap();
+        assert!(!strategy.cancel_request_exists().unwrap());
+
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+            execution_sha256_ref(b"approved control request"),
+        )
+        .unwrap();
+        assert!(strategy.cancel_request_exists().unwrap());
+
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+            b"sha256:tampered",
+        )
+        .unwrap();
+        assert!(strategy.cancel_request_exists().is_err());
+    }
+
+    #[test]
+    fn canceled_event_without_venue_id_preserves_existing_exchange_identity() {
+        let temp = tempdir().unwrap();
+        let mut strategy =
+            ProductionSingleShotExecutionStrategy::from_config(&execution_section(), temp.path())
+                .unwrap();
+        strategy.venue_order_id = Some("1001".to_string());
+        let event = OrderCanceled {
+            client_order_id: ClientOrderId::from("S3LV007-001"),
+            venue_order_id: None,
+            ..Default::default()
+        };
+
+        strategy.on_order_canceled(&event).unwrap();
+
+        let state: ProductionExecutionOrderState = serde_json::from_slice(
+            &fs::read(temp.path().join("execution-order-state.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(state.venue_order_id.as_deref(), Some("1001"));
     }
 }

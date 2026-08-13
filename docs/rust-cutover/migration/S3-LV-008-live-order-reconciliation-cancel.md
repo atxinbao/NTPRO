@@ -15,8 +15,9 @@ S3-LV-007 的一次性订单提交合同保持不变。执行订单状态升级�
   撤单入口；默认部署继续关闭；
 - 对账只需要机构负责人确认；撤单需要机构负责人和操作员分别确认同一 Run、admission、
   StrategyVersion、instrument、client order ID、订单状态哈希和有效期；
-- Runtime 在任何网络动作前持久化 attempt，已有 attempt 但没有结果时不会重试，而是发布
-  `unknown_manual_review`；
+- Runtime 在处理控制请求前持久化 control attempt，仅在即将调用交易所撤单前另行持久化绑定
+  请求哈希的 Venue attempt。已有 attempt 但没有结果时不会重试，而是发布
+  `unknown_manual_review`；`cancel_attempted` 只表示可能已向交易所发送，不表示仅完成审批；
 - 每份控制结果在本地发布前必须追加到外部单调审计锚点，并生成对应 result receipt；结果或
   回执缺失、锚点不是最新、订单状态倒退或身份漂移均 fail closed；
 - 部分成交只更新累计成交量和剩余数量。撤单仅撤销剩余数量，不补单、不扩大数量、不改价；

@@ -48,6 +48,7 @@ import {
   type LiveAccountRefreshResponse,
   type LiveExecutionAdmissionRequest,
   type LiveExecutionCancelRequest,
+  type LiveExecutionControlSnapshot,
   type LiveRunCandidateAction,
   type LiveRunCandidateActionResponse,
   type LiveRunCandidate,
@@ -258,6 +259,91 @@ function decimalQuantityConserved(
     filledParts.coefficient >= 0n &&
     remainingParts.coefficient >= 0n &&
     decimalSumMatches(filled, remaining, original)
+  );
+}
+
+function decimalEquals(left: string, right: string): boolean {
+  const leftParts = decimalParts(left);
+  const rightParts = decimalParts(right);
+  const scale = Math.max(leftParts.scale, rightParts.scale);
+  return (
+    leftParts.coefficient * 10n ** BigInt(scale - leftParts.scale) ===
+    rightParts.coefficient * 10n ** BigInt(scale - rightParts.scale)
+  );
+}
+
+function liveExecutionControlStateValid(
+  control: LiveExecutionControlSnapshot,
+): boolean {
+  const knownTerminalOrPending = [
+    "filled",
+    "canceled",
+    "expired",
+    "rejected",
+    "pending_cancel",
+    "pending_update",
+  ].includes(control.exchange_order_status ?? "");
+  if (control.action === "reconcile" && control.status === "reconciled") {
+    return (
+      control.query_attempted &&
+      !control.cancel_attempted &&
+      !control.cancel_confirmed &&
+      !control.manual_review_required &&
+      control.error_code === null
+    );
+  }
+  if (
+    control.action === "reconcile" &&
+    control.status === "unknown_manual_review"
+  ) {
+    return (
+      !control.cancel_attempted &&
+      !control.cancel_confirmed &&
+      control.manual_review_required &&
+      control.error_code !== null
+    );
+  }
+  if (control.action === "cancel" && control.status === "cancel_confirmed") {
+    return (
+      control.query_attempted &&
+      control.cancel_attempted &&
+      control.cancel_confirmed &&
+      !control.manual_review_required &&
+      control.error_code === null &&
+      control.exchange_order_status === "canceled"
+    );
+  }
+  if (
+    control.action === "cancel" &&
+    control.status === "cancel_sent_readback_pending"
+  ) {
+    return (
+      control.query_attempted &&
+      control.cancel_attempted &&
+      !control.cancel_confirmed &&
+      control.manual_review_required &&
+      control.error_code === null
+    );
+  }
+  if (
+    control.action === "cancel" &&
+    control.status === "cancel_not_required_terminal_or_pending"
+  ) {
+    return (
+      control.query_attempted &&
+      !control.cancel_attempted &&
+      !control.cancel_confirmed &&
+      !control.manual_review_required &&
+      control.error_code === null &&
+      knownTerminalOrPending
+    );
+  }
+  return (
+    control.action === "cancel" &&
+    control.status === "unknown_manual_review" &&
+    !control.cancel_confirmed &&
+    control.manual_review_required &&
+    control.error_code !== null
   );
 }
 
@@ -561,9 +647,14 @@ function assertLiveRunCandidate(
       executionOrder.new_orders_blocked &&
       !executionOrder.automatic_retry_attempted &&
       (!executionOrder.cancel_attempted ||
-        ["accepted", "partially_filled", "canceled"].includes(
-          executionOrder.status,
-        )) &&
+        [
+          "accepted",
+          "partially_filled",
+          "canceled",
+          "filled",
+          "expired",
+          "rejected",
+        ].includes(executionOrder.status)) &&
       !executionOrder.replace_attempted &&
       decimalQuantityConserved(
         executionOrder.original_quantity,
@@ -586,12 +677,24 @@ function assertLiveRunCandidate(
       executionControl.instrument_id === executionOrder.instrument_id &&
       executionControl.client_order_id === executionOrder.client_order_id &&
       !executionControl.automatic_retry_attempted &&
+      liveExecutionControlStateValid(executionControl) &&
       (executionControl.original_quantity === null
         ? executionControl.manual_review_required &&
           executionControl.filled_quantity === null &&
-          executionControl.remaining_quantity === null
+          executionControl.remaining_quantity === null &&
+          executionControl.venue_order_id === null &&
+          executionControl.exchange_order_status === null
         : executionControl.filled_quantity !== null &&
           executionControl.remaining_quantity !== null &&
+          executionControl.venue_order_id !== null &&
+          executionControl.exchange_order_status !== null &&
+          decimalEquals(
+            executionControl.original_quantity,
+            executionOrder.original_quantity,
+          ) &&
+          (executionOrder.venue_order_id === null ||
+            executionControl.venue_order_id ===
+              executionOrder.venue_order_id) &&
           decimalQuantityConserved(
             executionControl.original_quantity,
             executionControl.filled_quantity,

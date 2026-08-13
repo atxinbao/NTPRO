@@ -31,6 +31,7 @@ const EXECUTION_RECONCILE_RESULT_FILE: &str = "execution-reconcile-result.json";
 const EXECUTION_RECONCILE_RESULT_RECEIPT_FILE: &str = "execution-reconcile-result-receipt.json";
 const EXECUTION_CANCEL_REQUEST_FILE: &str = "execution-cancel-request.json";
 const EXECUTION_CANCEL_SOURCE_ORDER_FILE: &str = "execution-cancel-source-order-state.json";
+const EXECUTION_CANCEL_VENUE_ATTEMPT_FILE: &str = "execution-cancel-venue-attempt.json";
 const EXECUTION_CANCEL_RESULT_FILE: &str = "execution-cancel-result.json";
 const EXECUTION_CANCEL_RESULT_RECEIPT_FILE: &str = "execution-cancel-result-receipt.json";
 const EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
@@ -563,6 +564,14 @@ where
     let result_path = context.candidate_root.join(result_file);
     let result_receipt_path = context.candidate_root.join(result_receipt_file);
     let attempt_path = context.candidate_root.join(attempt_file);
+    let cancel_venue_attempted = if expected_action == "cancel" {
+        validate_cancel_venue_attempt(context.candidate_root, &request_sha256)?
+    } else {
+        false
+    };
+    if cancel_venue_attempted && !attempt_path.exists() {
+        anyhow::bail!("live execution cancel venue attempt exists without control attempt");
+    }
     validate_production_execution_control_request(
         context,
         &request,
@@ -634,13 +643,15 @@ where
     }
 
     if attempt_state == ExecutionControlAttemptState::Interrupted {
-        let result = interrupted_execution_control_result(&request, &request_sha256);
+        let result =
+            interrupted_execution_control_result(&request, &request_sha256, cancel_venue_attempted);
         validate_execution_control_result(
             context,
             &request,
             &request_sha256,
             &source_order_state,
             &result,
+            cancel_venue_attempted,
         )?;
         publish_result(context, &request_sha256, &result)?;
         return Ok(());
@@ -657,6 +668,7 @@ where
             &request_sha256,
             &source_order_state,
             &result,
+            cancel_venue_attempted,
         )?;
         publish_result(context, &request_sha256, &result)?;
         return Ok(());
@@ -696,6 +708,19 @@ where
         expected_action,
     )
     .await?;
+    let cancel_venue_attempted = if expected_action == "cancel" {
+        validate_cancel_venue_attempt(context.candidate_root, &request_sha256)?
+    } else {
+        false
+    };
+    validate_execution_control_result(
+        context,
+        &request,
+        &request_sha256,
+        &source_order_state,
+        &result,
+        cancel_venue_attempted,
+    )?;
     publish_result(context, &request_sha256, &result)?;
     Ok(())
 }
@@ -787,6 +812,12 @@ async fn execute_production_execution_control_with_venue<V: ProductionExecutionV
             None,
         )
     } else {
+        atomic_write_text(
+            &context
+                .candidate_root
+                .join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE),
+            request_sha256,
+        )?;
         let venue_order_id = match venue
             .cancel_order_once(
                 instrument_id,
@@ -1022,6 +1053,7 @@ fn validate_execution_control_result(
     request_sha256: &str,
     source_order: &ProductionExecutionOrderStateSnapshot,
     result: &ProductionExecutionControlResult,
+    cancel_venue_attempted: bool,
 ) -> anyhow::Result<()> {
     let quantities_valid = match (
         result.original_quantity.as_deref(),
@@ -1122,6 +1154,7 @@ fn validate_execution_control_result(
         || result_has_exchange_identity != result.venue_order_id.is_some()
         || result_has_exchange_identity != result.exchange_order_status.is_some()
         || !status_valid
+        || result.cancel_attempted != cancel_venue_attempted
         || !quantities_valid
         || result.automatic_retry_attempted
         || result.completed_at_unix_ms < request.requested_at_unix_ms
@@ -1234,14 +1267,31 @@ fn failed_execution_control_result(
 fn interrupted_execution_control_result(
     request: &ProductionExecutionControlRequest,
     request_sha256: &str,
+    cancel_attempted: bool,
 ) -> ProductionExecutionControlResult {
     failed_execution_control_result(
         request,
         request_sha256,
         "previous_attempt_interrupted_no_retry",
         true,
-        request.action == "cancel",
+        cancel_attempted,
     )
+}
+
+fn validate_cancel_venue_attempt(
+    candidate_root: &Path,
+    request_sha256: &str,
+) -> anyhow::Result<bool> {
+    let path = candidate_root.join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE);
+    if !path.exists() {
+        return Ok(false);
+    }
+    let attempt = read_bounded_execution_authority_file(&path)
+        .context("live execution cancel venue attempt is invalid")?;
+    if attempt != request_sha256.as_bytes() {
+        anyhow::bail!("live execution cancel venue attempt does not match its request");
+    }
+    Ok(true)
 }
 
 fn validate_execution_runtime_authority(
@@ -1323,7 +1373,7 @@ fn validate_execution_runtime_authority(
     Ok(())
 }
 
-fn read_bounded_execution_authority_file(path: &Path) -> anyhow::Result<Vec<u8>> {
+pub(super) fn read_bounded_execution_authority_file(path: &Path) -> anyhow::Result<Vec<u8>> {
     let metadata = fs::symlink_metadata(path)?;
     if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 64 * 1024 {
         anyhow::bail!("live execution authority artifact must be a bounded regular file");
@@ -1331,7 +1381,7 @@ fn read_bounded_execution_authority_file(path: &Path) -> anyhow::Result<Vec<u8>>
     fs::read(path).map_err(Into::into)
 }
 
-fn execution_sha256_ref(raw: &[u8]) -> String {
+pub(super) fn execution_sha256_ref(raw: &[u8]) -> String {
     let value = aws_lc_rs::digest::digest(&aws_lc_rs::digest::SHA256, raw);
     let mut encoded = String::with_capacity(value.as_ref().len() * 2 + 7);
     encoded.push_str("sha256:");
@@ -1657,6 +1707,7 @@ mod execution_authority_tests {
             request_sha256,
             &source_order,
             &result,
+            false,
         )
         .unwrap();
 
@@ -1668,6 +1719,7 @@ mod execution_authority_tests {
                 request_sha256,
                 &source_order,
                 &result,
+                false,
             )
             .is_err()
         );
@@ -1681,6 +1733,7 @@ mod execution_authority_tests {
                 request_sha256,
                 &source_order,
                 &result,
+                false,
             )
             .is_err()
         );
@@ -1694,6 +1747,7 @@ mod execution_authority_tests {
                 request_sha256,
                 &source_order,
                 &result,
+                false,
             )
             .is_err()
         );
@@ -1717,6 +1771,7 @@ mod execution_authority_tests {
                 request_sha256,
                 &source_order,
                 &invalid_terminal,
+                false,
             )
             .is_err()
         );
@@ -1727,6 +1782,7 @@ mod execution_authority_tests {
             request_sha256,
             &source_order,
             &invalid_terminal,
+            false,
         )
         .unwrap();
     }
@@ -1767,8 +1823,15 @@ mod execution_authority_tests {
         assert!(execution_control_order_progression_is_valid(
             &source, &current
         ));
-        validate_execution_control_result(&context, &request, "sha256:request", &source, &result)
-            .unwrap();
+        validate_execution_control_result(
+            &context,
+            &request,
+            "sha256:request",
+            &source,
+            &result,
+            false,
+        )
+        .unwrap();
 
         current.filled_quantity = "0.00300000".to_string();
         current.remaining_quantity = "0.00700000".to_string();
@@ -2000,6 +2063,37 @@ mod execution_authority_tests {
             Some("previous_attempt_interrupted_no_retry")
         );
         assert!(!result.automatic_retry_attempted);
+        assert!(!result.cancel_attempted);
+
+        fs::write(
+            temp.path().join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE),
+            execution_sha256_ref(&request_raw),
+        )
+        .unwrap();
+        let venue_attempted = Mutex::new(None);
+        process_production_execution_control_with_publisher(
+            &context,
+            "cancel",
+            EXECUTION_CANCEL_REQUEST_FILE,
+            EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+            "execution-cancel-attempt.json",
+            EXECUTION_CANCEL_RESULT_FILE,
+            EXECUTION_CANCEL_RESULT_RECEIPT_FILE,
+            |_, _, result| {
+                *venue_attempted.lock().unwrap() = Some(result.clone());
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+        assert!(
+            venue_attempted
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .cancel_attempted
+        );
 
         fs::remove_file(temp.path().join(EXECUTION_CANCEL_SOURCE_ORDER_FILE)).unwrap();
         assert!(
@@ -2057,6 +2151,11 @@ mod execution_authority_tests {
         assert_eq!(venue.prepare_calls.load(Ordering::SeqCst), 1);
         assert_eq!(venue.query_calls.load(Ordering::SeqCst), 2);
         assert_eq!(venue.cancel_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            fs::read(temp.path().join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE)).unwrap(),
+            b"sha256:request"
+        );
+        fs::remove_file(temp.path().join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE)).unwrap();
 
         let failed_venue = MockVenue::new([MockQuery::Error]);
         let failed = execute_production_execution_control_with_venue(
@@ -2073,6 +2172,12 @@ mod execution_authority_tests {
         assert!(!failed.automatic_retry_attempted);
         assert_eq!(failed_venue.query_calls.load(Ordering::SeqCst), 1);
         assert_eq!(failed_venue.cancel_calls.load(Ordering::SeqCst), 0);
+        assert!(
+            !temp
+                .path()
+                .join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE)
+                .exists()
+        );
 
         let mut canceled = partial_fill_report();
         canceled.order_status = OrderStatus::Canceled;
@@ -2092,12 +2197,18 @@ mod execution_authority_tests {
         assert!(!terminal.cancel_confirmed);
         assert_eq!(terminal_venue.query_calls.load(Ordering::SeqCst), 1);
         assert_eq!(terminal_venue.cancel_calls.load(Ordering::SeqCst), 0);
+        assert!(
+            !temp
+                .path()
+                .join(EXECUTION_CANCEL_VENUE_ATTEMPT_FILE)
+                .exists()
+        );
     }
 
     #[test]
     fn interrupted_cancel_is_single_use_and_requires_manual_review() {
         let request = control_request("cancel");
-        let result = interrupted_execution_control_result(&request, "sha256:request");
+        let result = interrupted_execution_control_result(&request, "sha256:request", true);
         assert_eq!(result.status, "unknown_manual_review");
         assert_eq!(
             result.error_code.as_deref(),
@@ -2108,6 +2219,10 @@ mod execution_authority_tests {
         assert!(!result.cancel_confirmed);
         assert!(!result.automatic_retry_attempted);
         assert!(result.manual_review_required);
+
+        let before_venue_send =
+            interrupted_execution_control_result(&request, "sha256:request", false);
+        assert!(!before_venue_send.cancel_attempted);
     }
 
     #[test]

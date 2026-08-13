@@ -985,45 +985,111 @@ export const zLiveExecutionOrderSnapshot = z.object({
   updated_at_unix_ms: z.int().gte(1),
 });
 
-export const zLiveExecutionControlSnapshot = z.object({
-  schema_version: z.literal("ntpro.s3.live_execution_control_result.v1"),
-  request_sha256: zContentHash,
-  request_id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
-  action: z.enum(["reconcile", "cancel"]),
-  run_id: zRunId,
-  admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
-  strategy_version_id: zStrategyVersionId,
-  instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
-  client_order_id: z.string().min(1).max(128),
-  venue_order_id: z.string().min(1).max(128).nullable(),
-  status: z.enum([
-    "reconciled",
-    "cancel_confirmed",
-    "cancel_sent_readback_pending",
-    "cancel_not_required_terminal_or_pending",
-    "unknown_manual_review",
+export const zLiveExecutionControlSnapshot = z.intersection(
+  z.union([
+    z.object({
+      action: z.literal("reconcile").optional(),
+      status: z.literal("reconciled").optional(),
+      query_attempted: z.literal(true).optional(),
+      cancel_attempted: z.literal(false).optional(),
+      cancel_confirmed: z.literal(false).optional(),
+      manual_review_required: z.literal(false).optional(),
+      error_code: z.null().optional(),
+    }),
+    z.object({
+      action: z.literal("reconcile").optional(),
+      status: z.literal("unknown_manual_review").optional(),
+      cancel_attempted: z.literal(false).optional(),
+      cancel_confirmed: z.literal(false).optional(),
+      manual_review_required: z.literal(true).optional(),
+      error_code: z.string().min(1).optional(),
+    }),
+    z.object({
+      action: z.literal("cancel").optional(),
+      status: z.literal("cancel_confirmed").optional(),
+      exchange_order_status: z.literal("canceled").optional(),
+      query_attempted: z.literal(true).optional(),
+      cancel_attempted: z.literal(true).optional(),
+      cancel_confirmed: z.literal(true).optional(),
+      manual_review_required: z.literal(false).optional(),
+      error_code: z.null().optional(),
+    }),
+    z.object({
+      action: z.literal("cancel").optional(),
+      status: z.literal("cancel_sent_readback_pending").optional(),
+      query_attempted: z.literal(true).optional(),
+      cancel_attempted: z.literal(true).optional(),
+      cancel_confirmed: z.literal(false).optional(),
+      manual_review_required: z.literal(true).optional(),
+      error_code: z.null().optional(),
+    }),
+    z.object({
+      action: z.literal("cancel").optional(),
+      status: z.literal("cancel_not_required_terminal_or_pending").optional(),
+      exchange_order_status: z
+        .enum([
+          "filled",
+          "canceled",
+          "expired",
+          "rejected",
+          "pending_cancel",
+          "pending_update",
+        ])
+        .optional(),
+      query_attempted: z.literal(true).optional(),
+      cancel_attempted: z.literal(false).optional(),
+      cancel_confirmed: z.literal(false).optional(),
+      manual_review_required: z.literal(false).optional(),
+      error_code: z.null().optional(),
+    }),
+    z.object({
+      action: z.literal("cancel").optional(),
+      status: z.literal("unknown_manual_review").optional(),
+      cancel_confirmed: z.literal(false).optional(),
+      manual_review_required: z.literal(true).optional(),
+      error_code: z.string().min(1).optional(),
+    }),
   ]),
-  exchange_order_status: z.string().min(1).nullable(),
-  original_quantity: z
-    .string()
-    .regex(/^[0-9]+(?:\.[0-9]+)?$/)
-    .nullable(),
-  filled_quantity: z
-    .string()
-    .regex(/^[0-9]+(?:\.[0-9]+)?$/)
-    .nullable(),
-  remaining_quantity: z
-    .string()
-    .regex(/^[0-9]+(?:\.[0-9]+)?$/)
-    .nullable(),
-  query_attempted: z.boolean(),
-  cancel_attempted: z.boolean(),
-  cancel_confirmed: z.boolean(),
-  automatic_retry_attempted: z.literal(false),
-  manual_review_required: z.boolean(),
-  error_code: z.string().min(1).nullable(),
-  completed_at_unix_ms: z.int().gte(1),
-});
+  z.object({
+    schema_version: z.literal("ntpro.s3.live_execution_control_result.v1"),
+    request_sha256: zContentHash,
+    request_id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+    action: z.enum(["reconcile", "cancel"]),
+    run_id: zRunId,
+    admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+    strategy_version_id: zStrategyVersionId,
+    instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
+    client_order_id: z.string().min(1).max(128),
+    venue_order_id: z.string().min(1).max(128).nullable(),
+    status: z.enum([
+      "reconciled",
+      "cancel_confirmed",
+      "cancel_sent_readback_pending",
+      "cancel_not_required_terminal_or_pending",
+      "unknown_manual_review",
+    ]),
+    exchange_order_status: z.string().min(1).nullable(),
+    original_quantity: z
+      .string()
+      .regex(/^[0-9]+(?:\.[0-9]+)?$/)
+      .nullable(),
+    filled_quantity: z
+      .string()
+      .regex(/^[0-9]+(?:\.[0-9]+)?$/)
+      .nullable(),
+    remaining_quantity: z
+      .string()
+      .regex(/^[0-9]+(?:\.[0-9]+)?$/)
+      .nullable(),
+    query_attempted: z.boolean(),
+    cancel_attempted: z.boolean(),
+    cancel_confirmed: z.boolean(),
+    automatic_retry_attempted: z.literal(false),
+    manual_review_required: z.boolean(),
+    error_code: z.string().min(1).nullable(),
+    completed_at_unix_ms: z.int().gte(1),
+  }),
+);
 
 export const zLiveRunCandidate = z.intersection(
   z.union([
