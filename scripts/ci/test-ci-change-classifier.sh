@@ -56,8 +56,8 @@ product_api_output="$(classify product-api crates/cli/src/dashboard/product_api.
 assert_output "$product_api_output" "heavy_rust=true"
 assert_output "$product_api_output" "strategy_workbench=true"
 assert_output "$product_api_output" "frontend_app=true"
-assert_output "$product_api_output" "mvp_acceptance=true"
-assert_output "$product_api_output" "mvp_fault_matrix=true"
+assert_output "$product_api_output" "mvp_acceptance=false"
+assert_output "$product_api_output" "mvp_fault_matrix=false"
 
 product_contract_output="$(classify product-contract docs/product/api/ntpro_product_v1.openapi.json)"
 assert_output "$product_contract_output" "heavy_rust=true"
@@ -72,6 +72,8 @@ assert_output "$frontend_output" "mvp_acceptance=false"
 
 cargo_output="$(classify cargo Cargo.lock)"
 assert_output "$cargo_output" "heavy_rust=true"
+assert_output "$cargo_output" "mvp_acceptance=false"
+assert_output "$cargo_output" "mvp_fault_matrix=false"
 assert_output "$cargo_output" "security_dependencies=true"
 assert_output "$cargo_output" "security_workflow=false"
 
@@ -196,4 +198,60 @@ if ! grep -F "cancel-in-progress: \${{ github.event_name == 'pull_request' }}" \
   exit 1
 fi
 
-echo "ci_change_classifier_selftest=pass cases=21"
+if grep -Eq '^  pull_request:' .github/workflows/backend-performance.yml; then
+  echo "backend performance must not run for ordinary pull requests" >&2
+  exit 1
+fi
+for trigger in schedule workflow_dispatch; do
+  if ! grep -Eq "^  ${trigger}:" .github/workflows/backend-performance.yml; then
+    echo "backend performance is missing retained trigger: $trigger" >&2
+    exit 1
+  fi
+done
+
+for job in changes smoke_core rust_lint rust_tests smoke; do
+  if ! grep -Eq "^  ${job}:" .github/workflows/rust-cutover-smoke.yml; then
+    echo "required smoke lane is missing: $job" >&2
+    exit 1
+  fi
+done
+if grep -E 'Workspace cargo[[:space:]]+check' .github/workflows/rust-cutover-smoke.yml >/dev/null; then
+  echo "pull-request smoke still contains the redundant compile-only step" >&2
+  exit 1
+fi
+if ! grep -F 'needs: [changes, smoke_core, rust_lint, rust_tests]' \
+  .github/workflows/rust-cutover-smoke.yml >/dev/null; then
+  echo "final smoke does not aggregate every required lane" >&2
+  exit 1
+fi
+
+assert_aggregate_pass() {
+  local heavy_rust="$1"
+  local changes_result="$2"
+  local core_result="$3"
+  local rust_lint_result="$4"
+  local rust_tests_result="$5"
+  HEAVY_RUST="$heavy_rust" \
+    CHANGES_RESULT="$changes_result" \
+    CORE_RESULT="$core_result" \
+    RUST_LINT_RESULT="$rust_lint_result" \
+    RUST_TESTS_RESULT="$rust_tests_result" \
+    bash scripts/ci/aggregate-pr-smoke.sh >/dev/null
+}
+
+assert_aggregate_fail() {
+  if assert_aggregate_pass "$@" 2>/dev/null; then
+    echo "required smoke aggregation unexpectedly passed: $*" >&2
+    exit 1
+  fi
+}
+
+assert_aggregate_pass true success success success success
+assert_aggregate_pass false success success skipped skipped
+assert_aggregate_fail true failure success success success
+assert_aggregate_fail true success failure success success
+assert_aggregate_fail true success success skipped success
+assert_aggregate_fail false success success success skipped
+assert_aggregate_fail unknown success success skipped skipped
+
+echo "ci_change_classifier_selftest=pass cases=36"
