@@ -674,6 +674,7 @@ function assertLiveRunCandidate(
     (executionOrder !== null &&
       executionControl.run_id === candidate.run_id &&
       executionControl.strategy_version_id === candidate.strategy_version_id &&
+      executionControl.admission_id === executionOrder.admission_id &&
       executionControl.instrument_id === executionOrder.instrument_id &&
       executionControl.client_order_id === executionOrder.client_order_id &&
       !executionControl.automatic_retry_attempted &&

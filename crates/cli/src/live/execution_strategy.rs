@@ -66,6 +66,17 @@ impl ProductionSingleShotExecutionStrategy {
         let strategy_id = StrategyId::from(format!("S3-LIVE-{}", execution.admission_id));
         let state_path = output_dir.join("execution-order-state.json");
         let persisted = load_existing_execution_state(&state_path, execution, &instrument_id)?;
+        let venue_cancel_attempted =
+            validated_cancel_venue_attempt_exists(&execution.control_artifact_root)?;
+        if persisted
+            .as_ref()
+            .is_some_and(|state| state.cancel_attempted)
+            != venue_cancel_attempted
+        {
+            anyhow::bail!(
+                "persisted execution cancel state does not match the venue attempt artifact"
+            );
+        }
         let submitted = persisted.is_some();
         let client_order_id = persisted
             .as_ref()
@@ -186,22 +197,7 @@ impl ProductionSingleShotExecutionStrategy {
     }
 
     fn cancel_request_exists(&self) -> anyhow::Result<bool> {
-        let attempt_path = self
-            .control_artifact_root
-            .join("execution-cancel-venue-attempt.json");
-        if !attempt_path.exists() {
-            return Ok(false);
-        }
-        let attempt = read_bounded_execution_authority_file(&attempt_path)?;
-        let request = read_bounded_execution_authority_file(
-            &self
-                .control_artifact_root
-                .join("execution-cancel-request.json"),
-        )?;
-        if attempt != execution_sha256_ref(&request).as_bytes() {
-            anyhow::bail!("live execution cancel venue attempt does not match its request");
-        }
-        Ok(true)
+        validated_cancel_venue_attempt_exists(&self.control_artifact_root)
     }
 }
 
@@ -309,6 +305,21 @@ fn deterministic_client_order_id(admission_id: &str) -> String {
         encoded.push_str(&format!("{byte:02x}"));
     }
     encoded
+}
+
+fn validated_cancel_venue_attempt_exists(control_artifact_root: &Path) -> anyhow::Result<bool> {
+    let attempt_path = control_artifact_root.join("execution-cancel-venue-attempt.json");
+    if !attempt_path.exists() {
+        return Ok(false);
+    }
+    let attempt = read_bounded_execution_authority_file(&attempt_path)?;
+    let request = read_bounded_execution_authority_file(
+        &control_artifact_root.join("execution-cancel-request.json"),
+    )?;
+    if attempt != execution_sha256_ref(&request).as_bytes() {
+        anyhow::bail!("live execution cancel venue attempt does not match its request");
+    }
+    Ok(true)
 }
 
 fn load_existing_execution_state(
@@ -514,6 +525,58 @@ mod tests {
         .unwrap();
         assert_eq!(state.status, "submission_requested");
         assert!(state.actual_submission_attempted);
+    }
+
+    #[test]
+    fn execution_strategy_restart_rejects_cancel_state_and_venue_attempt_drift() {
+        let temp = tempdir().unwrap();
+        let mut section = execution_section();
+        section.control_artifact_root = temp.path().join("control");
+        fs::create_dir_all(&section.control_artifact_root).unwrap();
+        let expected_id = deterministic_client_order_id(&section.admission_id);
+        let mut state = ProductionExecutionOrderState {
+            schema_version: EXECUTION_STATE_SCHEMA_VERSION.to_string(),
+            admission_id: section.admission_id.clone(),
+            strategy_version_id: section.strategy_version_id.clone(),
+            instrument_id: section.instrument_id.clone(),
+            client_order_id: Some(expected_id),
+            venue_order_id: Some("1001".to_string()),
+            original_quantity: section.quantity.clone(),
+            filled_quantity: "0".to_string(),
+            remaining_quantity: section.quantity.clone(),
+            status: "accepted".to_string(),
+            terminal: false,
+            new_orders_blocked: true,
+            actual_submission_attempted: true,
+            automatic_retry_attempted: false,
+            cancel_attempted: true,
+            replace_attempted: false,
+            last_error: None,
+            updated_at_unix_ms: 1,
+        };
+        atomic_write_json(&temp.path().join("execution-order-state.json"), &state).unwrap();
+        assert!(ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).is_err());
+
+        let request = b"approved control request";
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-request.json"),
+            request,
+        )
+        .unwrap();
+        fs::write(
+            section
+                .control_artifact_root
+                .join("execution-cancel-venue-attempt.json"),
+            execution_sha256_ref(request),
+        )
+        .unwrap();
+        ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).unwrap();
+
+        state.cancel_attempted = false;
+        atomic_write_json(&temp.path().join("execution-order-state.json"), &state).unwrap();
+        assert!(ProductionSingleShotExecutionStrategy::from_config(&section, temp.path()).is_err());
     }
 
     #[test]

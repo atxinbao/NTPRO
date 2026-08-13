@@ -505,6 +505,11 @@ describe("product API generated client", () => {
       (value: Record<string, any>) =>
         (value.data.execution_control.venue_order_id = "different-order"),
     ],
+    [
+      "admission identity mismatch",
+      (value: Record<string, any>) =>
+        (value.data.execution_control.admission_id = "different-admission"),
+    ],
   ])("rejects Live execution control %s", async (_, mutate) => {
     const running = liveExecutionControlResponse();
     mutate(running);

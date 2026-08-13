@@ -3748,6 +3748,15 @@ fn load_live_run_candidate_snapshot(
     } else {
         false
     };
+    if !execution_cancel_attempt_matches_order(
+        execution_order.as_ref().map(|(order, _)| order),
+        cancel_venue_attempted,
+    ) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_venue_attempt",
+        ));
+    }
     if let Some((control, control_raw)) = &reconcile_result {
         let (request, request_raw) = reconcile_request.as_ref().ok_or_else(|| {
             product_error(
@@ -3833,6 +3842,13 @@ fn load_live_run_candidate_snapshot(
         &receipt,
     );
     Ok((candidate, manifest, manifest_raw))
+}
+
+fn execution_cancel_attempt_matches_order(
+    order: Option<&LiveExecutionOrderSnapshot>,
+    cancel_venue_attempted: bool,
+) -> bool {
+    order.is_some_and(|order| order.cancel_attempted) == cancel_venue_attempted
 }
 
 fn load_live_run_manifest(
@@ -6101,6 +6117,38 @@ mod tests {
         assert!(execution_control_status_is_valid(&confirmed));
         confirmed.manual_review_required = true;
         assert!(!execution_control_status_is_valid(&confirmed));
+    }
+
+    #[test]
+    fn execution_order_cancel_state_requires_the_same_venue_attempt_fact() {
+        assert!(execution_cancel_attempt_matches_order(None, false));
+        assert!(!execution_cancel_attempt_matches_order(None, true));
+        let mut order: LiveExecutionOrderSnapshot = serde_json::from_value(serde_json::json!({
+            "schema_version": LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION,
+            "admission_id": "admission-001",
+            "strategy_version_id": "strategy@v1",
+            "instrument_id": "BTCUSDT.BINANCE",
+            "client_order_id": "S3LV007-001",
+            "venue_order_id": "1001",
+            "original_quantity": "0.01",
+            "filled_quantity": "0",
+            "remaining_quantity": "0.01",
+            "status": "accepted",
+            "terminal": false,
+            "new_orders_blocked": true,
+            "actual_submission_attempted": true,
+            "automatic_retry_attempted": false,
+            "cancel_attempted": false,
+            "replace_attempted": false,
+            "last_error": null,
+            "updated_at_unix_ms": 1
+        }))
+        .unwrap();
+        assert!(execution_cancel_attempt_matches_order(Some(&order), false));
+        assert!(!execution_cancel_attempt_matches_order(Some(&order), true));
+        order.cancel_attempted = true;
+        assert!(!execution_cancel_attempt_matches_order(Some(&order), false));
+        assert!(execution_cancel_attempt_matches_order(Some(&order), true));
     }
 
     #[test]
