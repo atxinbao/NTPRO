@@ -26,9 +26,11 @@ const EXECUTION_CONTROL_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run
 const EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_control_request.v1";
 const EXECUTION_CONTROL_RESULT_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_control_result.v1";
 const EXECUTION_RECONCILE_REQUEST_FILE: &str = "execution-reconcile-request.json";
+const EXECUTION_RECONCILE_SOURCE_ORDER_FILE: &str = "execution-reconcile-source-order-state.json";
 const EXECUTION_RECONCILE_RESULT_FILE: &str = "execution-reconcile-result.json";
 const EXECUTION_RECONCILE_RESULT_RECEIPT_FILE: &str = "execution-reconcile-result-receipt.json";
 const EXECUTION_CANCEL_REQUEST_FILE: &str = "execution-cancel-request.json";
+const EXECUTION_CANCEL_SOURCE_ORDER_FILE: &str = "execution-cancel-source-order-state.json";
 const EXECUTION_CANCEL_RESULT_FILE: &str = "execution-cancel-result.json";
 const EXECUTION_CANCEL_RESULT_RECEIPT_FILE: &str = "execution-cancel-result-receipt.json";
 const EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
@@ -79,7 +81,7 @@ struct ProductionExecutionControlResult {
     completed_at_unix_ms: u64,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct ProductionExecutionOrderStateSnapshot {
     schema_version: String,
@@ -492,6 +494,7 @@ async fn process_production_execution_controls(
         context,
         "reconcile",
         EXECUTION_RECONCILE_REQUEST_FILE,
+        EXECUTION_RECONCILE_SOURCE_ORDER_FILE,
         "execution-reconcile-attempt.json",
         EXECUTION_RECONCILE_RESULT_FILE,
         EXECUTION_RECONCILE_RESULT_RECEIPT_FILE,
@@ -501,6 +504,7 @@ async fn process_production_execution_controls(
         context,
         "cancel",
         EXECUTION_CANCEL_REQUEST_FILE,
+        EXECUTION_CANCEL_SOURCE_ORDER_FILE,
         "execution-cancel-attempt.json",
         EXECUTION_CANCEL_RESULT_FILE,
         EXECUTION_CANCEL_RESULT_RECEIPT_FILE,
@@ -512,10 +516,42 @@ async fn process_production_execution_control(
     context: &ProductionExecutionControlContext<'_>,
     expected_action: &str,
     request_file: &str,
+    source_order_file: &str,
     attempt_file: &str,
     result_file: &str,
     result_receipt_file: &str,
 ) -> anyhow::Result<()> {
+    process_production_execution_control_with_publisher(
+        context,
+        expected_action,
+        request_file,
+        source_order_file,
+        attempt_file,
+        result_file,
+        result_receipt_file,
+        publish_execution_control_result,
+    )
+    .await
+}
+
+#[expect(clippy::too_many_arguments)]
+async fn process_production_execution_control_with_publisher<F>(
+    context: &ProductionExecutionControlContext<'_>,
+    expected_action: &str,
+    request_file: &str,
+    source_order_file: &str,
+    attempt_file: &str,
+    result_file: &str,
+    result_receipt_file: &str,
+    publish_result: F,
+) -> anyhow::Result<()>
+where
+    F: Fn(
+        &ProductionExecutionControlContext<'_>,
+        &str,
+        &ProductionExecutionControlResult,
+    ) -> anyhow::Result<()>,
+{
     let request_path = context.candidate_root.join(request_file);
     if !request_path.exists() {
         return Ok(());
@@ -523,11 +559,16 @@ async fn process_production_execution_control(
     let request_raw = read_bounded_execution_authority_file(&request_path)?;
     let request: ProductionExecutionControlRequest = serde_json::from_slice(&request_raw)
         .context("live execution control request is invalid")?;
-    validate_production_execution_control_request(context, &request, expected_action)?;
     let request_sha256 = execution_sha256_ref(&request_raw);
     let result_path = context.candidate_root.join(result_file);
     let result_receipt_path = context.candidate_root.join(result_receipt_file);
     let attempt_path = context.candidate_root.join(attempt_file);
+    validate_production_execution_control_request(
+        context,
+        &request,
+        expected_action,
+        attempt_path.exists(),
+    )?;
     let attempt_state = prepare_execution_control_attempt(
         &request_raw,
         &attempt_path,
@@ -537,7 +578,7 @@ async fn process_production_execution_control(
     let result_exists = attempt_state == ExecutionControlAttemptState::ResultExists;
     match attempt_state {
         ExecutionControlAttemptState::Interrupted => {
-            publish_execution_control_result(
+            publish_result(
                 context,
                 &request_sha256,
                 &interrupted_execution_control_result(&request, &request_sha256),
@@ -546,34 +587,29 @@ async fn process_production_execution_control(
         }
         ExecutionControlAttemptState::Fresh | ExecutionControlAttemptState::ResultExists => {}
     }
-    let order_state_raw = read_bounded_execution_authority_file(
+    let source_order_state_raw =
+        read_bounded_execution_authority_file(&context.candidate_root.join(source_order_file))?;
+    if request.source_order_state_sha256 != execution_sha256_ref(&source_order_state_raw) {
+        anyhow::bail!("live execution control immutable source order state has drifted");
+    }
+    let source_order_state: ProductionExecutionOrderStateSnapshot =
+        serde_json::from_slice(&source_order_state_raw)
+            .context("live execution control immutable source order state is invalid")?;
+    if !execution_control_source_order_matches(context, &request, &source_order_state) {
+        anyhow::bail!("live execution control immutable source identity is invalid");
+    }
+
+    let current_order_state_raw = read_bounded_execution_authority_file(
         &context.output_dir.join(EXECUTION_ORDER_STATE_FILE),
     )?;
-    if request.source_order_state_sha256 != execution_sha256_ref(&order_state_raw) {
-        if result_exists {
-            anyhow::bail!("live execution control result source order state has drifted");
-        }
-        publish_execution_control_result(
-            context,
-            &request_sha256,
-            &failed_execution_control_result(
-                &request,
-                &request_sha256,
-                "source_order_state_drift",
-                false,
-                false,
-            ),
-        )?;
-        return Ok(());
-    }
-    let order_state: ProductionExecutionOrderStateSnapshot =
-        match serde_json::from_slice(&order_state_raw) {
+    let current_order_state: ProductionExecutionOrderStateSnapshot =
+        match serde_json::from_slice(&current_order_state_raw) {
             Ok(order_state) => order_state,
             Err(_) => {
                 if result_exists {
                     anyhow::bail!("live execution control result source order state is invalid");
                 }
-                publish_execution_control_result(
+                publish_result(
                     context,
                     &request_sha256,
                     &failed_execution_control_result(
@@ -587,11 +623,13 @@ async fn process_production_execution_control(
                 return Ok(());
             }
         };
-    if !execution_control_source_order_matches(context, &request, &order_state) {
+    if !execution_control_source_order_matches(context, &request, &current_order_state)
+        || !execution_control_order_progression_is_valid(&source_order_state, &current_order_state)
+    {
         if result_exists {
             anyhow::bail!("live execution control result source identity is invalid");
         }
-        publish_execution_control_result(
+        publish_result(
             context,
             &request_sha256,
             &failed_execution_control_result(
@@ -614,10 +652,10 @@ async fn process_production_execution_control(
             context,
             &request,
             &request_sha256,
-            &order_state,
+            &source_order_state,
             &result,
         )?;
-        publish_execution_control_result(context, &request_sha256, &result)?;
+        publish_result(context, &request_sha256, &result)?;
         return Ok(());
     }
     let client = match BinanceSpotHttpClient::new(
@@ -632,7 +670,7 @@ async fn process_production_execution_control(
     ) {
         Ok(client) => client,
         Err(_) => {
-            publish_execution_control_result(
+            publish_result(
                 context,
                 &request_sha256,
                 &failed_execution_control_result(
@@ -651,11 +689,11 @@ async fn process_production_execution_control(
         context,
         &request,
         &request_sha256,
-        &order_state,
+        &current_order_state,
         expected_action,
     )
     .await?;
-    publish_execution_control_result(context, &request_sha256, &result)?;
+    publish_result(context, &request_sha256, &result)?;
     Ok(())
 }
 
@@ -871,6 +909,7 @@ fn validate_production_execution_control_request(
     context: &ProductionExecutionControlContext<'_>,
     request: &ProductionExecutionControlRequest,
     expected_action: &str,
+    recovery_attempt_exists: bool,
 ) -> anyhow::Result<()> {
     let now = current_unix_timestamp_millis();
     let valid_roles = match expected_action {
@@ -900,12 +939,34 @@ fn validate_production_execution_control_request(
         || !valid_roles
         || request.requested_at_unix_ms > now
         || request.expires_at_unix_ms <= request.requested_at_unix_ms
-        || request.expires_at_unix_ms <= now
+        || (!recovery_attempt_exists && request.expires_at_unix_ms <= now)
         || request.expires_at_unix_ms > request.requested_at_unix_ms.saturating_add(5 * 60 * 1_000)
     {
         anyhow::bail!("live execution control request does not match the admitted order");
     }
     Ok(())
+}
+
+fn execution_control_order_progression_is_valid(
+    source: &ProductionExecutionOrderStateSnapshot,
+    current: &ProductionExecutionOrderStateSnapshot,
+) -> bool {
+    let quantities = Decimal::from_str_exact(&source.filled_quantity)
+        .ok()
+        .zip(Decimal::from_str_exact(&current.filled_quantity).ok());
+    source.admission_id == current.admission_id
+        && source.strategy_version_id == current.strategy_version_id
+        && source.instrument_id == current.instrument_id
+        && source.client_order_id == current.client_order_id
+        && source.original_quantity == current.original_quantity
+        && source
+            .venue_order_id
+            .as_ref()
+            .is_none_or(|source| current.venue_order_id.as_ref() == Some(source))
+        && quantities.is_some_and(|(source, current)| current >= source)
+        && current.updated_at_unix_ms >= source.updated_at_unix_ms
+        && (!source.terminal || current.terminal)
+        && (!source.cancel_attempted || current.cancel_attempted)
 }
 
 fn execution_control_source_order_matches(
@@ -939,7 +1000,6 @@ fn execution_control_source_order_matches(
         && order.actual_submission_attempted
         && !order.automatic_retry_attempted
         && !order.replace_attempted
-        && (!order.cancel_attempted || request.action == "cancel")
         && !matches!(order.status.as_str(), "waiting_for_instrument" | "denied")
         && order.updated_at_unix_ms > 0
         && (order.terminal
@@ -1449,31 +1509,40 @@ mod execution_authority_tests {
             api_secret: "test-secret",
         };
         let reconcile = control_request("reconcile");
-        validate_production_execution_control_request(&context, &reconcile, "reconcile").unwrap();
+        validate_production_execution_control_request(&context, &reconcile, "reconcile", false)
+            .unwrap();
         let mut invalid_reconcile = reconcile;
         invalid_reconcile.operator_confirmed = true;
         assert!(
             validate_production_execution_control_request(
                 &context,
                 &invalid_reconcile,
-                "reconcile"
+                "reconcile",
+                false,
             )
             .is_err()
         );
         let cancel = control_request("cancel");
-        validate_production_execution_control_request(&context, &cancel, "cancel").unwrap();
+        validate_production_execution_control_request(&context, &cancel, "cancel", false).unwrap();
         let mut invalid_cancel = cancel;
         invalid_cancel.operator_confirmed = false;
         assert!(
-            validate_production_execution_control_request(&context, &invalid_cancel, "cancel")
-                .is_err()
+            validate_production_execution_control_request(
+                &context,
+                &invalid_cancel,
+                "cancel",
+                false,
+            )
+            .is_err()
         );
         let mut expired = control_request("cancel");
         expired.requested_at_unix_ms = 1;
         expired.expires_at_unix_ms = 2;
         assert!(
-            validate_production_execution_control_request(&context, &expired, "cancel").is_err()
+            validate_production_execution_control_request(&context, &expired, "cancel", false)
+                .is_err()
         );
+        validate_production_execution_control_request(&context, &expired, "cancel", true).unwrap();
     }
 
     #[test]
@@ -1617,6 +1686,52 @@ mod execution_authority_tests {
     }
 
     #[test]
+    fn completed_result_remains_valid_when_current_order_advances_monotonically() {
+        let temp = tempdir().unwrap();
+        let execution = execution_section(temp.path(), temp.path());
+        let context = ProductionExecutionControlContext {
+            candidate_root: temp.path(),
+            output_dir: temp.path(),
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let request = control_request("reconcile");
+        let source = partial_fill_order_state();
+        let result = execution_control_result_from_report(
+            &request,
+            "sha256:request",
+            &partial_fill_report(),
+            "reconciled",
+            true,
+            false,
+            false,
+            false,
+            None,
+        );
+        let mut current = source.clone();
+        current.filled_quantity = "0.00600000".to_string();
+        current.remaining_quantity = "0.00400000".to_string();
+        current.status = "canceled".to_string();
+        current.terminal = true;
+        current.cancel_attempted = true;
+        current.updated_at_unix_ms += 1;
+
+        assert!(execution_control_order_progression_is_valid(
+            &source, &current
+        ));
+        validate_execution_control_result(&context, &request, "sha256:request", &source, &result)
+            .unwrap();
+
+        current.filled_quantity = "0.00300000".to_string();
+        current.remaining_quantity = "0.00700000".to_string();
+        assert!(!execution_control_order_progression_is_valid(
+            &source, &current
+        ));
+    }
+
+    #[test]
     fn execution_control_attempt_is_single_use_across_restart() {
         let temp = tempdir().unwrap();
         let attempt = temp.path().join("attempt.json");
@@ -1640,6 +1755,196 @@ mod execution_authority_tests {
         assert!(
             prepare_execution_control_attempt(b"different", &attempt, &result, &receipt).is_err()
         );
+    }
+
+    #[test]
+    fn expired_request_recovers_existing_attempt_without_starting_a_new_attempt() {
+        let temp = tempdir().unwrap();
+        let execution = execution_section(temp.path(), temp.path());
+        let context = ProductionExecutionControlContext {
+            candidate_root: temp.path(),
+            output_dir: temp.path(),
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let mut expired = control_request("cancel");
+        expired.requested_at_unix_ms = 1;
+        expired.expires_at_unix_ms = 2;
+        let request_raw = serde_json::to_vec_pretty(&expired).unwrap();
+        let attempt = temp.path().join("attempt.json");
+        let result = temp.path().join("result.json");
+        let receipt = temp.path().join("receipt.json");
+        fs::write(&attempt, &request_raw).unwrap();
+
+        validate_production_execution_control_request(&context, &expired, "cancel", true).unwrap();
+        assert_eq!(
+            prepare_execution_control_attempt(&request_raw, &attempt, &result, &receipt).unwrap(),
+            ExecutionControlAttemptState::Interrupted
+        );
+        assert!(
+            validate_production_execution_control_request(&context, &expired, "cancel", false)
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn control_processor_recovers_completed_result_across_order_progression() {
+        let temp = tempdir().unwrap();
+        let candidate_root = temp.path().join("candidate");
+        let output_dir = temp.path().join("runtime");
+        fs::create_dir_all(&candidate_root).unwrap();
+        fs::create_dir_all(&output_dir).unwrap();
+        let execution = execution_section(&output_dir, &candidate_root);
+        let context = ProductionExecutionControlContext {
+            candidate_root: &candidate_root,
+            output_dir: &output_dir,
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let source = partial_fill_order_state();
+        let source_raw = serde_json::to_vec_pretty(&source).unwrap();
+        let mut request = control_request("reconcile");
+        request.source_order_state_sha256 = execution_sha256_ref(&source_raw);
+        let request_raw = serde_json::to_vec_pretty(&request).unwrap();
+        let request_sha256 = execution_sha256_ref(&request_raw);
+        let result = execution_control_result_from_report(
+            &request,
+            &request_sha256,
+            &partial_fill_report(),
+            "reconciled",
+            true,
+            false,
+            false,
+            false,
+            None,
+        );
+        fs::write(
+            candidate_root.join(EXECUTION_RECONCILE_REQUEST_FILE),
+            &request_raw,
+        )
+        .unwrap();
+        fs::write(
+            candidate_root.join(EXECUTION_RECONCILE_SOURCE_ORDER_FILE),
+            &source_raw,
+        )
+        .unwrap();
+        fs::write(
+            candidate_root.join("execution-reconcile-attempt.json"),
+            &request_raw,
+        )
+        .unwrap();
+        fs::write(
+            candidate_root.join(EXECUTION_RECONCILE_RESULT_FILE),
+            serde_json::to_vec_pretty(&result).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            output_dir.join(EXECUTION_ORDER_STATE_FILE),
+            serde_json::to_vec_pretty(&source).unwrap(),
+        )
+        .unwrap();
+        let publications = AtomicUsize::new(0);
+        let publish = |_: &ProductionExecutionControlContext<'_>,
+                       _: &str,
+                       _: &ProductionExecutionControlResult| {
+            publications.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        };
+
+        process_production_execution_control_with_publisher(
+            &context,
+            "reconcile",
+            EXECUTION_RECONCILE_REQUEST_FILE,
+            EXECUTION_RECONCILE_SOURCE_ORDER_FILE,
+            "execution-reconcile-attempt.json",
+            EXECUTION_RECONCILE_RESULT_FILE,
+            EXECUTION_RECONCILE_RESULT_RECEIPT_FILE,
+            publish,
+        )
+        .await
+        .unwrap();
+
+        let mut progressed = source;
+        progressed.filled_quantity = "0.00600000".to_string();
+        progressed.remaining_quantity = "0.00400000".to_string();
+        progressed.status = "canceled".to_string();
+        progressed.terminal = true;
+        progressed.cancel_attempted = true;
+        progressed.updated_at_unix_ms += 1;
+        fs::write(
+            output_dir.join(EXECUTION_ORDER_STATE_FILE),
+            serde_json::to_vec_pretty(&progressed).unwrap(),
+        )
+        .unwrap();
+        process_production_execution_control_with_publisher(
+            &context,
+            "reconcile",
+            EXECUTION_RECONCILE_REQUEST_FILE,
+            EXECUTION_RECONCILE_SOURCE_ORDER_FILE,
+            "execution-reconcile-attempt.json",
+            EXECUTION_RECONCILE_RESULT_FILE,
+            EXECUTION_RECONCILE_RESULT_RECEIPT_FILE,
+            publish,
+        )
+        .await
+        .unwrap();
+        assert_eq!(publications.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn control_processor_recovers_expired_interrupted_attempt_without_network() {
+        let temp = tempdir().unwrap();
+        let execution = execution_section(temp.path(), temp.path());
+        let context = ProductionExecutionControlContext {
+            candidate_root: temp.path(),
+            output_dir: temp.path(),
+            run_id: "live-candidate-authority-test",
+            execution: &execution,
+            api_key: "test-key",
+            api_secret: "test-secret",
+        };
+        let mut request = control_request("cancel");
+        request.requested_at_unix_ms = 1;
+        request.expires_at_unix_ms = 2;
+        let request_raw = serde_json::to_vec_pretty(&request).unwrap();
+        fs::write(
+            temp.path().join(EXECUTION_CANCEL_REQUEST_FILE),
+            &request_raw,
+        )
+        .unwrap();
+        fs::write(
+            temp.path().join("execution-cancel-attempt.json"),
+            &request_raw,
+        )
+        .unwrap();
+        let published = Mutex::new(None);
+
+        process_production_execution_control_with_publisher(
+            &context,
+            "cancel",
+            EXECUTION_CANCEL_REQUEST_FILE,
+            EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+            "execution-cancel-attempt.json",
+            EXECUTION_CANCEL_RESULT_FILE,
+            EXECUTION_CANCEL_RESULT_RECEIPT_FILE,
+            |_, _, result| {
+                *published.lock().unwrap() = Some(result.clone());
+                Ok(())
+            },
+        )
+        .await
+        .unwrap();
+        let result = published.lock().unwrap().clone().unwrap();
+        assert_eq!(result.status, "unknown_manual_review");
+        assert_eq!(
+            result.error_code.as_deref(),
+            Some("previous_attempt_interrupted_no_retry")
+        );
+        assert!(!result.automatic_retry_attempted);
     }
 
     #[tokio::test]

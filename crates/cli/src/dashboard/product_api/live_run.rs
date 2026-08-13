@@ -3684,7 +3684,7 @@ fn load_live_run_candidate_snapshot(
             request_raw,
             &manifest,
             execution_admission.as_ref().map(|(value, _)| value),
-            execution_order.as_ref().map(|(value, _)| value),
+            reconcile_source_order.as_ref().map(|(value, _)| value),
         )?;
         validate_execution_control_receipt(
             &root.join(LIVE_EXECUTION_RECONCILE_RESULT_RECEIPT_FILE),
@@ -3707,7 +3707,7 @@ fn load_live_run_candidate_snapshot(
             request_raw,
             &manifest,
             execution_admission.as_ref().map(|(value, _)| value),
-            execution_order.as_ref().map(|(value, _)| value),
+            cancel_source_order.as_ref().map(|(value, _)| value),
         )?;
         validate_execution_control_receipt(
             &root.join(LIVE_EXECUTION_CANCEL_RESULT_RECEIPT_FILE),
