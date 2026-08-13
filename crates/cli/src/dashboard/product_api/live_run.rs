@@ -42,7 +42,7 @@ use super::{
         LiveRunAnchorAppendRequest, LiveRunAnchorReceipt, LiveRunAnchorRevision,
         anchor_config_refs,
     },
-    run::{open_absolute_directory_nofollow, write_new_run_file},
+    run::{open_absolute_directory_nofollow, publish_new_run_file, write_new_run_file},
     *,
 };
 
@@ -104,6 +104,9 @@ const LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE: &str =
     "execution-cancel-operator-approval.json";
 const LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE: &str =
     "execution-cancel-operator-approval-receipt.json";
+const LIVE_EXECUTION_CANCEL_OWNER_STAGE_FILE: &str = ".execution-cancel-owner-publication.json";
+const LIVE_EXECUTION_CANCEL_OPERATOR_STAGE_FILE: &str =
+    ".execution-cancel-operator-publication.json";
 const LIVE_EXECUTION_CANCEL_REQUEST_FILE: &str = "execution-cancel-request.json";
 const LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE: &str = "execution-cancel-source-order-state.json";
 const LIVE_EXECUTION_CANCEL_RESULT_FILE: &str = "execution-cancel-result.json";
@@ -222,6 +225,30 @@ struct LiveExecutionCancelApprovalArtifact {
     authority_ref: String,
     approved_at_unix_ms: u64,
     expires_at_unix_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveExecutionCancelPublicationStage {
+    schema_version: String,
+    role: LiveExecutionApprovalRole,
+    request: LiveExecutionCancelRequest,
+    source_order_raw: String,
+    approval: LiveExecutionCancelApprovalArtifact,
+    control_request: Option<LiveExecutionControlRequestArtifact>,
+    run_revision: u64,
+    manifest_sha256: String,
+    previous_workspace_receipt: LiveRunAnchorReceipt,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CancelPublicationStep {
+    SourceOrder,
+    ExternalAnchor,
+    Approval,
+    Receipt,
+    WorkspaceHead,
+    ControlRequest,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -1409,6 +1436,16 @@ fn authorize_live_execution_cancel(
     request: &LiveExecutionCancelRequest,
     role: LiveExecutionApprovalRole,
 ) -> Result<LiveRunCandidate, ProductError> {
+    authorize_live_execution_cancel_with_failure(state, path_run_id, request, role, None)
+}
+
+fn authorize_live_execution_cancel_with_failure(
+    state: &DashboardServerState,
+    path_run_id: &str,
+    request: &LiveExecutionCancelRequest,
+    role: LiveExecutionApprovalRole,
+    fail_after: Option<CancelPublicationStep>,
+) -> Result<LiveRunCandidate, ProductError> {
     if role == LiveExecutionApprovalRole::Risk {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -1418,6 +1455,12 @@ fn authorize_live_execution_cancel(
     let _workspace_lock = acquire_live_run_mutation_lock(state)?;
     validate_identifier("run_id", path_run_id)?;
     validate_identifier("execution_cancel_request_id", &request.request_id)?;
+    let candidate_root = canonical_live_run_root(state, false)?.join(path_run_id);
+    let stage_file = cancel_publication_stage_file(role)?;
+    if candidate_root.join(stage_file).exists() {
+        resume_live_execution_cancel_publication(state, path_run_id, request, role, fail_after)?;
+        return load_live_run_candidate(state, path_run_id);
+    }
     let (candidate, _manifest, manifest_raw) =
         load_live_run_candidate_snapshot(state, path_run_id)?;
     if candidate.lifecycle != LiveRunCandidateLifecycle::MarketDataRunning
@@ -1438,7 +1481,6 @@ fn authorize_live_execution_cancel(
             "live_execution_cancel_expiry",
         ));
     }
-    let candidate_root = canonical_live_run_root(state, false)?.join(path_run_id);
     let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
         &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
         "live_execution_admission",
@@ -1461,17 +1503,27 @@ fn authorize_live_execution_cancel(
         )
     })?;
     validate_execution_order_snapshot(&order, &admission)?;
-    if order.terminal
-        || order.client_order_id.as_deref() != Some(request.client_order_id.as_str())
-        || request.source_order_state_sha256 != sha256_ref(&order_raw)
-        || order.replace_attempted
-        || !execution_order_cancel_attempt_is_valid(&order)
-    {
-        return Err(product_error(
-            ProductErrorKind::BoundaryViolation,
-            "live_execution_cancel_order",
-        ));
-    }
+    let (source_order, source_order_raw) = if role == LiveExecutionApprovalRole::Operator {
+        read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+            &candidate_root.join(LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE),
+            "live_execution_cancel_source_order",
+        )?
+        .ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_source_order",
+            )
+        })?
+    } else {
+        (order.clone(), order_raw)
+    };
+    validate_execution_cancel_request_order(
+        request,
+        &source_order,
+        &source_order_raw,
+        &order,
+        &admission,
+    )?;
     let manifest_sha256 = sha256_ref(&manifest_raw);
     let (current_state, _) = load_live_run_state(state, path_run_id, &manifest_sha256)?;
     let proposal_raw = serde_json::to_vec(request).map_err(|_| {
@@ -1501,12 +1553,6 @@ fn authorize_live_execution_cancel(
         approved_at_unix_ms: now,
         expires_at_unix_ms: request.expires_at_unix_ms,
     };
-    let approval_raw = serde_json::to_vec_pretty(&approval).map_err(|_| {
-        product_error(
-            ProductErrorKind::LiveExecutionFailed,
-            "live_execution_cancel_approval",
-        )
-    })?;
     let (approval_file, receipt_file) = match role {
         LiveExecutionApprovalRole::Owner => (
             LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE,
@@ -1520,10 +1566,6 @@ fn authorize_live_execution_cancel(
     };
     if candidate_root.join(approval_file).exists()
         || candidate_root.join(receipt_file).exists()
-        || (role == LiveExecutionApprovalRole::Owner
-            && candidate_root
-                .join(LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE)
-                .exists())
         || candidate_root
             .join(LIVE_EXECUTION_CANCEL_RESULT_FILE)
             .exists()
@@ -1564,27 +1606,8 @@ fn authorize_live_execution_cancel(
             ));
         }
     }
-    let directory = open_absolute_directory_nofollow(&candidate_root)?;
-    if role == LiveExecutionApprovalRole::Owner {
-        write_new_run_file(
-            &directory,
-            LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE,
-            &order_raw,
-        )?;
-    }
-    write_and_anchor_execution_control_artifact(
-        state,
-        path_run_id,
-        current_state.revision,
-        &manifest_sha256,
-        &approval_raw,
-        approval.approved_at_unix_ms,
-        approval_file,
-        receipt_file,
-        &directory,
-    )?;
-    if role == LiveExecutionApprovalRole::Operator {
-        let control = LiveExecutionControlRequestArtifact {
+    let control_request = if role == LiveExecutionApprovalRole::Operator {
+        Some(LiveExecutionControlRequestArtifact {
             schema_version: LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION.to_string(),
             request_id: request.request_id.clone(),
             action: "cancel".to_string(),
@@ -1598,16 +1621,479 @@ fn authorize_live_execution_cancel(
             operator_confirmed: true,
             requested_at_unix_ms: now,
             expires_at_unix_ms: request.expires_at_unix_ms,
-        };
-        let control_raw = serde_json::to_vec_pretty(&control).map_err(|_| {
+        })
+    } else {
+        None
+    };
+    let previous_workspace_receipt = validate_workspace_anchor_head(state)?.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        )
+    })?;
+    let stage = LiveExecutionCancelPublicationStage {
+        schema_version: "ntpro.s3.live_execution_cancel_publication.v1".to_string(),
+        role,
+        request: request.clone(),
+        source_order_raw: String::from_utf8(source_order_raw).map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "live_execution_cancel_source_order",
+            )
+        })?,
+        approval,
+        control_request,
+        run_revision: current_state.revision,
+        manifest_sha256,
+        previous_workspace_receipt,
+    };
+    let stage_raw = serde_json::to_vec_pretty(&stage).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_cancel_publication",
+        )
+    })?;
+    let directory = open_absolute_directory_nofollow(&candidate_root)?;
+    publish_new_run_file(&directory, stage_file, &stage_raw)?;
+    complete_live_execution_cancel_publication(state, path_run_id, &stage, fail_after)?;
+    load_live_run_candidate(state, path_run_id)
+}
+
+fn cancel_publication_stage_file(
+    role: LiveExecutionApprovalRole,
+) -> Result<&'static str, ProductError> {
+    match role {
+        LiveExecutionApprovalRole::Owner => Ok(LIVE_EXECUTION_CANCEL_OWNER_STAGE_FILE),
+        LiveExecutionApprovalRole::Operator => Ok(LIVE_EXECUTION_CANCEL_OPERATOR_STAGE_FILE),
+        LiveExecutionApprovalRole::Risk => Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_role",
+        )),
+    }
+}
+
+fn validate_execution_cancel_request_order(
+    request: &LiveExecutionCancelRequest,
+    source: &LiveExecutionOrderSnapshot,
+    source_raw: &[u8],
+    current: &LiveExecutionOrderSnapshot,
+    admission: &LiveExecutionAdmissionArtifact,
+) -> Result<(), ProductError> {
+    validate_execution_cancel_order_progression(request, source, source_raw, current, admission)?;
+    if current.terminal {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_order",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_cancel_order_progression(
+    request: &LiveExecutionCancelRequest,
+    source: &LiveExecutionOrderSnapshot,
+    source_raw: &[u8],
+    current: &LiveExecutionOrderSnapshot,
+    admission: &LiveExecutionAdmissionArtifact,
+) -> Result<(), ProductError> {
+    validate_execution_order_snapshot(source, admission)?;
+    validate_execution_order_snapshot(current, admission)?;
+    validate_execution_order_progression(source, current)?;
+    if source.client_order_id.as_deref() != Some(request.client_order_id.as_str())
+        || request.source_order_state_sha256 != sha256_ref(source_raw)
+        || current.replace_attempted
+        || !execution_order_cancel_attempt_is_valid(current)
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_order",
+        ));
+    }
+    Ok(())
+}
+
+fn resume_live_execution_cancel_publication(
+    state: &DashboardServerState,
+    run_id: &str,
+    request: &LiveExecutionCancelRequest,
+    role: LiveExecutionApprovalRole,
+    fail_after: Option<CancelPublicationStep>,
+) -> Result<(), ProductError> {
+    let candidate_root = canonical_live_run_root(state, false)?.join(run_id);
+    let stage_file = cancel_publication_stage_file(role)?;
+    let (stage, _) = read_optional_artifact_with_raw::<LiveExecutionCancelPublicationStage>(
+        &candidate_root.join(stage_file),
+        "live_execution_cancel_publication",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_execution_cancel_publication",
+        )
+    })?;
+    if stage.schema_version != "ntpro.s3.live_execution_cancel_publication.v1"
+        || stage.role != role
+        || stage.request != *request
+        || stage.request.run_id != run_id
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    complete_live_execution_cancel_publication(state, run_id, &stage, fail_after)
+}
+
+fn complete_live_execution_cancel_publication(
+    state: &DashboardServerState,
+    run_id: &str,
+    stage: &LiveExecutionCancelPublicationStage,
+    fail_after: Option<CancelPublicationStep>,
+) -> Result<(), ProductError> {
+    let candidate_root = canonical_live_run_root(state, false)?.join(run_id);
+    let directory = open_absolute_directory_nofollow(&candidate_root)?;
+    let (_manifest, manifest_raw) = load_live_run_manifest(state, run_id)?;
+    if sha256_ref(&manifest_raw) != stage.manifest_sha256 {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    let (current_state, _) = load_live_run_state(state, run_id, &stage.manifest_sha256)?;
+    if current_state.revision != stage.run_revision
+        || current_state.lifecycle != LiveRunCandidateLifecycle::MarketDataRunning
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+        &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+        "live_execution_cancel_admission",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_admission",
+        )
+    })?;
+    let source_raw = stage.source_order_raw.as_bytes();
+    let source_order: LiveExecutionOrderSnapshot =
+        serde_json::from_slice(source_raw).map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "live_execution_cancel_source_order",
+            )
+        })?;
+    let runtime_root = live_market_data_runtime_root(state, run_id)?;
+    let (current_order, _) = read_optional_artifact_with_raw::<LiveExecutionOrderSnapshot>(
+        &runtime_root.join(LIVE_EXECUTION_ORDER_STATE_FILE),
+        "live_execution_cancel_order",
+    )?
+    .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_order",
+        )
+    })?;
+    validate_execution_cancel_order_progression(
+        &stage.request,
+        &source_order,
+        source_raw,
+        &current_order,
+        &admission,
+    )?;
+    let proposal_raw = serde_json::to_vec(&stage.request).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_cancel_publication",
+        )
+    })?;
+    if stage.approval.proposal_sha256 != sha256_ref(&proposal_raw)
+        || stage.approval.source_order_state_sha256 != stage.request.source_order_state_sha256
+        || stage.approval.source_manifest_sha256 != stage.manifest_sha256
+        || stage.approval.run_id != run_id
+        || stage.approval.role != stage.role
+        || stage.approval.client_order_id != stage.request.client_order_id
+        || stage.approval.admission_id != admission.admission_id
+        || stage.approval.strategy_version_id != admission.strategy_version_id
+        || stage.approval.instrument_id != admission.instrument_id
+        || stage.approval.approved_at_unix_ms == 0
+        || stage.approval.approved_at_unix_ms > stage.approval.expires_at_unix_ms
+        || stage.approval.expires_at_unix_ms != stage.request.expires_at_unix_ms
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    let authority_ref = match stage.role {
+        LiveExecutionApprovalRole::Owner => &admission.owner_authority_ref,
+        LiveExecutionApprovalRole::Operator => &admission.operator_authority_ref,
+        LiveExecutionApprovalRole::Risk => unreachable!(),
+    };
+    if stage.approval.authority_ref != *authority_ref {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_publication",
+        ));
+    }
+    if stage.role == LiveExecutionApprovalRole::Operator {
+        let (owner, _) = read_optional_artifact_with_raw::<LiveExecutionCancelApprovalArtifact>(
+            &candidate_root.join(LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE),
+            "live_execution_cancel_owner_approval",
+        )?
+        .ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_owner_approval",
+            )
+        })?;
+        if owner.proposal_sha256 != stage.approval.proposal_sha256
+            || owner.source_order_state_sha256 != stage.approval.source_order_state_sha256
+            || owner.expires_at_unix_ms != stage.approval.expires_at_unix_ms
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_owner_approval",
+            ));
+        }
+        let control = stage.control_request.as_ref().ok_or_else(|| {
+            product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_request",
+            )
+        })?;
+        if control.schema_version != LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION
+            || control.request_id != stage.request.request_id
+            || control.action != "cancel"
+            || control.run_id != run_id
+            || control.admission_id != admission.admission_id
+            || control.strategy_version_id != admission.strategy_version_id
+            || control.instrument_id != admission.instrument_id
+            || control.client_order_id != stage.request.client_order_id
+            || control.source_order_state_sha256 != stage.request.source_order_state_sha256
+            || !control.owner_confirmed
+            || !control.operator_confirmed
+            || control.requested_at_unix_ms != stage.approval.approved_at_unix_ms
+            || control.expires_at_unix_ms != stage.request.expires_at_unix_ms
+        {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_request",
+            ));
+        }
+    } else if stage.control_request.is_some() {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_execution_cancel_request",
+        ));
+    }
+    let approval_raw = serde_json::to_vec_pretty(&stage.approval).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_cancel_approval",
+        )
+    })?;
+    let (approval_file, receipt_file) = match stage.role {
+        LiveExecutionApprovalRole::Owner => (
+            LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE,
+            LIVE_EXECUTION_CANCEL_OWNER_RECEIPT_FILE,
+        ),
+        LiveExecutionApprovalRole::Operator => (
+            LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE,
+            LIVE_EXECUTION_CANCEL_OPERATOR_RECEIPT_FILE,
+        ),
+        LiveExecutionApprovalRole::Risk => unreachable!(),
+    };
+    if stage.role == LiveExecutionApprovalRole::Owner {
+        write_same_or_new_run_file(
+            &directory,
+            LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+            source_raw,
+            "live_execution_cancel_source_order",
+        )?;
+        fail_cancel_publication_after(fail_after, CancelPublicationStep::SourceOrder)?;
+    } else {
+        let persisted_source = read_run_file_from_directory(
+            &directory,
+            LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE,
+            "live_execution_cancel_source_order",
+        )?;
+        if persisted_source != source_raw {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_execution_cancel_source_order",
+            ));
+        }
+    }
+    let anchor_request = LiveRunAnchorAppendRequest::new(
+        state.live_run_audit_anchor.namespace()?,
+        run_id,
+        LiveRunAnchorRevision::new(
+            stage.run_revision,
+            stage.previous_workspace_receipt.workspace_revision + 1,
+        ),
+        sha256_ref(&approval_raw),
+        stage.manifest_sha256.clone(),
+        Some(stage.previous_workspace_receipt.sha256()),
+        stage.approval.approved_at_unix_ms,
+    );
+    let latest = state.live_run_audit_anchor.latest()?.ok_or_else(|| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_latest",
+        )
+    })?;
+    let receipt = if latest == stage.previous_workspace_receipt {
+        state.live_run_audit_anchor.append(&anchor_request)?
+    } else {
+        latest
+    };
+    state
+        .live_run_audit_anchor
+        .validate_receipt(&receipt, &anchor_request)?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::ExternalAnchor)?;
+    let receipt_raw = serde_json::to_vec_pretty(&receipt).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_execution_cancel_receipt",
+        )
+    })?;
+    write_same_or_new_run_file(
+        &directory,
+        approval_file,
+        &approval_raw,
+        "live_execution_cancel_approval",
+    )?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::Approval)?;
+    write_same_or_new_run_file(
+        &directory,
+        receipt_file,
+        &receipt_raw,
+        "live_execution_cancel_receipt",
+    )?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::Receipt)?;
+    recover_workspace_anchor_head_for_publication(
+        state,
+        &stage.previous_workspace_receipt,
+        &receipt,
+    )?;
+    fail_cancel_publication_after(fail_after, CancelPublicationStep::WorkspaceHead)?;
+    if let Some(control) = &stage.control_request {
+        let control_raw = serde_json::to_vec_pretty(control).map_err(|_| {
             product_error(
                 ProductErrorKind::LiveExecutionFailed,
                 "live_execution_cancel_request",
             )
         })?;
-        write_new_run_file(&directory, LIVE_EXECUTION_CANCEL_REQUEST_FILE, &control_raw)?;
+        write_same_or_new_run_file(
+            &directory,
+            LIVE_EXECUTION_CANCEL_REQUEST_FILE,
+            &control_raw,
+            "live_execution_cancel_request",
+        )?;
+        fail_cancel_publication_after(fail_after, CancelPublicationStep::ControlRequest)?;
     }
-    load_live_run_candidate(state, path_run_id)
+    directory
+        .remove_file(cancel_publication_stage_file(stage.role)?)
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceUnavailable,
+                "live_execution_cancel_publication",
+            )
+        })?;
+    if let Ok(parent) = directory.open(".") {
+        let _ = parent.sync_all();
+    }
+    Ok(())
+}
+
+fn write_same_or_new_run_file(
+    directory: &cap_std::fs::Dir,
+    name: &str,
+    raw: &[u8],
+    field: &'static str,
+) -> Result<(), ProductError> {
+    match publish_new_run_file(directory, name, raw) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind == ProductErrorKind::Conflict => {
+            let existing = read_run_file_from_directory(directory, name, field)?;
+            if existing == raw {
+                Ok(())
+            } else {
+                Err(product_error(ProductErrorKind::BoundaryViolation, field))
+            }
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn recover_workspace_anchor_head_for_publication(
+    state: &DashboardServerState,
+    previous: &LiveRunAnchorReceipt,
+    receipt: &LiveRunAnchorReceipt,
+) -> Result<(), ProductError> {
+    let head_path = live_run_workspace_anchor_head_path(state)?;
+    let next_path = head_path.with_file_name(LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE);
+    if next_path.exists() {
+        let next_raw = read_live_run_artifact_bytes(&next_path, "live_run_workspace_anchor_head")?;
+        let next: LiveRunAnchorReceipt = serde_json::from_slice(&next_raw).map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "live_run_workspace_anchor_head",
+            )
+        })?;
+        if next != *receipt {
+            return Err(product_error(
+                ProductErrorKind::BoundaryViolation,
+                "live_run_workspace_anchor_head",
+            ));
+        }
+        let artifacts = open_absolute_directory_nofollow(
+            head_path
+                .parent()
+                .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "artifact_root"))?,
+        )?;
+        artifacts
+            .rename(
+                LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE,
+                &artifacts,
+                LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE,
+            )
+            .map_err(|_| {
+                product_error(
+                    ProductErrorKind::SourceUnavailable,
+                    "live_run_workspace_anchor_head",
+                )
+            })?;
+    }
+    let local = load_local_workspace_anchor_head(state)?;
+    if local.as_ref() == Some(receipt) {
+        return Ok(());
+    }
+    if local.as_ref() != Some(previous) {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_run_workspace_anchor_head",
+        ));
+    }
+    publish_workspace_anchor_head(state, receipt)
+}
+
+fn fail_cancel_publication_after(
+    fail_after: Option<CancelPublicationStep>,
+    completed: CancelPublicationStep,
+) -> Result<(), ProductError> {
+    if fail_after == Some(completed) {
+        Err(product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_execution_cancel_publication_injected_failure",
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 fn write_and_anchor_live_execution_approval(
@@ -6771,6 +7257,220 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         }
     }
 
+    fn setup_cancel_publication(
+        name: &str,
+    ) -> (
+        LiveRunFixture,
+        String,
+        LiveExecutionAdmissionArtifact,
+        LiveExecutionOrderSnapshot,
+        Vec<u8>,
+    ) {
+        let fixture = LiveRunFixture::new(name);
+        let ready = create_preflight_ready_candidate(
+            &fixture,
+            &format!("product-{name}-cancel-publication"),
+        );
+        let admission_request = execution_admission_request(&ready.run_id);
+        for role in [
+            LiveExecutionApprovalRole::Owner,
+            LiveExecutionApprovalRole::Risk,
+            LiveExecutionApprovalRole::Operator,
+        ] {
+            authorize_live_execution_with_source_validator(
+                &fixture.state,
+                &ready.run_id,
+                &admission_request,
+                role,
+                |_| Ok(execution_risk_policy()),
+            )
+            .unwrap();
+        }
+        let candidate_root = canonical_live_run_root(&fixture.state, false)
+            .unwrap()
+            .join(&ready.run_id);
+        let directory = open_absolute_directory_nofollow(&candidate_root).unwrap();
+        let (manifest, manifest_raw) =
+            load_live_run_manifest(&fixture.state, &ready.run_id).unwrap();
+        let manifest_sha256 = sha256_ref(&manifest_raw);
+        let (preflight_ready, preflight_ready_raw) =
+            load_live_run_state(&fixture.state, &ready.run_id, &manifest_sha256).unwrap();
+        write_live_node_config(
+            &fixture.state,
+            &directory,
+            &manifest,
+            read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+                &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+                "live_execution_admission",
+            )
+            .unwrap()
+            .as_ref()
+            .map(|(value, _)| value),
+        )
+        .unwrap();
+        let runtime_config_raw =
+            fs::read(candidate_root.join(LIVE_MARKET_DATA_NODE_CONFIG_FILE)).unwrap();
+        let starting = LiveRunCandidateState {
+            schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+            run_id: ready.run_id.clone(),
+            source_manifest_sha256: manifest_sha256.clone(),
+            revision: preflight_ready.revision + 1,
+            previous_state_sha256: Some(sha256_ref(&preflight_ready_raw)),
+            lifecycle: LiveRunCandidateLifecycle::Starting,
+            preflight_sha256: preflight_ready.preflight_sha256,
+            execution_admission_sha256: preflight_ready.execution_admission_sha256,
+            execution_runtime_config_sha256: Some(sha256_ref(&runtime_config_raw)),
+            stop_sha256: None,
+            updated_at_unix_ms: unix_time_ms(),
+        };
+        write_live_run_state(&fixture.state, &ready.run_id, &starting).unwrap();
+        let (starting, starting_raw) =
+            load_live_run_state(&fixture.state, &ready.run_id, &manifest_sha256).unwrap();
+        write_live_run_state(
+            &fixture.state,
+            &ready.run_id,
+            &LiveRunCandidateState {
+                schema_version: LIVE_RUN_STATE_SCHEMA_VERSION.to_string(),
+                run_id: ready.run_id.clone(),
+                source_manifest_sha256: manifest_sha256,
+                revision: starting.revision + 1,
+                previous_state_sha256: Some(sha256_ref(&starting_raw)),
+                lifecycle: LiveRunCandidateLifecycle::MarketDataRunning,
+                preflight_sha256: starting.preflight_sha256,
+                execution_admission_sha256: starting.execution_admission_sha256,
+                execution_runtime_config_sha256: starting.execution_runtime_config_sha256,
+                stop_sha256: None,
+                updated_at_unix_ms: unix_time_ms(),
+            },
+        )
+        .unwrap();
+        let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+            &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+            "live_execution_admission",
+        )
+        .unwrap()
+        .unwrap();
+        let order = LiveExecutionOrderSnapshot {
+            schema_version: LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
+            admission_id: admission.admission_id.clone(),
+            strategy_version_id: admission.strategy_version_id.clone(),
+            instrument_id: admission.instrument_id.clone(),
+            client_order_id: Some("S3LV008-001".to_string()),
+            venue_order_id: Some("1001".to_string()),
+            original_quantity: admission.quantity.clone(),
+            filled_quantity: "0".to_string(),
+            remaining_quantity: admission.quantity.clone(),
+            status: "accepted".to_string(),
+            terminal: false,
+            new_orders_blocked: true,
+            actual_submission_attempted: true,
+            automatic_retry_attempted: false,
+            cancel_attempted: false,
+            replace_attempted: false,
+            last_error: None,
+            updated_at_unix_ms: unix_time_ms().max(admission.authorized_at_unix_ms),
+        };
+        let order_raw = serde_json::to_vec_pretty(&order).unwrap();
+        let runtime_root = live_market_data_runtime_root(&fixture.state, &ready.run_id).unwrap();
+        fs::write(
+            runtime_root.join(LIVE_EXECUTION_ORDER_STATE_FILE),
+            &order_raw,
+        )
+        .unwrap();
+        (fixture, ready.run_id, admission, order, order_raw)
+    }
+
+    fn cancel_request(run_id: &str, order_raw: &[u8]) -> LiveExecutionCancelRequest {
+        LiveExecutionCancelRequest {
+            run_id: run_id.to_string(),
+            request_id: "cancel-001".to_string(),
+            client_order_id: "S3LV008-001".to_string(),
+            source_order_state_sha256: sha256_ref(order_raw),
+            expires_at_unix_ms: unix_time_ms() + 60_000,
+            user_confirmed: true,
+        }
+    }
+
+    fn stage_cancel_publication(
+        fixture: &LiveRunFixture,
+        run_id: &str,
+        request: &LiveExecutionCancelRequest,
+        role: LiveExecutionApprovalRole,
+        source_order_raw: &[u8],
+    ) -> LiveExecutionCancelPublicationStage {
+        let candidate_root = canonical_live_run_root(&fixture.state, false)
+            .unwrap()
+            .join(run_id);
+        let (admission, _) = read_optional_artifact_with_raw::<LiveExecutionAdmissionArtifact>(
+            &candidate_root.join(LIVE_EXECUTION_ADMISSION_FILE),
+            "live_execution_admission",
+        )
+        .unwrap()
+        .unwrap();
+        let (_, manifest_raw) = load_live_run_manifest(&fixture.state, run_id).unwrap();
+        let manifest_sha256 = sha256_ref(&manifest_raw);
+        let (state, _) = load_live_run_state(&fixture.state, run_id, &manifest_sha256).unwrap();
+        let approved_at_unix_ms = unix_time_ms();
+        let proposal_sha256 = sha256_ref(&serde_json::to_vec(request).unwrap());
+        let approval = LiveExecutionCancelApprovalArtifact {
+            schema_version: "ntpro.s3.live_execution_cancel_approval.v1".to_string(),
+            role,
+            proposal_sha256,
+            source_manifest_sha256: manifest_sha256.clone(),
+            run_id: run_id.to_string(),
+            admission_id: admission.admission_id.clone(),
+            strategy_version_id: admission.strategy_version_id.clone(),
+            instrument_id: admission.instrument_id.clone(),
+            client_order_id: request.client_order_id.clone(),
+            source_order_state_sha256: request.source_order_state_sha256.clone(),
+            authority_ref: match role {
+                LiveExecutionApprovalRole::Owner => admission.owner_authority_ref.clone(),
+                LiveExecutionApprovalRole::Operator => admission.operator_authority_ref.clone(),
+                LiveExecutionApprovalRole::Risk => unreachable!(),
+            },
+            approved_at_unix_ms,
+            expires_at_unix_ms: request.expires_at_unix_ms,
+        };
+        let control_request = (role == LiveExecutionApprovalRole::Operator).then(|| {
+            LiveExecutionControlRequestArtifact {
+                schema_version: LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION.to_string(),
+                request_id: request.request_id.clone(),
+                action: "cancel".to_string(),
+                run_id: run_id.to_string(),
+                admission_id: admission.admission_id,
+                strategy_version_id: admission.strategy_version_id,
+                instrument_id: admission.instrument_id,
+                client_order_id: request.client_order_id.clone(),
+                source_order_state_sha256: request.source_order_state_sha256.clone(),
+                owner_confirmed: true,
+                operator_confirmed: true,
+                requested_at_unix_ms: approved_at_unix_ms,
+                expires_at_unix_ms: request.expires_at_unix_ms,
+            }
+        });
+        let stage = LiveExecutionCancelPublicationStage {
+            schema_version: "ntpro.s3.live_execution_cancel_publication.v1".to_string(),
+            role,
+            request: request.clone(),
+            source_order_raw: String::from_utf8(source_order_raw.to_vec()).unwrap(),
+            approval,
+            control_request,
+            run_revision: state.revision,
+            manifest_sha256,
+            previous_workspace_receipt: validate_workspace_anchor_head(&fixture.state)
+                .unwrap()
+                .unwrap(),
+        };
+        let directory = open_absolute_directory_nofollow(&candidate_root).unwrap();
+        publish_new_run_file(
+            &directory,
+            cancel_publication_stage_file(role).unwrap(),
+            &serde_json::to_vec_pretty(&stage).unwrap(),
+        )
+        .unwrap();
+        stage
+    }
+
     #[test]
     fn live_execution_admission_is_fail_closed_single_use_and_externally_anchored() {
         let fixture = LiveRunFixture::new("execution-admission");
@@ -6945,6 +7645,200 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         assert_eq!(
             market_only_start.field,
             "live_execution_admission_requires_execution_start"
+        );
+    }
+
+    #[test]
+    fn cancel_operator_approval_accepts_current_order_progress_from_owner_source() {
+        let (fixture, run_id, admission, mut order, order_raw) =
+            setup_cancel_publication("cancel-progress");
+        let request = cancel_request(&run_id, &order_raw);
+        let owner_stage = stage_cancel_publication(
+            &fixture,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            &order_raw,
+        );
+        complete_live_execution_cancel_publication(&fixture.state, &run_id, &owner_stage, None)
+            .unwrap();
+
+        order.status = "partially_filled".to_string();
+        order.filled_quantity = "0.00000400".to_string();
+        order.remaining_quantity = "0.00000600".to_string();
+        order.updated_at_unix_ms += 1;
+        fs::write(
+            fixture
+                .root
+                .join("artifacts/live-market-data-runtime")
+                .join(&run_id)
+                .join(LIVE_EXECUTION_ORDER_STATE_FILE),
+            serde_json::to_vec_pretty(&order).unwrap(),
+        )
+        .unwrap();
+
+        validate_execution_cancel_request_order(
+            &request,
+            &serde_json::from_slice(&order_raw).unwrap(),
+            &order_raw,
+            &order,
+            &admission,
+        )
+        .unwrap();
+        let operator_stage = stage_cancel_publication(
+            &fixture,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Operator,
+            &order_raw,
+        );
+        complete_live_execution_cancel_publication(&fixture.state, &run_id, &operator_stage, None)
+            .unwrap();
+        let root = fixture.root.join("artifacts/live-runs").join(&run_id);
+        assert_eq!(
+            fs::read(root.join(LIVE_EXECUTION_CANCEL_SOURCE_ORDER_FILE)).unwrap(),
+            order_raw
+        );
+        assert!(root.join(LIVE_EXECUTION_CANCEL_REQUEST_FILE).is_file());
+    }
+
+    #[test]
+    fn cancel_publication_recovers_every_owner_and_operator_write_boundary() {
+        for role in [
+            LiveExecutionApprovalRole::Owner,
+            LiveExecutionApprovalRole::Operator,
+        ] {
+            let steps: &[CancelPublicationStep] = if role == LiveExecutionApprovalRole::Owner {
+                &[
+                    CancelPublicationStep::SourceOrder,
+                    CancelPublicationStep::ExternalAnchor,
+                    CancelPublicationStep::Approval,
+                    CancelPublicationStep::Receipt,
+                    CancelPublicationStep::WorkspaceHead,
+                ]
+            } else {
+                &[
+                    CancelPublicationStep::ExternalAnchor,
+                    CancelPublicationStep::Approval,
+                    CancelPublicationStep::Receipt,
+                    CancelPublicationStep::WorkspaceHead,
+                    CancelPublicationStep::ControlRequest,
+                ]
+            };
+            for step in steps {
+                let name = format!("cancel-recovery-{role:?}-{step:?}");
+                let (fixture, run_id, _admission, _order, order_raw) =
+                    setup_cancel_publication(&name);
+                let request = cancel_request(&run_id, &order_raw);
+                if role == LiveExecutionApprovalRole::Operator {
+                    let owner_stage = stage_cancel_publication(
+                        &fixture,
+                        &run_id,
+                        &request,
+                        LiveExecutionApprovalRole::Owner,
+                        &order_raw,
+                    );
+                    complete_live_execution_cancel_publication(
+                        &fixture.state,
+                        &run_id,
+                        &owner_stage,
+                        None,
+                    )
+                    .unwrap();
+                }
+                let stage = stage_cancel_publication(&fixture, &run_id, &request, role, &order_raw);
+                let error = complete_live_execution_cancel_publication(
+                    &fixture.state,
+                    &run_id,
+                    &stage,
+                    Some(*step),
+                )
+                .unwrap_err();
+                assert_eq!(
+                    error.field, "live_execution_cancel_publication_injected_failure",
+                    "{role:?} {step:?}"
+                );
+                resume_live_execution_cancel_publication(
+                    &fixture.state,
+                    &run_id,
+                    &request,
+                    role,
+                    None,
+                )
+                .unwrap();
+                let root = fixture.root.join("artifacts/live-runs").join(&run_id);
+                assert!(
+                    !root
+                        .join(cancel_publication_stage_file(role).unwrap())
+                        .exists(),
+                    "{role:?} {step:?}"
+                );
+                assert!(
+                    root.join(match role {
+                        LiveExecutionApprovalRole::Owner => {
+                            LIVE_EXECUTION_CANCEL_OWNER_APPROVAL_FILE
+                        }
+                        LiveExecutionApprovalRole::Operator => {
+                            LIVE_EXECUTION_CANCEL_OPERATOR_APPROVAL_FILE
+                        }
+                        LiveExecutionApprovalRole::Risk => unreachable!(),
+                    })
+                    .is_file(),
+                    "{role:?} {step:?}"
+                );
+                if role == LiveExecutionApprovalRole::Operator {
+                    assert!(root.join(LIVE_EXECUTION_CANCEL_REQUEST_FILE).is_file());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cancel_publication_recovery_completes_after_order_becomes_terminal() {
+        let (fixture, run_id, _admission, mut order, order_raw) =
+            setup_cancel_publication("cancel-terminal-recovery");
+        let request = cancel_request(&run_id, &order_raw);
+        let stage = stage_cancel_publication(
+            &fixture,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            &order_raw,
+        );
+        complete_live_execution_cancel_publication(
+            &fixture.state,
+            &run_id,
+            &stage,
+            Some(CancelPublicationStep::ExternalAnchor),
+        )
+        .unwrap_err();
+        order.status = "filled".to_string();
+        order.filled_quantity = order.original_quantity.clone();
+        order.remaining_quantity = "0".to_string();
+        order.terminal = true;
+        order.updated_at_unix_ms += 1;
+        fs::write(
+            live_market_data_runtime_root(&fixture.state, &run_id)
+                .unwrap()
+                .join(LIVE_EXECUTION_ORDER_STATE_FILE),
+            serde_json::to_vec_pretty(&order).unwrap(),
+        )
+        .unwrap();
+        resume_live_execution_cancel_publication(
+            &fixture.state,
+            &run_id,
+            &request,
+            LiveExecutionApprovalRole::Owner,
+            None,
+        )
+        .unwrap();
+        assert!(
+            !fixture
+                .root
+                .join("artifacts/live-runs")
+                .join(&run_id)
+                .join(LIVE_EXECUTION_CANCEL_OWNER_STAGE_FILE)
+                .exists()
         );
     }
 
