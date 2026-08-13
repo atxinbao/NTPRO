@@ -908,6 +908,8 @@ export const zLiveExecutionAdmissionRequest = z.object({
   account_ref: z.literal("account://live/binance/primary"),
   venue_ref: z.literal("venue://live/BINANCE"),
   admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+  source_demo_run_id: zRunId,
+  strategy_intent_id: z.string().regex(/^[A-Za-z0-9._:-]{1,256}$/),
   instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
   side: z.enum(["BUY", "SELL"]),
   order_type: z.literal("LIMIT"),
@@ -976,8 +978,11 @@ export const zLiveExecutionOrderSnapshot = z.intersection(
     }),
   ]),
   z.object({
-    schema_version: z.literal("ntpro.s3.live_execution_order_state.v2"),
+    schema_version: z.literal("ntpro.s3.live_execution_order_state.v3"),
     admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
+    source_demo_run_id: zRunId,
+    strategy_intent_id: z.string().min(1).max(128),
+    strategy_intent_sha256: zContentHash,
     strategy_version_id: zStrategyVersionId,
     instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
     client_order_id: z.string().min(1).max(128).nullable(),
@@ -1008,6 +1013,24 @@ export const zLiveExecutionOrderSnapshot = z.intersection(
     updated_at_unix_ms: z.int().gte(1),
   }),
 );
+
+export const zLiveStrategyOrderIntent = z.object({
+  schema_version: z.literal("ntpro.s3.live_strategy_order_intent.v1"),
+  source_demo_run_id: zRunId,
+  strategy_id: zStrategyId,
+  strategy_version_id: zStrategyVersionId,
+  intent_id: z.string().regex(/^[A-Za-z0-9._:-]{1,256}$/),
+  instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
+  side: z.enum(["BUY", "SELL"]),
+  source_order_type: z.literal("market"),
+  quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  source_signal: z.string().min(1).max(64),
+  confidence: z.string().regex(/^(?:0(?:\.[0-9]+)?|1(?:\.0+)?)$/),
+  market_event_seq: z.int().gte(1),
+  created_at_unix_ms: z.int().gte(1),
+  source_manifest_sha256: zContentHash,
+  source_result_sha256: zContentHash,
+});
 
 export const zLiveExecutionControlSnapshot = z.intersection(
   z.union([
@@ -1238,6 +1261,8 @@ export const zLiveRunCandidate = z.intersection(
     runtime_error: z.string().min(1).max(512).nullable(),
     audit_anchor: zLiveRunAuditAnchorSnapshot,
     order_admission: zLiveOrderAdmissionSnapshot,
+    strategy_intent: zLiveStrategyOrderIntent.nullable(),
+    strategy_intent_sha256: zContentHash.nullable(),
     execution_order: zLiveExecutionOrderSnapshot.nullable(),
     execution_order_state_sha256: zContentHash.nullable(),
     execution_control: zLiveExecutionControlSnapshot.nullable(),

@@ -3,13 +3,16 @@
 use super::node_runtime::{execution_sha256_ref, read_bounded_execution_authority_file};
 use super::*;
 
-const EXECUTION_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v2";
+const EXECUTION_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v3";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct ProductionExecutionOrderState {
     schema_version: String,
     admission_id: String,
+    source_demo_run_id: String,
+    strategy_intent_id: String,
+    strategy_intent_sha256: String,
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
@@ -32,6 +35,9 @@ struct ProductionExecutionOrderState {
 pub(super) struct ProductionSingleShotExecutionStrategy {
     core: StrategyCore,
     admission_id: String,
+    source_demo_run_id: String,
+    strategy_intent_id: String,
+    strategy_intent_sha256: String,
     strategy_version_id: String,
     instrument_id: InstrumentId,
     side: OrderSide,
@@ -106,6 +112,9 @@ impl ProductionSingleShotExecutionStrategy {
                 ..Default::default()
             }),
             admission_id: execution.admission_id.clone(),
+            source_demo_run_id: execution.source_demo_run_id.clone(),
+            strategy_intent_id: execution.strategy_intent_id.clone(),
+            strategy_intent_sha256: execution.strategy_intent_sha256.clone(),
             strategy_version_id: execution.strategy_version_id.clone(),
             instrument_id,
             side,
@@ -179,6 +188,9 @@ impl ProductionSingleShotExecutionStrategy {
             &ProductionExecutionOrderState {
                 schema_version: EXECUTION_STATE_SCHEMA_VERSION.to_string(),
                 admission_id: self.admission_id.clone(),
+                source_demo_run_id: self.source_demo_run_id.clone(),
+                strategy_intent_id: self.strategy_intent_id.clone(),
+                strategy_intent_sha256: self.strategy_intent_sha256.clone(),
                 strategy_version_id: self.strategy_version_id.clone(),
                 instrument_id: self.instrument_id.to_string(),
                 client_order_id: self.client_order_id.clone(),
@@ -361,6 +373,9 @@ fn load_existing_execution_state(
         });
     if state.schema_version != EXECUTION_STATE_SCHEMA_VERSION
         || state.admission_id != execution.admission_id
+        || state.source_demo_run_id != execution.source_demo_run_id
+        || state.strategy_intent_id != execution.strategy_intent_id
+        || state.strategy_intent_sha256 != execution.strategy_intent_sha256
         || state.strategy_version_id != execution.strategy_version_id
         || state.instrument_id != instrument_id.to_string()
         || !state.new_orders_blocked
@@ -409,7 +424,7 @@ mod tests {
 
     fn execution_section() -> ProductionExecutionSection {
         ProductionExecutionSection {
-            schema_version: "ntpro.s3.live_execution_node.v1".to_string(),
+            schema_version: "ntpro.s3.live_execution_node.v2".to_string(),
             source_manifest_sha256: format!("sha256:{}", "1".repeat(64)),
             execution_admission_sha256: format!("sha256:{}", "2".repeat(64)),
             runtime_artifact_root: PathBuf::from("/tmp/ntpro-s3-lv-007-runtime"),
@@ -419,6 +434,9 @@ mod tests {
             risk_authority_ref: "policy://risk/test-v1".to_string(),
             operator_authority_ref: "role://operations-operator".to_string(),
             admission_id: "admission-001".to_string(),
+            source_demo_run_id: "demo-source-001".to_string(),
+            strategy_intent_id: "intent-001".to_string(),
+            strategy_intent_sha256: format!("sha256:{}", "4".repeat(64)),
             strategy_version_id: "ema_cross_btcusdt_v1@v1".to_string(),
             account_id: "BINANCE-001".to_string(),
             instrument_id: "BTCUSDT.BINANCE".to_string(),
@@ -510,6 +528,9 @@ mod tests {
             &ProductionExecutionOrderState {
                 schema_version: EXECUTION_STATE_SCHEMA_VERSION.to_string(),
                 admission_id: section.admission_id.clone(),
+                source_demo_run_id: section.source_demo_run_id.clone(),
+                strategy_intent_id: section.strategy_intent_id.clone(),
+                strategy_intent_sha256: section.strategy_intent_sha256.clone(),
                 strategy_version_id: section.strategy_version_id.clone(),
                 instrument_id: section.instrument_id.clone(),
                 client_order_id: Some(expected_id.clone()),
@@ -557,6 +578,9 @@ mod tests {
         let mut state = ProductionExecutionOrderState {
             schema_version: EXECUTION_STATE_SCHEMA_VERSION.to_string(),
             admission_id: section.admission_id.clone(),
+            source_demo_run_id: section.source_demo_run_id.clone(),
+            strategy_intent_id: section.strategy_intent_id.clone(),
+            strategy_intent_sha256: section.strategy_intent_sha256.clone(),
             strategy_version_id: section.strategy_version_id.clone(),
             instrument_id: section.instrument_id.clone(),
             client_order_id: Some(expected_id),
@@ -626,6 +650,9 @@ mod tests {
             &ProductionExecutionOrderState {
                 schema_version: EXECUTION_STATE_SCHEMA_VERSION.to_string(),
                 admission_id: section.admission_id.clone(),
+                source_demo_run_id: section.source_demo_run_id.clone(),
+                strategy_intent_id: section.strategy_intent_id.clone(),
+                strategy_intent_sha256: section.strategy_intent_sha256.clone(),
                 strategy_version_id: section.strategy_version_id.clone(),
                 instrument_id: section.instrument_id.clone(),
                 client_order_id: Some("attacker-controlled-id".to_string()),

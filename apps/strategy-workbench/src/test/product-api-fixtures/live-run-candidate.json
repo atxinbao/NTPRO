@@ -46,6 +46,8 @@
         "fill_reconciliation_not_enabled"
       ]
     },
+    "strategy_intent": null,
+    "strategy_intent_sha256": null,
     "execution_order": null,
     "execution_order_state_sha256": null,
     "execution_control": null,

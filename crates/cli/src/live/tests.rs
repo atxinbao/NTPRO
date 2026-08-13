@@ -14627,7 +14627,7 @@ fn production_execution_config(node_id: &str) -> String {
     let control_artifact_root = std::env::temp_dir().join("ntpro-s3-lv-008-control");
     let execution = format!(
         "[live_execution]\n\
-         schema_version = \"ntpro.s3.live_execution_node.v1\"\n\
+         schema_version = \"ntpro.s3.live_execution_node.v2\"\n\
          source_manifest_sha256 = \"sha256:1111111111111111111111111111111111111111111111111111111111111111\"\n\
          execution_admission_sha256 = \"sha256:2222222222222222222222222222222222222222222222222222222222222222\"\n\
          runtime_artifact_root = \"{}\"\n\
@@ -14637,6 +14637,9 @@ fn production_execution_config(node_id: &str) -> String {
          risk_authority_ref = \"policy://risk/test-v1\"\n\
          operator_authority_ref = \"role://operations-operator\"\n\
          admission_id = \"admission-001\"\n\
+         source_demo_run_id = \"demo-source-001\"\n\
+         strategy_intent_id = \"intent-001\"\n\
+         strategy_intent_sha256 = \"sha256:3333333333333333333333333333333333333333333333333333333333333333\"\n\
          strategy_version_id = \"ema_cross_btcusdt_v1@v1\"\n\
          account_id = \"BINANCE-001\"\n\
          instrument_id = \"BTCUSDT.BINANCE\"\n\

@@ -235,6 +235,7 @@ export type {
   LiveRunCandidateListResponse,
   LiveRunCandidateResponse,
   LiveRuntimeGateState,
+  LiveStrategyOrderIntent,
   LiveVenueAdmission,
   Page,
   ProductError,

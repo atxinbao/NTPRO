@@ -131,7 +131,7 @@ pub(crate) use command::run_live_command;
 const LIVE_INIT_SMOKE_MODE: &str = "live-init-smoke";
 const PRODUCTION_MARKET_DATA_MODE: &str = "production-market-data";
 const PRODUCTION_MARKET_DATA_SCHEMA_VERSION: &str = "ntpro.live_market_data_node.v1";
-const PRODUCTION_EXECUTION_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_node.v1";
+const PRODUCTION_EXECUTION_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_node.v2";
 const LIVE_ENVIRONMENT: &str = "live";
 const BINANCE_SPOT_PRODUCT_TYPE: &str = "spot";
 const STRATEGY_SESSION_SHADOW_MODE: &str = "shadow";
@@ -431,6 +431,9 @@ struct ProductionExecutionSection {
     risk_authority_ref: String,
     operator_authority_ref: String,
     admission_id: String,
+    source_demo_run_id: String,
+    strategy_intent_id: String,
+    strategy_intent_sha256: String,
     strategy_version_id: String,
     account_id: String,
     instrument_id: String,

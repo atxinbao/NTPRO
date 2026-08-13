@@ -14,6 +14,7 @@ import {
   useLiveExecutionOwnerApproval,
   useLiveRunCandidates,
   useCreateLiveRunCandidate,
+  useDemoRunSnapshot,
   useLiveRunCandidateAction,
   useOverviewProductContext,
   useRefreshLiveAccount,
@@ -36,9 +37,7 @@ export function LivePage() {
   const [liveRunConfirmed, setLiveRunConfirmed] = useState(false);
   const [cancelConfirmed, setCancelConfirmed] = useState(false);
   const [executionDraft, setExecutionDraft] = useState({
-    side: "BUY" as "BUY" | "SELL",
     price: "",
-    quantity: "",
     maxNotional: "",
     userConfirmed: false,
   });
@@ -49,8 +48,24 @@ export function LivePage() {
   const versionId = product.isReady
     ? product.version?.strategy_version_id
     : undefined;
-  const admission = useLiveAdmission(strategyId, versionId);
   const liveRunCandidates = useLiveRunCandidates();
+  const pendingExecutionAdmission =
+    liveRunCandidates.data?.data[0]?.lifecycle === "preflight_ready" &&
+    liveRunCandidates.data.data[0].order_admission.status === "blocked";
+  const sourceDemoRun = product.isReady
+    ? product.runs?.data
+        .filter(
+          (run) => run.environment === "sandbox" && run.lifecycle === "stopped",
+        )
+        .sort(
+          (left, right) => right.created_at_unix_ms - left.created_at_unix_ms,
+        )[0]
+    : undefined;
+  const sourceDemoSnapshot = useDemoRunSnapshot(
+    sourceDemoRun?.run_id,
+    Boolean(sourceDemoRun && pendingExecutionAdmission),
+  );
+  const admission = useLiveAdmission(strategyId, versionId);
   const accountRefresh = useRefreshLiveAccount();
   const createLiveRun = useCreateLiveRunCandidate();
   const liveRunAction = useLiveRunCandidateAction();
@@ -61,6 +76,7 @@ export function LivePage() {
     liveRunCandidates.error.field === "live_run_audit_anchor_config";
   const error =
     product.error ??
+    (pendingExecutionAdmission ? sourceDemoSnapshot.error : null) ??
     admission.error ??
     (auditAnchorUnavailable ? null : liveRunCandidates.error);
 
@@ -68,6 +84,8 @@ export function LivePage() {
   if (
     product.isVerifying ||
     !product.isReady ||
+    (Boolean(sourceDemoRun && pendingExecutionAdmission) &&
+      sourceDemoSnapshot.isPending) ||
     admission.isPending ||
     liveRunCandidates.isPending
   ) {
@@ -82,7 +100,17 @@ export function LivePage() {
   const account = accountRefresh.data?.data;
   const liveRun = liveRunCandidates.data?.data[0];
   const liveRunBoundaries = liveRunCandidates.data?.boundaries;
-  const executionInstrument = product.version?.data_requirements.symbols[0];
+  const strategyIntent =
+    sourceDemoSnapshot.data?.data.snapshot_status === "frozen"
+      ? sourceDemoSnapshot.data.data.latest_order_intent
+      : undefined;
+  const executionInstrument = strategyIntent?.symbol;
+  const executionSide =
+    strategyIntent?.side === "buy"
+      ? "BUY"
+      : strategyIntent && ["sell", "flatten"].includes(strategyIntent.side)
+        ? "SELL"
+        : undefined;
   const executionConfirmationsComplete = executionDraft.userConfirmed;
   const canCreateLiveRun =
     !auditAnchorUnavailable &&
@@ -492,7 +520,13 @@ export function LivePage() {
                 aria-label="单笔真实限价单准入"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (!executionInstrument || !executionConfirmationsComplete) {
+                  if (
+                    !sourceDemoRun ||
+                    !strategyIntent ||
+                    !executionInstrument ||
+                    !executionSide ||
+                    !executionConfirmationsComplete
+                  ) {
                     return;
                   }
                   executionOwnerApproval.mutate({
@@ -503,12 +537,14 @@ export function LivePage() {
                       account_ref: "account://live/binance/primary",
                       venue_ref: "venue://live/BINANCE",
                       admission_id: `manual-${Date.now()}`,
+                      source_demo_run_id: sourceDemoRun.run_id,
+                      strategy_intent_id: strategyIntent.intent_id,
                       instrument_id: executionInstrument,
-                      side: executionDraft.side,
+                      side: executionSide,
                       order_type: "LIMIT",
                       time_in_force: "GTC",
                       price: executionDraft.price,
-                      quantity: executionDraft.quantity,
+                      quantity: String(strategyIntent.quantity),
                       max_notional: executionDraft.maxNotional,
                       expires_at_unix_ms: Date.now() + 5 * 60 * 1_000,
                       user_confirmed: true,
@@ -533,18 +569,7 @@ export function LivePage() {
                   </label>
                   <label>
                     <span>方向</span>
-                    <select
-                      value={executionDraft.side}
-                      onChange={(event) =>
-                        setExecutionDraft((current) => ({
-                          ...current,
-                          side: event.target.value as "BUY" | "SELL",
-                        }))
-                      }
-                    >
-                      <option value="BUY">买入</option>
-                      <option value="SELL">卖出</option>
-                    </select>
+                    <input value={executionSide ?? "无策略意图"} readOnly />
                   </label>
                   <label>
                     <span>限价</span>
@@ -563,15 +588,26 @@ export function LivePage() {
                   <label>
                     <span>数量</span>
                     <input
-                      inputMode="decimal"
-                      required
-                      value={executionDraft.quantity}
-                      onChange={(event) =>
-                        setExecutionDraft((current) => ({
-                          ...current,
-                          quantity: event.target.value,
-                        }))
+                      value={
+                        strategyIntent
+                          ? String(strategyIntent.quantity)
+                          : "无策略意图"
                       }
+                      readOnly
+                    />
+                  </label>
+                  <label>
+                    <span>来源 Demo Run</span>
+                    <input
+                      value={sourceDemoRun?.run_id ?? "无已冻结 Demo Run"}
+                      readOnly
+                    />
+                  </label>
+                  <label>
+                    <span>策略意图</span>
+                    <input
+                      value={strategyIntent?.intent_id ?? "无策略意图"}
+                      readOnly
                     />
                   </label>
                   <label className={styles.formFieldWide}>
@@ -610,6 +646,7 @@ export function LivePage() {
                     type="submit"
                     disabled={
                       !executionInstrument ||
+                      !strategyIntent ||
                       !executionConfirmationsComplete ||
                       executionOwnerApproval.isPending
                     }

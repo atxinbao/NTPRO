@@ -35,7 +35,7 @@ const EXECUTION_CANCEL_VENUE_ATTEMPT_FILE: &str = "execution-cancel-venue-attemp
 const EXECUTION_CANCEL_RESULT_FILE: &str = "execution-cancel-result.json";
 const EXECUTION_CANCEL_RESULT_RECEIPT_FILE: &str = "execution-cancel-result-receipt.json";
 const EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
-const EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v2";
+const EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v3";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -87,6 +87,9 @@ struct ProductionExecutionControlResult {
 struct ProductionExecutionOrderStateSnapshot {
     schema_version: String,
     admission_id: String,
+    source_demo_run_id: String,
+    strategy_intent_id: String,
+    strategy_intent_sha256: String,
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
@@ -103,6 +106,26 @@ struct ProductionExecutionOrderStateSnapshot {
     replace_attempted: bool,
     last_error: Option<String>,
     updated_at_unix_ms: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionStrategyIntentAuthority {
+    schema_version: String,
+    source_demo_run_id: String,
+    strategy_id: String,
+    strategy_version_id: String,
+    intent_id: String,
+    instrument_id: String,
+    side: String,
+    source_order_type: String,
+    quantity: String,
+    source_signal: String,
+    confidence: String,
+    market_event_seq: u64,
+    created_at_unix_ms: u64,
+    source_manifest_sha256: String,
+    source_result_sha256: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1327,6 +1350,10 @@ fn validate_execution_runtime_authority(
     let actual_output = fs::canonicalize(output_dir)
         .context("live execution Runtime artifact root is unavailable")?;
     let config_sha256 = execution_sha256_ref(&config_raw);
+    let strategy_intent_raw =
+        read_bounded_execution_authority_file(&candidate_root.join("strategy-order-intent.json"))
+            .context("live execution strategy intent is unavailable")?;
+    let strategy_intent_valid = strategy_intent_matches_execution(&strategy_intent_raw, execution);
     let valid = head.schema_version == EXECUTION_STATE_HEAD_SCHEMA_VERSION
         && head.run_id == run_id
         && head.state_sha256 == execution_sha256_ref(&state_raw)
@@ -1341,6 +1368,11 @@ fn validate_execution_runtime_authority(
         && state.execution_admission_sha256.as_deref()
             == Some(execution.execution_admission_sha256.as_str())
         && state.execution_runtime_config_sha256.as_deref() == Some(config_sha256.as_str())
+        && !execution.source_demo_run_id.trim().is_empty()
+        && !execution.strategy_intent_id.trim().is_empty()
+        && execution.strategy_intent_sha256.starts_with("sha256:")
+        && execution.strategy_intent_sha256.len() == 71
+        && strategy_intent_valid
         && state.stop_sha256.is_none()
         && expected_output == actual_output
         && expected_control == actual_control;
@@ -1371,6 +1403,38 @@ fn validate_execution_runtime_authority(
         },
     )?;
     Ok(())
+}
+
+fn strategy_intent_matches_execution(
+    strategy_intent_raw: &[u8],
+    execution: &ProductionExecutionSection,
+) -> bool {
+    let Ok(strategy_intent) =
+        serde_json::from_slice::<ProductionStrategyIntentAuthority>(strategy_intent_raw)
+    else {
+        return false;
+    };
+    strategy_intent.schema_version == "ntpro.s3.live_strategy_order_intent.v1"
+        && strategy_intent.source_demo_run_id == execution.source_demo_run_id
+        && !strategy_intent.strategy_id.trim().is_empty()
+        && strategy_intent.strategy_version_id == execution.strategy_version_id
+        && strategy_intent.intent_id == execution.strategy_intent_id
+        && strategy_intent.instrument_id == execution.instrument_id
+        && strategy_intent.side == execution.side
+        && strategy_intent.source_order_type == "market"
+        && strategy_intent.quantity == execution.quantity
+        && !strategy_intent.source_signal.trim().is_empty()
+        && Decimal::from_str_exact(&strategy_intent.confidence)
+            .is_ok_and(|value| value >= Decimal::ZERO && value <= Decimal::ONE)
+        && strategy_intent.market_event_seq > 0
+        && strategy_intent.created_at_unix_ms > 0
+        && strategy_intent
+            .source_manifest_sha256
+            .starts_with("sha256:")
+        && strategy_intent.source_manifest_sha256.len() == 71
+        && strategy_intent.source_result_sha256.starts_with("sha256:")
+        && strategy_intent.source_result_sha256.len() == 71
+        && execution_sha256_ref(strategy_intent_raw) == execution.strategy_intent_sha256
 }
 
 pub(super) fn read_bounded_execution_authority_file(path: &Path) -> anyhow::Result<Vec<u8>> {
@@ -1474,6 +1538,9 @@ mod execution_authority_tests {
             risk_authority_ref: "policy://risk/test-v1".to_string(),
             operator_authority_ref: "role://operations-operator".to_string(),
             admission_id: "admission-authority-test".to_string(),
+            source_demo_run_id: "demo-source-001".to_string(),
+            strategy_intent_id: "intent-001".to_string(),
+            strategy_intent_sha256: format!("sha256:{}", "5".repeat(64)),
             strategy_version_id: "ema-cross@v1".to_string(),
             account_id: "BINANCE-001".to_string(),
             instrument_id: "BTCUSDT.BINANCE".to_string(),
@@ -1541,6 +1608,9 @@ mod execution_authority_tests {
         ProductionExecutionOrderStateSnapshot {
             schema_version: EXECUTION_ORDER_STATE_SCHEMA_VERSION.to_string(),
             admission_id: "admission-authority-test".to_string(),
+            source_demo_run_id: "demo-source-001".to_string(),
+            strategy_intent_id: "intent-001".to_string(),
+            strategy_intent_sha256: format!("sha256:{}", "5".repeat(64)),
             strategy_version_id: "ema-cross@v1".to_string(),
             instrument_id: "BTCUSDT.BINANCE".to_string(),
             client_order_id: Some("S3LV007-001".to_string()),
@@ -1558,6 +1628,49 @@ mod execution_authority_tests {
             last_error: None,
             updated_at_unix_ms: 1,
         }
+    }
+
+    fn strategy_intent_raw(execution: &ProductionExecutionSection) -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!({
+            "schema_version": "ntpro.s3.live_strategy_order_intent.v1",
+            "source_demo_run_id": execution.source_demo_run_id,
+            "strategy_id": "ema-cross",
+            "strategy_version_id": execution.strategy_version_id,
+            "intent_id": execution.strategy_intent_id,
+            "instrument_id": execution.instrument_id,
+            "side": execution.side,
+            "source_order_type": "market",
+            "quantity": execution.quantity,
+            "source_signal": "long",
+            "confidence": "0.72",
+            "market_event_seq": 1,
+            "created_at_unix_ms": 1,
+            "source_manifest_sha256": format!("sha256:{}", "7".repeat(64)),
+            "source_result_sha256": format!("sha256:{}", "8".repeat(64))
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn strategy_intent_authority_rejects_hash_and_identity_drift() {
+        let mut execution = execution_section(Path::new("runtime"), Path::new("control"));
+        let raw = strategy_intent_raw(&execution);
+        execution.strategy_intent_sha256 = execution_sha256_ref(&raw);
+        assert!(strategy_intent_matches_execution(&raw, &execution));
+
+        let mut drifted_side = execution_section(Path::new("runtime"), Path::new("control"));
+        drifted_side.strategy_intent_sha256 = execution_sha256_ref(&raw);
+        drifted_side.side = "SELL".to_string();
+        assert!(!strategy_intent_matches_execution(&raw, &drifted_side));
+
+        let mut drifted_quantity = execution_section(Path::new("runtime"), Path::new("control"));
+        drifted_quantity.strategy_intent_sha256 = execution_sha256_ref(&raw);
+        drifted_quantity.quantity = "0.02".to_string();
+        assert!(!strategy_intent_matches_execution(&raw, &drifted_quantity));
+
+        let mut drifted_hash = execution;
+        drifted_hash.strategy_intent_sha256 = format!("sha256:{}", "0".repeat(64));
+        assert!(!strategy_intent_matches_execution(&raw, &drifted_hash));
     }
 
     #[test]
@@ -2347,8 +2460,11 @@ mod execution_authority_tests {
             .unwrap(),
         )
         .unwrap();
+        let mut execution = execution_section(&output, &candidate);
+        let intent_raw = strategy_intent_raw(&execution);
+        execution.strategy_intent_sha256 = execution_sha256_ref(&intent_raw);
+        fs::write(candidate.join("strategy-order-intent.json"), intent_raw).unwrap();
         fs::write(&config_path, b"tampered-config").unwrap();
-        let execution = execution_section(&output, &candidate);
         let error = validate_execution_runtime_authority(
             &config_path,
             &output,

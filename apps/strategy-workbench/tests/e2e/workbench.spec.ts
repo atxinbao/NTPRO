@@ -1078,9 +1078,30 @@ test("Live page reconciles a partial fill and submits one owner cancel approval"
     operator_approved: true,
     blockers: ["single_shot_admission_consumed", "additional_orders_blocked"],
   };
+  running.data.strategy_intent = {
+    schema_version: "ntpro.s3.live_strategy_order_intent.v1",
+    source_demo_run_id: "demo-source-001",
+    strategy_id: running.data.strategy_id,
+    strategy_version_id: running.data.strategy_version_id,
+    intent_id: "intent-001",
+    instrument_id: "BTCUSDT.BINANCE",
+    side: "BUY",
+    source_order_type: "market",
+    quantity: "0.00001000",
+    source_signal: "long",
+    confidence: "0.72",
+    market_event_seq: 1,
+    created_at_unix_ms: 1786406300000,
+    source_manifest_sha256: `sha256:${"5".repeat(64)}`,
+    source_result_sha256: `sha256:${"6".repeat(64)}`,
+  };
+  running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
   running.data.execution_order = {
-    schema_version: "ntpro.s3.live_execution_order_state.v2",
+    schema_version: "ntpro.s3.live_execution_order_state.v3",
     admission_id: "manual-001",
+    source_demo_run_id: "demo-source-001",
+    strategy_intent_id: "intent-001",
+    strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
     strategy_version_id: running.data.strategy_version_id,
     instrument_id: "BTCUSDT.BINANCE",
     client_order_id: "S3LV008-001",
