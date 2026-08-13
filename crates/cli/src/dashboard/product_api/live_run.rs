@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     dashboard::ApiStatusResult,
+    process::{process_matches_start_time, process_start_time_secs},
     supervisor::{
         RegisterNodeRequest, StartNodeRequest, StopNodeRequest, SupervisorProcessState,
         SupervisorRegistryStore, SupervisorRunOwnership, SupervisorRunTerminalAnchor,
@@ -70,6 +71,7 @@ const LIVE_RUN_ACTIVE_FILE: &str = ".active-candidate.json";
 const LIVE_RUN_STATE_HEAD_FILE: &str = "state-head.json";
 const LIVE_RUN_STATE_HEAD_NEXT_FILE: &str = ".state-head.next.json";
 const LIVE_RUN_MUTATION_LOCK_FILE: &str = ".live-run-mutation.lock";
+const LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION: &str = "ntpro.live_run_mutation_lock.v1";
 const LIVE_RUN_STATE_COMMIT_DIRECTORY: &str = "live-run-state-commits";
 const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_FILE: &str = "live-run-audit-anchor-head.json";
 const LIVE_RUN_WORKSPACE_ANCHOR_HEAD_NEXT_FILE: &str = ".live-run-audit-anchor-head.next.json";
@@ -542,6 +544,15 @@ struct LiveRunStateHead {
 
 struct LiveRunMutationLock {
     artifact_root: cap_std::fs::Dir,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveRunMutationLockArtifact {
+    schema_version: String,
+    pid: u32,
+    process_start_time_secs: u64,
+    acquired_at_unix_ms: u64,
 }
 
 impl Drop for LiveRunMutationLock {
@@ -7197,19 +7208,62 @@ fn acquire_live_run_mutation_lock(
         .parent()
         .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "live_run_mutation_lock"))?;
     let artifact_root = open_absolute_directory_nofollow(artifact_root_path)?;
-    let owner = format!("pid={}\n", std::process::id());
-    write_new_run_file(
-        &artifact_root,
-        LIVE_RUN_MUTATION_LOCK_FILE,
-        owner.as_bytes(),
-    )
-    .map_err(|error| {
-        if error.kind == ProductErrorKind::Conflict {
-            product_error(ProductErrorKind::LiveConflict, "live_run_mutation_lock")
-        } else {
-            error
-        }
+    let pid = std::process::id();
+    let process_start_time_secs = process_start_time_secs(pid).ok_or_else(|| {
+        product_error(
+            ProductErrorKind::SourceUnavailable,
+            "live_run_mutation_lock",
+        )
     })?;
+    let owner = LiveRunMutationLockArtifact {
+        schema_version: LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION.to_string(),
+        pid,
+        process_start_time_secs,
+        acquired_at_unix_ms: unix_time_ms(),
+    };
+    let raw = serde_json::to_vec_pretty(&owner).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_run_mutation_lock",
+        )
+    })?;
+    loop {
+        match write_new_run_file(&artifact_root, LIVE_RUN_MUTATION_LOCK_FILE, &raw) {
+            Ok(()) => break,
+            Err(error) if error.kind == ProductErrorKind::Conflict => {
+                let existing_raw = read_run_file_from_directory(
+                    &artifact_root,
+                    LIVE_RUN_MUTATION_LOCK_FILE,
+                    "live_run_mutation_lock",
+                )?;
+                let existing: LiveRunMutationLockArtifact = serde_json::from_slice(&existing_raw)
+                    .map_err(|_| {
+                    product_error(ProductErrorKind::LiveConflict, "live_run_mutation_lock")
+                })?;
+                if existing.schema_version != LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION
+                    || existing.pid == 0
+                    || existing.process_start_time_secs == 0
+                    || process_matches_start_time(existing.pid, existing.process_start_time_secs)
+                {
+                    return Err(product_error(
+                        ProductErrorKind::LiveConflict,
+                        "live_run_mutation_lock",
+                    ));
+                }
+                match artifact_root.remove_file(LIVE_RUN_MUTATION_LOCK_FILE) {
+                    Ok(()) => {}
+                    Err(remove_error) if remove_error.kind() == ErrorKind::NotFound => {}
+                    Err(_) => {
+                        return Err(product_error(
+                            ProductErrorKind::SourceUnavailable,
+                            "live_run_mutation_lock",
+                        ));
+                    }
+                }
+            }
+            Err(error) => return Err(error),
+        }
+    }
     Ok(LiveRunMutationLock { artifact_root })
 }
 
@@ -9887,7 +9941,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     }
 
     #[test]
-    fn stale_mutation_lock_fails_closed_without_publishing_candidate() {
+    fn live_mutation_lock_refuses_an_active_owner_without_publishing_candidate() {
         let fixture = LiveRunFixture::new("stale-mutation-lock");
         let lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
         let error = create_live_run_candidate(
@@ -9920,6 +9974,118 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             )
             .is_ok()
         );
+    }
+
+    #[test]
+    fn live_mutation_lock_recovers_a_dead_or_reused_owner() {
+        let fixture = LiveRunFixture::new("dead-mutation-lock");
+        canonical_live_run_root(&fixture.state, true).unwrap();
+        let canonical_root = fs::canonicalize(&fixture.root).unwrap();
+        let artifact_root =
+            open_absolute_directory_nofollow(&canonical_root.join("artifacts")).unwrap();
+        let stale = LiveRunMutationLockArtifact {
+            schema_version: LIVE_RUN_MUTATION_LOCK_SCHEMA_VERSION.to_string(),
+            pid: std::process::id(),
+            process_start_time_secs: u64::MAX,
+            acquired_at_unix_ms: 1,
+        };
+        write_new_run_file(
+            &artifact_root,
+            LIVE_RUN_MUTATION_LOCK_FILE,
+            &serde_json::to_vec_pretty(&stale).unwrap(),
+        )
+        .unwrap();
+        let lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        let current: LiveRunMutationLockArtifact = serde_json::from_slice(
+            &fs::read(
+                fixture
+                    .root
+                    .join("artifacts")
+                    .join(LIVE_RUN_MUTATION_LOCK_FILE),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(current.pid, std::process::id());
+        assert_ne!(current.process_start_time_secs, u64::MAX);
+        assert!(process_matches_start_time(
+            current.pid,
+            current.process_start_time_secs
+        ));
+        drop(lock);
+        assert!(
+            !fixture
+                .root
+                .join("artifacts")
+                .join(LIVE_RUN_MUTATION_LOCK_FILE)
+                .exists()
+        );
+    }
+
+    #[test]
+    fn live_mutation_lock_crash_helper() {
+        let Ok(root) = std::env::var("NTPRO_LIVE_RUN_CRASH_HELPER_ROOT") else {
+            return;
+        };
+        let root = PathBuf::from(root);
+        fs::create_dir_all(root.join("supervisor")).unwrap();
+        fs::create_dir_all(root.join("artifacts")).unwrap();
+        let state = DashboardServerState {
+            registry_path: root.join("supervisor/registry.json"),
+            workflow_root: None,
+            ntpro_node_bin: PathBuf::from("missing-ntpro-node"),
+            lifecycle_action_lock: std::sync::Arc::new(std::sync::Mutex::new(())),
+            backtest_creation_gate: std::sync::Arc::new(tokio::sync::Semaphore::new(1)),
+            live_run_audit_anchor: std::sync::Arc::new(
+                super::live_run_anchor::LiveRunAuditAnchorClient::memory_for_test(),
+            ),
+        };
+        let live_root = canonical_live_run_root(&state, true).unwrap();
+        let _lock = acquire_live_run_mutation_lock(&state).unwrap();
+        let run_root = live_root.join("crash-recovery-run");
+        fs::create_dir(&run_root).unwrap();
+        fs::write(
+            run_root.join(LIVE_EXECUTION_OWNER_APPROVAL_STAGE_FILE),
+            b"persisted-before-crash",
+        )
+        .unwrap();
+        fs::write(root.join("crash-helper-ready"), b"ready").unwrap();
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+        }
+    }
+
+    #[test]
+    fn live_mutation_lock_recovers_after_forced_process_termination() {
+        let fixture = LiveRunFixture::new("mutation-lock-process-crash");
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg("--exact")
+            .arg("dashboard::product_api::live_run::tests::live_mutation_lock_crash_helper")
+            .arg("--nocapture")
+            .env("NTPRO_LIVE_RUN_CRASH_HELPER_ROOT", &fixture.root)
+            .spawn()
+            .unwrap();
+        let ready = fixture.root.join("crash-helper-ready");
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        while !ready.exists() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        assert!(ready.exists());
+        assert!(crate::process::process_is_alive(child.id()));
+        crate::process::send_kill(child.id()).unwrap();
+        assert!(crate::process::wait_for_process_exit(
+            child.id(),
+            Duration::from_secs(10)
+        ));
+        let _ = child.wait();
+        let stage = fixture
+            .root
+            .join("artifacts/live-runs/crash-recovery-run")
+            .join(LIVE_EXECUTION_OWNER_APPROVAL_STAGE_FILE);
+        assert_eq!(fs::read(&stage).unwrap(), b"persisted-before-crash");
+        let recovered = acquire_live_run_mutation_lock(&fixture.state).unwrap();
+        assert!(stage.exists());
+        drop(recovered);
     }
 
     #[test]
