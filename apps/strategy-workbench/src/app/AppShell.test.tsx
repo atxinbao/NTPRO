@@ -1114,6 +1114,28 @@ describe("strategy workbench product slice", () => {
     expect(screen.queryByText("backtest-001")).not.toBeInTheDocument();
   });
 
+  it("shows the Run source error instead of claiming the Backtest dataset is missing", async () => {
+    const stale = structuredClone(errorFixture);
+    stale.error.code = "product_source_stale";
+    stale.error.field = "node_status";
+    stale.error.summary = "策略产品数据源已过期，需要刷新对应来源后重试";
+    stale.error.retryable = true;
+    server.use(
+      http.get("/api/product/v1/runs", () =>
+        HttpResponse.json(stale, { status: 503 }),
+      ),
+    );
+
+    renderWorkbench("/backtests");
+    expect(await screen.findByText("产品服务返回错误")).toBeInTheDocument();
+    expect(
+      screen.getByText(/策略产品数据源已过期，需要刷新对应来源后重试/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("当前版本没有已登记 Backtest 数据集"),
+    ).not.toBeInTheDocument();
+  });
+
   it("fails closed when a Product API boundary opens", async () => {
     const invalid = structuredClone(strategyListFixture) as Record<string, any>;
     invalid.boundaries.order_submission_allowed = true;

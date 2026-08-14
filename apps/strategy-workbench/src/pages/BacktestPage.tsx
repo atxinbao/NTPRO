@@ -20,6 +20,12 @@ export function BacktestPage() {
   if (product.isVerifying || !product.isReady) {
     return <ProductLoading label="正在验证 Backtest 创建上下文" />;
   }
+  if (product.runtimeError) {
+    return <ProductErrorState error={product.runtimeError} />;
+  }
+  if (product.isRuntimeVerifying) {
+    return <ProductLoading label="正在验证 Backtest 运行数据" />;
+  }
   if (!product.strategy || !product.version) {
     return <ProductErrorState error={new Error("当前没有可用策略版本")} />;
   }

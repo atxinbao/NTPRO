@@ -137,7 +137,7 @@
     "process_alive_implies_technical_health": false
   },
   "frozen_source_sha256": {
-    "crates/cli/src/mvp.rs": "82f8684d88e3ab5d6a5a3ac9a54842b3a0c82cd72b94c6a1b3d55b011015d7d7",
+    "crates/cli/src/mvp.rs": "855162fdce0e63d72e13ba6007576be687673dcaff4553c50ade7cabe9decd26",
     "crates/cli/src/mvp_contract.rs": "9b36f82c83f49c0b416e6c1b758b7c327fe10144c0c98f24dcacfefa26629f99",
     "crates/cli/src/supervisor.rs": "837715ba253e5ad48eff540f8e9074ea55915f6e9b735d4a71c13aecb1723b0e",
     "crates/cli/src/dashboard/server.rs": "181df0f0b5a4ee635057be978b081a46f53679e69c18978691266341a31c44ee",

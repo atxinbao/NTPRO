@@ -698,7 +698,7 @@ fn runtime_snapshot_is_stationary(
         return Ok(false);
     }
 
-    let mut terminal_found = false;
+    let mut all_ownerships_terminal = true;
     for (run_id, ownership) in &record.run_ownership {
         if ownership.run_id != *run_id
             || ownership.claimed_at_unix_ms == 0
@@ -725,10 +725,11 @@ fn runtime_snapshot_is_stationary(
                 "demo_run_terminal_state_sha256",
                 &terminal.terminal_state_sha256,
             )?;
-            terminal_found = true;
+        } else {
+            all_ownerships_terminal = false;
         }
     }
-    Ok(prepared_without_runtime_artifacts || terminal_found)
+    Ok((prepared_without_runtime_artifacts || stopped_runtime) && all_ownerships_terminal)
 }
 
 fn validate_product_identity(

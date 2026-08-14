@@ -311,6 +311,7 @@
 
 .workarea {
   display: grid;
+  min-height: 0;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) 0;
   overflow: clip;
@@ -322,9 +323,11 @@
 }
 
 .canvas {
+  min-height: 0;
   min-width: 0;
   overflow: auto;
   padding: 14px;
+  padding-bottom: 64px;
 }
 
 .inspector {

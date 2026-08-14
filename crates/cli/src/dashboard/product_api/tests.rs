@@ -1292,6 +1292,97 @@ fn terminal_demo_snapshot_remains_readable_without_weakening_boundaries() {
     assert_eq!(error.field, "node_metrics");
 }
 
+#[tokio::test]
+async fn stopped_node_without_run_ownership_can_create_demo_after_freshness_window() {
+    let fixture = Fixture::new("stopped-node-demo-creation");
+    let now = unix_time_ms().saturating_add(TEST_FRESHNESS_MAX_AGE_MS + 2_000);
+    let stopped_at = now.saturating_sub(TEST_FRESHNESS_MAX_AGE_MS + 1_000);
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().expect("fixture registry should load");
+    let record = registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist");
+    record.process.state = SupervisorProcessState::Stopped;
+    record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
+    let mut status = record.last_known_status.clone();
+    status.generated_at = SnapshotValue::available(stopped_at.to_string());
+    status.stopped_at = SnapshotValue::available(stopped_at.to_string());
+    write_json(&record.status_path, &status);
+    record.status_artifact = RegistryArtifactState::Available;
+
+    let mut metrics = NodeMetrics::from_status(
+        &status,
+        &NodeMetricArtifacts::from_record(record),
+        NodeMetricCounts {
+            uptime_ms: Some(1),
+            starts_total: 1,
+            stops_total: 1,
+            state_transitions_total: 2,
+        },
+    );
+    metrics.generated_at = SnapshotValue::available(stopped_at.to_string());
+    metrics
+        .kill_switch_dry_run
+        .production_order_submission_allowed = SnapshotValue::available(false);
+    metrics
+        .kill_switch_dry_run
+        .production_order_mutation_allowed = SnapshotValue::available(false);
+    metrics.kill_switch_dry_run.dashboard_order_controls_enabled = SnapshotValue::available(false);
+    metrics.kill_switch_dry_run.real_orders_submitted = SnapshotValue::available(false);
+    metrics.kill_switch_dry_run.production_orders_submitted = SnapshotValue::available(0);
+    write_json(&record.metrics_path, &metrics);
+    record.metrics_artifact = RegistryArtifactState::Available;
+    store.save(&registry).expect("fixture registry should save");
+
+    let mut status_contract = fixture.read_status_contract();
+    status_contract.provenance.generated_at_unix_ms = stopped_at;
+    fixture.write_status_contract(&status_contract);
+
+    let (status_code, created) = router_json_body(
+        &fixture.router(),
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status_code, StatusCode::CREATED, "{created}");
+    assert_eq!(created["data"]["lifecycle"], "created");
+    assert_eq!(created["data"]["runtime"]["process_state"], "stopped");
+    assert_eq!(created["boundaries"]["order_submission_allowed"], false);
+}
+
+#[test]
+fn stopped_node_with_active_run_ownership_is_not_stationary() {
+    let fixture = Fixture::new("stopped-active-ownership");
+    let now = unix_time_ms();
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().expect("fixture registry should load");
+    let record = registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist");
+    record.process.state = SupervisorProcessState::Stopped;
+    record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
+    record.run_ownership.insert(
+        "demo-active-001".to_string(),
+        SupervisorRunOwnership {
+            run_id: "demo-active-001".to_string(),
+            manifest_sha256: format!("sha256:{}", "a".repeat(64)),
+            claimed_at_unix_ms: now,
+            terminal: None,
+        },
+    );
+
+    assert!(!runtime_snapshot_is_stationary(record, now).expect("ownership should validate"));
+
+    record.process.state = SupervisorProcessState::NotStarted;
+    assert!(
+        !runtime_snapshot_is_stationary(record, now).expect("prepared ownership should validate"),
+        "a prepared node must not hide active Run ownership"
+    );
+}
+
 #[test]
 fn runtime_artifact_registry_state_drift_fails_closed() {
     let fixture = Fixture::new("running-status-missing");

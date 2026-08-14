@@ -44,7 +44,7 @@ use crate::{
 
 const REGISTRY_PATH: &str = "supervisor/registry.json";
 const NODE_ARTIFACT_ROOT: &str = "nodes";
-const PRODUCT_ARTIFACT_ROOT: &str = "artifacts";
+const PRODUCT_BACKTEST_ARTIFACT_ROOT: &str = "artifacts/backtests";
 const STRATEGY_VERSION_REGISTRY_PATH: &str = "mvp/strategy_version_registry.json";
 const STRATEGY_VERSION_REGISTRY_SCHEMA_VERSION: &str = "ntpro.mvp_strategy_version_registry.v1";
 const MIN_STATUS_FRESHNESS_MAX_AGE_MS: u64 = 2_000;
@@ -212,12 +212,14 @@ impl MvpRuntime {
                 artifact_root: Some(artifact_root.clone()),
             })?;
         }
-        std::fs::create_dir_all(opt.workspace.join(PRODUCT_ARTIFACT_ROOT)).with_context(|| {
-            format!(
-                "初始化 MVP 产品工件目录 '{}' 失败",
-                opt.workspace.join(PRODUCT_ARTIFACT_ROOT).display()
-            )
-        })?;
+        std::fs::create_dir_all(opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT)).with_context(
+            || {
+                format!(
+                    "初始化 MVP Backtest 工件目录 '{}' 失败",
+                    opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT).display()
+                )
+            },
+        )?;
         let startup_timeout = duration_from_millis("startup_timeout_ms", opt.startup_timeout_ms)?;
         let node_shutdown_timeout =
             duration_from_millis("node_shutdown_timeout_ms", opt.node_shutdown_timeout_ms)?;
@@ -1113,6 +1115,31 @@ environment = "sandbox"
         restarted
             .stop(Duration::from_secs(2))
             .expect("restarted MVP runtime should stop cleanly");
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[test]
+    fn mvp_prepare_creates_empty_backtest_root_without_starting_node() {
+        let root = temp_root("prepare-product-root");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_options(&root, fixture_node.clone());
+
+        let runtime = MvpRuntime::prepare(&opt, fixture_node)
+            .expect("MVP prepare should initialize the product workspace");
+        let registry = runtime.store.load().expect("prepared registry should load");
+
+        assert_eq!(
+            registry.nodes[&opt.node_id].process.state,
+            SupervisorProcessState::NotStarted
+        );
+        assert!(
+            opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT).is_dir(),
+            "MVP prepare must create the empty Backtest root"
+        );
+
+        runtime
+            .stop(Duration::from_secs(2))
+            .expect("prepared MVP runtime should stop cleanly");
         fs::remove_dir_all(root).expect("temporary MVP root should be removed");
     }
 
