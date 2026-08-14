@@ -14630,6 +14630,7 @@ fn production_execution_config(node_id: &str) -> String {
          schema_version = \"ntpro.s3.live_execution_node.v2\"\n\
          source_manifest_sha256 = \"sha256:1111111111111111111111111111111111111111111111111111111111111111\"\n\
          execution_admission_sha256 = \"sha256:2222222222222222222222222222222222222222222222222222222222222222\"\n\
+         sizing_decision_sha256 = \"sha256:4444444444444444444444444444444444444444444444444444444444444444\"\n\
          runtime_artifact_root = \"{}\"\n\
          control_artifact_root = \"{}\"\n\
          risk_policy_ref = \"policy://risk/test-v1\"\n\
@@ -14647,6 +14648,7 @@ fn production_execution_config(node_id: &str) -> String {
          order_type = \"LIMIT\"\n\
          time_in_force = \"GTC\"\n\
          price = \"1.00\"\n\
+         source_quantity = \"0.00001000\"\n\
          quantity = \"0.00001000\"\n\
          max_notional = \"1.00\"\n\
          risk_policy_max_notional = \"10.00\"\n\

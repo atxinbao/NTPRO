@@ -34,8 +34,8 @@ use crate::{
 use super::{
     live_admission::{
         LiveExecutionRiskPolicy, LiveRunCreationAdmission, LiveRunPreflightAdmission,
-        evaluate_live_execution_risk_policy, evaluate_live_run_creation_admission,
-        evaluate_live_run_preflight_admission,
+        LiveSizingPreflight, evaluate_live_execution_risk_policy,
+        evaluate_live_run_creation_admission, evaluate_live_run_preflight_admission,
     },
     live_run_anchor::{
         LIVE_EXECUTION_RUNTIME_CLAIM_FILE, LIVE_EXECUTION_RUNTIME_CLAIM_RECEIPT_FILE,
@@ -60,7 +60,7 @@ const LIVE_RUN_CANDIDATE_LIST_SCHEMA_VERSION: &str =
     "ntpro.product_api.live_run_candidate_list.response.v1";
 const LIVE_RUN_CANDIDATE_ACTION_SCHEMA_VERSION: &str =
     "ntpro.product_api.live_run_candidate_action.response.v1";
-const LIVE_RUN_PREFLIGHT_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_preflight.v1";
+const LIVE_RUN_PREFLIGHT_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_preflight.v2";
 const LIVE_RUN_STOP_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_stop.v1";
 const LIVE_MARKET_DATA_NODE_CONFIG_FILE: &str = "live-market-data-node.toml";
 const LIVE_RUN_STATE_SCHEMA_VERSION: &str = "ntpro.product_api.live_run_state.v2";
@@ -83,6 +83,8 @@ const LIVE_EXECUTION_ADMISSION_SCHEMA_VERSION: &str =
 const LIVE_EXECUTION_ADMISSION_FILE: &str = "execution-admission.json";
 const LIVE_STRATEGY_INTENT_SCHEMA_VERSION: &str = "ntpro.s3.live_strategy_order_intent.v1";
 const LIVE_STRATEGY_INTENT_FILE: &str = "strategy-order-intent.json";
+const LIVE_SIZING_DECISION_SCHEMA_VERSION: &str = "ntpro.s3.live_sizing_decision.v1";
+const LIVE_SIZING_DECISION_FILE: &str = "live-sizing-decision.json";
 const LIVE_EXECUTION_APPROVAL_SCHEMA_VERSION: &str = "ntpro.product_api.live_execution_approval.v2";
 const LIVE_EXECUTION_OWNER_APPROVAL_FILE: &str = "execution-owner-approval.json";
 const LIVE_EXECUTION_RISK_APPROVAL_FILE: &str = "execution-risk-approval.json";
@@ -95,7 +97,7 @@ const LIVE_EXECUTION_OWNER_APPROVAL_STAGE_FILE: &str = ".execution-owner-approva
 const LIVE_EXECUTION_RISK_APPROVAL_STAGE_FILE: &str = ".execution-risk-approval-publication.json";
 const LIVE_EXECUTION_OPERATOR_APPROVAL_STAGE_FILE: &str =
     ".execution-operator-approval-publication.json";
-const LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v3";
+const LIVE_EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v4";
 const LIVE_EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
 const LIVE_EXECUTION_CONTROL_REQUEST_SCHEMA_VERSION: &str =
     "ntpro.s3.live_execution_control_request.v1";
@@ -347,6 +349,7 @@ struct LiveExecutionApprovalArtifact {
     role: LiveExecutionApprovalRole,
     proposal_sha256: String,
     strategy_intent_sha256: String,
+    sizing_decision_sha256: String,
     source_manifest_sha256: String,
     run_id: String,
     strategy_version_id: String,
@@ -364,6 +367,7 @@ struct LiveExecutionApprovalPublicationStage {
     role: LiveExecutionApprovalRole,
     request: LiveExecutionAdmissionRequest,
     strategy_intent: LiveStrategyOrderIntentArtifact,
+    sizing_decision: LiveSizingDecisionArtifact,
     approval: LiveExecutionApprovalArtifact,
     admission: Option<LiveExecutionAdmissionArtifact>,
     admission_state: Option<LiveRunCandidateState>,
@@ -403,6 +407,7 @@ struct LiveExecutionApprovalBinding<'a> {
     admission_id: &'a str,
     proposal_sha256: &'a str,
     strategy_intent_sha256: &'a str,
+    sizing_decision_sha256: &'a str,
     risk_policy: &'a LiveExecutionRiskPolicy,
 }
 
@@ -420,11 +425,13 @@ struct LiveExecutionAdmissionArtifact {
     source_demo_run_id: String,
     strategy_intent_id: String,
     strategy_intent_sha256: String,
+    sizing_decision_sha256: String,
     instrument_id: String,
     side: String,
     order_type: String,
     time_in_force: String,
     price: String,
+    source_quantity: String,
     quantity: String,
     max_notional: String,
     risk_policy_max_notional: String,
@@ -483,6 +490,35 @@ struct LiveRunPreflightArtifact {
     execution_adapter_send_attempted: bool,
     real_orders_submitted: bool,
     source_refs: Vec<String>,
+    sizing: LiveSizingPreflight,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveSizingDecisionArtifact {
+    schema_version: String,
+    run_id: String,
+    source_manifest_sha256: String,
+    source_preflight_sha256: String,
+    strategy_intent_sha256: String,
+    instrument_id: String,
+    side: String,
+    price: String,
+    price_tick: String,
+    source_quantity: String,
+    approved_quantity: String,
+    quantity_step: String,
+    min_quantity: String,
+    max_quantity: String,
+    min_notional: String,
+    max_account_budget_fraction: String,
+    order_notional: String,
+    account_budget_notional: String,
+    request_max_notional: String,
+    risk_policy_max_notional: String,
+    sizing_source_ref: String,
+    evaluated_at_unix_ms: u64,
+    evidence_expires_at_unix_ms: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -687,6 +723,8 @@ struct LiveRunCandidate {
     order_admission: LiveOrderAdmissionSnapshot,
     strategy_intent: Option<LiveStrategyOrderIntentArtifact>,
     strategy_intent_sha256: Option<String>,
+    sizing_decision: Option<LiveSizingDecisionArtifact>,
+    sizing_decision_sha256: Option<String>,
     execution_order: Option<LiveExecutionOrderSnapshot>,
     execution_order_state_sha256: Option<String>,
     execution_control: Option<LiveExecutionControlSnapshot>,
@@ -701,6 +739,7 @@ struct LiveExecutionOrderSnapshot {
     source_demo_run_id: String,
     strategy_intent_id: String,
     strategy_intent_sha256: String,
+    sizing_decision_sha256: String,
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
@@ -1369,14 +1408,6 @@ where
             "live_execution_admission_expiry",
         ));
     }
-    let price = Decimal::from_str_exact(&request.price)
-        .map_err(|_| product_error(ProductErrorKind::BadRequest, "live_execution_order_price"))?;
-    let quantity = Decimal::from_str_exact(&request.quantity).map_err(|_| {
-        product_error(
-            ProductErrorKind::BadRequest,
-            "live_execution_order_quantity",
-        )
-    })?;
     let (risk_policy, promoted) = source_validator(&manifest)?;
     let intent = LiveStrategyOrderIntentArtifact::from(promoted);
     ensure_strategy_intent_is_unconsumed(state, path_run_id, &intent)?;
@@ -1386,6 +1417,16 @@ where
             "live_strategy_intent",
         )
     })?;
+    let preflight_raw =
+        read_live_run_artifact_bytes(&candidate_root.join("preflight.json"), "live_preflight")?;
+    let preflight: LiveRunPreflightArtifact = serde_json::from_slice(&preflight_raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_preflight"))?;
+    if now >= preflight.sizing.evidence_expires_at_unix_ms {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_sizing_decision",
+        ));
+    }
     if request.strategy_intent_id != intent.intent_id
         || request.instrument_id != intent.instrument_id
         || request.side != intent.side
@@ -1396,23 +1437,24 @@ where
             "live_strategy_intent_binding",
         ));
     }
-    let max_notional = Decimal::from_str_exact(&request.max_notional)
-        .map_err(|_| product_error(ProductErrorKind::BadRequest, "live_execution_max_notional"))?;
-    let risk_policy_max_notional = Decimal::from_str_exact(&risk_policy.max_order_notional)
-        .map_err(|_| product_error(ProductErrorKind::BadRequest, "live_execution_max_notional"))?;
-    if price <= Decimal::ZERO
-        || quantity <= Decimal::ZERO
-        || max_notional <= Decimal::ZERO
-        || risk_policy_max_notional <= Decimal::ZERO
-        || price * quantity > max_notional
-        || max_notional > risk_policy_max_notional
-    {
-        return Err(product_error(
-            ProductErrorKind::BoundaryViolation,
-            "live_execution_order_notional",
-        ));
-    }
     let manifest_sha256 = sha256_ref(&manifest_raw);
+    let sizing_decision = evaluate_live_sizing_decision(
+        path_run_id,
+        &manifest_sha256,
+        &sha256_ref(&preflight_raw),
+        &sha256_ref(&intent_raw),
+        request,
+        &preflight.sizing,
+        &risk_policy,
+        preflight.evaluated_at_unix_ms,
+    )?;
+    let sizing_raw = serde_json::to_vec_pretty(&sizing_decision).map_err(|_| {
+        product_error(
+            ProductErrorKind::LiveExecutionFailed,
+            "live_sizing_decision",
+        )
+    })?;
+    let sizing_sha256 = sha256_ref(&sizing_raw);
     let (current_state, current_state_raw) =
         load_live_run_state(state, path_run_id, &manifest_sha256)?;
     if current_state.execution_admission_sha256.is_some() {
@@ -1438,6 +1480,7 @@ where
         role,
         proposal_sha256: proposal_sha256.clone(),
         strategy_intent_sha256: sha256_ref(&intent_raw),
+        sizing_decision_sha256: sizing_sha256.clone(),
         source_manifest_sha256: manifest_sha256.clone(),
         run_id: path_run_id.to_string(),
         strategy_version_id: manifest.strategy_version_id.clone(),
@@ -1492,6 +1535,7 @@ where
                     admission_id: &request.admission_id,
                     proposal_sha256: &proposal_sha256,
                     strategy_intent_sha256: &sha256_ref(&intent_raw),
+                    sizing_decision_sha256: &sizing_sha256,
                     risk_policy: &risk_policy,
                 },
             )?;
@@ -1517,12 +1561,14 @@ where
         source_demo_run_id: request.source_demo_run_id.clone(),
         strategy_intent_id: request.strategy_intent_id.clone(),
         strategy_intent_sha256: sha256_ref(&intent_raw),
+        sizing_decision_sha256: sizing_sha256.clone(),
         instrument_id: request.instrument_id.clone(),
         side: request.side.clone(),
         order_type: request.order_type.clone(),
         time_in_force: request.time_in_force.clone(),
         price: request.price.clone(),
-        quantity: request.quantity.clone(),
+        source_quantity: request.quantity.clone(),
+        quantity: sizing_decision.approved_quantity.clone(),
         max_notional: request.max_notional.clone(),
         risk_policy_max_notional: risk_policy.max_order_notional.clone(),
         risk_policy_ref: risk_policy.source_ref.clone(),
@@ -1576,6 +1622,7 @@ where
         role,
         request: request.clone(),
         strategy_intent: intent.clone(),
+        sizing_decision,
         approval,
         admission,
         admission_state,
@@ -1666,6 +1713,7 @@ fn validate_live_execution_approval(
         || approval.role != binding.role
         || approval.proposal_sha256 != binding.proposal_sha256
         || approval.strategy_intent_sha256 != binding.strategy_intent_sha256
+        || approval.sizing_decision_sha256 != binding.sizing_decision_sha256
         || approval.source_manifest_sha256 != binding.manifest_sha256
         || approval.run_id != binding.run_id
         || approval.strategy_version_id != binding.strategy_version_id
@@ -1681,6 +1729,117 @@ fn validate_live_execution_approval(
         ));
     }
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn evaluate_live_sizing_decision(
+    run_id: &str,
+    manifest_sha256: &str,
+    preflight_sha256: &str,
+    strategy_intent_sha256: &str,
+    request: &LiveExecutionAdmissionRequest,
+    sizing: &LiveSizingPreflight,
+    risk_policy: &LiveExecutionRiskPolicy,
+    evaluated_at_unix_ms: u64,
+) -> Result<LiveSizingDecisionArtifact, ProductError> {
+    let boundary = |field: &str| {
+        product_error(
+            ProductErrorKind::BoundaryViolation,
+            format!("live_sizing_decision.{field}"),
+        )
+    };
+    let decimal =
+        |value: &str, field: &str| Decimal::from_str_exact(value).map_err(|_| boundary(field));
+    let price = decimal(&request.price, "price")?;
+    let source_quantity = decimal(&request.quantity, "source_quantity")?;
+    let price_tick = decimal(&sizing.price_tick, "price_tick")?;
+    let quantity_step = decimal(&sizing.quantity_step, "quantity_step")?;
+    let min_quantity = decimal(&sizing.min_quantity, "min_quantity")?;
+    let max_quantity = decimal(&sizing.max_quantity, "max_quantity")?;
+    let min_notional = decimal(&sizing.min_notional, "min_notional")?;
+    let quote_free = decimal(&sizing.quote_free, "account_balance")?;
+    let base_free = decimal(&sizing.base_free, "account_balance")?;
+    let budget_fraction = decimal(
+        &sizing.max_account_budget_fraction,
+        "account_budget_fraction",
+    )?;
+    let request_max = decimal(&request.max_notional, "request_max_notional")?;
+    let risk_max = decimal(&risk_policy.max_order_notional, "risk_policy_max_notional")?;
+    if evaluated_at_unix_ms >= sizing.evidence_expires_at_unix_ms {
+        return Err(boundary("evidence_expired"));
+    }
+    if request.instrument_id != sizing.instrument_id {
+        return Err(boundary("instrument_id"));
+    }
+    if price <= Decimal::ZERO || price_tick <= Decimal::ZERO || price % price_tick != Decimal::ZERO
+    {
+        return Err(boundary("price_tick"));
+    }
+    if source_quantity <= Decimal::ZERO || quantity_step <= Decimal::ZERO {
+        return Err(boundary("quantity_step"));
+    }
+    if request_max <= Decimal::ZERO || request_max > risk_max {
+        return Err(boundary("request_max_notional"));
+    }
+    if risk_max <= Decimal::ZERO {
+        return Err(boundary("risk_policy_max_notional"));
+    }
+    let approved_quantity = (source_quantity / quantity_step).floor() * quantity_step;
+    let order_notional = price * approved_quantity;
+    let account_budget_notional = match request.side.as_str() {
+        "BUY" => quote_free * budget_fraction,
+        "SELL" => base_free * price * budget_fraction,
+        _ => return Err(boundary("side")),
+    };
+    if approved_quantity > source_quantity || approved_quantity % quantity_step != Decimal::ZERO {
+        return Err(boundary("quantity_step"));
+    }
+    if approved_quantity <= Decimal::ZERO || approved_quantity < min_quantity {
+        return Err(boundary("min_quantity"));
+    }
+    if approved_quantity > max_quantity {
+        return Err(boundary("max_quantity"));
+    }
+    if request.side == "SELL" && approved_quantity > base_free {
+        return Err(boundary("account_balance"));
+    }
+    if order_notional < min_notional {
+        return Err(boundary("min_notional"));
+    }
+    if order_notional > account_budget_notional {
+        return Err(boundary("account_budget"));
+    }
+    if order_notional > request_max {
+        return Err(boundary("request_max_notional"));
+    }
+    if order_notional > risk_max {
+        return Err(boundary("risk_policy_max_notional"));
+    }
+    Ok(LiveSizingDecisionArtifact {
+        schema_version: LIVE_SIZING_DECISION_SCHEMA_VERSION.to_string(),
+        run_id: run_id.to_string(),
+        source_manifest_sha256: manifest_sha256.to_string(),
+        source_preflight_sha256: preflight_sha256.to_string(),
+        strategy_intent_sha256: strategy_intent_sha256.to_string(),
+        instrument_id: request.instrument_id.clone(),
+        side: request.side.clone(),
+        price: request.price.clone(),
+        price_tick: sizing.price_tick.clone(),
+        source_quantity: request.quantity.clone(),
+        approved_quantity: approved_quantity.normalize().to_string(),
+        quantity_step: sizing.quantity_step.clone(),
+        min_quantity: sizing.min_quantity.clone(),
+        max_quantity: sizing.max_quantity.clone(),
+        min_notional: sizing.min_notional.clone(),
+        max_account_budget_fraction: sizing.max_account_budget_fraction.clone(),
+        order_notional: order_notional.normalize().to_string(),
+        account_budget_notional: account_budget_notional.normalize().to_string(),
+        request_max_notional: request.max_notional.clone(),
+        risk_policy_max_notional: risk_policy.max_order_notional.clone(),
+        sizing_source_ref: sizing.source_ref.clone(),
+        evaluated_at_unix_ms,
+        evidence_expires_at_unix_ms: sizing.evidence_expires_at_unix_ms,
+    })
 }
 
 fn authorize_live_execution_cancel(
@@ -2420,12 +2579,32 @@ fn complete_live_execution_approval_publication(
             "live_execution_approval_publication",
         )
     })?;
+    let sizing_raw = serde_json::to_vec_pretty(&stage.sizing_decision).map_err(|_| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_execution_approval_publication",
+        )
+    })?;
     let request_raw = serde_json::to_vec(&stage.request).map_err(|_| {
         product_error(
             ProductErrorKind::SourceInvalid,
             "live_execution_approval_publication",
         )
     })?;
+    let preflight_raw =
+        read_live_run_artifact_bytes(&root.join("preflight.json"), "live_preflight")?;
+    let preflight: LiveRunPreflightArtifact = serde_json::from_slice(&preflight_raw)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_preflight"))?;
+    let recomputed_sizing = evaluate_live_sizing_decision(
+        run_id,
+        &stage.manifest_sha256,
+        &sha256_ref(&preflight_raw),
+        &sha256_ref(&intent_raw),
+        &stage.request,
+        &preflight.sizing,
+        risk_policy,
+        stage.sizing_decision.evaluated_at_unix_ms,
+    )?;
     if sha256_ref(&manifest_raw) != stage.manifest_sha256
         || stage.base_state.run_id != run_id
         || stage.base_state.source_manifest_sha256 != stage.manifest_sha256
@@ -2442,6 +2621,14 @@ fn complete_live_execution_approval_publication(
         || stage.strategy_intent.side != stage.request.side
         || stage.strategy_intent.quantity != stage.request.quantity
         || stage.strategy_intent != *strategy_intent
+        || stage.sizing_decision.run_id != run_id
+        || stage.sizing_decision.source_manifest_sha256 != stage.manifest_sha256
+        || stage.sizing_decision.strategy_intent_sha256 != sha256_ref(&intent_raw)
+        || stage.sizing_decision.instrument_id != stage.request.instrument_id
+        || stage.sizing_decision.side != stage.request.side
+        || stage.sizing_decision.source_quantity != stage.request.quantity
+        || stage.sizing_decision != recomputed_sizing
+        || unix_time_ms() >= stage.sizing_decision.evidence_expires_at_unix_ms
     {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -2458,6 +2645,7 @@ fn complete_live_execution_approval_publication(
             admission_id: &stage.request.admission_id,
             proposal_sha256: &sha256_ref(&request_raw),
             strategy_intent_sha256: &sha256_ref(&intent_raw),
+            sizing_decision_sha256: &sha256_ref(&sizing_raw),
             risk_policy,
         },
     )?;
@@ -2467,6 +2655,12 @@ fn complete_live_execution_approval_publication(
             "live_execution_approval",
         )
     })?;
+    write_same_or_new_run_file(
+        &directory,
+        LIVE_SIZING_DECISION_FILE,
+        &sizing_raw,
+        "live_sizing_decision",
+    )?;
     let request = LiveRunAnchorAppendRequest::new(
         state.live_run_audit_anchor.namespace()?,
         run_id,
@@ -2547,6 +2741,8 @@ fn complete_live_execution_approval_publication(
             admission,
             strategy_intent,
             &intent_raw,
+            &stage.sizing_decision,
+            &sizing_raw,
             candidate_state.lifecycle,
         )?;
         if admission.risk_policy_max_notional != risk_policy.max_order_notional
@@ -3313,6 +3509,14 @@ where
                     .ok_or_else(|| {
                         product_error(ProductErrorKind::BoundaryViolation, "live_strategy_intent")
                     })?;
+                let (sizing, sizing_raw) =
+                    read_optional_artifact_with_raw::<LiveSizingDecisionArtifact>(
+                        &root.join(LIVE_SIZING_DECISION_FILE),
+                        "live_sizing_decision",
+                    )?
+                    .ok_or_else(|| {
+                        product_error(ProductErrorKind::BoundaryViolation, "live_sizing_decision")
+                    })?;
                 validate_live_strategy_intent_artifact(&intent, &manifest)?;
                 validate_execution_admission_artifact(
                     &manifest,
@@ -3320,6 +3524,8 @@ where
                     &admission,
                     &intent,
                     &intent_raw,
+                    &sizing,
+                    &sizing_raw,
                     current.lifecycle,
                 )?;
                 if admission.expires_at_unix_ms <= starting_at || admission.consumed {
@@ -4282,6 +4488,7 @@ fn write_preflight_artifact(
         execution_adapter_send_attempted: false,
         real_orders_submitted: false,
         source_refs: admission.source_refs.clone(),
+        sizing: admission.sizing.clone(),
     };
     let raw = serde_json::to_vec_pretty(&artifact)
         .map_err(|_| product_error(ProductErrorKind::LiveExecutionFailed, "live_preflight"))?;
@@ -4330,6 +4537,7 @@ fn write_live_node_config(
              schema_version = \"ntpro.s3.live_execution_node.v2\"\n\
              source_manifest_sha256 = \"{}\"\n\
              execution_admission_sha256 = \"{}\"\n\
+             sizing_decision_sha256 = \"{}\"\n\
              runtime_artifact_root = \"{}\"\n\
              control_artifact_root = \"{}\"\n\
              risk_policy_ref = \"{}\"\n\
@@ -4347,6 +4555,7 @@ fn write_live_node_config(
              order_type = \"LIMIT\"\n\
              time_in_force = \"GTC\"\n\
              price = \"{}\"\n\
+             source_quantity = \"{}\"\n\
              quantity = \"{}\"\n\
              max_notional = \"{}\"\n\
              risk_policy_max_notional = \"{}\"\n\
@@ -4364,6 +4573,7 @@ fn write_live_node_config(
              automatic_recovery_allowed = false\n",
             admission.source_manifest_sha256,
             execution_admission_sha256.as_deref().unwrap_or_default(),
+            admission.sizing_decision_sha256,
             runtime_artifact_root.display(),
             control_artifact_root.display(),
             admission.risk_policy_ref,
@@ -4378,6 +4588,7 @@ fn write_live_node_config(
             admission.instrument_id,
             admission.side,
             admission.price,
+            admission.source_quantity,
             admission.quantity,
             admission.max_notional,
             admission.risk_policy_max_notional,
@@ -4513,6 +4724,10 @@ fn load_live_run_candidate_snapshot(
         &root.join(LIVE_STRATEGY_INTENT_FILE),
         "live_strategy_intent",
     )?;
+    let sizing_decision = read_optional_artifact_with_raw::<LiveSizingDecisionArtifact>(
+        &root.join(LIVE_SIZING_DECISION_FILE),
+        "live_sizing_decision",
+    )?;
     let execution_approvals = load_live_execution_approvals(&root)?;
     validate_action_artifacts(
         &manifest,
@@ -4531,8 +4746,9 @@ fn load_live_run_candidate_snapshot(
     if let Some((intent, _)) = &strategy_intent {
         validate_live_strategy_intent_artifact(intent, &manifest)?;
     }
-    if execution_admission.is_some() && strategy_intent.is_none()
-        || !execution_approvals.is_empty() && strategy_intent.is_none()
+    if execution_admission.is_some() && (strategy_intent.is_none() || sizing_decision.is_none())
+        || !execution_approvals.is_empty()
+            && (strategy_intent.is_none() || sizing_decision.is_none())
     {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -4543,12 +4759,17 @@ fn load_live_run_candidate_snapshot(
         let (intent, intent_raw) = strategy_intent.as_ref().ok_or_else(|| {
             product_error(ProductErrorKind::BoundaryViolation, "live_strategy_intent")
         })?;
+        let (sizing, sizing_raw) = sizing_decision.as_ref().ok_or_else(|| {
+            product_error(ProductErrorKind::BoundaryViolation, "live_sizing_decision")
+        })?;
         validate_execution_admission_artifact(
             &manifest,
             &manifest_sha256,
             admission,
             intent,
             intent_raw,
+            sizing,
+            sizing_raw,
             candidate_state.lifecycle,
         )?;
     }
@@ -4557,6 +4778,7 @@ fn load_live_run_candidate_snapshot(
         &manifest,
         &manifest_sha256,
         strategy_intent.as_ref().map(|(_, raw)| raw.as_slice()),
+        sizing_decision.as_ref().map(|(_, raw)| raw.as_slice()),
         execution_admission.as_ref().map(|(value, _)| value),
     )?;
     let execution_order_path = mvp_workspace_root(&state.registry_path)?
@@ -4823,6 +5045,11 @@ fn load_live_run_candidate_snapshot(
                 .as_ref()
                 .map(|(_, raw)| sha256_ref(raw))
                 .as_deref(),
+            sizing_decision: sizing_decision.as_ref().map(|(value, _)| value),
+            sizing_decision_sha256: sizing_decision
+                .as_ref()
+                .map(|(_, raw)| sha256_ref(raw))
+                .as_deref(),
             execution_approvals: &execution_approvals,
             execution_order: execution_order.as_ref().map(|(value, _)| value),
             execution_order_state_sha256: execution_order
@@ -4954,6 +5181,8 @@ fn validate_action_artifacts(
             || value.execution_adapter_send_attempted
             || value.real_orders_submitted
             || value.source_refs != manifest.source_refs
+            || value.sizing.instrument_id.is_empty()
+            || value.sizing.evidence_expires_at_unix_ms <= value.evaluated_at_unix_ms
     }) {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
@@ -4989,12 +5218,15 @@ fn validate_action_artifacts(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn validate_execution_admission_artifact(
     manifest: &LiveRunCandidateManifest,
     manifest_sha256: &str,
     admission: &LiveExecutionAdmissionArtifact,
     intent: &LiveStrategyOrderIntentArtifact,
     intent_raw: &[u8],
+    sizing: &LiveSizingDecisionArtifact,
+    sizing_raw: &[u8],
     lifecycle: LiveRunCandidateLifecycle,
 ) -> Result<(), ProductError> {
     let reconstructed_request = LiveExecutionAdmissionRequest {
@@ -5010,7 +5242,7 @@ fn validate_execution_admission_artifact(
         order_type: admission.order_type.clone(),
         time_in_force: admission.time_in_force.clone(),
         price: admission.price.clone(),
-        quantity: admission.quantity.clone(),
+        quantity: admission.source_quantity.clone(),
         max_notional: admission.max_notional.clone(),
         expires_at_unix_ms: admission.expires_at_unix_ms,
         user_confirmed: true,
@@ -5035,10 +5267,24 @@ fn validate_execution_admission_artifact(
         || admission.source_demo_run_id != intent.source_demo_run_id
         || admission.strategy_intent_id != intent.intent_id
         || admission.strategy_intent_sha256 != sha256_ref(intent_raw)
+        || admission.sizing_decision_sha256 != sha256_ref(sizing_raw)
         || admission.strategy_version_id != intent.strategy_version_id
         || admission.instrument_id != intent.instrument_id
         || admission.side != intent.side
-        || admission.quantity != intent.quantity
+        || admission.source_quantity != intent.quantity
+        || sizing.schema_version != LIVE_SIZING_DECISION_SCHEMA_VERSION
+        || sizing.run_id != manifest.run_id
+        || sizing.source_manifest_sha256 != manifest_sha256
+        || sizing.strategy_intent_sha256 != sha256_ref(intent_raw)
+        || sizing.instrument_id != admission.instrument_id
+        || sizing.side != admission.side
+        || sizing.price != admission.price
+        || sizing.source_quantity != admission.source_quantity
+        || sizing.approved_quantity != admission.quantity
+        || sizing.request_max_notional != admission.max_notional
+        || sizing.risk_policy_max_notional != admission.risk_policy_max_notional
+        || sizing.evaluated_at_unix_ms > admission.authorized_at_unix_ms
+        || sizing.evidence_expires_at_unix_ms <= admission.authorized_at_unix_ms
         || !manifest.data_symbols.contains(&admission.instrument_id)
         || !matches!(admission.side.as_str(), "BUY" | "SELL")
         || admission.order_type != "LIMIT"
@@ -5156,6 +5402,7 @@ fn validate_live_execution_approval_set(
     manifest: &LiveRunCandidateManifest,
     manifest_sha256: &str,
     strategy_intent_raw: Option<&[u8]>,
+    sizing_decision_raw: Option<&[u8]>,
     admission: Option<&LiveExecutionAdmissionArtifact>,
 ) -> Result<(), ProductError> {
     let proposal_sha256 = approvals
@@ -5180,6 +5427,8 @@ fn validate_live_execution_approval_set(
             || approval.strategy_version_id != manifest.strategy_version_id
             || strategy_intent_raw
                 .is_none_or(|raw| approval.strategy_intent_sha256 != sha256_ref(raw))
+            || sizing_decision_raw
+                .is_none_or(|raw| approval.sizing_decision_sha256 != sha256_ref(raw))
             || proposal_sha256 != Some(approval.proposal_sha256.as_str())
             || admission_id != Some(approval.admission_id.as_str())
             || !approval.proposal_sha256.starts_with("sha256:")
@@ -5199,6 +5448,7 @@ fn validate_live_execution_approval_set(
                 value.request_sha256 != approval.proposal_sha256
                     || value.admission_id != approval.admission_id
                     || value.risk_policy_ref != approval.risk_policy_ref
+                    || value.sizing_decision_sha256 != approval.sizing_decision_sha256
             })
         {
             return Err(product_error(
@@ -5259,6 +5509,7 @@ fn validate_execution_order_snapshot(
         || order.source_demo_run_id != admission.source_demo_run_id
         || order.strategy_intent_id != admission.strategy_intent_id
         || order.strategy_intent_sha256 != admission.strategy_intent_sha256
+        || order.sizing_decision_sha256 != admission.sizing_decision_sha256
         || order.strategy_version_id != admission.strategy_version_id
         || order.instrument_id != admission.instrument_id
         || !status_valid
@@ -5388,6 +5639,8 @@ struct LiveRunProjectionArtifacts<'a> {
     execution_admission: Option<&'a LiveExecutionAdmissionArtifact>,
     strategy_intent: Option<&'a LiveStrategyOrderIntentArtifact>,
     strategy_intent_sha256: Option<&'a str>,
+    sizing_decision: Option<&'a LiveSizingDecisionArtifact>,
+    sizing_decision_sha256: Option<&'a str>,
     execution_approvals: &'a [LiveExecutionApprovalRecord],
     execution_order: Option<&'a LiveExecutionOrderSnapshot>,
     execution_order_state_sha256: Option<&'a str>,
@@ -5476,6 +5729,8 @@ fn project_candidate(
         },
         strategy_intent: artifacts.strategy_intent.cloned(),
         strategy_intent_sha256: artifacts.strategy_intent_sha256.map(str::to_string),
+        sizing_decision: artifacts.sizing_decision.cloned(),
+        sizing_decision_sha256: artifacts.sizing_decision_sha256.map(str::to_string),
         execution_order: artifacts.execution_order.cloned(),
         execution_order_state_sha256: artifacts.execution_order_state_sha256.map(str::to_string),
         execution_control: artifacts.execution_control.cloned(),
@@ -6456,6 +6711,10 @@ fn validate_candidate_directory_entries(
     if strategy_intent_exists {
         expected.insert(LIVE_STRATEGY_INTENT_FILE.to_string());
     }
+    let sizing_decision_exists = root.join(LIVE_SIZING_DECISION_FILE).exists();
+    if sizing_decision_exists {
+        expected.insert(LIVE_SIZING_DECISION_FILE.to_string());
+    }
     let mut approval_count = 0;
     for role in [
         LiveExecutionApprovalRole::Owner,
@@ -6482,10 +6741,10 @@ fn validate_candidate_directory_entries(
             "live_execution_approval",
         ));
     }
-    if approval_count > 0 && !strategy_intent_exists {
+    if approval_count > 0 && (!strategy_intent_exists || !sizing_decision_exists) {
         return Err(product_error(
             ProductErrorKind::BoundaryViolation,
-            "live_strategy_intent",
+            "live_sizing_decision",
         ));
     }
     let claim_exists = validate_live_execution_runtime_claim(root, state)?;
@@ -7474,6 +7733,7 @@ mod tests {
             "source_demo_run_id": "demo-source-001",
             "strategy_intent_id": "intent-001",
             "strategy_intent_sha256": format!("sha256:{}", "5".repeat(64)),
+            "sizing_decision_sha256": format!("sha256:{}", "6".repeat(64)),
             "strategy_version_id": "strategy@v1",
             "instrument_id": "BTCUSDT.BINANCE",
             "client_order_id": "S3LV007-001",
@@ -7520,6 +7780,7 @@ mod tests {
             "source_demo_run_id": "demo-source-001",
             "strategy_intent_id": "intent-001",
             "strategy_intent_sha256": format!("sha256:{}", "5".repeat(64)),
+            "sizing_decision_sha256": format!("sha256:{}", "6".repeat(64)),
             "strategy_version_id": "strategy@v1",
             "instrument_id": "BTCUSDT.BINANCE",
             "client_order_id": "S3LV008-001",
@@ -7714,6 +7975,24 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         }
     }
 
+    fn sizing_preflight() -> LiveSizingPreflight {
+        LiveSizingPreflight {
+            instrument_id: "BTCUSDT.BINANCE".to_string(),
+            base_asset: "BTC".to_string(),
+            quote_asset: "USDT".to_string(),
+            base_free: "1.00000000".to_string(),
+            quote_free: "1000.00".to_string(),
+            price_tick: "0.01".to_string(),
+            quantity_step: "0.00001000".to_string(),
+            min_quantity: "0.00001000".to_string(),
+            max_quantity: "9000.00000000".to_string(),
+            min_notional: "0.000001".to_string(),
+            max_account_budget_fraction: "0.10".to_string(),
+            evidence_expires_at_unix_ms: u64::MAX,
+            source_ref: format!("sizing-config-sha256:{}", "2".repeat(64)),
+        }
+    }
+
     fn gates() -> LiveRunGateState {
         LiveRunGateState {
             candidate_create: true,
@@ -7803,6 +8082,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             source_demo_run_id: "demo-source-001".to_string(),
             strategy_intent_id: "intent-001".to_string(),
             strategy_intent_sha256: format!("sha256:{}", "5".repeat(64)),
+            sizing_decision_sha256: format!("sha256:{}", "6".repeat(64)),
             strategy_version_id: "ema-cross@v1".to_string(),
             instrument_id: "BTCUSDT.BINANCE".to_string(),
             client_order_id: Some("S3LV007-001".to_string()),
@@ -7995,6 +8275,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     can_trade: true,
                     evaluated_at_unix_ms: 101,
                     source_refs: vec!["node-config:other.toml#live_admission".to_string()],
+                    sizing: sizing_preflight(),
                 })
             },
         )
@@ -8016,6 +8297,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     can_trade: true,
                     evaluated_at_unix_ms: 101,
                     source_refs: admission().source_refs,
+                    sizing: sizing_preflight(),
                 })
             },
         )
@@ -8068,6 +8350,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     can_trade: true,
                     evaluated_at_unix_ms: 101,
                     source_refs: admission().source_refs,
+                    sizing: sizing_preflight(),
                 })
             },
         )
@@ -8124,6 +8407,171 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             operator_authority_ref: "role://operations-operator".to_string(),
             source_ref: format!("risk-config-sha256:{}", "3".repeat(64)),
         }
+    }
+
+    #[test]
+    fn live_sizing_rounds_down_and_binds_budget() {
+        let mut request = execution_admission_request("live-sizing-001");
+        request.quantity = "0.00001999".to_string();
+        request.price = "100.00".to_string();
+        let sizing = sizing_preflight();
+        let decision = evaluate_live_sizing_decision(
+            "live-sizing-001",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing,
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap();
+        assert_eq!(decision.source_quantity, "0.00001999");
+        assert_eq!(decision.approved_quantity, "0.00001");
+        assert_eq!(decision.price_tick, "0.01");
+        assert_eq!(decision.quantity_step, "0.00001000");
+        assert_eq!(decision.min_quantity, "0.00001000");
+        assert_eq!(decision.max_quantity, "9000.00000000");
+        assert_eq!(decision.min_notional, "0.000001");
+        assert_eq!(decision.max_account_budget_fraction, "0.10");
+        assert_eq!(decision.order_notional, "0.001");
+        assert_eq!(decision.account_budget_notional, "100");
+    }
+
+    #[test]
+    fn live_sizing_applies_account_budget_fraction_to_sell_inventory() {
+        let mut request = execution_admission_request("live-sizing-sell");
+        request.side = "SELL".to_string();
+        request.price = "100.00".to_string();
+        request.quantity = "0.10001000".to_string();
+        request.max_notional = "1000.00".to_string();
+        let mut risk = execution_risk_policy();
+        risk.max_order_notional = "1000.00".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-sell",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &risk,
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.account_budget");
+
+        request.quantity = "0.09999000".to_string();
+        let decision = evaluate_live_sizing_decision(
+            "live-sizing-sell",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &risk,
+            1,
+        )
+        .unwrap();
+        assert_eq!(decision.account_budget_notional, "10");
+        assert_eq!(decision.order_notional, "9.999");
+    }
+
+    #[test]
+    fn live_sizing_fails_closed_for_rule_budget_and_freshness_drift() {
+        let mut request = execution_admission_request("live-sizing-002");
+        request.price = "100.001".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.price_tick");
+
+        request.price = "100000.00".to_string();
+        request.quantity = "0.00200000".to_string();
+        request.max_notional = "1000.00".to_string();
+        let mut risk = execution_risk_policy();
+        risk.max_order_notional = "1000.00".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &risk,
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.account_budget");
+
+        let mut below_min = execution_admission_request("live-sizing-002");
+        below_min.quantity = "0.00000999".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &below_min,
+            &sizing_preflight(),
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.min_quantity");
+
+        let mut above_max = execution_admission_request("live-sizing-002");
+        above_max.quantity = "0.00002000".to_string();
+        let mut max_rule = sizing_preflight();
+        max_rule.max_quantity = "0.00001000".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &above_max,
+            &max_rule,
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.max_quantity");
+
+        let mut notional_rule = sizing_preflight();
+        notional_rule.min_notional = "0.01".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &execution_admission_request("live-sizing-002"),
+            &notional_rule,
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.min_notional");
+
+        let mut expired = sizing_preflight();
+        expired.evidence_expires_at_unix_ms = 1;
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &execution_admission_request("live-sizing-002"),
+            &expired,
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.evidence_expired");
     }
 
     fn promotable_strategy_intent() -> PromotableStrategyOrderIntent {
@@ -8271,6 +8719,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             source_demo_run_id: admission.source_demo_run_id.clone(),
             strategy_intent_id: admission.strategy_intent_id.clone(),
             strategy_intent_sha256: admission.strategy_intent_sha256.clone(),
+            sizing_decision_sha256: admission.sizing_decision_sha256.clone(),
             strategy_version_id: admission.strategy_version_id.clone(),
             instrument_id: admission.instrument_id.clone(),
             client_order_id: Some("S3LV008-001".to_string()),
@@ -8491,6 +8940,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             source_demo_run_id: admission_artifact.source_demo_run_id.clone(),
             strategy_intent_id: admission_artifact.strategy_intent_id.clone(),
             strategy_intent_sha256: admission_artifact.strategy_intent_sha256.clone(),
+            sizing_decision_sha256: admission_artifact.sizing_decision_sha256.clone(),
             strategy_version_id: admission_artifact.strategy_version_id.clone(),
             instrument_id: admission_artifact.instrument_id.clone(),
             client_order_id: Some("S3LV007-001".to_string()),
@@ -9620,6 +10070,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     can_trade: false,
                     evaluated_at_unix_ms: 101,
                     source_refs: vec!["source".to_string()],
+                    sizing: sizing_preflight(),
                 },
             )
             .unwrap_err()
@@ -9663,6 +10114,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
             execution_adapter_send_attempted: false,
             real_orders_submitted: false,
             source_refs: vec!["source".to_string()],
+            sizing: sizing_preflight(),
         };
         fs::write(
             fixture.root.join(format!(
@@ -9763,6 +10215,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     can_trade: true,
                     evaluated_at_unix_ms: 101,
                     source_refs: admission().source_refs,
+                    sizing: sizing_preflight(),
                 })
             },
         )
@@ -10205,6 +10658,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     can_trade: true,
                     evaluated_at_unix_ms: unix_time_ms(),
                     source_refs: admission().source_refs,
+                    sizing: sizing_preflight(),
                 })
             },
         )
@@ -10409,6 +10863,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                             can_trade: true,
                             evaluated_at_unix_ms: 101,
                             source_refs: admission().source_refs,
+                            sizing: sizing_preflight(),
                         })
                     },
                 )

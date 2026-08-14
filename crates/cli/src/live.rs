@@ -424,6 +424,7 @@ struct ProductionExecutionSection {
     schema_version: String,
     source_manifest_sha256: String,
     execution_admission_sha256: String,
+    sizing_decision_sha256: String,
     runtime_artifact_root: PathBuf,
     control_artifact_root: PathBuf,
     risk_policy_ref: String,
@@ -441,6 +442,7 @@ struct ProductionExecutionSection {
     order_type: String,
     time_in_force: String,
     price: String,
+    source_quantity: String,
     quantity: String,
     max_notional: String,
     risk_policy_max_notional: String,
@@ -19799,6 +19801,10 @@ fn validate_production_market_data_node_config(
                 execution.execution_admission_sha256.as_str(),
             ),
             (
+                "live_execution.sizing_decision_sha256",
+                execution.sizing_decision_sha256.as_str(),
+            ),
+            (
                 "live_execution.risk_policy_ref",
                 execution.risk_policy_ref.as_str(),
             ),
@@ -19832,6 +19838,7 @@ fn validate_production_market_data_node_config(
         }
         if !valid_prefixed_sha256(&execution.source_manifest_sha256)
             || !valid_prefixed_sha256(&execution.execution_admission_sha256)
+            || !valid_prefixed_sha256(&execution.sizing_decision_sha256)
             || !execution.runtime_artifact_root.is_absolute()
             || !execution.control_artifact_root.is_absolute()
             || execution.owner_authority_ref == execution.risk_authority_ref
@@ -19862,12 +19869,16 @@ fn validate_production_market_data_node_config(
             .context("live_execution.price must be a decimal")?;
         let quantity = Decimal::from_str_exact(&execution.quantity)
             .context("live_execution.quantity must be a decimal")?;
+        let source_quantity = Decimal::from_str_exact(&execution.source_quantity)
+            .context("live_execution.source_quantity must be a decimal")?;
         let max_notional = Decimal::from_str_exact(&execution.max_notional)
             .context("live_execution.max_notional must be a decimal")?;
         let risk_policy_max_notional = Decimal::from_str_exact(&execution.risk_policy_max_notional)
             .context("live_execution.risk_policy_max_notional must be a decimal")?;
         if price <= Decimal::ZERO
             || quantity <= Decimal::ZERO
+            || source_quantity <= Decimal::ZERO
+            || quantity > source_quantity
             || max_notional <= Decimal::ZERO
             || risk_policy_max_notional <= Decimal::ZERO
             || price * quantity > max_notional

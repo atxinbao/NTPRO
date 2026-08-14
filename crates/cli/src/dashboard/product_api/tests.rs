@@ -5827,6 +5827,18 @@ automatic_remediation_allowed = false
 automatic_recovery_allowed = false
 manual_stop_required = true
 
+[live_sizing]
+instrument_id = "BTCUSDT.BINANCE"
+base_asset = "BTC"
+quote_asset = "USDT"
+price_tick = "0.01"
+quantity_step = "0.00001000"
+min_quantity = "0.00001000"
+max_quantity = "9000.00000000"
+min_notional = "0.000001"
+max_account_budget_fraction = "0.10"
+evidence_max_age_ms = 300000
+
 [mvp]
 strategy_version = "v1"
 backtest_run_id = "backtest-001"

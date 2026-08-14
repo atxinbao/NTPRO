@@ -917,11 +917,12 @@ export type LiveExecutionOrderSnapshot = (
       client_order_id?: string;
     }
 ) & {
-  schema_version: "ntpro.s3.live_execution_order_state.v3";
+  schema_version: "ntpro.s3.live_execution_order_state.v4";
   admission_id: string;
   source_demo_run_id: RunId;
   strategy_intent_id: string;
   strategy_intent_sha256: ContentHash;
+  sizing_decision_sha256: ContentHash;
   strategy_version_id: StrategyVersionId;
   instrument_id: string;
   client_order_id: string | null;
@@ -967,6 +968,32 @@ export type LiveStrategyOrderIntent = {
   created_at_unix_ms: number;
   source_manifest_sha256: ContentHash;
   source_result_sha256: ContentHash;
+};
+
+export type LiveSizingDecision = {
+  schema_version: "ntpro.s3.live_sizing_decision.v1";
+  run_id: RunId;
+  source_manifest_sha256: ContentHash;
+  source_preflight_sha256: ContentHash;
+  strategy_intent_sha256: ContentHash;
+  instrument_id: string;
+  side: "BUY" | "SELL";
+  price: string;
+  price_tick: string;
+  source_quantity: string;
+  approved_quantity: string;
+  quantity_step: string;
+  min_quantity: string;
+  max_quantity: string;
+  min_notional: string;
+  max_account_budget_fraction: string;
+  order_notional: string;
+  account_budget_notional: string;
+  request_max_notional: string;
+  risk_policy_max_notional: string;
+  sizing_source_ref: string;
+  evaluated_at_unix_ms: number;
+  evidence_expires_at_unix_ms: number;
 };
 
 export type LiveExecutionControlSnapshot = (
@@ -1167,6 +1194,8 @@ export type LiveRunCandidate = (
   order_admission: LiveOrderAdmissionSnapshot;
   strategy_intent: LiveStrategyOrderIntent | null;
   strategy_intent_sha256: ContentHash | null;
+  sizing_decision: LiveSizingDecision | null;
+  sizing_decision_sha256: ContentHash | null;
   execution_order: LiveExecutionOrderSnapshot | null;
   execution_order_state_sha256: ContentHash | null;
   execution_control: LiveExecutionControlSnapshot | null;

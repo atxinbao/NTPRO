@@ -133,12 +133,14 @@ function liveExecutionControlResponse(): Record<string, any> {
   };
   running.data.strategy_intent = strategyIntent(running.data);
   running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+  attachSizingDecision(running.data);
   running.data.execution_order = {
-    schema_version: "ntpro.s3.live_execution_order_state.v3",
+    schema_version: "ntpro.s3.live_execution_order_state.v4",
     admission_id: "manual-001",
     source_demo_run_id: "demo-source-001",
     strategy_intent_id: "intent-001",
     strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
+    sizing_decision_sha256: `sha256:${"7".repeat(64)}`,
     strategy_version_id: running.data.strategy_version_id,
     instrument_id: "BTCUSDT.BINANCE",
     client_order_id: "S3LV008-001",
@@ -208,6 +210,35 @@ function strategyIntent(candidate: Record<string, any>) {
     source_manifest_sha256: `sha256:${"5".repeat(64)}`,
     source_result_sha256: `sha256:${"6".repeat(64)}`,
   };
+}
+
+function attachSizingDecision(candidate: Record<string, any>) {
+  candidate.sizing_decision = {
+    schema_version: "ntpro.s3.live_sizing_decision.v1",
+    run_id: candidate.run_id,
+    source_manifest_sha256: `sha256:${"4".repeat(64)}`,
+    source_preflight_sha256: `sha256:${"5".repeat(64)}`,
+    strategy_intent_sha256: candidate.strategy_intent_sha256,
+    instrument_id: candidate.strategy_intent.instrument_id,
+    side: candidate.strategy_intent.side,
+    price: "1.00",
+    price_tick: "0.01",
+    source_quantity: candidate.strategy_intent.quantity,
+    approved_quantity: candidate.strategy_intent.quantity,
+    quantity_step: "0.00001000",
+    min_quantity: "0.00001000",
+    max_quantity: "9000.00000000",
+    min_notional: "0.000001",
+    max_account_budget_fraction: "0.10",
+    order_notional: "0.00001",
+    account_budget_notional: "1.00",
+    request_max_notional: "1.00",
+    risk_policy_max_notional: "10.00",
+    sizing_source_ref: `sizing-config-sha256:${"6".repeat(64)}`,
+    evaluated_at_unix_ms: 1786406401000,
+    evidence_expires_at_unix_ms: 1786406701000,
+  };
+  candidate.sizing_decision_sha256 = `sha256:${"7".repeat(64)}`;
 }
 
 describe("product API generated client", () => {
@@ -295,6 +326,7 @@ describe("product API generated client", () => {
     };
     authorized.data.strategy_intent = strategyIntent(authorized.data);
     authorized.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+    attachSizingDecision(authorized.data);
     authorized.data.audit_anchor.revision = 2;
     authorized.data.audit_anchor.workspace_revision = 2;
     authorized.data.audit_anchor.receipt_ref = `sha256:${"7".repeat(64)}`;
@@ -331,6 +363,74 @@ describe("product API generated client", () => {
     expect(result.boundaries.automatic_retry_allowed).toBe(false);
   });
 
+  it.each([
+    ["price tick drift", "price", "1.001"],
+    ["quantity step drift", "approved_quantity", "0.00001500"],
+    ["order notional drift", "order_notional", "0.00002"],
+    ["request budget drift", "request_max_notional", "0.000009"],
+    ["request exceeds risk policy", "request_max_notional", "100.00"],
+    ["risk policy drift", "risk_policy_max_notional", "0.000009"],
+  ])("rejects sizing semantic drift: %s", async (_case, field, value) => {
+    const authorized: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    authorized.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    authorized.data.lifecycle = "preflight_ready";
+    authorized.data.preflight_at_unix_ms = 1786406401000;
+    authorized.data.account_connected = true;
+    authorized.data.account_can_trade_verified = true;
+    authorized.data.order_admission = {
+      status: "authorized_single_shot",
+      submit: "authorized_single_shot",
+      cancel: "blocked",
+      replace: "blocked",
+      fill_reconciliation: "runtime_event_projection",
+      owner_approved: true,
+      risk_approved: true,
+      operator_approved: true,
+      blockers: [
+        "additional_orders_blocked",
+        "cancel_not_scoped",
+        "replace_not_scoped",
+      ],
+    };
+    authorized.data.strategy_intent = strategyIntent(authorized.data);
+    authorized.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+    attachSizingDecision(authorized.data);
+    authorized.data.sizing_decision[field] = value;
+    authorized.data.audit_anchor.revision = 2;
+    authorized.data.audit_anchor.workspace_revision = 2;
+    authorized.data.audit_anchor.receipt_ref = `sha256:${"7".repeat(64)}`;
+    authorized.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+    authorized.boundaries.order_endpoint_access_allowed = true;
+    authorized.boundaries.order_submission_allowed = true;
+    authorized.boundaries.trading_controls_enabled = true;
+
+    await expect(
+      createProductApiClient({
+        fetch: jsonFetch(authorized),
+      }).approveLiveExecutionAsOwner(authorized.data.run_id, {
+        run_id: authorized.data.run_id,
+        strategy_version_id: authorized.data.strategy_version_id,
+        account_ref: "account://live/binance/primary",
+        venue_ref: "venue://live/BINANCE",
+        admission_id: "manual-001",
+        source_demo_run_id: "demo-source-001",
+        strategy_intent_id: "intent-001",
+        instrument_id: "BTCUSDT.BINANCE",
+        side: "BUY",
+        order_type: "LIMIT",
+        time_in_force: "GTC",
+        price: "1.00",
+        quantity: "0.00001000",
+        max_notional: "1.00",
+        expires_at_unix_ms: 1786406700000,
+        user_confirmed: true,
+      }),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
+  });
+
   it("projects an exchange-accepted single order without reopening follow-up controls", async () => {
     const running: Record<string, any> = structuredClone(
       liveRunCandidateFixture,
@@ -358,12 +458,14 @@ describe("product API generated client", () => {
     };
     running.data.strategy_intent = strategyIntent(running.data);
     running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+    attachSizingDecision(running.data);
     running.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v3",
+      schema_version: "ntpro.s3.live_execution_order_state.v4",
       admission_id: "manual-001",
       source_demo_run_id: "demo-source-001",
       strategy_intent_id: "intent-001",
       strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
+      sizing_decision_sha256: `sha256:${"7".repeat(64)}`,
       strategy_version_id: running.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: "S3LV007-001",
@@ -427,12 +529,14 @@ describe("product API generated client", () => {
     };
     running.data.strategy_intent = strategyIntent(running.data);
     running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+    attachSizingDecision(running.data);
     running.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v3",
+      schema_version: "ntpro.s3.live_execution_order_state.v4",
       admission_id: "manual-001",
       source_demo_run_id: "demo-source-001",
       strategy_intent_id: "intent-001",
       strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
+      sizing_decision_sha256: `sha256:${"7".repeat(64)}`,
       strategy_version_id: running.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: "S3LV008-001",
@@ -621,12 +725,14 @@ describe("product API generated client", () => {
     };
     failed.data.strategy_intent = strategyIntent(failed.data);
     failed.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+    attachSizingDecision(failed.data);
     failed.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v3",
+      schema_version: "ntpro.s3.live_execution_order_state.v4",
       admission_id: "manual-001",
       source_demo_run_id: "demo-source-001",
       strategy_intent_id: "intent-001",
       strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
+      sizing_decision_sha256: `sha256:${"7".repeat(64)}`,
       strategy_version_id: failed.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: null,

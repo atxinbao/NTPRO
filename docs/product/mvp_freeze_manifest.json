@@ -144,7 +144,7 @@
     "crates/cli/src/dashboard/mvp_status_api.rs": "4b641fe0d9b8410fef602b755c58ceab5e4d4ea53626b1a431548c726ee4f374",
     "crates/cli/src/dashboard/institution_workbench.rs": "eb78932657389976dc1c740a94afa21343e7f5ae3ae752f0e064741b76427cca",
     "crates/cli/src/dashboard/control_center.rs": "a207c5af6be9f3750d84e6026ddd0f5eeca6239950413279a9f3cb58e7dd39c4",
-    "configs/nodes/btc-ema-shadow.toml": "665c0bf4dc267033b3d1ef335b05dde3038cb6efc67a05af6adb49ed9ca7ab06",
+    "configs/nodes/btc-ema-shadow.toml": "abd7593fc0d52742a3ce14bc0066c887c1b534dcfffb6590ec5d01b26620ee68",
     "examples/rust/backtest/minimal_engine_smoke.toml": "deeb4ecbca128e7ff10241c9b0c2414828899ee79fd6054b1809a912f37c1062",
     "scripts/ai/test_mvp_acceptance.mjs": "3b535313fa66f985594210a984adf5eb5021a31f3af644d006d1389170a43908",
     "scripts/ai/test_mvp_fault_matrix.mjs": "a8c83b7396e005d07050222d4138024dafcadbc97b4870528146a9a0c119286f",
