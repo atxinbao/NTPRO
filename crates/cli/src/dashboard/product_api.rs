@@ -738,6 +738,10 @@ fn runtime_snapshot_is_stationary(
     let pending_unstarted_ownership = if let Some(ownership) = active_ownership {
         if record.process.pid.value.is_some()
             || snapshot_is_at_or_after_claim(
+                &record.process.updated_at,
+                ownership.claimed_at_unix_ms,
+            )
+            || snapshot_is_at_or_after_claim(
                 &record.last_known_status.started_at,
                 ownership.claimed_at_unix_ms,
             )

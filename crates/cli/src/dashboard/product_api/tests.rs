@@ -1379,6 +1379,14 @@ async fn stopped_node_with_started_run_ownership_is_not_stationary() {
         "a start attempt without a registered PID must remain nonstationary"
     );
 
+    record.last_known_status.started_at = SnapshotValue::unknown();
+    record.process.updated_at = SnapshotValue::available(claimed_at.to_string());
+    assert!(
+        !runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
+            .expect("process transition should validate"),
+        "a process transition without a registered PID must remain nonstationary"
+    );
+
     record.process.state = SupervisorProcessState::NotStarted;
     assert!(
         !runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
@@ -3963,6 +3971,8 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
     let old_record = &old_registry.nodes["mvp-node-001"];
     assert!(old_record.last_known_status.started_at.value.is_some());
     assert!(old_record.last_known_status.stopped_at.value.is_some());
+    let old_started_at = old_record.last_known_status.started_at.clone();
+    let old_stopped_at = old_record.last_known_status.stopped_at.clone();
     let old_terminal = old_record.run_ownership[&old_run_id]
         .terminal
         .clone()
@@ -4009,6 +4019,46 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
         "replacement ownership must not predate its Supervisor baseline"
     );
 
+    let mut historical_registry = registry;
+    let historical_record = historical_registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("replacement node should remain registered");
+    historical_record.last_known_status.started_at = old_started_at;
+    historical_record.last_known_status.stopped_at = old_stopped_at;
+    store
+        .save(&historical_registry)
+        .expect("historical runtime times should be restored for the regression");
+
+    let (status, runs) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::OK, "{runs}");
+    assert_eq!(
+        runs["data"]
+            .as_array()
+            .and_then(|items| items.iter().find(|run| run["run_id"] == new_run_id))
+            .map(|run| &run["lifecycle"]),
+        Some(&json!("created")),
+        "history from the previous Run must not finalize the replacement"
+    );
+    let projected_registry = store
+        .load()
+        .expect("projected registry should remain readable");
+    assert!(
+        projected_registry.nodes["mvp-node-001"].run_ownership[new_run_id]
+            .terminal
+            .is_none(),
+        "historical runtime times must not publish a terminal anchor"
+    );
+    assert!(
+        !fixture
+            .root
+            .join("artifacts/demo-runs")
+            .join(new_run_id)
+            .join("terminal-state.json")
+            .exists(),
+        "historical runtime times must not publish a terminal artifact"
+    );
+
     let new_action_path = format!("/api/product/v1/demo-runs/{new_run_id}/actions");
     let start = json!({
         "run_id": new_run_id,
@@ -4016,7 +4066,14 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
         "user_confirmed": true
     });
     let (status, started) = router_json_body(&router, Method::POST, &new_action_path, &start).await;
-    assert_eq!(status, StatusCode::OK, "{started}");
+    let start_registry = store
+        .load()
+        .expect("start registry diagnostics should remain readable");
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "{started} registry={start_registry:#?}"
+    );
     let stop = json!({
         "run_id": new_run_id,
         "action": "stop",

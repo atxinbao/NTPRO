@@ -6577,6 +6577,9 @@ fn project_demo_lifecycle(
     config.demo_lifecycle_state = Some(record.last_known_status.lifecycle_state);
     config.updated_at_unix_ms = now_unix_ms.max(config.created_at_unix_ms);
     let observed_started = snapshot_timestamp(&record.last_known_status.started_at);
+    let process_updated_at = snapshot_timestamp(&record.process.updated_at);
+    let process_updated_for_run =
+        process_updated_at.is_some_and(|timestamp| timestamp >= config.created_at_unix_ms);
     let record_updated_at = snapshot_timestamp(&record.updated_at).ok_or_else(|| {
         product_error(
             ProductErrorKind::SourceInvalid,
@@ -6645,9 +6648,11 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Stopped, LifecycleStatus::Stopped) => {
-            if observed_started.is_none()
-                && observed_stopped.is_none_or(|value| value <= config.created_at_unix_ms)
-            {
+            let historical_started =
+                observed_started.is_none_or(|timestamp| timestamp < config.created_at_unix_ms);
+            let historical_stopped =
+                observed_stopped.is_none_or(|timestamp| timestamp < config.created_at_unix_ms);
+            if !process_updated_for_run && historical_started && historical_stopped {
                 config.lifecycle = RunLifecycle::Created;
                 config.started_at_unix_ms = None;
                 config.completed_at_unix_ms = None;
