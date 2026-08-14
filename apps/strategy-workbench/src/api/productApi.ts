@@ -738,6 +738,10 @@ function assertLiveRunCandidate(
         sizingDecision.request_max_notional,
       ) <= 0 &&
       decimalCompare(
+        sizingDecision.request_max_notional,
+        sizingDecision.risk_policy_max_notional,
+      ) <= 0 &&
+      decimalCompare(
         sizingDecision.order_notional,
         sizingDecision.risk_policy_max_notional,
       ) <= 0);

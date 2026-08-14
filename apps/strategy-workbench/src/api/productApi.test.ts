@@ -368,6 +368,7 @@ describe("product API generated client", () => {
     ["quantity step drift", "approved_quantity", "0.00001500"],
     ["order notional drift", "order_notional", "0.00002"],
     ["request budget drift", "request_max_notional", "0.000009"],
+    ["request exceeds risk policy", "request_max_notional", "100.00"],
     ["risk policy drift", "risk_policy_max_notional", "0.000009"],
   ])("rejects sizing semantic drift: %s", async (_case, field, value) => {
     const authorized: Record<string, any> = structuredClone(
