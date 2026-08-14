@@ -1431,7 +1431,7 @@ fn stopped_node_with_unbound_or_multiple_active_claims_fails_closed() {
             run_id.clone(),
             SupervisorRunOwnership {
                 run_id,
-                manifest_sha256: format!("sha256:{}", suffix.repeat(64)[..64].to_string()),
+                manifest_sha256: format!("sha256:{}", &suffix.repeat(64)[..64]),
                 claimed_at_unix_ms: now,
                 terminal: None,
             },
