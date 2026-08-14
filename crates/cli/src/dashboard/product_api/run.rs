@@ -1527,8 +1527,8 @@ fn create_demo_run(
         .lifecycle_action_lock
         .lock()
         .map_err(|_| product_error(ProductErrorKind::DemoConflict, "demo_action_lock"))?;
+    finalize_demo_run_ownerships(state, unix_time_ms())?;
     let now = unix_time_ms();
-    finalize_demo_run_ownerships(state, now)?;
     let source = load_product_source(state, now)?;
     let version = strategy_version::load_product_strategy_version(&source, now)?;
     validate_demo_creation_request(&request, &source, &version)?;
@@ -6751,6 +6751,74 @@ fn canonical_demo_artifact_root(
         ));
     }
     Ok(root)
+}
+
+pub(super) fn validate_unstarted_demo_ownership(
+    state: &DashboardServerState,
+    identity: &MvpIdentityContract,
+    record: &SupervisorNodeRecord,
+    ownership: &SupervisorRunOwnership,
+) -> Result<(), ProductError> {
+    let invalid = || product_error(ProductErrorKind::SourceInvalid, "demo_run_ownership");
+    let run_id = ownership.run_id.as_str();
+    let run_root = canonical_demo_artifact_root(state, false)
+        .map_err(|_| invalid())?
+        .join(run_id);
+    let manifest_raw =
+        read_backtest_result_bytes(&run_root.join("run-manifest.json")).map_err(|_| invalid())?;
+    let request_raw =
+        read_backtest_result_bytes(&run_root.join("request.json")).map_err(|_| invalid())?;
+    let version_raw = read_backtest_result_bytes(&run_root.join("strategy-version.json"))
+        .map_err(|_| invalid())?;
+    let manifest: DynamicDemoRunManifest =
+        strict_json(&manifest_raw, "demo_run_ownership").map_err(|_| invalid())?;
+    let request: CreateDemoRunRequest =
+        strict_json(&request_raw, "demo_run_ownership").map_err(|_| invalid())?;
+    let config = &manifest.config;
+    let baseline = config.demo_supervisor_record_baseline_unix_ms;
+    if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
+        || sha256_ref(&manifest_raw) != ownership.manifest_sha256
+        || manifest.request_sha256 != sha256_ref(&request_raw)
+        || manifest.strategy_version_snapshot_sha256 != sha256_ref(&version_raw)
+        || config.run_id != run_id
+        || config.strategy_id != identity.identities.strategy_id
+        || config.strategy_version_id != request.strategy_version_id
+        || config.environment != RunEnvironment::Sandbox
+        || config.lifecycle != RunLifecycle::Created
+        || config.result_status != RunResultStatus::Pending
+        || config.risk_status != RunRiskStatus::Pending
+        || config.config_ref != format!("artifact://demo-runs/{run_id}/request.json")
+        || config.adapter_ref != "adapter://sandbox/fixture-stream"
+        || config.risk_ref != format!("artifact://demo-runs/{run_id}/run-manifest.json#risk")
+        || config.strategy_version_snapshot_sha256.as_deref()
+            != Some(manifest.strategy_version_snapshot_sha256.as_str())
+        || config.demo_supervisor_node_id.as_deref() != Some(record.node_id.as_str())
+        || record.node_id != identity.identities.node_id
+        || config.demo_strategy_instance_id.as_deref()
+            != Some(identity.identities.strategy_instance_id.as_str())
+        || config.demo_identity_contract_id.as_deref() != Some(identity.contract_id.as_str())
+        || baseline.is_none_or(|value| value == 0 || value > ownership.claimed_at_unix_ms)
+        || config.created_at_unix_ms != ownership.claimed_at_unix_ms
+        || config.updated_at_unix_ms != ownership.claimed_at_unix_ms
+        || config.started_at_unix_ms.is_some()
+        || config.completed_at_unix_ms.is_some()
+        || config.result_ref.is_some()
+        || config.error_code.is_some()
+        || config.error_summary.is_some()
+        || request.strategy_id != config.strategy_id
+        || request.environment != RunEnvironment::Sandbox
+        || request.supervisor_node_id != record.node_id
+        || request.account_ref != config.account_ref
+        || request.venue_ref != config.venue_ref
+        || !request.user_confirmed
+    {
+        return Err(invalid());
+    }
+    validate_run_config_capabilities(config).map_err(|_| invalid())?;
+    match fs::symlink_metadata(run_root.join("terminal-state.json")) {
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        _ => Err(invalid()),
+    }
 }
 
 fn load_dynamic_run_configs(

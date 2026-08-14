@@ -386,7 +386,8 @@ fn load_product_source(
     let record = &source.runtime_record;
     let workspace = mvp_workspace_root(&state.registry_path)?;
     let identity_path = workspace.join(MVP_IDENTITY_CONTRACT_PATH);
-    let enforce_runtime_freshness = !runtime_snapshot_is_stationary(record, now_unix_ms)?;
+    let enforce_runtime_freshness =
+        !runtime_snapshot_is_stationary(state, record, &source.identity, now_unix_ms)?;
     let freshness_max_age_ms = validate_product_status_contract(
         &workspace,
         &identity_path,
@@ -684,7 +685,9 @@ fn refresh_product_status_contract(
 }
 
 fn runtime_snapshot_is_stationary(
+    state: &DashboardServerState,
     record: &SupervisorNodeRecord,
+    identity: &MvpIdentityContract,
     now_unix_ms: u64,
 ) -> Result<bool, ProductError> {
     let prepared_without_runtime_artifacts = record.process.state
@@ -698,7 +701,7 @@ fn runtime_snapshot_is_stationary(
         return Ok(false);
     }
 
-    let mut active_ownership_count = 0_u8;
+    let mut active_ownership = None;
     for (run_id, ownership) in &record.run_ownership {
         if ownership.run_id != *run_id
             || ownership.claimed_at_unix_ms == 0
@@ -725,22 +728,41 @@ fn runtime_snapshot_is_stationary(
                 "demo_run_terminal_state_sha256",
                 &terminal.terminal_state_sha256,
             )?;
-        } else {
-            active_ownership_count = active_ownership_count.saturating_add(1);
-            if active_ownership_count > 1 {
-                return Err(product_error(
-                    ProductErrorKind::SourceInvalid,
-                    "demo_run_ownership",
-                ));
-            }
+        } else if active_ownership.replace(ownership).is_some() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_run_ownership",
+            ));
         }
     }
-    let pending_unstarted_ownership = active_ownership_count == 1
-        && record.process.pid.value.is_none()
-        && record.last_known_status.started_at.value.is_none()
-        && record.last_known_status.stopped_at.value.is_none();
+    let pending_unstarted_ownership = if let Some(ownership) = active_ownership {
+        if record.process.pid.value.is_some()
+            || snapshot_is_at_or_after_claim(
+                &record.last_known_status.started_at,
+                ownership.claimed_at_unix_ms,
+            )
+            || snapshot_is_at_or_after_claim(
+                &record.last_known_status.stopped_at,
+                ownership.claimed_at_unix_ms,
+            )
+        {
+            false
+        } else {
+            run::validate_unstarted_demo_ownership(state, identity, record, ownership)?;
+            true
+        }
+    } else {
+        false
+    };
     Ok((prepared_without_runtime_artifacts || stopped_runtime)
-        && (active_ownership_count == 0 || pending_unstarted_ownership))
+        && (active_ownership.is_none() || pending_unstarted_ownership))
+}
+
+fn snapshot_is_at_or_after_claim(value: &SnapshotValue<String>, claimed_at_unix_ms: u64) -> bool {
+    value.value.as_deref().is_some_and(|raw| {
+        raw.parse::<u64>()
+            .map_or(true, |timestamp| timestamp >= claimed_at_unix_ms)
+    })
 }
 
 fn validate_product_identity(

@@ -1352,9 +1352,10 @@ async fn stopped_node_without_run_ownership_can_create_demo_after_freshness_wind
     assert_eq!(created["boundaries"]["order_submission_allowed"], false);
 }
 
-#[test]
-fn stopped_node_with_started_run_ownership_is_not_stationary() {
+#[tokio::test]
+async fn stopped_node_with_started_run_ownership_is_not_stationary() {
     let fixture = Fixture::new("stopped-active-ownership");
+    create_demo_fixture_run(&fixture).await;
     let now = unix_time_ms();
     let store = SupervisorRegistryStore::new(&fixture.registry_path);
     let mut registry = store.load().expect("fixture registry should load");
@@ -1362,53 +1363,123 @@ fn stopped_node_with_started_run_ownership_is_not_stationary() {
         .nodes
         .get_mut("mvp-node-001")
         .expect("fixture node should exist");
+    let claimed_at = record
+        .run_ownership
+        .values()
+        .find(|ownership| ownership.terminal.is_none())
+        .expect("created Demo ownership should exist")
+        .claimed_at_unix_ms;
     record.process.state = SupervisorProcessState::Stopped;
     record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
-    record.last_known_status.started_at =
-        SnapshotValue::available(now.saturating_sub(1_000).to_string());
-    record.last_known_status.stopped_at = SnapshotValue::available(now.to_string());
-    record.run_ownership.insert(
-        "demo-active-001".to_string(),
-        SupervisorRunOwnership {
-            run_id: "demo-active-001".to_string(),
-            manifest_sha256: format!("sha256:{}", "a".repeat(64)),
-            claimed_at_unix_ms: now,
-            terminal: None,
-        },
-    );
+    record.last_known_status.started_at = SnapshotValue::available(claimed_at.to_string());
 
-    assert!(!runtime_snapshot_is_stationary(record, now).expect("ownership should validate"));
+    assert!(
+        !runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
+            .expect("ownership should validate"),
+        "a start attempt without a registered PID must remain nonstationary"
+    );
 
     record.process.state = SupervisorProcessState::NotStarted;
     assert!(
-        !runtime_snapshot_is_stationary(record, now).expect("prepared ownership should validate"),
+        !runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
+            .expect("prepared ownership should validate"),
         "a prepared node must not hide active Run ownership"
     );
 }
 
-#[test]
-fn stopped_node_with_one_unstarted_run_claim_is_stationary() {
+#[tokio::test]
+async fn stopped_node_with_one_manifest_bound_unstarted_run_claim_is_stationary() {
     let fixture = Fixture::new("stopped-unstarted-ownership");
+    create_demo_fixture_run(&fixture).await;
     let now = unix_time_ms();
     let store = SupervisorRegistryStore::new(&fixture.registry_path);
-    store
-        .claim_run_ownership(
-            "mvp-node-001",
+    let mut registry = store.load().expect("fixture registry should load");
+    let record = registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist");
+    let claimed_at = record
+        .run_ownership
+        .values()
+        .find(|ownership| ownership.terminal.is_none())
+        .expect("created Demo ownership should exist")
+        .claimed_at_unix_ms;
+    let historical = claimed_at.saturating_sub(1);
+    record.last_known_status.started_at = SnapshotValue::available(historical.to_string());
+    record.last_known_status.stopped_at = SnapshotValue::available(historical.to_string());
+
+    assert!(
+        runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
+            .expect("ownership should validate"),
+        "a canonical created Run must be able to start from a stopped node"
+    );
+}
+
+#[test]
+fn stopped_node_with_unbound_or_multiple_active_claims_fails_closed() {
+    let fixture = Fixture::new("stopped-unbound-ownership");
+    let now = unix_time_ms();
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().expect("fixture registry should load");
+    let record = registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist");
+    for suffix in ["001", "002"] {
+        let run_id = format!("demo-unbound-{suffix}");
+        record.run_ownership.insert(
+            run_id.clone(),
             SupervisorRunOwnership {
-                run_id: "demo-created-001".to_string(),
-                manifest_sha256: format!("sha256:{}", "a".repeat(64)),
+                run_id,
+                manifest_sha256: format!("sha256:{}", suffix.repeat(64)[..64].to_string()),
                 claimed_at_unix_ms: now,
                 terminal: None,
             },
-        )
-        .expect("fixture should accept one unstarted Run claim");
-    let registry = store.load().expect("fixture registry should load");
-    let record = &registry.nodes["mvp-node-001"];
+        );
+        let error =
+            runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
+                .expect_err("unbound and multiple active claims must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+        assert_eq!(error.field, "demo_run_ownership");
+    }
+}
 
-    assert!(
-        runtime_snapshot_is_stationary(record, now).expect("ownership should validate"),
-        "a canonical created Run must be able to start from a stopped node"
-    );
+#[tokio::test]
+async fn unstarted_demo_claim_manifest_hash_node_and_environment_drift_fail_closed() {
+    for drift in ["hash", "node", "environment"] {
+        let fixture = Fixture::new(&format!("unstarted-claim-{drift}"));
+        let run_id = create_demo_fixture_run(&fixture).await;
+        let store = SupervisorRegistryStore::new(&fixture.registry_path);
+        let mut registry = store.load().expect("fixture registry should load");
+        let record = registry
+            .nodes
+            .get_mut("mvp-node-001")
+            .expect("fixture node should exist");
+        let ownership = record
+            .run_ownership
+            .get_mut(&run_id)
+            .expect("created Demo ownership should exist");
+        if drift == "hash" {
+            ownership.manifest_sha256 = format!("sha256:{}", "f".repeat(64));
+        } else {
+            ownership.manifest_sha256 = rewrite_demo_manifest(&fixture, &run_id, |manifest| {
+                if drift == "node" {
+                    manifest["config"]["demo_supervisor_node_id"] = json!("mvp-node-forged");
+                } else {
+                    manifest["config"]["environment"] = json!("live");
+                }
+            });
+        }
+        let error = runtime_snapshot_is_stationary(
+            &fixture.state(),
+            record,
+            &fixture.identity,
+            unix_time_ms(),
+        )
+        .expect_err("ownership drift must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid, "{drift}");
+        assert_eq!(error.field, "demo_run_ownership", "{drift}");
+    }
 }
 
 #[test]
@@ -3034,7 +3105,7 @@ async fn demo_creation_and_artifacts_fail_closed() {
     let (status, error) = router_json(&fixture.router(), Method::GET, "/api/product/v1/runs").await;
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(error["error"]["code"], "product_source_invalid");
-    assert_eq!(error["error"]["field"], "demo_manifest");
+    assert_eq!(error["error"]["field"], "demo_run_ownership");
 }
 
 #[tokio::test]
@@ -3918,7 +3989,41 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
         record.run_ownership[&old_run_id].terminal.as_ref(),
         Some(&old_terminal)
     );
-    assert!(record.run_ownership[new_run_id].terminal.is_none());
+    let new_ownership = &record.run_ownership[new_run_id];
+    assert!(new_ownership.terminal.is_none());
+    let new_manifest: Value = serde_json::from_slice(
+        &fs::read(
+            fixture
+                .root
+                .join("artifacts/demo-runs")
+                .join(new_run_id)
+                .join("run-manifest.json"),
+        )
+        .expect("replacement manifest should be readable"),
+    )
+    .expect("replacement manifest should be valid JSON");
+    assert!(
+        new_manifest["config"]["demo_supervisor_record_baseline_unix_ms"]
+            .as_u64()
+            .is_some_and(|baseline| baseline <= new_ownership.claimed_at_unix_ms),
+        "replacement ownership must not predate its Supervisor baseline"
+    );
+
+    let new_action_path = format!("/api/product/v1/demo-runs/{new_run_id}/actions");
+    let start = json!({
+        "run_id": new_run_id,
+        "action": "start",
+        "user_confirmed": true
+    });
+    let (status, started) = router_json_body(&router, Method::POST, &new_action_path, &start).await;
+    assert_eq!(status, StatusCode::OK, "{started}");
+    let stop = json!({
+        "run_id": new_run_id,
+        "action": "stop",
+        "user_confirmed": true
+    });
+    let (status, stopped) = router_json_body(&router, Method::POST, &new_action_path, &stop).await;
+    assert_eq!(status, StatusCode::OK, "{stopped}");
 }
 
 #[cfg(unix)]
@@ -6098,6 +6203,39 @@ fn valid_demo_request() -> Value {
         "venue_ref": "venue://sandbox/BINANCE",
         "user_confirmed": true
     })
+}
+
+async fn create_demo_fixture_run(fixture: &Fixture) -> String {
+    let (status, body) = router_json_body(
+        &fixture.router(),
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    body["data"]["run_id"]
+        .as_str()
+        .expect("created Demo should expose its Run ID")
+        .to_string()
+}
+
+fn rewrite_demo_manifest(
+    fixture: &Fixture,
+    run_id: &str,
+    mutation: impl FnOnce(&mut Value),
+) -> String {
+    let path = fixture
+        .root
+        .join("artifacts/demo-runs")
+        .join(run_id)
+        .join("run-manifest.json");
+    let mut manifest: Value =
+        serde_json::from_slice(&fs::read(&path).expect("Demo manifest fixture should be readable"))
+            .expect("Demo manifest fixture should parse");
+    mutation(&mut manifest);
+    write_json(&path, &manifest);
+    sha256_bytes_ref(&fs::read(path).expect("rewritten Demo manifest should be readable"))
 }
 
 #[cfg(unix)]
