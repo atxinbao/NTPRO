@@ -79,12 +79,22 @@ run_current_governance() {
   scripts/ai/test_backend_runtime_risk_inventory.sh
   scripts/ai/check_control_plane_retired.sh
   scripts/ai/check_historical_release_retirement.sh
+  scripts/ai/check_s3_live_closeout.sh
   scripts/ai/ntpro_governance.sh golden-trace \
     tests/golden/schema_smoke.jsonl --mode validate-only
 }
 
 run_backend_freeze_baseline() {
   scripts/ai/check_backend_freeze_baseline.sh
+}
+
+run_s3_live_closeout() {
+  scripts/ai/check_s3_live_closeout.sh
+}
+
+run_s3_live_exit_evidence() {
+  scripts/ai/check_s3_live_closeout.sh
+  scripts/ai/test_s3_live_exit_evidence.sh
 }
 
 run_backend_performance_baseline() {
@@ -138,6 +148,12 @@ run_stage() {
     current-governance)
       run_current_governance
       ;;
+    s3-live-closeout)
+      run_s3_live_closeout
+      ;;
+    s3-live-exit-evidence)
+      run_s3_live_exit_evidence
+      ;;
     backend-freeze-baseline)
       run_backend_freeze_baseline
       ;;
@@ -166,7 +182,7 @@ run_stage() {
       fail "historical release stage retired by PTC-006: $1"
       ;;
     *)
-      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, backend-freeze-baseline, backend-performance-baseline, backend-performance-hosted, v33-maintenance-release, v33-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
+      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, s3-live-closeout, s3-live-exit-evidence, backend-freeze-baseline, backend-performance-baseline, backend-performance-hosted, v33-maintenance-release, v33-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
       ;;
   esac
 }

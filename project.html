@@ -2665,7 +2665,7 @@
                   <li>建立 Live 独立准入、最小权限、幂等、审计、恢复和回滚证据。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-009 已完成独立准入、生产账户只读结果、外部不可变审计锚点、真实 Live 生产行情 Runtime、单笔 LIMIT/GTC 订单、交易所对账、人工撤单、部分成交恢复和 Demo 策略意图绑定。S3-LV-010 正在建设账户资金、Venue 规则和风险上限共同约束的确定性仓位 sizing；追加订单、改单、自动重试和自动恢复仍保持阻断。</div>
+              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-010 已完成生产代码路径和 fail-closed 自动验证。S3 正式退出条件尚未满足：现有证据未包含真实资金账户的受控端到端成交；S3-LV-011 等待 owner 明确授权后验收。追加订单、改单、自动重试和自动恢复仍保持阻断。</div>
               <div class="exit-gate"><strong>退出条件</strong>真实账户和 Venue 在独立授权下完成受控端到端交易；异常、断连、重复回报和恢复场景 fail closed，并证明不会由 Demo 自动继承权限。</div>
             </article>
 
