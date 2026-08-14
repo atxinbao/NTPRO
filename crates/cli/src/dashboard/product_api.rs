@@ -122,6 +122,7 @@ struct ValidatedProductSource {
     raw_config: String,
     identity: MvpIdentityContract,
     config_name: String,
+    runtime_record: SupervisorNodeRecord,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -272,7 +273,7 @@ pub(super) async fn strategy_list_api(
 ) -> ApiResult<StrategyListResponse> {
     let request_id = product_request_id();
     let result = parse_strategy_list_query(raw_query.as_deref()).and_then(|query| {
-        let strategy = load_product_strategy(&state, unix_time_ms())?;
+        let strategy = load_product_catalog_strategy(&state, unix_time_ms())?;
         project_strategy_list(strategy, &query, request_id.clone())
     });
     result
@@ -297,7 +298,7 @@ pub(super) async fn strategy_detail_api(
     let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
         validate_identifier("strategy_id", &strategy_id)
             .map_err(|_| product_error(ProductErrorKind::BadRequest, "strategy_id"))?;
-        let strategy = load_product_strategy(&state, unix_time_ms())?;
+        let strategy = load_product_catalog_strategy(&state, unix_time_ms())?;
         if strategy.strategy_id != strategy_id {
             return Err(product_error(ProductErrorKind::NotFound, "strategy_id"));
         }
@@ -362,6 +363,7 @@ pub(super) async fn product_command_method_not_allowed() -> Response {
     response
 }
 
+#[cfg(test)]
 fn load_product_strategy(
     state: &DashboardServerState,
     now_unix_ms: u64,
@@ -369,7 +371,42 @@ fn load_product_strategy(
     Ok(load_product_source(state, now_unix_ms)?.strategy)
 }
 
+fn load_product_catalog_strategy(
+    state: &DashboardServerState,
+    now_unix_ms: u64,
+) -> Result<ProductStrategy, ProductError> {
+    Ok(load_product_catalog_source(state, now_unix_ms)?.strategy)
+}
+
 fn load_product_source(
+    state: &DashboardServerState,
+    now_unix_ms: u64,
+) -> Result<ValidatedProductSource, ProductError> {
+    let source = load_product_catalog_source(state, now_unix_ms)?;
+    let record = &source.runtime_record;
+    let workspace = mvp_workspace_root(&state.registry_path)?;
+    let identity_path = workspace.join(MVP_IDENTITY_CONTRACT_PATH);
+    let enforce_runtime_freshness = !runtime_snapshot_is_stationary(record, now_unix_ms)?;
+    let freshness_max_age_ms = validate_product_status_contract(
+        &workspace,
+        &identity_path,
+        &state.registry_path,
+        record,
+        &source.identity,
+        now_unix_ms,
+        enforce_runtime_freshness,
+    )?;
+    validate_runtime_boundaries(
+        record,
+        &source.identity.identities.node_id,
+        now_unix_ms,
+        freshness_max_age_ms,
+        enforce_runtime_freshness,
+    )?;
+    Ok(source)
+}
+
+fn load_product_catalog_source(
     state: &DashboardServerState,
     now_unix_ms: u64,
 ) -> Result<ValidatedProductSource, ProductError> {
@@ -436,24 +473,6 @@ fn load_product_source(
     let config: ProductConfigProjection = toml::from_str(&raw)
         .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "strategy_config"))?;
     validate_product_config(&config, &identity, now_unix_ms)?;
-    let enforce_runtime_freshness = !runtime_snapshot_is_stationary(record, now_unix_ms)?;
-    let freshness_max_age_ms = validate_product_status_contract(
-        &workspace,
-        &identity_path,
-        &state.registry_path,
-        record,
-        &identity,
-        now_unix_ms,
-        enforce_runtime_freshness,
-    )?;
-    validate_runtime_boundaries(
-        record,
-        &identity.identities.node_id,
-        now_unix_ms,
-        freshness_max_age_ms,
-        enforce_runtime_freshness,
-    )?;
-
     let config_name = identity_config_path
         .file_name()
         .and_then(|value| value.to_str())
@@ -475,7 +494,6 @@ fn load_product_source(
             freshness_status: "fresh".to_string(),
             source_refs: vec![
                 MVP_IDENTITY_CONTRACT_PATH.to_string(),
-                MVP_STATUS_CONTRACT_PATH.to_string(),
                 format!("node-config:{config_name}"),
             ],
         },
@@ -485,6 +503,7 @@ fn load_product_source(
         raw_config: raw,
         identity,
         config_name: config_name.to_string(),
+        runtime_record: record.clone(),
     })
 }
 

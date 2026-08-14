@@ -329,12 +329,37 @@ fn strategy_projection_uses_identity_and_explicit_product_metadata() {
     assert_eq!(strategy.source.freshness_status, "fresh");
     assert_eq!(
         strategy.source.source_refs,
-        [
-            "mvp/identity_contract.json",
-            "mvp/status_contract.json",
-            "node-config:node.toml"
-        ]
+        ["mvp/identity_contract.json", "node-config:node.toml"]
     );
+}
+
+#[test]
+fn static_strategy_catalog_remains_readable_when_runtime_is_stale() {
+    let fixture = Fixture::new("stale-runtime-static-catalog");
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().expect("fixture registry should load");
+    let record = registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist");
+    record.process.state = SupervisorProcessState::Stale;
+    record.status_artifact = RegistryArtifactState::Stale;
+    record.metrics_artifact = RegistryArtifactState::Stale;
+    store.save(&registry).expect("fixture registry should save");
+
+    let strategy = load_product_catalog_strategy(&fixture.state(), unix_time_ms())
+        .expect("static strategy catalog should not depend on runtime freshness");
+    assert_eq!(strategy.strategy_id, "ema-cross");
+    let source = load_product_catalog_source(&fixture.state(), unix_time_ms())
+        .expect("static strategy version source should remain readable");
+    let version = load_product_strategy_version(&source, unix_time_ms())
+        .expect("static strategy version should remain readable");
+    assert_eq!(version.strategy_version_id(), "ema-cross@v1");
+
+    let error = load_product_source(&fixture.state(), unix_time_ms())
+        .expect_err("runtime resources must still fail closed on stale evidence");
+    assert_eq!(error.kind, ProductErrorKind::SourceStale);
+    assert_eq!(error.field, "node_status");
 }
 
 #[test]
@@ -1534,6 +1559,41 @@ async fn strategy_routes_are_read_only_and_return_stable_envelopes() {
             validate_openapi_instance("ProductErrorResponse", &body);
         }
     }
+}
+
+#[tokio::test]
+async fn stale_runtime_keeps_catalog_routes_readable_and_blocks_run_routes() {
+    let fixture = Fixture::new("stale-runtime-routes");
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().expect("fixture registry should load");
+    let record = registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist");
+    record.process.state = SupervisorProcessState::Stale;
+    record.status_artifact = RegistryArtifactState::Stale;
+    record.metrics_artifact = RegistryArtifactState::Stale;
+    store.save(&registry).expect("fixture registry should save");
+    let router = fixture.router();
+
+    let (status, strategies) =
+        router_json(&router, Method::GET, "/api/product/v1/strategies").await;
+    assert_eq!(status, StatusCode::OK, "{strategies}");
+    assert_eq!(strategies["data"][0]["strategy_id"], "ema-cross");
+
+    let (status, versions) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{versions}");
+    assert_eq!(versions["data"][0]["strategy_version_id"], "ema-cross@v1");
+
+    let (status, runs) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{runs}");
+    assert_eq!(runs["error"]["code"], "product_source_stale");
+    assert_eq!(runs["error"]["field"], "node_status");
 }
 
 #[tokio::test]

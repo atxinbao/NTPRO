@@ -21,11 +21,7 @@
     "owner": "Systematic Desk",
     "source": {
       "freshness_status": "fresh",
-      "source_refs": [
-        "mvp/identity_contract.json",
-        "mvp/status_contract.json",
-        "node-config:node.toml"
-      ],
+      "source_refs": ["mvp/identity_contract.json", "node-config:node.toml"],
       "source_type": "mvp_identity_config"
     },
     "strategy_id": "ema-cross",

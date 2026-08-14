@@ -406,11 +406,8 @@ export function useOverviewProductContext() {
   const version = useStrategyVersion(strategyId, versionId);
   const runs = useRuns(strategyId, versionId);
   const error =
-    strategies.error ??
-    strategy.error ??
-    versions.error ??
-    version.error ??
-    runs.error;
+    strategies.error ?? strategy.error ?? versions.error ?? version.error;
+  const runtimeError = runs.error;
   const isVerifying =
     strategies.isPending ||
     strategies.isFetching ||
@@ -419,33 +416,28 @@ export function useOverviewProductContext() {
         strategy.isFetching ||
         versions.isPending ||
         versions.isFetching)) ||
-    (Boolean(versionId) &&
-      (version.isPending ||
-        version.isFetching ||
-        runs.isPending ||
-        runs.isFetching));
+    (Boolean(versionId) && (version.isPending || version.isFetching));
+  const isRuntimeVerifying =
+    Boolean(versionId) && (runs.isPending || runs.isFetching);
   const isReady =
     !error &&
     !isVerifying &&
     Boolean(strategies.data) &&
     (!strategyId ||
-      Boolean(
-        strategy.data &&
-        versions.data &&
-        versionId &&
-        version.data &&
-        runs.data,
-      ));
+      Boolean(strategy.data && versions.data && versionId && version.data));
 
   return {
     error,
+    runtimeError,
     isReady,
     isVerifying,
+    isRuntimeVerifying,
     strategies: isReady ? strategies.data : undefined,
     strategy: isReady ? strategy.data?.data : undefined,
     versions: isReady ? versions.data : undefined,
     version: isReady ? version.data?.data : undefined,
-    runs: isReady ? runs.data : undefined,
+    runs:
+      isReady && !runtimeError && !isRuntimeVerifying ? runs.data : undefined,
   };
 }
 

@@ -189,7 +189,7 @@ pub(in crate::dashboard) async fn strategy_version_list_api(
     let result = validate_requested_identifier("strategy_id", &strategy_id)
         .and_then(|()| parse_strategy_version_list_query(raw_query.as_deref()))
         .and_then(|query| {
-            let source = load_product_source(&state, unix_time_ms())?;
+            let source = load_product_catalog_source(&state, unix_time_ms())?;
             ensure_strategy_matches(&source, &strategy_id)?;
             let version = load_product_strategy_version(&source, unix_time_ms())?;
             project_strategy_version_list(version, &query, request_id.clone())
@@ -214,7 +214,7 @@ pub(in crate::dashboard) async fn strategy_version_detail_api(
     let result = reject_detail_query(raw_query.as_deref()).and_then(|()| {
         validate_requested_identifier("strategy_id", &path.strategy_id)?;
         validate_requested_version_id("version_id", &path.version_id)?;
-        let source = load_product_source(&state, unix_time_ms())?;
+        let source = load_product_catalog_source(&state, unix_time_ms())?;
         ensure_strategy_matches(&source, &path.strategy_id)?;
         let version = load_product_strategy_version(&source, unix_time_ms())?;
         if version.strategy_version_id != path.version_id || version.strategy_id != path.strategy_id
@@ -275,7 +275,6 @@ pub(super) fn load_product_strategy_version(
             freshness_status: "fresh".to_string(),
             source_refs: vec![
                 MVP_IDENTITY_CONTRACT_PATH.to_string(),
-                MVP_STATUS_CONTRACT_PATH.to_string(),
                 format!("node-config:{}#strategy_version", source.config_name),
             ],
         },

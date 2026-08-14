@@ -1087,6 +1087,33 @@ describe("strategy workbench product slice", () => {
     expect(await screen.findByText("当前没有已注册策略")).toBeInTheDocument();
   });
 
+  it("keeps the strategy catalog visible when runtime data is stale", async () => {
+    const stale = structuredClone(errorFixture);
+    stale.error.code = "product_source_stale";
+    stale.error.field = "node_status";
+    stale.error.summary = "策略产品数据源已过期，需要刷新对应来源后重试";
+    stale.error.retryable = true;
+    server.use(
+      http.get("/api/product/v1/runs", () =>
+        HttpResponse.json(stale, { status: 503 }),
+      ),
+    );
+
+    renderWorkbench("/overview");
+    expect(
+      await screen.findByRole("heading", { name: "BTC/USDT EMA Cross" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("策略目录已验证，运行数据降级"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("ema-cross@v1").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("产品服务返回错误，策略与版本目录仍可查看"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("当前没有已注册策略")).not.toBeInTheDocument();
+    expect(screen.queryByText("backtest-001")).not.toBeInTheDocument();
+  });
+
   it("fails closed when a Product API boundary opens", async () => {
     const invalid = structuredClone(strategyListFixture) as Record<string, any>;
     invalid.boundaries.order_submission_allowed = true;

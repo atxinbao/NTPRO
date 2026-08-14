@@ -33,7 +33,7 @@ export const zProductSource = z.object({
 export const zStrategyVersionSource = z.object({
   source_type: z.literal("strategy_version_manifest"),
   freshness_status: z.literal("fresh"),
-  source_refs: z.array(z.string().min(1)).min(3),
+  source_refs: z.array(z.string().min(1)).min(2),
 });
 
 export const zStrategy = z.object({
