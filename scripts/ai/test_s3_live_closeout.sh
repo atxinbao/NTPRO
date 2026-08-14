@@ -28,10 +28,14 @@ expect_failure wrong_closeout_pr '.closeout.pull_request_number = 9999'
 expect_failure enabled_boundary '.boundaries.automatic_retry_allowed = true'
 expect_failure missing_requirement '.requirements[0].status = "missing"'
 expect_failure renamed_requirement '.requirements[0].id = "renamed_requirement"'
+expect_failure false_real_money_completion '(.requirements[] | select(.id == "production_real_money_end_to_end_acceptance")).status = "satisfied"'
+expect_failure missing_blocker_issue '.scope.exact_issue_numbers -= [1312]'
+expect_failure review_status_mismatch '.documents.review_gate = "REVIEW_APPROVED"'
+expect_failure closed_milestone_policy '.milestone.postmerge_state = "closed"'
 expect_failure renamed_boundary '.boundaries |= with_entries(if .key == "automatic_retry_allowed" then .key = "renamed_boundary" else . end)'
 expect_failure rewritten_roadmap_token '.documents.roadmap_token = "S3"'
 expect_failure rewritten_product_claim '.product_claim = "complete"'
 expect_failure wrong_milestone '.milestone.number = 9999'
 expect_failure missing_symbol '.requirements[0].evidence[0].symbol = "missing_s3_closeout_symbol"'
 
-echo "s3_live_closeout_negative_selftest=pass cases=11"
+echo "s3_live_closeout_negative_selftest=pass cases=15"

@@ -83,9 +83,10 @@ Ed25519 签名回执和完整本地旧快照恢复检测，并于 PR #1297 合�
 锚定的单笔 `LIMIT/GTC` 真实执行。S3-LV-008 已于 PR #1303 完成显式交易所订单对账、
 双人确认人工撤单与部分成交恢复。S3-LV-009 已完成冻结 Demo Run 策略意图到逐笔 Live
 执行的不可变绑定。S3-LV-010 已完成账户资金、Venue 规则、策略原始数量和风险上限共同
-约束的确定性仓位 sizing。S3 技术退出条件已满足，S3-CLS-001 固定治理收口合同；追加订单、
-改单、自动重试和自动恢复继续关闭。本结论证明生产可用的独立授权单笔 Live 产品路径，不声明
-closeout 在真实资金账户执行过订单。
+约束的确定性仓位 sizing。S3 技术路径和 fail-closed 测试已就绪，但正式退出条件尚未满足：
+现有证据全部来自 fixture、内存锚点或 loopback，没有真实资金账户的受控端到端成交。
+S3-CLS-001 登记该差距，S3-LV-011 等待 owner 明确授权后执行真实生产验收；追加订单、改单、
+自动重试和自动恢复继续关闭。
 
 前端实现以 `docs/architecture/strategy_workbench_frontend_architecture.md` 为权威合同：
 
@@ -113,7 +114,8 @@ FEA-001 前端架构文档
   -> S3-LV-008 交易所订单对账、人工撤单与部分成交恢复（DONE）
   -> S3-LV-009 策略意图绑定的逐笔 Live 执行（DONE）
   -> S3-LV-010 Live 风险预算与仓位 sizing 准入（DONE）
-  -> S3-CLS-001 S3 Live 产品退出条件审计与治理收口（GOVERNANCE CLOSEOUT）
+  -> S3-CLS-001 S3 Live 产品退出条件审计（DONE ON MERGE）
+  -> S3-LV-011 真实资金账户受控端到端交易验收（BLOCKED BY OWNER AUTHORIZATION）
   -> S1-S4 三模式产品闭环
 ```
 

@@ -2,20 +2,21 @@
   "schema_version": "ntpro.s3_live_product_closeout.v1",
   "generated_at": "2026-08-14",
   "executor": "Codex",
-  "status": "ready_for_review",
+  "status": "blocked_by_s3_lv_011_review_required",
   "milestone": {
     "number": 39,
     "title": "S3 Live 产品化",
     "premerge_state": "open",
-    "postmerge_state": "closed"
+    "postmerge_state": "open_blocked"
   },
   "closeout": {
     "issue_number": 1310,
-    "pull_request_number": 1311
+    "pull_request_number": 1311,
+    "blocker_issue_number": 1312
   },
   "scope": {
     "delivery_issue_numbers": [1288, 1290, 1292, 1294, 1296, 1298, 1300, 1302, 1306, 1308],
-    "exact_issue_numbers": [1288, 1290, 1292, 1294, 1296, 1298, 1300, 1302, 1306, 1308, 1310],
+    "exact_issue_numbers": [1288, 1290, 1292, 1294, 1296, 1298, 1300, 1302, 1306, 1308, 1310, 1312],
     "delivery_pull_request_numbers": [1289, 1291, 1293, 1295, 1297, 1299, 1301, 1303, 1307, 1309],
     "exact_pull_request_numbers": [1289, 1291, 1293, 1295, 1297, 1299, 1301, 1303, 1307, 1309, 1311]
   },
@@ -139,6 +140,12 @@
           "symbol": "Live page reconciles a partial fill and submits one owner cancel approval"
         }
       ]
+    },
+    {
+      "id": "production_real_money_end_to_end_acceptance",
+      "status": "blocked",
+      "blocker_issue_number": 1312,
+      "evidence": []
     }
   ],
   "boundaries": {
@@ -156,10 +163,11 @@
   "documents": {
     "delivery_task_status": "DONE",
     "delivery_evidence_status": "DONE",
-    "closeout_task_status": "REVIEW_REQUIRED",
-    "closeout_evidence_status": "REVIEW_REQUIRED",
+    "closeout_task_status": "DONE_ON_MERGE",
+    "closeout_evidence_status": "DONE_ON_MERGE",
+    "review_gate": "REVIEW_REQUIRED",
     "roadmap_token": "S3-LV-010 Live 风险预算与仓位 sizing 准入（DONE）",
-    "project_token": "S3 退出条件已满足"
+    "project_token": "S3 正式退出条件尚未满足"
   },
-  "product_claim": "S3 proves a production-capable, independently authorized, single-shot Live product path with fail-closed recovery; it does not claim this closeout executed a real-money order."
+  "product_claim": "S3 technical capability is ready, but the formal product exit remains blocked until issue #1312 records an owner-authorized real-money end-to-end trade."
 }

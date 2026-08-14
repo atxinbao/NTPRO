@@ -92,6 +92,11 @@ run_s3_live_closeout() {
   scripts/ai/check_s3_live_closeout.sh
 }
 
+run_s3_live_exit_evidence() {
+  scripts/ai/check_s3_live_closeout.sh
+  scripts/ai/test_s3_live_exit_evidence.sh
+}
+
 run_backend_performance_baseline() {
   scripts/ai/check_backend_performance_baseline.sh
 }
@@ -146,6 +151,9 @@ run_stage() {
     s3-live-closeout)
       run_s3_live_closeout
       ;;
+    s3-live-exit-evidence)
+      run_s3_live_exit_evidence
+      ;;
     backend-freeze-baseline)
       run_backend_freeze_baseline
       ;;
@@ -174,7 +182,7 @@ run_stage() {
       fail "historical release stage retired by PTC-006: $1"
       ;;
     *)
-      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, s3-live-closeout, backend-freeze-baseline, backend-performance-baseline, backend-performance-hosted, v33-maintenance-release, v33-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
+      fail "unknown stage '$1'; valid stages: current-release-gates, full, release-build-product-surface, rust-only-gates, current-governance, s3-live-closeout, s3-live-exit-evidence, backend-freeze-baseline, backend-performance-baseline, backend-performance-hosted, v33-maintenance-release, v33-strict-provenance, release-surface-current-guard, release-publication-guard, release-publish-after-gate"
       ;;
   esac
 }
