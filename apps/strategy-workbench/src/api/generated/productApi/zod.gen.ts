@@ -1042,8 +1042,16 @@ export const zLiveSizingDecision = z.object({
   instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
   side: z.enum(["BUY", "SELL"]),
   price: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  price_tick: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
   source_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
   approved_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  quantity_step: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  min_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  max_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  min_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  max_account_budget_fraction: z
+    .string()
+    .regex(/^(?:0(?:\.[0-9]+)?|1(?:\.0+)?)$/),
   order_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
   account_budget_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
   request_max_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),

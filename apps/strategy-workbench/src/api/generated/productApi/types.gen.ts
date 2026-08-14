@@ -979,8 +979,14 @@ export type LiveSizingDecision = {
   instrument_id: string;
   side: "BUY" | "SELL";
   price: string;
+  price_tick: string;
   source_quantity: string;
   approved_quantity: string;
+  quantity_step: string;
+  min_quantity: string;
+  max_quantity: string;
+  min_notional: string;
+  max_account_budget_fraction: string;
   order_notional: string;
   account_budget_notional: string;
   request_max_notional: string;

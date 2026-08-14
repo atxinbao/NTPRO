@@ -140,8 +140,14 @@ struct ProductionSizingDecisionAuthority {
     instrument_id: String,
     side: String,
     price: String,
+    price_tick: String,
     source_quantity: String,
     approved_quantity: String,
+    quantity_step: String,
+    min_quantity: String,
+    max_quantity: String,
+    min_notional: String,
+    max_account_budget_fraction: String,
     order_notional: String,
     account_budget_notional: String,
     request_max_notional: String,
@@ -1481,16 +1487,28 @@ fn sizing_decision_matches_execution(
     };
     let (
         Ok(price),
+        Ok(price_tick),
         Ok(source_quantity),
         Ok(approved_quantity),
+        Ok(quantity_step),
+        Ok(min_quantity),
+        Ok(max_quantity),
+        Ok(min_notional),
+        Ok(max_account_budget_fraction),
         Ok(order_notional),
         Ok(account_budget_notional),
         Ok(request_max_notional),
         Ok(risk_policy_max_notional),
     ) = (
         Decimal::from_str_exact(&sizing.price),
+        Decimal::from_str_exact(&sizing.price_tick),
         Decimal::from_str_exact(&sizing.source_quantity),
         Decimal::from_str_exact(&sizing.approved_quantity),
+        Decimal::from_str_exact(&sizing.quantity_step),
+        Decimal::from_str_exact(&sizing.min_quantity),
+        Decimal::from_str_exact(&sizing.max_quantity),
+        Decimal::from_str_exact(&sizing.min_notional),
+        Decimal::from_str_exact(&sizing.max_account_budget_fraction),
         Decimal::from_str_exact(&sizing.order_notional),
         Decimal::from_str_exact(&sizing.account_budget_notional),
         Decimal::from_str_exact(&sizing.request_max_notional),
@@ -1517,10 +1535,20 @@ fn sizing_decision_matches_execution(
         && sizing.evidence_expires_at_unix_ms > sizing.evaluated_at_unix_ms
         && sizing.evidence_expires_at_unix_ms > current_time_unix_ms
         && price > Decimal::ZERO
+        && price_tick > Decimal::ZERO
+        && price % price_tick == Decimal::ZERO
         && source_quantity > Decimal::ZERO
         && approved_quantity > Decimal::ZERO
         && approved_quantity <= source_quantity
+        && quantity_step > Decimal::ZERO
+        && approved_quantity % quantity_step == Decimal::ZERO
+        && approved_quantity >= min_quantity
+        && approved_quantity <= max_quantity
+        && min_notional > Decimal::ZERO
+        && max_account_budget_fraction > Decimal::ZERO
+        && max_account_budget_fraction <= Decimal::ONE
         && order_notional == price * approved_quantity
+        && order_notional >= min_notional
         && account_budget_notional > Decimal::ZERO
         && order_notional <= account_budget_notional
         && order_notional <= request_max_notional
@@ -1761,8 +1789,14 @@ mod execution_authority_tests {
             "instrument_id": execution.instrument_id,
             "side": execution.side,
             "price": execution.price,
+            "price_tick": "0.01",
             "source_quantity": execution.source_quantity,
             "approved_quantity": execution.quantity,
+            "quantity_step": "0.01",
+            "min_quantity": "0.01",
+            "max_quantity": "100.00",
+            "min_notional": "0.01",
+            "max_account_budget_fraction": "0.10",
             "order_notional": order_notional,
             "account_budget_notional": "1.00",
             "request_max_notional": execution.max_notional,

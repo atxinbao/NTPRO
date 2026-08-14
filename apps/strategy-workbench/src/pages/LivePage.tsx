@@ -33,6 +33,27 @@ const blockerLabels: Record<string, string> = {
   api_secret_missing: "生产 API Secret 尚未配置",
 };
 
+const liveSizingRejectionLabels: Record<string, string> = {
+  "live_sizing_decision.evidence_expired": "账户资金或交易规则证据已过期",
+  "live_sizing_decision.instrument_id": "策略标的与交易规则不一致",
+  "live_sizing_decision.price_tick": "限价不符合交易所价格步长",
+  "live_sizing_decision.quantity_step": "策略数量无法按交易所数量步长规范化",
+  "live_sizing_decision.min_quantity": "规范化数量低于交易所最小数量",
+  "live_sizing_decision.max_quantity": "规范化数量超过交易所最大数量",
+  "live_sizing_decision.min_notional": "订单金额低于交易所最小名义金额",
+  "live_sizing_decision.account_balance": "账户可用资产不足",
+  "live_sizing_decision.account_budget": "订单金额超过账户单笔预算",
+  "live_sizing_decision.request_max_notional": "订单金额超过本次请求上限",
+  "live_sizing_decision.risk_policy_max_notional": "订单金额超过全局风险上限",
+};
+
+function liveExecutionErrorMessage(error: unknown): string {
+  if (error instanceof ProductApiRequestError) {
+    return liveSizingRejectionLabels[error.field] ?? error.message;
+  }
+  return error instanceof Error ? error.message : "Live 执行准入失败";
+}
+
 export function LivePage() {
   const [liveRunConfirmed, setLiveRunConfirmed] = useState(false);
   const [cancelConfirmed, setCancelConfirmed] = useState(false);
@@ -458,6 +479,34 @@ export function LivePage() {
                 value={liveRun.sizing_decision?.approved_quantity ?? "-"}
               />
               <Detail
+                label="价格步长"
+                value={liveRun.sizing_decision?.price_tick ?? "-"}
+              />
+              <Detail
+                label="数量步长"
+                value={liveRun.sizing_decision?.quantity_step ?? "-"}
+              />
+              <Detail
+                label="数量范围"
+                value={
+                  liveRun.sizing_decision
+                    ? `${liveRun.sizing_decision.min_quantity} - ${liveRun.sizing_decision.max_quantity}`
+                    : "-"
+                }
+              />
+              <Detail
+                label="最小名义金额"
+                value={liveRun.sizing_decision?.min_notional ?? "-"}
+              />
+              <Detail
+                label="账户预算比例"
+                value={
+                  liveRun.sizing_decision
+                    ? `${Number(liveRun.sizing_decision.max_account_budget_fraction) * 100}%`
+                    : "-"
+                }
+              />
+              <Detail
                 label="订单名义金额"
                 value={liveRun.sizing_decision?.order_notional ?? "-"}
               />
@@ -531,7 +580,7 @@ export function LivePage() {
             ) : null}
             {executionOwnerApproval.error ? (
               <p className={styles.formError}>
-                {executionOwnerApproval.error.message}
+                {liveExecutionErrorMessage(executionOwnerApproval.error)}
               </p>
             ) : null}
             {executionCancelOwnerApproval.error ? (

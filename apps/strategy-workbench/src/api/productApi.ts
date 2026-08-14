@@ -646,10 +646,24 @@ function assertLiveRunCandidate(
       sizingDecision.instrument_id === strategyIntent.instrument_id &&
       sizingDecision.side === strategyIntent.side &&
       decimalEquals(sizingDecision.source_quantity, strategyIntent.quantity) &&
+      Number(sizingDecision.price_tick) > 0 &&
+      Number(sizingDecision.quantity_step) > 0 &&
+      Number(sizingDecision.min_quantity) > 0 &&
+      Number(sizingDecision.max_quantity) >=
+        Number(sizingDecision.min_quantity) &&
       Number(sizingDecision.approved_quantity) > 0 &&
       Number(sizingDecision.approved_quantity) <=
         Number(sizingDecision.source_quantity) &&
+      Number(sizingDecision.approved_quantity) >=
+        Number(sizingDecision.min_quantity) &&
+      Number(sizingDecision.approved_quantity) <=
+        Number(sizingDecision.max_quantity) &&
+      Number(sizingDecision.min_notional) > 0 &&
+      Number(sizingDecision.max_account_budget_fraction) > 0 &&
+      Number(sizingDecision.max_account_budget_fraction) <= 1 &&
       Number(sizingDecision.order_notional) > 0 &&
+      Number(sizingDecision.order_notional) >=
+        Number(sizingDecision.min_notional) &&
       Number(sizingDecision.order_notional) <=
         Number(sizingDecision.account_budget_notional));
   const executionAttempted =

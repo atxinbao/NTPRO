@@ -50,8 +50,14 @@ function attachSizingDecision(candidate: Record<string, any>) {
     instrument_id: candidate.strategy_intent.instrument_id,
     side: candidate.strategy_intent.side,
     price: "1.00",
+    price_tick: "0.01",
     source_quantity: candidate.strategy_intent.quantity,
     approved_quantity: candidate.strategy_intent.quantity,
+    quantity_step: "0.00001000",
+    min_quantity: "0.00001000",
+    max_quantity: "9000.00000000",
+    min_notional: "0.000001",
+    max_account_budget_fraction: "0.10",
     order_notional: "0.00001",
     account_budget_notional: "1.00",
     request_max_notional: "1.00",
@@ -640,6 +646,7 @@ describe("strategy workbench product slice", () => {
     candidate.data.audit_anchor.receipt_ref = `sha256:${"d".repeat(64)}`;
     candidate.data.audit_anchor.anchored_at_unix_ms = 1_786_406_401_000;
     let ownerApprovalBody: Record<string, unknown> | null = null;
+    let ownerApprovalAttempts = 0;
     server.use(
       http.get("/api/product/v1/runs", () => {
         const data = [...structuredClone(runListFixture.data), stoppedDemo];
@@ -661,6 +668,12 @@ describe("strategy workbench product slice", () => {
       http.post(
         "/api/product/v1/live-run-candidates/:runId/execution-approvals/owner",
         async ({ request }) => {
+          ownerApprovalAttempts += 1;
+          if (ownerApprovalAttempts === 1) {
+            const rejected = structuredClone(errorFixture);
+            rejected.error.field = "live_sizing_decision.account_budget";
+            return HttpResponse.json(rejected, { status: 409 });
+          }
           ownerApprovalBody = (await request.json()) as Record<string, unknown>;
           return HttpResponse.json({
             ...candidate,
@@ -705,7 +718,12 @@ describe("strategy workbench product slice", () => {
       within(executionForm).getByRole("checkbox", { name: /真实订单/ }),
     );
     await userEvent.click(ownerApproval);
+    expect(
+      await within(region).findByText("订单金额超过账户单笔预算"),
+    ).toBeInTheDocument();
+    await userEvent.click(ownerApproval);
     await waitFor(() => expect(ownerApprovalBody).not.toBeNull());
+    expect(ownerApprovalAttempts).toBe(2);
     expect(ownerApprovalBody).toMatchObject({
       run_id: candidate.data.run_id,
       strategy_version_id: "ema-cross@v1",
@@ -821,6 +839,11 @@ describe("strategy workbench product slice", () => {
 
     renderWorkbench("/live");
     const region = await screen.findByRole("region", { name: "Live Run 候选" });
+    expect(within(region).getByText("价格步长")).toBeInTheDocument();
+    expect(within(region).getByText("数量步长")).toBeInTheDocument();
+    expect(within(region).getByText("数量范围")).toBeInTheDocument();
+    expect(within(region).getByText("最小名义金额")).toBeInTheDocument();
+    expect(within(region).getByText("账户预算比例")).toBeInTheDocument();
     expect(within(region).getByText("0.00000400")).toBeInTheDocument();
     expect(within(region).getByText("0.00000600")).toBeInTheDocument();
     expect(

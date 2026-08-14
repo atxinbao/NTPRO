@@ -504,8 +504,14 @@ struct LiveSizingDecisionArtifact {
     instrument_id: String,
     side: String,
     price: String,
+    price_tick: String,
     source_quantity: String,
     approved_quantity: String,
+    quantity_step: String,
+    min_quantity: String,
+    max_quantity: String,
+    min_notional: String,
+    max_account_budget_fraction: String,
     order_notional: String,
     account_budget_notional: String,
     request_max_notional: String,
@@ -1736,59 +1742,78 @@ fn evaluate_live_sizing_decision(
     risk_policy: &LiveExecutionRiskPolicy,
     evaluated_at_unix_ms: u64,
 ) -> Result<LiveSizingDecisionArtifact, ProductError> {
-    let decimal = |value: &str| {
-        Decimal::from_str_exact(value)
-            .map_err(|_| product_error(ProductErrorKind::BoundaryViolation, "live_sizing_decision"))
-    };
-    let price = decimal(&request.price)?;
-    let source_quantity = decimal(&request.quantity)?;
-    let price_tick = decimal(&sizing.price_tick)?;
-    let quantity_step = decimal(&sizing.quantity_step)?;
-    let min_quantity = decimal(&sizing.min_quantity)?;
-    let max_quantity = decimal(&sizing.max_quantity)?;
-    let min_notional = decimal(&sizing.min_notional)?;
-    let quote_free = decimal(&sizing.quote_free)?;
-    let base_free = decimal(&sizing.base_free)?;
-    let budget_fraction = decimal(&sizing.max_account_budget_fraction)?;
-    let request_max = decimal(&request.max_notional)?;
-    let risk_max = decimal(&risk_policy.max_order_notional)?;
-    if evaluated_at_unix_ms >= sizing.evidence_expires_at_unix_ms
-        || request.instrument_id != sizing.instrument_id
-        || price <= Decimal::ZERO
-        || source_quantity <= Decimal::ZERO
-        || price_tick <= Decimal::ZERO
-        || quantity_step <= Decimal::ZERO
-        || price % price_tick != Decimal::ZERO
-        || request_max <= Decimal::ZERO
-        || risk_max <= Decimal::ZERO
-        || request_max > risk_max
-    {
-        return Err(product_error(
+    let boundary = |field: &str| {
+        product_error(
             ProductErrorKind::BoundaryViolation,
-            "live_sizing_decision",
-        ));
+            format!("live_sizing_decision.{field}"),
+        )
+    };
+    let decimal =
+        |value: &str, field: &str| Decimal::from_str_exact(value).map_err(|_| boundary(field));
+    let price = decimal(&request.price, "price")?;
+    let source_quantity = decimal(&request.quantity, "source_quantity")?;
+    let price_tick = decimal(&sizing.price_tick, "price_tick")?;
+    let quantity_step = decimal(&sizing.quantity_step, "quantity_step")?;
+    let min_quantity = decimal(&sizing.min_quantity, "min_quantity")?;
+    let max_quantity = decimal(&sizing.max_quantity, "max_quantity")?;
+    let min_notional = decimal(&sizing.min_notional, "min_notional")?;
+    let quote_free = decimal(&sizing.quote_free, "account_balance")?;
+    let base_free = decimal(&sizing.base_free, "account_balance")?;
+    let budget_fraction = decimal(
+        &sizing.max_account_budget_fraction,
+        "account_budget_fraction",
+    )?;
+    let request_max = decimal(&request.max_notional, "request_max_notional")?;
+    let risk_max = decimal(&risk_policy.max_order_notional, "risk_policy_max_notional")?;
+    if evaluated_at_unix_ms >= sizing.evidence_expires_at_unix_ms {
+        return Err(boundary("evidence_expired"));
+    }
+    if request.instrument_id != sizing.instrument_id {
+        return Err(boundary("instrument_id"));
+    }
+    if price <= Decimal::ZERO || price_tick <= Decimal::ZERO || price % price_tick != Decimal::ZERO
+    {
+        return Err(boundary("price_tick"));
+    }
+    if source_quantity <= Decimal::ZERO || quantity_step <= Decimal::ZERO {
+        return Err(boundary("quantity_step"));
+    }
+    if request_max <= Decimal::ZERO || request_max > risk_max {
+        return Err(boundary("request_max_notional"));
+    }
+    if risk_max <= Decimal::ZERO {
+        return Err(boundary("risk_policy_max_notional"));
     }
     let approved_quantity = (source_quantity / quantity_step).floor() * quantity_step;
     let order_notional = price * approved_quantity;
     let account_budget_notional = match request.side.as_str() {
         "BUY" => quote_free * budget_fraction,
-        "SELL" if approved_quantity <= base_free => order_notional,
-        _ => Decimal::ZERO,
+        "SELL" => base_free * price * budget_fraction,
+        _ => return Err(boundary("side")),
     };
-    if approved_quantity <= Decimal::ZERO
-        || approved_quantity > source_quantity
-        || approved_quantity < min_quantity
-        || approved_quantity > max_quantity
-        || approved_quantity % quantity_step != Decimal::ZERO
-        || order_notional < min_notional
-        || order_notional > account_budget_notional
-        || order_notional > request_max
-        || order_notional > risk_max
-    {
-        return Err(product_error(
-            ProductErrorKind::BoundaryViolation,
-            "live_sizing_decision",
-        ));
+    if approved_quantity > source_quantity || approved_quantity % quantity_step != Decimal::ZERO {
+        return Err(boundary("quantity_step"));
+    }
+    if approved_quantity <= Decimal::ZERO || approved_quantity < min_quantity {
+        return Err(boundary("min_quantity"));
+    }
+    if approved_quantity > max_quantity {
+        return Err(boundary("max_quantity"));
+    }
+    if request.side == "SELL" && approved_quantity > base_free {
+        return Err(boundary("account_balance"));
+    }
+    if order_notional < min_notional {
+        return Err(boundary("min_notional"));
+    }
+    if order_notional > account_budget_notional {
+        return Err(boundary("account_budget"));
+    }
+    if order_notional > request_max {
+        return Err(boundary("request_max_notional"));
+    }
+    if order_notional > risk_max {
+        return Err(boundary("risk_policy_max_notional"));
     }
     Ok(LiveSizingDecisionArtifact {
         schema_version: LIVE_SIZING_DECISION_SCHEMA_VERSION.to_string(),
@@ -1799,8 +1824,14 @@ fn evaluate_live_sizing_decision(
         instrument_id: request.instrument_id.clone(),
         side: request.side.clone(),
         price: request.price.clone(),
+        price_tick: sizing.price_tick.clone(),
         source_quantity: request.quantity.clone(),
         approved_quantity: approved_quantity.normalize().to_string(),
+        quantity_step: sizing.quantity_step.clone(),
+        min_quantity: sizing.min_quantity.clone(),
+        max_quantity: sizing.max_quantity.clone(),
+        min_notional: sizing.min_notional.clone(),
+        max_account_budget_fraction: sizing.max_account_budget_fraction.clone(),
         order_notional: order_notional.normalize().to_string(),
         account_budget_notional: account_budget_notional.normalize().to_string(),
         request_max_notional: request.max_notional.clone(),
@@ -8397,62 +8428,150 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         .unwrap();
         assert_eq!(decision.source_quantity, "0.00001999");
         assert_eq!(decision.approved_quantity, "0.00001");
+        assert_eq!(decision.price_tick, "0.01");
+        assert_eq!(decision.quantity_step, "0.00001000");
+        assert_eq!(decision.min_quantity, "0.00001000");
+        assert_eq!(decision.max_quantity, "9000.00000000");
+        assert_eq!(decision.min_notional, "0.000001");
+        assert_eq!(decision.max_account_budget_fraction, "0.10");
         assert_eq!(decision.order_notional, "0.001");
         assert_eq!(decision.account_budget_notional, "100");
+    }
+
+    #[test]
+    fn live_sizing_applies_account_budget_fraction_to_sell_inventory() {
+        let mut request = execution_admission_request("live-sizing-sell");
+        request.side = "SELL".to_string();
+        request.price = "100.00".to_string();
+        request.quantity = "0.10001000".to_string();
+        request.max_notional = "1000.00".to_string();
+        let mut risk = execution_risk_policy();
+        risk.max_order_notional = "1000.00".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-sell",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &risk,
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.account_budget");
+
+        request.quantity = "0.09999000".to_string();
+        let decision = evaluate_live_sizing_decision(
+            "live-sizing-sell",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &risk,
+            1,
+        )
+        .unwrap();
+        assert_eq!(decision.account_budget_notional, "10");
+        assert_eq!(decision.order_notional, "9.999");
     }
 
     #[test]
     fn live_sizing_fails_closed_for_rule_budget_and_freshness_drift() {
         let mut request = execution_admission_request("live-sizing-002");
         request.price = "100.001".to_string();
-        assert!(
-            evaluate_live_sizing_decision(
-                "live-sizing-002",
-                VERSION_HASH,
-                VERSION_HASH,
-                VERSION_HASH,
-                &request,
-                &sizing_preflight(),
-                &execution_risk_policy(),
-                1,
-            )
-            .is_err()
-        );
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.price_tick");
 
         request.price = "100000.00".to_string();
         request.quantity = "0.00200000".to_string();
         request.max_notional = "1000.00".to_string();
         let mut risk = execution_risk_policy();
         risk.max_order_notional = "1000.00".to_string();
-        assert!(
-            evaluate_live_sizing_decision(
-                "live-sizing-002",
-                VERSION_HASH,
-                VERSION_HASH,
-                VERSION_HASH,
-                &request,
-                &sizing_preflight(),
-                &risk,
-                1,
-            )
-            .is_err()
-        );
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &request,
+            &sizing_preflight(),
+            &risk,
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.account_budget");
+
+        let mut below_min = execution_admission_request("live-sizing-002");
+        below_min.quantity = "0.00000999".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &below_min,
+            &sizing_preflight(),
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.min_quantity");
+
+        let mut above_max = execution_admission_request("live-sizing-002");
+        above_max.quantity = "0.00002000".to_string();
+        let mut max_rule = sizing_preflight();
+        max_rule.max_quantity = "0.00001000".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &above_max,
+            &max_rule,
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.max_quantity");
+
+        let mut notional_rule = sizing_preflight();
+        notional_rule.min_notional = "0.01".to_string();
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &execution_admission_request("live-sizing-002"),
+            &notional_rule,
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.min_notional");
 
         let mut expired = sizing_preflight();
         expired.evidence_expires_at_unix_ms = 1;
-        assert!(
-            evaluate_live_sizing_decision(
-                "live-sizing-002",
-                VERSION_HASH,
-                VERSION_HASH,
-                VERSION_HASH,
-                &execution_admission_request("live-sizing-002"),
-                &expired,
-                &execution_risk_policy(),
-                1,
-            )
-            .is_err()
-        );
+        let error = evaluate_live_sizing_decision(
+            "live-sizing-002",
+            VERSION_HASH,
+            VERSION_HASH,
+            VERSION_HASH,
+            &execution_admission_request("live-sizing-002"),
+            &expired,
+            &execution_risk_policy(),
+            1,
+        )
+        .unwrap_err();
+        assert_eq!(error.field, "live_sizing_decision.evidence_expired");
     }
 
     fn promotable_strategy_intent() -> PromotableStrategyOrderIntent {

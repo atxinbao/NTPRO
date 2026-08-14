@@ -3044,7 +3044,7 @@
       "LiveSizingDecision": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schema_version", "run_id", "source_manifest_sha256", "source_preflight_sha256", "strategy_intent_sha256", "instrument_id", "side", "price", "source_quantity", "approved_quantity", "order_notional", "account_budget_notional", "request_max_notional", "risk_policy_max_notional", "sizing_source_ref", "evaluated_at_unix_ms", "evidence_expires_at_unix_ms"],
+        "required": ["schema_version", "run_id", "source_manifest_sha256", "source_preflight_sha256", "strategy_intent_sha256", "instrument_id", "side", "price", "price_tick", "source_quantity", "approved_quantity", "quantity_step", "min_quantity", "max_quantity", "min_notional", "max_account_budget_fraction", "order_notional", "account_budget_notional", "request_max_notional", "risk_policy_max_notional", "sizing_source_ref", "evaluated_at_unix_ms", "evidence_expires_at_unix_ms"],
         "properties": {
           "schema_version": { "const": "ntpro.s3.live_sizing_decision.v1" },
           "run_id": { "$ref": "#/components/schemas/RunId" },
@@ -3054,8 +3054,14 @@
           "instrument_id": { "type": "string", "pattern": "^[A-Z0-9]+\\.BINANCE$" },
           "side": { "enum": ["BUY", "SELL"] },
           "price": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "price_tick": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
           "source_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
           "approved_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "quantity_step": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "min_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "max_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "min_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "max_account_budget_fraction": { "type": "string", "pattern": "^(?:0(?:\\.[0-9]+)?|1(?:\\.0+)?)$" },
           "order_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
           "account_budget_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
           "request_max_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
