@@ -698,7 +698,7 @@ fn runtime_snapshot_is_stationary(
         return Ok(false);
     }
 
-    let mut all_ownerships_terminal = true;
+    let mut active_ownership_count = 0_u8;
     for (run_id, ownership) in &record.run_ownership {
         if ownership.run_id != *run_id
             || ownership.claimed_at_unix_ms == 0
@@ -726,10 +726,21 @@ fn runtime_snapshot_is_stationary(
                 &terminal.terminal_state_sha256,
             )?;
         } else {
-            all_ownerships_terminal = false;
+            active_ownership_count = active_ownership_count.saturating_add(1);
+            if active_ownership_count > 1 {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_run_ownership",
+                ));
+            }
         }
     }
-    Ok((prepared_without_runtime_artifacts || stopped_runtime) && all_ownerships_terminal)
+    let pending_unstarted_ownership = active_ownership_count == 1
+        && record.process.pid.value.is_none()
+        && record.last_known_status.started_at.value.is_none()
+        && record.last_known_status.stopped_at.value.is_none();
+    Ok((prepared_without_runtime_artifacts || stopped_runtime)
+        && (active_ownership_count == 0 || pending_unstarted_ownership))
 }
 
 fn validate_product_identity(

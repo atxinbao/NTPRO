@@ -1353,7 +1353,7 @@ async fn stopped_node_without_run_ownership_can_create_demo_after_freshness_wind
 }
 
 #[test]
-fn stopped_node_with_active_run_ownership_is_not_stationary() {
+fn stopped_node_with_started_run_ownership_is_not_stationary() {
     let fixture = Fixture::new("stopped-active-ownership");
     let now = unix_time_ms();
     let store = SupervisorRegistryStore::new(&fixture.registry_path);
@@ -1364,6 +1364,9 @@ fn stopped_node_with_active_run_ownership_is_not_stationary() {
         .expect("fixture node should exist");
     record.process.state = SupervisorProcessState::Stopped;
     record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
+    record.last_known_status.started_at =
+        SnapshotValue::available(now.saturating_sub(1_000).to_string());
+    record.last_known_status.stopped_at = SnapshotValue::available(now.to_string());
     record.run_ownership.insert(
         "demo-active-001".to_string(),
         SupervisorRunOwnership {
@@ -1380,6 +1383,31 @@ fn stopped_node_with_active_run_ownership_is_not_stationary() {
     assert!(
         !runtime_snapshot_is_stationary(record, now).expect("prepared ownership should validate"),
         "a prepared node must not hide active Run ownership"
+    );
+}
+
+#[test]
+fn stopped_node_with_one_unstarted_run_claim_is_stationary() {
+    let fixture = Fixture::new("stopped-unstarted-ownership");
+    let now = unix_time_ms();
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    store
+        .claim_run_ownership(
+            "mvp-node-001",
+            SupervisorRunOwnership {
+                run_id: "demo-created-001".to_string(),
+                manifest_sha256: format!("sha256:{}", "a".repeat(64)),
+                claimed_at_unix_ms: now,
+                terminal: None,
+            },
+        )
+        .expect("fixture should accept one unstarted Run claim");
+    let registry = store.load().expect("fixture registry should load");
+    let record = &registry.nodes["mvp-node-001"];
+
+    assert!(
+        runtime_snapshot_is_stationary(record, now).expect("ownership should validate"),
+        "a canonical created Run must be able to start from a stopped node"
     );
 }
 
