@@ -22,6 +22,7 @@ expected_direct_cargo_scripts="$(printf '%s\n' \
   scripts/ai/check_rust_only_runtime.sh \
   scripts/ai/ntpro_governance.sh \
   scripts/ai/run_golden_traces.sh \
+  scripts/ai/test_s3_live_exit_evidence.sh \
   scripts/ai/v02_two_node_supervisor_smoke.sh \
   scripts/ai/verify_cli_help.sh \
   scripts/ai/verify_fast.sh \
