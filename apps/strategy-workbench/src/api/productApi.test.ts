@@ -363,6 +363,73 @@ describe("product API generated client", () => {
     expect(result.boundaries.automatic_retry_allowed).toBe(false);
   });
 
+  it.each([
+    ["price tick drift", "price", "1.001"],
+    ["quantity step drift", "approved_quantity", "0.00001500"],
+    ["order notional drift", "order_notional", "0.00002"],
+    ["request budget drift", "request_max_notional", "0.000009"],
+    ["risk policy drift", "risk_policy_max_notional", "0.000009"],
+  ])("rejects sizing semantic drift: %s", async (_case, field, value) => {
+    const authorized: Record<string, any> = structuredClone(
+      liveRunCandidateFixture,
+    );
+    authorized.schema_version =
+      "ntpro.product_api.live_run_candidate_action.response.v1";
+    authorized.data.lifecycle = "preflight_ready";
+    authorized.data.preflight_at_unix_ms = 1786406401000;
+    authorized.data.account_connected = true;
+    authorized.data.account_can_trade_verified = true;
+    authorized.data.order_admission = {
+      status: "authorized_single_shot",
+      submit: "authorized_single_shot",
+      cancel: "blocked",
+      replace: "blocked",
+      fill_reconciliation: "runtime_event_projection",
+      owner_approved: true,
+      risk_approved: true,
+      operator_approved: true,
+      blockers: [
+        "additional_orders_blocked",
+        "cancel_not_scoped",
+        "replace_not_scoped",
+      ],
+    };
+    authorized.data.strategy_intent = strategyIntent(authorized.data);
+    authorized.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+    attachSizingDecision(authorized.data);
+    authorized.data.sizing_decision[field] = value;
+    authorized.data.audit_anchor.revision = 2;
+    authorized.data.audit_anchor.workspace_revision = 2;
+    authorized.data.audit_anchor.receipt_ref = `sha256:${"7".repeat(64)}`;
+    authorized.data.audit_anchor.anchored_at_unix_ms = 1786406402000;
+    authorized.boundaries.order_endpoint_access_allowed = true;
+    authorized.boundaries.order_submission_allowed = true;
+    authorized.boundaries.trading_controls_enabled = true;
+
+    await expect(
+      createProductApiClient({
+        fetch: jsonFetch(authorized),
+      }).approveLiveExecutionAsOwner(authorized.data.run_id, {
+        run_id: authorized.data.run_id,
+        strategy_version_id: authorized.data.strategy_version_id,
+        account_ref: "account://live/binance/primary",
+        venue_ref: "venue://live/BINANCE",
+        admission_id: "manual-001",
+        source_demo_run_id: "demo-source-001",
+        strategy_intent_id: "intent-001",
+        instrument_id: "BTCUSDT.BINANCE",
+        side: "BUY",
+        order_type: "LIMIT",
+        time_in_force: "GTC",
+        price: "1.00",
+        quantity: "0.00001000",
+        max_notional: "1.00",
+        expires_at_unix_ms: 1786406700000,
+        user_confirmed: true,
+      }),
+    ).rejects.toBeInstanceOf(ProductApiContractError);
+  });
+
   it("projects an exchange-accepted single order without reopening follow-up controls", async () => {
     const running: Record<string, any> = structuredClone(
       liveRunCandidateFixture,

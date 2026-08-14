@@ -272,6 +272,50 @@ function decimalEquals(left: string, right: string): boolean {
   );
 }
 
+function decimalCompare(left: string, right: string): number {
+  const leftParts = decimalParts(left);
+  const rightParts = decimalParts(right);
+  const scale = Math.max(leftParts.scale, rightParts.scale);
+  const alignedLeft =
+    leftParts.coefficient * 10n ** BigInt(scale - leftParts.scale);
+  const alignedRight =
+    rightParts.coefficient * 10n ** BigInt(scale - rightParts.scale);
+  return alignedLeft < alignedRight ? -1 : alignedLeft > alignedRight ? 1 : 0;
+}
+
+function decimalIsPositive(value: string): boolean {
+  return decimalParts(value).coefficient > 0n;
+}
+
+function decimalIsMultipleOf(value: string, increment: string): boolean {
+  const valueParts = decimalParts(value);
+  const incrementParts = decimalParts(increment);
+  if (incrementParts.coefficient <= 0n) return false;
+  const scale = Math.max(valueParts.scale, incrementParts.scale);
+  const alignedValue =
+    valueParts.coefficient * 10n ** BigInt(scale - valueParts.scale);
+  const alignedIncrement =
+    incrementParts.coefficient * 10n ** BigInt(scale - incrementParts.scale);
+  return alignedValue % alignedIncrement === 0n;
+}
+
+function decimalProductMatches(
+  left: string,
+  right: string,
+  product: string,
+): boolean {
+  const leftParts = decimalParts(left);
+  const rightParts = decimalParts(right);
+  const productParts = decimalParts(product);
+  const multiplied = leftParts.coefficient * rightParts.coefficient;
+  const multipliedScale = leftParts.scale + rightParts.scale;
+  const scale = Math.max(multipliedScale, productParts.scale);
+  return (
+    multiplied * 10n ** BigInt(scale - multipliedScale) ===
+    productParts.coefficient * 10n ** BigInt(scale - productParts.scale)
+  );
+}
+
 function liveExecutionControlStateValid(
   control: LiveExecutionControlSnapshot,
 ): boolean {
@@ -646,26 +690,57 @@ function assertLiveRunCandidate(
       sizingDecision.instrument_id === strategyIntent.instrument_id &&
       sizingDecision.side === strategyIntent.side &&
       decimalEquals(sizingDecision.source_quantity, strategyIntent.quantity) &&
-      Number(sizingDecision.price_tick) > 0 &&
-      Number(sizingDecision.quantity_step) > 0 &&
-      Number(sizingDecision.min_quantity) > 0 &&
-      Number(sizingDecision.max_quantity) >=
-        Number(sizingDecision.min_quantity) &&
-      Number(sizingDecision.approved_quantity) > 0 &&
-      Number(sizingDecision.approved_quantity) <=
-        Number(sizingDecision.source_quantity) &&
-      Number(sizingDecision.approved_quantity) >=
-        Number(sizingDecision.min_quantity) &&
-      Number(sizingDecision.approved_quantity) <=
-        Number(sizingDecision.max_quantity) &&
-      Number(sizingDecision.min_notional) > 0 &&
-      Number(sizingDecision.max_account_budget_fraction) > 0 &&
-      Number(sizingDecision.max_account_budget_fraction) <= 1 &&
-      Number(sizingDecision.order_notional) > 0 &&
-      Number(sizingDecision.order_notional) >=
-        Number(sizingDecision.min_notional) &&
-      Number(sizingDecision.order_notional) <=
-        Number(sizingDecision.account_budget_notional));
+      decimalIsPositive(sizingDecision.price) &&
+      decimalIsPositive(sizingDecision.price_tick) &&
+      decimalIsMultipleOf(sizingDecision.price, sizingDecision.price_tick) &&
+      decimalIsPositive(sizingDecision.quantity_step) &&
+      decimalIsPositive(sizingDecision.min_quantity) &&
+      decimalCompare(
+        sizingDecision.max_quantity,
+        sizingDecision.min_quantity,
+      ) >= 0 &&
+      decimalIsPositive(sizingDecision.approved_quantity) &&
+      decimalCompare(
+        sizingDecision.approved_quantity,
+        sizingDecision.source_quantity,
+      ) <= 0 &&
+      decimalCompare(
+        sizingDecision.approved_quantity,
+        sizingDecision.min_quantity,
+      ) >= 0 &&
+      decimalCompare(
+        sizingDecision.approved_quantity,
+        sizingDecision.max_quantity,
+      ) <= 0 &&
+      decimalIsMultipleOf(
+        sizingDecision.approved_quantity,
+        sizingDecision.quantity_step,
+      ) &&
+      decimalIsPositive(sizingDecision.min_notional) &&
+      decimalIsPositive(sizingDecision.max_account_budget_fraction) &&
+      decimalCompare(sizingDecision.max_account_budget_fraction, "1") <= 0 &&
+      decimalIsPositive(sizingDecision.order_notional) &&
+      decimalProductMatches(
+        sizingDecision.price,
+        sizingDecision.approved_quantity,
+        sizingDecision.order_notional,
+      ) &&
+      decimalCompare(
+        sizingDecision.order_notional,
+        sizingDecision.min_notional,
+      ) >= 0 &&
+      decimalCompare(
+        sizingDecision.order_notional,
+        sizingDecision.account_budget_notional,
+      ) <= 0 &&
+      decimalCompare(
+        sizingDecision.order_notional,
+        sizingDecision.request_max_notional,
+      ) <= 0 &&
+      decimalCompare(
+        sizingDecision.order_notional,
+        sizingDecision.risk_policy_max_notional,
+      ) <= 0);
   const executionAttempted =
     executionOrder?.actual_submission_attempted ?? false;
   const failedBeforeAttempt =
