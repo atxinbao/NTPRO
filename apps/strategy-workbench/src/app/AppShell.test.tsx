@@ -40,6 +40,29 @@ function renderWorkbench(path: string) {
   return { queryClient, router };
 }
 
+function attachSizingDecision(candidate: Record<string, any>) {
+  candidate.sizing_decision = {
+    schema_version: "ntpro.s3.live_sizing_decision.v1",
+    run_id: candidate.run_id,
+    source_manifest_sha256: `sha256:${"4".repeat(64)}`,
+    source_preflight_sha256: `sha256:${"5".repeat(64)}`,
+    strategy_intent_sha256: candidate.strategy_intent_sha256,
+    instrument_id: candidate.strategy_intent.instrument_id,
+    side: candidate.strategy_intent.side,
+    price: "1.00",
+    source_quantity: candidate.strategy_intent.quantity,
+    approved_quantity: candidate.strategy_intent.quantity,
+    order_notional: "0.00001",
+    account_budget_notional: "1.00",
+    request_max_notional: "1.00",
+    risk_policy_max_notional: "10.00",
+    sizing_source_ref: `sizing-config-sha256:${"6".repeat(64)}`,
+    evaluated_at_unix_ms: 1786406401000,
+    evidence_expires_at_unix_ms: 1786406701000,
+  };
+  candidate.sizing_decision_sha256 = `sha256:${"7".repeat(64)}`;
+}
+
 describe("strategy workbench product slice", () => {
   it("creates and explicitly starts a Demo Run from the workbench", async () => {
     let created = false;
@@ -742,12 +765,14 @@ describe("strategy workbench product slice", () => {
       source_result_sha256: `sha256:${"6".repeat(64)}`,
     };
     running.data.strategy_intent_sha256 = `sha256:${"9".repeat(64)}`;
+    attachSizingDecision(running.data);
     running.data.execution_order = {
-      schema_version: "ntpro.s3.live_execution_order_state.v3",
+      schema_version: "ntpro.s3.live_execution_order_state.v4",
       admission_id: "manual-001",
       source_demo_run_id: "demo-source-001",
       strategy_intent_id: "intent-001",
       strategy_intent_sha256: `sha256:${"9".repeat(64)}`,
+      sizing_decision_sha256: `sha256:${"7".repeat(64)}`,
       strategy_version_id: running.data.strategy_version_id,
       instrument_id: "BTCUSDT.BINANCE",
       client_order_id: "S3LV008-001",

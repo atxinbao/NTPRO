@@ -61,6 +61,7 @@ pub(in crate::dashboard) struct LiveAdmissionPath {
 struct LiveAdmissionConfigDocument {
     live_admission: LiveAdmissionConfig,
     risk: LiveRiskConfig,
+    live_sizing: LiveSizingConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -81,6 +82,39 @@ pub(super) struct LiveExecutionRiskPolicy {
     pub(super) owner_authority_ref: String,
     pub(super) risk_authority_ref: String,
     pub(super) operator_authority_ref: String,
+    pub(super) source_ref: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct LiveSizingConfig {
+    instrument_id: String,
+    base_asset: String,
+    quote_asset: String,
+    price_tick: String,
+    quantity_step: String,
+    min_quantity: String,
+    max_quantity: String,
+    min_notional: String,
+    max_account_budget_fraction: String,
+    evidence_max_age_ms: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct LiveSizingPreflight {
+    pub(super) instrument_id: String,
+    pub(super) base_asset: String,
+    pub(super) quote_asset: String,
+    pub(super) base_free: String,
+    pub(super) quote_free: String,
+    pub(super) price_tick: String,
+    pub(super) quantity_step: String,
+    pub(super) min_quantity: String,
+    pub(super) max_quantity: String,
+    pub(super) min_notional: String,
+    pub(super) max_account_budget_fraction: String,
+    pub(super) evidence_expires_at_unix_ms: u64,
     pub(super) source_ref: String,
 }
 
@@ -351,6 +385,7 @@ pub(super) struct LiveRunPreflightAdmission {
     pub(super) can_trade: bool,
     pub(super) evaluated_at_unix_ms: u64,
     pub(super) source_refs: Vec<String>,
+    pub(super) sizing: LiveSizingPreflight,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -946,6 +981,11 @@ pub(super) fn evaluate_live_run_preflight_admission(
         .account_result
         .as_ref()
         .is_some_and(|account| account.can_trade);
+    let sizing = project_live_sizing_preflight(
+        &document.live_sizing,
+        &response.data.asset_balances,
+        response.data.evaluated_at_unix_ms,
+    )?;
     let mut source_refs = response.data.source_refs;
     source_refs.push(format!("node-config:{}#risk", source.config_name));
     source_refs.push(live_risk_config_ref(&document.risk)?);
@@ -956,6 +996,96 @@ pub(super) fn evaluate_live_run_preflight_admission(
         can_trade,
         evaluated_at_unix_ms: response.data.evaluated_at_unix_ms,
         source_refs,
+        sizing,
+    })
+}
+
+fn project_live_sizing_preflight(
+    config: &LiveSizingConfig,
+    balances: &[LiveAssetBalance],
+    evaluated_at_unix_ms: u64,
+) -> Result<LiveSizingPreflight, ProductError> {
+    let decimals = [
+        &config.price_tick,
+        &config.quantity_step,
+        &config.min_quantity,
+        &config.max_quantity,
+        &config.min_notional,
+        &config.max_account_budget_fraction,
+    ]
+    .map(|value| rust_decimal::Decimal::from_str_exact(value).ok());
+    let [
+        Some(price_tick),
+        Some(quantity_step),
+        Some(min_quantity),
+        Some(max_quantity),
+        Some(min_notional),
+        Some(max_account_budget_fraction),
+    ] = decimals
+    else {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_sizing_config",
+        ));
+    };
+    if config.instrument_id.trim().is_empty()
+        || config.base_asset.trim().is_empty()
+        || config.quote_asset.trim().is_empty()
+        || config.base_asset == config.quote_asset
+        || price_tick <= rust_decimal::Decimal::ZERO
+        || quantity_step <= rust_decimal::Decimal::ZERO
+        || min_quantity <= rust_decimal::Decimal::ZERO
+        || max_quantity < min_quantity
+        || min_notional <= rust_decimal::Decimal::ZERO
+        || max_account_budget_fraction <= rust_decimal::Decimal::ZERO
+        || max_account_budget_fraction > rust_decimal::Decimal::ONE
+        || config.evidence_max_age_ms == 0
+        || config.evidence_max_age_ms > 15 * 60 * 1_000
+    {
+        return Err(product_error(
+            ProductErrorKind::BoundaryViolation,
+            "live_sizing_config",
+        ));
+    }
+    let balance = |asset: &str| {
+        balances
+            .iter()
+            .find(|value| value.asset == asset)
+            .map_or("0", |value| value.free.as_str())
+            .to_string()
+    };
+    let base_free = balance(&config.base_asset);
+    let quote_free = balance(&config.quote_asset);
+    if rust_decimal::Decimal::from_str_exact(&base_free).is_err()
+        || rust_decimal::Decimal::from_str_exact(&quote_free).is_err()
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "live_sizing_balance",
+        ));
+    }
+    let raw = serde_json::to_vec(config)
+        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "live_sizing_config"))?;
+    let hash = digest(&SHA256, &raw);
+    let mut source_ref = String::from("sizing-config-sha256:");
+    for byte in hash.as_ref() {
+        source_ref.push_str(&format!("{byte:02x}"));
+    }
+    Ok(LiveSizingPreflight {
+        instrument_id: config.instrument_id.clone(),
+        base_asset: config.base_asset.clone(),
+        quote_asset: config.quote_asset.clone(),
+        base_free,
+        quote_free,
+        price_tick: config.price_tick.clone(),
+        quantity_step: config.quantity_step.clone(),
+        min_quantity: config.min_quantity.clone(),
+        max_quantity: config.max_quantity.clone(),
+        min_notional: config.min_notional.clone(),
+        max_account_budget_fraction: config.max_account_budget_fraction.clone(),
+        evidence_expires_at_unix_ms: evaluated_at_unix_ms
+            .saturating_add(config.evidence_max_age_ms),
+        source_ref,
     })
 }
 

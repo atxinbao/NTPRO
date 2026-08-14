@@ -978,11 +978,12 @@ export const zLiveExecutionOrderSnapshot = z.intersection(
     }),
   ]),
   z.object({
-    schema_version: z.literal("ntpro.s3.live_execution_order_state.v3"),
+    schema_version: z.literal("ntpro.s3.live_execution_order_state.v4"),
     admission_id: z.string().regex(/^[A-Za-z0-9._-]{1,128}$/),
     source_demo_run_id: zRunId,
     strategy_intent_id: z.string().min(1).max(128),
     strategy_intent_sha256: zContentHash,
+    sizing_decision_sha256: zContentHash,
     strategy_version_id: zStrategyVersionId,
     instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
     client_order_id: z.string().min(1).max(128).nullable(),
@@ -1030,6 +1031,26 @@ export const zLiveStrategyOrderIntent = z.object({
   created_at_unix_ms: z.int().gte(1),
   source_manifest_sha256: zContentHash,
   source_result_sha256: zContentHash,
+});
+
+export const zLiveSizingDecision = z.object({
+  schema_version: z.literal("ntpro.s3.live_sizing_decision.v1"),
+  run_id: zRunId,
+  source_manifest_sha256: zContentHash,
+  source_preflight_sha256: zContentHash,
+  strategy_intent_sha256: zContentHash,
+  instrument_id: z.string().regex(/^[A-Z0-9]+\.BINANCE$/),
+  side: z.enum(["BUY", "SELL"]),
+  price: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  source_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  approved_quantity: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  order_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  account_budget_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  request_max_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  risk_policy_max_notional: z.string().regex(/^[0-9]+(?:\.[0-9]+)?$/),
+  sizing_source_ref: z.string().regex(/^sizing-config-sha256:[a-f0-9]{64}$/),
+  evaluated_at_unix_ms: z.int().gte(1),
+  evidence_expires_at_unix_ms: z.int().gte(1),
 });
 
 export const zLiveExecutionControlSnapshot = z.intersection(
@@ -1263,6 +1284,8 @@ export const zLiveRunCandidate = z.intersection(
     order_admission: zLiveOrderAdmissionSnapshot,
     strategy_intent: zLiveStrategyOrderIntent.nullable(),
     strategy_intent_sha256: zContentHash.nullable(),
+    sizing_decision: zLiveSizingDecision.nullable(),
+    sizing_decision_sha256: zContentHash.nullable(),
     execution_order: zLiveExecutionOrderSnapshot.nullable(),
     execution_order_state_sha256: zContentHash.nullable(),
     execution_control: zLiveExecutionControlSnapshot.nullable(),

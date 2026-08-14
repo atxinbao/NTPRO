@@ -614,6 +614,7 @@ function assertLiveRunCandidate(
     !boundaries.trading_controls_enabled;
   const executionOrder = candidate.execution_order;
   const strategyIntent = candidate.strategy_intent;
+  const sizingDecision = candidate.sizing_decision;
   const strategyIntentValid =
     (strategyIntent === null &&
       candidate.strategy_intent_sha256 === null &&
@@ -630,6 +631,27 @@ function assertLiveRunCandidate(
       Number(strategyIntent.quantity) > 0 &&
       Number(strategyIntent.confidence) >= 0 &&
       Number(strategyIntent.confidence) <= 1);
+  const sizingDecisionValid =
+    (sizingDecision === null &&
+      candidate.sizing_decision_sha256 === null &&
+      admissionStatus === "blocked") ||
+    (sizingDecision !== null &&
+      candidate.sizing_decision_sha256 !== null &&
+      /^sha256:[a-f0-9]{64}$/u.test(candidate.sizing_decision_sha256) &&
+      strategyIntent !== null &&
+      candidate.strategy_intent_sha256 !== null &&
+      sizingDecision.run_id === candidate.run_id &&
+      sizingDecision.strategy_intent_sha256 ===
+        candidate.strategy_intent_sha256 &&
+      sizingDecision.instrument_id === strategyIntent.instrument_id &&
+      sizingDecision.side === strategyIntent.side &&
+      decimalEquals(sizingDecision.source_quantity, strategyIntent.quantity) &&
+      Number(sizingDecision.approved_quantity) > 0 &&
+      Number(sizingDecision.approved_quantity) <=
+        Number(sizingDecision.source_quantity) &&
+      Number(sizingDecision.order_notional) > 0 &&
+      Number(sizingDecision.order_notional) <=
+        Number(sizingDecision.account_budget_notional));
   const executionAttempted =
     executionOrder?.actual_submission_attempted ?? false;
   const failedBeforeAttempt =
@@ -667,11 +689,15 @@ function assertLiveRunCandidate(
       executionOrder.strategy_intent_id === strategyIntent.intent_id &&
       executionOrder.strategy_intent_sha256 ===
         candidate.strategy_intent_sha256 &&
+      sizingDecision !== null &&
+      candidate.sizing_decision_sha256 !== null &&
+      executionOrder.sizing_decision_sha256 ===
+        candidate.sizing_decision_sha256 &&
       executionOrder.strategy_version_id === candidate.strategy_version_id &&
       executionOrder.instrument_id === strategyIntent.instrument_id &&
       decimalEquals(
         executionOrder.original_quantity,
-        strategyIntent.quantity,
+        sizingDecision.approved_quantity,
       ) &&
       executionOrder.terminal === terminalOrderStatus &&
       executionOrder.new_orders_blocked &&
@@ -743,6 +769,7 @@ function assertLiveRunCandidate(
       auditAnchorValid &&
       (blockedAdmission || authorizedAdmission || consumedAdmission) &&
       strategyIntentValid &&
+      sizingDecisionValid &&
       executionOrderValid &&
       executionControlValid &&
       (executionOrder === null

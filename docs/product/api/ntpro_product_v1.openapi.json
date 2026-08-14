@@ -2974,13 +2974,14 @@
       "LiveExecutionOrderSnapshot": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["schema_version", "admission_id", "source_demo_run_id", "strategy_intent_id", "strategy_intent_sha256", "strategy_version_id", "instrument_id", "client_order_id", "venue_order_id", "original_quantity", "filled_quantity", "remaining_quantity", "status", "terminal", "new_orders_blocked", "actual_submission_attempted", "automatic_retry_attempted", "cancel_attempted", "replace_attempted", "last_error", "updated_at_unix_ms"],
+        "required": ["schema_version", "admission_id", "source_demo_run_id", "strategy_intent_id", "strategy_intent_sha256", "sizing_decision_sha256", "strategy_version_id", "instrument_id", "client_order_id", "venue_order_id", "original_quantity", "filled_quantity", "remaining_quantity", "status", "terminal", "new_orders_blocked", "actual_submission_attempted", "automatic_retry_attempted", "cancel_attempted", "replace_attempted", "last_error", "updated_at_unix_ms"],
         "properties": {
-          "schema_version": { "const": "ntpro.s3.live_execution_order_state.v3" },
+          "schema_version": { "const": "ntpro.s3.live_execution_order_state.v4" },
           "admission_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$" },
           "source_demo_run_id": { "$ref": "#/components/schemas/RunId" },
           "strategy_intent_id": { "type": "string", "minLength": 1, "maxLength": 128 },
           "strategy_intent_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "sizing_decision_sha256": { "$ref": "#/components/schemas/ContentHash" },
           "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
           "instrument_id": { "type": "string", "pattern": "^[A-Z0-9]+\\.BINANCE$" },
           "client_order_id": { "type": ["string", "null"], "minLength": 1, "maxLength": 128 },
@@ -3038,6 +3039,30 @@
           "created_at_unix_ms": { "type": "integer", "minimum": 1 },
           "source_manifest_sha256": { "$ref": "#/components/schemas/ContentHash" },
           "source_result_sha256": { "$ref": "#/components/schemas/ContentHash" }
+        }
+      },
+      "LiveSizingDecision": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "run_id", "source_manifest_sha256", "source_preflight_sha256", "strategy_intent_sha256", "instrument_id", "side", "price", "source_quantity", "approved_quantity", "order_notional", "account_budget_notional", "request_max_notional", "risk_policy_max_notional", "sizing_source_ref", "evaluated_at_unix_ms", "evidence_expires_at_unix_ms"],
+        "properties": {
+          "schema_version": { "const": "ntpro.s3.live_sizing_decision.v1" },
+          "run_id": { "$ref": "#/components/schemas/RunId" },
+          "source_manifest_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "source_preflight_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "strategy_intent_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "instrument_id": { "type": "string", "pattern": "^[A-Z0-9]+\\.BINANCE$" },
+          "side": { "enum": ["BUY", "SELL"] },
+          "price": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "source_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "approved_quantity": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "order_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "account_budget_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "request_max_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "risk_policy_max_notional": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]+)?$" },
+          "sizing_source_ref": { "type": "string", "pattern": "^sizing-config-sha256:[a-f0-9]{64}$" },
+          "evaluated_at_unix_ms": { "type": "integer", "minimum": 1 },
+          "evidence_expires_at_unix_ms": { "type": "integer", "minimum": 1 }
         }
       },
       "LiveExecutionControlSnapshot": {
@@ -3143,7 +3168,7 @@
       "LiveRunCandidate": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "market_data_connected", "runtime_node_id", "runtime_process_state", "runtime_error", "audit_anchor", "order_admission", "strategy_intent", "strategy_intent_sha256", "execution_order", "execution_order_state_sha256", "execution_control", "source_refs"],
+        "required": ["run_id", "strategy_id", "strategy_version_id", "environment", "account_ref", "venue_ref", "lifecycle", "created_at_unix_ms", "preflight_at_unix_ms", "stopped_at_unix_ms", "account_connected", "account_can_trade_verified", "runtime_started", "market_data_connected", "runtime_node_id", "runtime_process_state", "runtime_error", "audit_anchor", "order_admission", "strategy_intent", "strategy_intent_sha256", "sizing_decision", "sizing_decision_sha256", "execution_order", "execution_order_state_sha256", "execution_control", "source_refs"],
         "properties": {
           "run_id": { "$ref": "#/components/schemas/RunId" },
           "strategy_id": { "$ref": "#/components/schemas/StrategyId" },
@@ -3171,6 +3196,18 @@
             ]
           },
           "strategy_intent_sha256": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/ContentHash" },
+              { "type": "null" }
+            ]
+          },
+          "sizing_decision": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/LiveSizingDecision" },
+              { "type": "null" }
+            ]
+          },
+          "sizing_decision_sha256": {
             "anyOf": [
               { "$ref": "#/components/schemas/ContentHash" },
               { "type": "null" }

@@ -3,7 +3,7 @@
 use super::node_runtime::{execution_sha256_ref, read_bounded_execution_authority_file};
 use super::*;
 
-const EXECUTION_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v3";
+const EXECUTION_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v4";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -13,6 +13,7 @@ struct ProductionExecutionOrderState {
     source_demo_run_id: String,
     strategy_intent_id: String,
     strategy_intent_sha256: String,
+    sizing_decision_sha256: String,
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
@@ -38,6 +39,7 @@ pub(super) struct ProductionSingleShotExecutionStrategy {
     source_demo_run_id: String,
     strategy_intent_id: String,
     strategy_intent_sha256: String,
+    sizing_decision_sha256: String,
     strategy_version_id: String,
     instrument_id: InstrumentId,
     side: OrderSide,
@@ -115,6 +117,7 @@ impl ProductionSingleShotExecutionStrategy {
             source_demo_run_id: execution.source_demo_run_id.clone(),
             strategy_intent_id: execution.strategy_intent_id.clone(),
             strategy_intent_sha256: execution.strategy_intent_sha256.clone(),
+            sizing_decision_sha256: execution.sizing_decision_sha256.clone(),
             strategy_version_id: execution.strategy_version_id.clone(),
             instrument_id,
             side,
@@ -191,6 +194,7 @@ impl ProductionSingleShotExecutionStrategy {
                 source_demo_run_id: self.source_demo_run_id.clone(),
                 strategy_intent_id: self.strategy_intent_id.clone(),
                 strategy_intent_sha256: self.strategy_intent_sha256.clone(),
+                sizing_decision_sha256: self.sizing_decision_sha256.clone(),
                 strategy_version_id: self.strategy_version_id.clone(),
                 instrument_id: self.instrument_id.to_string(),
                 client_order_id: self.client_order_id.clone(),
@@ -376,6 +380,7 @@ fn load_existing_execution_state(
         || state.source_demo_run_id != execution.source_demo_run_id
         || state.strategy_intent_id != execution.strategy_intent_id
         || state.strategy_intent_sha256 != execution.strategy_intent_sha256
+        || state.sizing_decision_sha256 != execution.sizing_decision_sha256
         || state.strategy_version_id != execution.strategy_version_id
         || state.instrument_id != instrument_id.to_string()
         || !state.new_orders_blocked
@@ -427,6 +432,7 @@ mod tests {
             schema_version: "ntpro.s3.live_execution_node.v2".to_string(),
             source_manifest_sha256: format!("sha256:{}", "1".repeat(64)),
             execution_admission_sha256: format!("sha256:{}", "2".repeat(64)),
+            sizing_decision_sha256: format!("sha256:{}", "5".repeat(64)),
             runtime_artifact_root: PathBuf::from("/tmp/ntpro-s3-lv-007-runtime"),
             control_artifact_root: PathBuf::from("/tmp/ntpro-s3-lv-007-control"),
             risk_policy_ref: format!("risk-config-sha256:{}", "3".repeat(64)),
@@ -444,6 +450,7 @@ mod tests {
             order_type: "LIMIT".to_string(),
             time_in_force: "GTC".to_string(),
             price: "1.00".to_string(),
+            source_quantity: "0.00001000".to_string(),
             quantity: "0.00001000".to_string(),
             max_notional: "1.00".to_string(),
             risk_policy_max_notional: "10.00".to_string(),
@@ -531,6 +538,7 @@ mod tests {
                 source_demo_run_id: section.source_demo_run_id.clone(),
                 strategy_intent_id: section.strategy_intent_id.clone(),
                 strategy_intent_sha256: section.strategy_intent_sha256.clone(),
+                sizing_decision_sha256: section.sizing_decision_sha256.clone(),
                 strategy_version_id: section.strategy_version_id.clone(),
                 instrument_id: section.instrument_id.clone(),
                 client_order_id: Some(expected_id.clone()),
@@ -581,6 +589,7 @@ mod tests {
             source_demo_run_id: section.source_demo_run_id.clone(),
             strategy_intent_id: section.strategy_intent_id.clone(),
             strategy_intent_sha256: section.strategy_intent_sha256.clone(),
+            sizing_decision_sha256: section.sizing_decision_sha256.clone(),
             strategy_version_id: section.strategy_version_id.clone(),
             instrument_id: section.instrument_id.clone(),
             client_order_id: Some(expected_id),
@@ -653,6 +662,7 @@ mod tests {
                 source_demo_run_id: section.source_demo_run_id.clone(),
                 strategy_intent_id: section.strategy_intent_id.clone(),
                 strategy_intent_sha256: section.strategy_intent_sha256.clone(),
+                sizing_decision_sha256: section.sizing_decision_sha256.clone(),
                 strategy_version_id: section.strategy_version_id.clone(),
                 instrument_id: section.instrument_id.clone(),
                 client_order_id: Some("attacker-controlled-id".to_string()),

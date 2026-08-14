@@ -451,6 +451,32 @@ export function LivePage() {
               />
               <Detail
                 label="原始数量"
+                value={liveRun.sizing_decision?.source_quantity ?? "-"}
+              />
+              <Detail
+                label="批准数量"
+                value={liveRun.sizing_decision?.approved_quantity ?? "-"}
+              />
+              <Detail
+                label="订单名义金额"
+                value={liveRun.sizing_decision?.order_notional ?? "-"}
+              />
+              <Detail
+                label="账户预算"
+                value={liveRun.sizing_decision?.account_budget_notional ?? "-"}
+              />
+              <Detail
+                label="Sizing 证据有效至"
+                value={
+                  liveRun.sizing_decision
+                    ? new Date(
+                        liveRun.sizing_decision.evidence_expires_at_unix_ms,
+                      ).toLocaleString("zh-CN")
+                    : "-"
+                }
+              />
+              <Detail
+                label="执行数量"
                 value={liveRun.execution_order?.original_quantity ?? "-"}
               />
               <Detail

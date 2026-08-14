@@ -35,7 +35,7 @@ const EXECUTION_CANCEL_VENUE_ATTEMPT_FILE: &str = "execution-cancel-venue-attemp
 const EXECUTION_CANCEL_RESULT_FILE: &str = "execution-cancel-result.json";
 const EXECUTION_CANCEL_RESULT_RECEIPT_FILE: &str = "execution-cancel-result-receipt.json";
 const EXECUTION_ORDER_STATE_FILE: &str = "execution-order-state.json";
-const EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v3";
+const EXECUTION_ORDER_STATE_SCHEMA_VERSION: &str = "ntpro.s3.live_execution_order_state.v4";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -90,6 +90,7 @@ struct ProductionExecutionOrderStateSnapshot {
     source_demo_run_id: String,
     strategy_intent_id: String,
     strategy_intent_sha256: String,
+    sizing_decision_sha256: String,
     strategy_version_id: String,
     instrument_id: String,
     client_order_id: Option<String>,
@@ -126,6 +127,28 @@ struct ProductionStrategyIntentAuthority {
     created_at_unix_ms: u64,
     source_manifest_sha256: String,
     source_result_sha256: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionSizingDecisionAuthority {
+    schema_version: String,
+    run_id: String,
+    source_manifest_sha256: String,
+    source_preflight_sha256: String,
+    strategy_intent_sha256: String,
+    instrument_id: String,
+    side: String,
+    price: String,
+    source_quantity: String,
+    approved_quantity: String,
+    order_notional: String,
+    account_budget_notional: String,
+    request_max_notional: String,
+    risk_policy_max_notional: String,
+    sizing_source_ref: String,
+    evaluated_at_unix_ms: u64,
+    evidence_expires_at_unix_ms: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1354,6 +1377,15 @@ fn validate_execution_runtime_authority(
         read_bounded_execution_authority_file(&candidate_root.join("strategy-order-intent.json"))
             .context("live execution strategy intent is unavailable")?;
     let strategy_intent_valid = strategy_intent_matches_execution(&strategy_intent_raw, execution);
+    let sizing_raw =
+        read_bounded_execution_authority_file(&candidate_root.join("live-sizing-decision.json"))
+            .context("live execution sizing decision is unavailable")?;
+    let sizing_valid = sizing_decision_matches_execution(
+        &sizing_raw,
+        run_id,
+        execution,
+        current_unix_timestamp_millis(),
+    );
     let valid = head.schema_version == EXECUTION_STATE_HEAD_SCHEMA_VERSION
         && head.run_id == run_id
         && head.state_sha256 == execution_sha256_ref(&state_raw)
@@ -1373,6 +1405,7 @@ fn validate_execution_runtime_authority(
         && execution.strategy_intent_sha256.starts_with("sha256:")
         && execution.strategy_intent_sha256.len() == 71
         && strategy_intent_valid
+        && sizing_valid
         && state.stop_sha256.is_none()
         && expected_output == actual_output
         && expected_control == actual_control;
@@ -1422,7 +1455,7 @@ fn strategy_intent_matches_execution(
         && strategy_intent.instrument_id == execution.instrument_id
         && strategy_intent.side == execution.side
         && strategy_intent.source_order_type == "market"
-        && strategy_intent.quantity == execution.quantity
+        && strategy_intent.quantity == execution.source_quantity
         && !strategy_intent.source_signal.trim().is_empty()
         && Decimal::from_str_exact(&strategy_intent.confidence)
             .is_ok_and(|value| value >= Decimal::ZERO && value <= Decimal::ONE)
@@ -1435,6 +1468,64 @@ fn strategy_intent_matches_execution(
         && strategy_intent.source_result_sha256.starts_with("sha256:")
         && strategy_intent.source_result_sha256.len() == 71
         && execution_sha256_ref(strategy_intent_raw) == execution.strategy_intent_sha256
+}
+
+fn sizing_decision_matches_execution(
+    sizing_raw: &[u8],
+    run_id: &str,
+    execution: &ProductionExecutionSection,
+    current_time_unix_ms: u64,
+) -> bool {
+    let Ok(sizing) = serde_json::from_slice::<ProductionSizingDecisionAuthority>(sizing_raw) else {
+        return false;
+    };
+    let (
+        Ok(price),
+        Ok(source_quantity),
+        Ok(approved_quantity),
+        Ok(order_notional),
+        Ok(account_budget_notional),
+        Ok(request_max_notional),
+        Ok(risk_policy_max_notional),
+    ) = (
+        Decimal::from_str_exact(&sizing.price),
+        Decimal::from_str_exact(&sizing.source_quantity),
+        Decimal::from_str_exact(&sizing.approved_quantity),
+        Decimal::from_str_exact(&sizing.order_notional),
+        Decimal::from_str_exact(&sizing.account_budget_notional),
+        Decimal::from_str_exact(&sizing.request_max_notional),
+        Decimal::from_str_exact(&sizing.risk_policy_max_notional),
+    )
+    else {
+        return false;
+    };
+    sizing.schema_version == "ntpro.s3.live_sizing_decision.v1"
+        && sizing.run_id == run_id
+        && sizing.source_manifest_sha256 == execution.source_manifest_sha256
+        && sizing.source_preflight_sha256.starts_with("sha256:")
+        && sizing.source_preflight_sha256.len() == 71
+        && sizing.strategy_intent_sha256 == execution.strategy_intent_sha256
+        && sizing.instrument_id == execution.instrument_id
+        && sizing.side == execution.side
+        && sizing.price == execution.price
+        && sizing.source_quantity == execution.source_quantity
+        && sizing.approved_quantity == execution.quantity
+        && sizing.request_max_notional == execution.max_notional
+        && sizing.risk_policy_max_notional == execution.risk_policy_max_notional
+        && !sizing.sizing_source_ref.trim().is_empty()
+        && sizing.evaluated_at_unix_ms > 0
+        && sizing.evidence_expires_at_unix_ms > sizing.evaluated_at_unix_ms
+        && sizing.evidence_expires_at_unix_ms > current_time_unix_ms
+        && price > Decimal::ZERO
+        && source_quantity > Decimal::ZERO
+        && approved_quantity > Decimal::ZERO
+        && approved_quantity <= source_quantity
+        && order_notional == price * approved_quantity
+        && account_budget_notional > Decimal::ZERO
+        && order_notional <= account_budget_notional
+        && order_notional <= request_max_notional
+        && request_max_notional <= risk_policy_max_notional
+        && execution_sha256_ref(sizing_raw) == execution.sizing_decision_sha256
 }
 
 pub(super) fn read_bounded_execution_authority_file(path: &Path) -> anyhow::Result<Vec<u8>> {
@@ -1531,6 +1622,7 @@ mod execution_authority_tests {
             schema_version: PRODUCTION_EXECUTION_SCHEMA_VERSION.to_string(),
             source_manifest_sha256: format!("sha256:{}", "1".repeat(64)),
             execution_admission_sha256: format!("sha256:{}", "4".repeat(64)),
+            sizing_decision_sha256: format!("sha256:{}", "8".repeat(64)),
             runtime_artifact_root: runtime_root.to_path_buf(),
             control_artifact_root: control_root.to_path_buf(),
             risk_policy_ref: format!("risk-config-sha256:{}", "7".repeat(64)),
@@ -1548,6 +1640,7 @@ mod execution_authority_tests {
             order_type: "LIMIT".to_string(),
             time_in_force: "GTC".to_string(),
             price: "1.00".to_string(),
+            source_quantity: "0.01".to_string(),
             quantity: "0.01".to_string(),
             max_notional: "1.00".to_string(),
             risk_policy_max_notional: "10.00".to_string(),
@@ -1611,6 +1704,7 @@ mod execution_authority_tests {
             source_demo_run_id: "demo-source-001".to_string(),
             strategy_intent_id: "intent-001".to_string(),
             strategy_intent_sha256: format!("sha256:{}", "5".repeat(64)),
+            sizing_decision_sha256: format!("sha256:{}", "8".repeat(64)),
             strategy_version_id: "ema-cross@v1".to_string(),
             instrument_id: "BTCUSDT.BINANCE".to_string(),
             client_order_id: Some("S3LV007-001".to_string()),
@@ -1640,7 +1734,7 @@ mod execution_authority_tests {
             "instrument_id": execution.instrument_id,
             "side": execution.side,
             "source_order_type": "market",
-            "quantity": execution.quantity,
+            "quantity": execution.source_quantity,
             "source_signal": "long",
             "confidence": "0.72",
             "market_event_seq": 1,
@@ -1649,6 +1743,84 @@ mod execution_authority_tests {
             "source_result_sha256": format!("sha256:{}", "8".repeat(64))
         }))
         .unwrap()
+    }
+
+    fn sizing_decision_raw_with_values(
+        run_id: &str,
+        execution: &ProductionExecutionSection,
+        order_notional: &str,
+        evaluated_at_unix_ms: u64,
+        evidence_expires_at_unix_ms: u64,
+    ) -> Vec<u8> {
+        serde_json::to_vec(&serde_json::json!({
+            "schema_version": "ntpro.s3.live_sizing_decision.v1",
+            "run_id": run_id,
+            "source_manifest_sha256": execution.source_manifest_sha256,
+            "source_preflight_sha256": format!("sha256:{}", "6".repeat(64)),
+            "strategy_intent_sha256": execution.strategy_intent_sha256,
+            "instrument_id": execution.instrument_id,
+            "side": execution.side,
+            "price": execution.price,
+            "source_quantity": execution.source_quantity,
+            "approved_quantity": execution.quantity,
+            "order_notional": order_notional,
+            "account_budget_notional": "1.00",
+            "request_max_notional": execution.max_notional,
+            "risk_policy_max_notional": execution.risk_policy_max_notional,
+            "sizing_source_ref": format!("sizing-config-sha256:{}", "7".repeat(64)),
+            "evaluated_at_unix_ms": evaluated_at_unix_ms,
+            "evidence_expires_at_unix_ms": evidence_expires_at_unix_ms
+        }))
+        .unwrap()
+    }
+
+    fn sizing_decision_raw(run_id: &str, execution: &ProductionExecutionSection) -> Vec<u8> {
+        let now = current_unix_timestamp_millis();
+        sizing_decision_raw_with_values(run_id, execution, "0.01", now, now + 60_000)
+    }
+
+    #[test]
+    fn sizing_authority_rejects_hash_and_quantity_drift() {
+        let mut execution = execution_section(Path::new("runtime"), Path::new("control"));
+        let intent_raw = strategy_intent_raw(&execution);
+        execution.strategy_intent_sha256 = execution_sha256_ref(&intent_raw);
+        let raw = sizing_decision_raw("live-sizing-test", &execution);
+        execution.sizing_decision_sha256 = execution_sha256_ref(&raw);
+        assert!(sizing_decision_matches_execution(
+            &raw,
+            "live-sizing-test",
+            &execution,
+            current_unix_timestamp_millis()
+        ));
+
+        execution.quantity = "0.02".to_string();
+        assert!(!sizing_decision_matches_execution(
+            &raw,
+            "live-sizing-test",
+            &execution,
+            current_unix_timestamp_millis()
+        ));
+
+        execution.quantity = "0.01".to_string();
+        let stale_raw =
+            sizing_decision_raw_with_values("live-sizing-test", &execution, "0.01", 1, 2);
+        execution.sizing_decision_sha256 = execution_sha256_ref(&stale_raw);
+        assert!(!sizing_decision_matches_execution(
+            &stale_raw,
+            "live-sizing-test",
+            &execution,
+            2
+        ));
+
+        let arithmetic_drift =
+            sizing_decision_raw_with_values("live-sizing-test", &execution, "0.02", 1, u64::MAX);
+        execution.sizing_decision_sha256 = execution_sha256_ref(&arithmetic_drift);
+        assert!(!sizing_decision_matches_execution(
+            &arithmetic_drift,
+            "live-sizing-test",
+            &execution,
+            2
+        ));
     }
 
     #[test]
@@ -1665,7 +1837,7 @@ mod execution_authority_tests {
 
         let mut drifted_quantity = execution_section(Path::new("runtime"), Path::new("control"));
         drifted_quantity.strategy_intent_sha256 = execution_sha256_ref(&raw);
-        drifted_quantity.quantity = "0.02".to_string();
+        drifted_quantity.source_quantity = "0.02".to_string();
         assert!(!strategy_intent_matches_execution(&raw, &drifted_quantity));
 
         let mut drifted_hash = execution;
@@ -2464,6 +2636,9 @@ mod execution_authority_tests {
         let intent_raw = strategy_intent_raw(&execution);
         execution.strategy_intent_sha256 = execution_sha256_ref(&intent_raw);
         fs::write(candidate.join("strategy-order-intent.json"), intent_raw).unwrap();
+        let sizing_raw = sizing_decision_raw("live-candidate-authority-test", &execution);
+        execution.sizing_decision_sha256 = execution_sha256_ref(&sizing_raw);
+        fs::write(candidate.join("live-sizing-decision.json"), sizing_raw).unwrap();
         fs::write(&config_path, b"tampered-config").unwrap();
         let error = validate_execution_runtime_authority(
             &config_path,
