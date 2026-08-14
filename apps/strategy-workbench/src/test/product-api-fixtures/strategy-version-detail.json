@@ -49,7 +49,6 @@
       "freshness_status": "fresh",
       "source_refs": [
         "mvp/identity_contract.json",
-        "mvp/status_contract.json",
         "node-config:node.toml#strategy_version"
       ],
       "source_type": "strategy_version_manifest"

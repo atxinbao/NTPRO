@@ -6,6 +6,7 @@ import {
   environmentLabels,
   formatTimestamp,
   lifecycleLabels,
+  productErrorMessage,
   resultLabels,
   riskLabels,
 } from "../features/product/presentation";
@@ -28,6 +29,9 @@ export function OverviewPage() {
 
   const currentVersion = product.version;
   const runItems = product.runs?.data ?? [];
+  const runtimeMessage = product.runtimeError
+    ? productErrorMessage(product.runtimeError)
+    : undefined;
 
   return (
     <>
@@ -43,17 +47,20 @@ export function OverviewPage() {
       </header>
 
       <section
-        className={`${styles.connectionBanner} ${styles.connectionReady}`}
+        className={`${styles.connectionBanner} ${runtimeMessage ? styles.connectionBlocked : styles.connectionReady}`}
         aria-live="polite"
       >
         <div>
-          <strong>产品资源已验证</strong>
+          <strong>
+            {runtimeMessage ? "策略目录已验证，运行数据降级" : "产品资源已验证"}
+          </strong>
           <span>
-            {product.strategies.contract_version} · 请求{" "}
-            {product.strategies.request_id}
+            {runtimeMessage
+              ? runtimeMessage.detail
+              : `${product.strategies.contract_version} · 请求 ${product.strategies.request_id}`}
           </span>
         </div>
-        <em>来源新鲜</em>
+        <em>{runtimeMessage ? "运行源不可用" : "来源新鲜"}</em>
       </section>
 
       <section className={styles.metricGrid} aria-label="策略摘要">
@@ -69,8 +76,19 @@ export function OverviewPage() {
         />
         <Metric
           label="当前页 Run"
-          value={`${product.runs?.page.returned_count ?? 0}${product.runs?.page.has_more ? "+" : ""}`}
-          note={product.runs?.page.has_more ? "还有下一页" : "当前版本全部 Run"}
+          value={
+            runtimeMessage
+              ? "--"
+              : `${product.runs?.page.returned_count ?? 0}${product.runs?.page.has_more ? "+" : ""}`
+          }
+          note={
+            runtimeMessage
+              ? "运行数据源暂不可用"
+              : product.runs?.page.has_more
+                ? "还有下一页"
+                : "当前版本全部 Run"
+          }
+          warning={Boolean(runtimeMessage)}
         />
         <Metric
           label="交易能力"
@@ -116,7 +134,7 @@ export function OverviewPage() {
               );
             })}
           </div>
-          <RunTable runs={runItems} />
+          <RunTable runs={runItems} runtimeError={runtimeMessage?.title} />
         </section>
 
         <section className={styles.panel}>
@@ -183,7 +201,13 @@ function EmptyOverview() {
   );
 }
 
-function RunTable({ runs }: { runs: Run[] }) {
+function RunTable({
+  runs,
+  runtimeError,
+}: {
+  runs: Run[];
+  runtimeError?: string;
+}) {
   return (
     <div className={styles.tableWrap} data-testid="run-table-scroll">
       <table className={styles.runTable}>
@@ -198,7 +222,13 @@ function RunTable({ runs }: { runs: Run[] }) {
           </tr>
         </thead>
         <tbody>
-          {runs.length > 0 ? (
+          {runtimeError ? (
+            <tr>
+              <td colSpan={6} className="empty">
+                {runtimeError}，策略与版本目录仍可查看
+              </td>
+            </tr>
+          ) : runs.length > 0 ? (
             runs.map((run) => (
               <tr key={run.run_id}>
                 <td>

@@ -774,6 +774,7 @@ try {
   const browserErrors = [];
   const productionAssets = new Set();
   let expectedHttpErrorResponses = 0;
+  let expectedProductStaleResponses = 0;
   let expectedLiveAnchorErrorResponses = 0;
   let liveAccountRefreshBrowserRequests = 0;
   let liveCandidateBrowserRequests = 0;
@@ -829,6 +830,26 @@ try {
     response.boundaries.real_orders_submitted = true;
     return route.fulfill({
       status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(response),
+    });
+  });
+  let runScenario = "valid";
+  await page.route("**/api/product/v1/runs**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname !== "/api/product/v1/runs" || runScenario === "valid") {
+      return route.continue();
+    }
+    expectedProductStaleResponses += 1;
+    const response = structuredClone(unauthorizedProductBody);
+    response.error = {
+      code: "product_source_stale",
+      summary: "策略产品数据源已过期，需要刷新对应来源后重试",
+      retryable: true,
+      field: "node_status",
+    };
+    return route.fulfill({
+      status: 503,
       contentType: "application/json",
       body: JSON.stringify(response),
     });
@@ -1251,6 +1272,38 @@ try {
         url.pathname === "/api/mvp/v1/status"
       );
     });
+  const waitForRunListRefresh = (status) =>
+    page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        response.request().method() === "GET" &&
+        url.pathname === "/api/product/v1/runs" &&
+        response.status() === status
+      );
+    });
+  runScenario = "stale";
+  const staleRunResponse = waitForRunListRefresh(503);
+  await refreshButton.click();
+  await staleRunResponse;
+  await page.getByText("策略目录已验证，运行数据降级").waitFor();
+  await page
+    .getByRole("heading", { name: productStrategy.name, exact: true })
+    .waitFor();
+  await page.getByText(productVersion.strategy_version_id).first().waitFor();
+  if (
+    (await page.getByText("当前没有已注册策略").count()) !== 0 ||
+    (await page.getByText(backtestRunId, { exact: true }).count()) !== 0 ||
+    expectedProductStaleResponses < 1
+  ) {
+    throw new Error(
+      "stale Run source hid the catalog or retained old Run data",
+    );
+  }
+  runScenario = "valid";
+  const restoredRunResponse = waitForRunListRefresh(200);
+  await refreshButton.click();
+  await restoredRunResponse;
+  await page.getByText("产品资源已验证").waitFor();
   scenario = "boundary";
   const boundaryStatusResponse = waitForStatusRefresh();
   await refreshButton.click();
@@ -1293,10 +1346,19 @@ try {
       "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
   );
   let remainingExpectedLiveAnchorErrors = expectedLiveAnchorErrorResponses;
+  let remainingExpectedProductStaleErrors = expectedProductStaleResponses;
   const unexpectedBrowserErrors = [
     ...browserErrors.slice(0, errorsBeforeHttpScenario),
     ...unexpectedHttpScenarioErrors,
   ].filter((message) => {
+    if (
+      remainingExpectedProductStaleErrors > 0 &&
+      message ===
+        "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    ) {
+      remainingExpectedProductStaleErrors -= 1;
+      return false;
+    }
     if (
       remainingExpectedLiveAnchorErrors > 0 &&
       message ===
@@ -1372,6 +1434,7 @@ writeEvidence({
   product_run_create_access_control: 1,
   product_run_metrics_non_backtest_closed: 1,
   product_run_error: 1,
+  product_run_stale_catalog_degraded: 1,
   product_run_live_boundary: 1,
   product_run_access_control: 1,
   product_run_deep_link: 1,
