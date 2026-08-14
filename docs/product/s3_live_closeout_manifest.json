@@ -2,7 +2,7 @@
   "schema_version": "ntpro.s3_live_product_closeout.v1",
   "generated_at": "2026-08-14",
   "executor": "Codex",
-  "status": "blocked_by_s3_lv_011_review_required",
+  "status": "blocked_by_s3_lv_011_review_approved",
   "milestone": {
     "number": 39,
     "title": "S3 Live 产品化",
@@ -165,7 +165,7 @@
     "delivery_evidence_status": "DONE",
     "closeout_task_status": "DONE_ON_MERGE",
     "closeout_evidence_status": "DONE_ON_MERGE",
-    "review_gate": "REVIEW_REQUIRED",
+    "review_gate": "REVIEW_APPROVED",
     "roadmap_token": "S3-LV-010 Live 风险预算与仓位 sizing 准入（DONE）",
     "project_token": "S3 正式退出条件尚未满足"
   },
