@@ -4389,6 +4389,89 @@ async fn mvp_shutdown_stops_owned_demo_before_manifest_validation() {
 
 #[cfg(unix)]
 #[tokio::test]
+async fn mvp_shutdown_stops_but_never_anchors_process_generation_drift() {
+    for drift in ["rollback", "skipped", "manifest"] {
+        let fixture = Fixture::new(&format!("demo-shutdown-generation-{drift}"));
+        let node = write_demo_fixture_node(&fixture.root);
+        let router = dashboard_router(fixture.registry_path.clone(), node);
+        let (status, created) = router_json_body(
+            &router,
+            Method::POST,
+            "/api/product/v1/demo-runs",
+            &valid_demo_request(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{created}");
+        let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+        let (status, started) = router_json_body(
+            &router,
+            Method::POST,
+            &format!("/api/product/v1/demo-runs/{run_id}/actions"),
+            &json!({
+                "run_id": run_id,
+                "action": "start",
+                "user_confirmed": true
+            }),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK, "{started}");
+
+        let store = SupervisorRegistryStore::new(&fixture.registry_path);
+        let mut registry = store.load().expect("started registry should be readable");
+        let record = registry.nodes.get_mut("mvp-node-001").unwrap();
+        let ownership = record.run_ownership[&run_id].clone();
+        match drift {
+            "rollback" => {
+                record.process_generation = ownership.process_generation_at_claim;
+            }
+            "skipped" => {
+                record.process_generation = ownership.process_generation_at_claim + 2;
+            }
+            "manifest" => {
+                let manifest_sha256 = rewrite_demo_manifest(&fixture, &run_id, |manifest| {
+                    manifest["config"]["demo_supervisor_process_generation_baseline"] =
+                        json!(ownership.process_generation_at_claim + 1);
+                });
+                record
+                    .run_ownership
+                    .get_mut(&run_id)
+                    .unwrap()
+                    .manifest_sha256 = manifest_sha256;
+            }
+            _ => unreachable!(),
+        }
+        store.save(&registry).expect("drifted registry should save");
+
+        let error = shutdown_active_demo_run(&fixture.registry_path, Duration::from_secs(3))
+            .expect_err("generation drift must block terminal publication after shutdown");
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("process generation") || message.contains("immutable manifest"),
+            "{drift}: {message}"
+        );
+
+        let record = store
+            .refresh_process_state("mvp-node-001")
+            .expect("Supervisor state should remain readable");
+        assert_eq!(record.process.state, SupervisorProcessState::Stopped);
+        assert!(
+            record.run_ownership[&run_id].terminal.is_none(),
+            "{drift}: generation drift must not receive a terminal anchor"
+        );
+        assert!(
+            !fixture
+                .root
+                .join("artifacts/demo-runs")
+                .join(&run_id)
+                .join("terminal-state.json")
+                .exists(),
+            "{drift}: generation drift must not publish terminal-state.json"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
 async fn concurrent_demo_starts_are_serialized_and_spawn_one_process() {
     let fixture = Fixture::new("demo-concurrent-start");
     let node = write_demo_fixture_node(&fixture.root);

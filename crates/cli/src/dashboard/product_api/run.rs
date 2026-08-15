@@ -3655,9 +3655,26 @@ pub(crate) fn shutdown_active_demo_run(
         || manifest.config.run_id != ownership.run_id
         || manifest.config.environment != RunEnvironment::Sandbox
         || manifest.config.demo_supervisor_node_id.as_deref() != Some(node_id.as_str())
+        || manifest.config.demo_supervisor_process_generation_baseline
+            != Some(ownership.process_generation_at_claim)
         || sha256_ref(&manifest_raw) != ownership.manifest_sha256
     {
         anyhow::bail!("active Demo ownership does not match its immutable manifest");
+    }
+    let stopped_ownership = stopped
+        .run_ownership
+        .get(&ownership.run_id)
+        .ok_or_else(|| anyhow::anyhow!("active Demo ownership disappeared during MVP shutdown"))?;
+    if stopped_ownership != &ownership
+        || demo_process_generation_delta(&stopped, stopped_ownership).map_err(|error| {
+            anyhow::anyhow!(
+                "active Demo process generation is invalid during MVP shutdown: {:?}:{}",
+                error.kind,
+                error.field
+            )
+        })? != 1
+    {
+        anyhow::bail!("active Demo process generation is not owned by the current Run");
     }
     validate_run_config_capabilities(&manifest.config).map_err(|error| {
         anyhow::anyhow!(
