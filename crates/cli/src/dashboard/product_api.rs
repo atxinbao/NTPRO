@@ -386,7 +386,8 @@ fn load_product_source(
     let record = &source.runtime_record;
     let workspace = mvp_workspace_root(&state.registry_path)?;
     let identity_path = workspace.join(MVP_IDENTITY_CONTRACT_PATH);
-    let enforce_runtime_freshness = !runtime_snapshot_is_stationary(record, now_unix_ms)?;
+    let enforce_runtime_freshness =
+        !runtime_snapshot_is_stationary(state, record, &source.identity, now_unix_ms)?;
     let freshness_max_age_ms = validate_product_status_contract(
         &workspace,
         &identity_path,
@@ -684,7 +685,9 @@ fn refresh_product_status_contract(
 }
 
 fn runtime_snapshot_is_stationary(
+    state: &DashboardServerState,
     record: &SupervisorNodeRecord,
+    identity: &MvpIdentityContract,
     now_unix_ms: u64,
 ) -> Result<bool, ProductError> {
     let prepared_without_runtime_artifacts = record.process.state
@@ -698,7 +701,7 @@ fn runtime_snapshot_is_stationary(
         return Ok(false);
     }
 
-    let mut terminal_found = false;
+    let mut active_ownership = None;
     for (run_id, ownership) in &record.run_ownership {
         if ownership.run_id != *run_id
             || ownership.claimed_at_unix_ms == 0
@@ -725,10 +728,26 @@ fn runtime_snapshot_is_stationary(
                 "demo_run_terminal_state_sha256",
                 &terminal.terminal_state_sha256,
             )?;
-            terminal_found = true;
+        } else if active_ownership.replace(ownership).is_some() {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "demo_run_ownership",
+            ));
         }
     }
-    Ok(prepared_without_runtime_artifacts || terminal_found)
+    let pending_unstarted_ownership = if let Some(ownership) = active_ownership {
+        let process_generation_delta = run::demo_process_generation_delta(record, ownership)?;
+        if record.process.pid.value.is_some() || process_generation_delta == 1 {
+            false
+        } else {
+            run::validate_unstarted_demo_ownership(state, identity, record, ownership)?;
+            true
+        }
+    } else {
+        false
+    };
+    Ok((prepared_without_runtime_artifacts || stopped_runtime)
+        && (active_ownership.is_none() || pending_unstarted_ownership))
 }
 
 fn validate_product_identity(

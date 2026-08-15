@@ -90,6 +90,8 @@ pub struct SupervisorNodeRecord {
     pub stderr_log_path: PathBuf,
     pub events_log_path: PathBuf,
     pub process: SupervisorProcessRecord,
+    #[serde(default)]
+    pub process_generation: u64,
     pub last_known_status: NodeStatus,
     pub status_artifact: RegistryArtifactState,
     #[serde(default)]
@@ -104,6 +106,8 @@ pub struct SupervisorRunOwnership {
     pub run_id: String,
     pub manifest_sha256: String,
     pub claimed_at_unix_ms: u64,
+    #[serde(default)]
+    pub process_generation_at_claim: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub terminal: Option<SupervisorRunTerminalAnchor>,
 }
@@ -1294,6 +1298,11 @@ impl SupervisorRegistryStore {
             "Run '{}' already owns node '{node_id}'",
             ownership.run_id
         );
+        ensure!(
+            ownership.process_generation_at_claim == record.process_generation,
+            "Run '{}' process generation does not match node '{node_id}'",
+            ownership.run_id
+        );
         record
             .run_ownership
             .insert(ownership.run_id.clone(), ownership);
@@ -1813,12 +1822,18 @@ impl SupervisorRegistryStore {
             if let Some(parent_pid) = request.node_parent_pid {
                 command.arg("--parent-pid").arg(parent_pid.to_string());
             }
+            let next_process_generation = record
+                .process_generation
+                .checked_add(1)
+                .context("node process generation overflow")?;
             let child = command.spawn().with_context(|| {
                 format!(
                     "failed to spawn ntpro-node '{}'",
                     request.ntpro_node_bin.display()
                 )
             })?;
+
+            record.process_generation = next_process_generation;
 
             record.process = SupervisorProcessRecord {
                 pid: SnapshotValue::available(child.id()),
@@ -2474,6 +2489,7 @@ impl SupervisorNodeRecord {
             metrics_artifact: RegistryArtifactState::Missing,
             run_ownership: BTreeMap::new(),
             process: SupervisorProcessRecord::default(),
+            process_generation: 0,
             updated_at: SnapshotValue::available(now_millis()),
             node_id,
             config_path,
@@ -4155,6 +4171,7 @@ done
                     run_id: "live-run-a".to_string(),
                     manifest_sha256: manifest_sha256.clone(),
                     claimed_at_unix_ms: 1,
+                    process_generation_at_claim: 0,
                     terminal: None,
                 },
             )

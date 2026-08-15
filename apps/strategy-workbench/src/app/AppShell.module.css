@@ -311,6 +311,7 @@
 
 .workarea {
   display: grid;
+  min-height: 0;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr) 0;
   overflow: clip;
@@ -322,9 +323,11 @@
 }
 
 .canvas {
+  min-height: 0;
   min-width: 0;
   overflow: auto;
   padding: 14px;
+  padding-bottom: 64px;
 }
 
 .inspector {
@@ -520,6 +523,16 @@
 
 .statusbar .statusWarning::before {
   background: var(--amber);
+}
+
+@media (min-width: 761px) and (max-height: 800px) {
+  .stage {
+    grid-template-rows: 54px 42px minmax(390px, 1fr) 144px 27px;
+  }
+
+  .dockContent {
+    height: 110px;
+  }
 }
 
 @media (max-width: 1050px) {

@@ -3626,6 +3626,7 @@ where
                         run_id: path_run_id.to_string(),
                         manifest_sha256: manifest_sha256.clone(),
                         claimed_at_unix_ms: starting_at,
+                        process_generation_at_claim: 0,
                         terminal: None,
                     },
                 )
@@ -7666,6 +7667,12 @@ mod tests {
 
     static LIVE_RUNTIME_PROCESS_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    fn lock_live_runtime_process_tests() -> std::sync::MutexGuard<'static, ()> {
+        LIVE_RUNTIME_PROCESS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+
     fn execution_control_snapshot(action: &str, status: &str) -> LiveExecutionControlSnapshot {
         LiveExecutionControlSnapshot {
             schema_version: LIVE_EXECUTION_CONTROL_RESULT_SCHEMA_VERSION.to_string(),
@@ -9433,6 +9440,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         run_id: &str,
         manifest_sha256: &str,
     ) {
+        let process_generation = store.load().unwrap().nodes[run_id].process_generation;
         store
             .claim_run_ownership(
                 run_id,
@@ -9440,6 +9448,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     run_id: run_id.to_string(),
                     manifest_sha256: manifest_sha256.to_string(),
                     claimed_at_unix_ms: unix_time_ms(),
+                    process_generation_at_claim: process_generation,
                     terminal: None,
                 },
             )
@@ -9534,7 +9543,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn starting_runtime_interruption_after_process_start_stops_and_anchors_failure() {
-        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let _test_lock = lock_live_runtime_process_tests();
         let mut fixture = LiveRunFixture::new("starting-after-process-start");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000008");
@@ -9567,7 +9576,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn live_market_data_runtime_starts_and_stops_without_execution_capability() {
-        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let _test_lock = lock_live_runtime_process_tests();
         let mut fixture = LiveRunFixture::new("market-data-runtime");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000002");
@@ -9649,7 +9658,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn stopping_runtime_interruption_is_stopped_anchored_and_released() {
-        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let _test_lock = lock_live_runtime_process_tests();
         let mut fixture = LiveRunFixture::new("stopping-interruption");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000009");
@@ -9703,7 +9712,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn stopped_runtime_interruption_retries_terminal_anchor_and_pointer_cleanup() {
-        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let _test_lock = lock_live_runtime_process_tests();
         let mut fixture = LiveRunFixture::new("stopped-interruption");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000010");
@@ -9775,7 +9784,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn live_market_data_runtime_external_exit_is_failed_anchored_and_released() {
-        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let _test_lock = lock_live_runtime_process_tests();
         let mut fixture = LiveRunFixture::new("market-data-runtime-external-exit");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000004");
@@ -9797,19 +9806,18 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         );
 
         let store = SupervisorRegistryStore::new(&fixture.state.registry_path);
-        let manifest_sha256 = store.load().unwrap().nodes[&run_id].run_ownership[&run_id]
-            .manifest_sha256
-            .clone();
-        store
-            .stop_node_process_for_run(
-                &StopNodeRequest {
-                    node_id: run_id.clone(),
-                    stop_timeout: Duration::from_secs(5),
-                },
-                &run_id,
-                &manifest_sha256,
-            )
-            .unwrap();
+        let pid = store.load().unwrap().nodes[&run_id]
+            .process
+            .pid
+            .value
+            .expect("running fixture should publish its process ID");
+        if crate::process::process_is_alive(pid) {
+            crate::process::send_kill(pid).unwrap();
+        }
+        assert!(crate::process::wait_for_process_exit(
+            pid,
+            Duration::from_secs(10)
+        ));
         let _workspace_lock = acquire_live_run_mutation_lock(&fixture.state).unwrap();
         reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
         reconcile_exited_live_market_data_runtime(&fixture.state, &run_id).unwrap();
@@ -9834,7 +9842,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
     #[cfg(unix)]
     #[test]
     fn failed_live_runtime_retries_terminal_anchor_and_pointer_cleanup() {
-        let _test_lock = LIVE_RUNTIME_PROCESS_TEST_LOCK.lock().unwrap();
+        let _test_lock = lock_live_runtime_process_tests();
         let mut fixture = LiveRunFixture::new("market-data-runtime-failed-retry");
         let ready =
             create_preflight_ready_candidate(&fixture, "product-0000000000000001-0000000000000005");

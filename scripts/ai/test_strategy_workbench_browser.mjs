@@ -1128,12 +1128,43 @@ try {
   });
   await page.getByRole("link", { name: "Backtest", exact: true }).click();
   await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const createBacktestButton = page.getByRole("button", {
+    name: "创建并运行",
+  });
+  await createBacktestButton.scrollIntoViewIfNeeded();
+  const backtestActionLayout = await page.evaluate(() => {
+    const button = [...document.querySelectorAll("button")].find(
+      (candidate) => candidate.textContent?.trim() === "创建并运行",
+    );
+    const dock = document.querySelector('section[aria-label="策略运行活动区"]');
+    const buttonRect = button?.getBoundingClientRect();
+    const dockRect = dock?.getBoundingClientRect();
+    return {
+      buttonBottom: buttonRect?.bottom,
+      buttonTop: buttonRect?.top,
+      dockTop: dockRect?.top,
+      viewportHeight: window.innerHeight,
+    };
+  });
+  if (
+    backtestActionLayout.buttonTop === undefined ||
+    backtestActionLayout.buttonBottom === undefined ||
+    backtestActionLayout.dockTop === undefined ||
+    backtestActionLayout.buttonTop < 0 ||
+    backtestActionLayout.buttonBottom > backtestActionLayout.dockTop
+  ) {
+    throw new Error(
+      `1280x720 Backtest action is obscured: ${JSON.stringify(backtestActionLayout)}`,
+    );
+  }
   await page.screenshot({
-    path: path.join(evidenceDir, "strategy-workbench-backtest-create-1440.png"),
+    path: path.join(evidenceDir, "strategy-workbench-backtest-create-1280.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "创建并运行" }).click();
+  await createBacktestButton.click();
   await page.waitForURL(/\/strategy-workbench\/runs\/backtest-/);
+  await page.setViewportSize({ width: 1440, height: 1000 });
   const browserCreatedRunId = page.url().split("/").at(-1);
   if (!browserCreatedRunId?.startsWith("backtest-")) {
     throw new Error(`browser-created Run ID drifted: ${page.url()}`);
@@ -1415,7 +1446,7 @@ if (failure) {
 }
 writeEvidence({
   status: "pass",
-  viewports: ["1440x1000", "390x844"],
+  viewports: ["1440x1000", "1280x720", "390x844"],
   production_bundle: 1,
   hashed_asset: 1,
   spa_deep_refresh: 1,

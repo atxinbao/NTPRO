@@ -222,6 +222,8 @@ struct ProductRunConfig {
     demo_identity_contract_id: Option<String>,
     #[serde(default)]
     demo_supervisor_record_baseline_unix_ms: Option<u64>,
+    #[serde(default)]
+    demo_supervisor_process_generation_baseline: Option<u64>,
     #[serde(skip)]
     demo_process_state: Option<SupervisorProcessState>,
     #[serde(skip)]
@@ -1527,8 +1529,8 @@ fn create_demo_run(
         .lifecycle_action_lock
         .lock()
         .map_err(|_| product_error(ProductErrorKind::DemoConflict, "demo_action_lock"))?;
+    finalize_demo_run_ownerships(state, unix_time_ms())?;
     let now = unix_time_ms();
-    finalize_demo_run_ownerships(state, now)?;
     let source = load_product_source(state, now)?;
     let version = strategy_version::load_product_strategy_version(&source, now)?;
     validate_demo_creation_request(&request, &source, &version)?;
@@ -1625,6 +1627,7 @@ fn create_demo_run(
                 )
             })?,
         ),
+        demo_supervisor_process_generation_baseline: Some(record.process_generation),
         demo_process_state: Some(record.process.state),
         demo_lifecycle_state: Some(record.last_known_status.lifecycle_state),
     };
@@ -1660,6 +1663,7 @@ fn create_demo_run(
                 run_id: run_id.clone(),
                 manifest_sha256,
                 claimed_at_unix_ms: now,
+                process_generation_at_claim: record.process_generation,
                 terminal: None,
             },
         )
@@ -3651,9 +3655,26 @@ pub(crate) fn shutdown_active_demo_run(
         || manifest.config.run_id != ownership.run_id
         || manifest.config.environment != RunEnvironment::Sandbox
         || manifest.config.demo_supervisor_node_id.as_deref() != Some(node_id.as_str())
+        || manifest.config.demo_supervisor_process_generation_baseline
+            != Some(ownership.process_generation_at_claim)
         || sha256_ref(&manifest_raw) != ownership.manifest_sha256
     {
         anyhow::bail!("active Demo ownership does not match its immutable manifest");
+    }
+    let stopped_ownership = stopped
+        .run_ownership
+        .get(&ownership.run_id)
+        .ok_or_else(|| anyhow::anyhow!("active Demo ownership disappeared during MVP shutdown"))?;
+    if stopped_ownership != &ownership
+        || demo_process_generation_delta(&stopped, stopped_ownership).map_err(|error| {
+            anyhow::anyhow!(
+                "active Demo process generation is invalid during MVP shutdown: {:?}:{}",
+                error.kind,
+                error.field
+            )
+        })? != 1
+    {
+        anyhow::bail!("active Demo process generation is not owned by the current Run");
     }
     validate_run_config_capabilities(&manifest.config).map_err(|error| {
         anyhow::anyhow!(
@@ -3936,6 +3957,7 @@ fn create_backtest_run(
                 demo_strategy_instance_id: None,
                 demo_identity_contract_id: None,
                 demo_supervisor_record_baseline_unix_ms: None,
+                demo_supervisor_process_generation_baseline: None,
                 demo_process_state: None,
                 demo_lifecycle_state: None,
             };
@@ -4008,6 +4030,7 @@ fn create_backtest_run(
                 demo_strategy_instance_id: None,
                 demo_identity_contract_id: None,
                 demo_supervisor_record_baseline_unix_ms: None,
+                demo_supervisor_process_generation_baseline: None,
                 demo_process_state: None,
                 demo_lifecycle_state: None,
             };
@@ -6372,6 +6395,10 @@ fn load_dynamic_demo_run_configs(
                 .config
                 .demo_supervisor_record_baseline_unix_ms
                 .is_none()
+            || manifest
+                .config
+                .demo_supervisor_process_generation_baseline
+                .is_none()
         {
             return Err(product_error(
                 ProductErrorKind::SourceInvalid,
@@ -6577,6 +6604,19 @@ fn project_demo_lifecycle(
     config.demo_lifecycle_state = Some(record.last_known_status.lifecycle_state);
     config.updated_at_unix_ms = now_unix_ms.max(config.created_at_unix_ms);
     let observed_started = snapshot_timestamp(&record.last_known_status.started_at);
+    let ownership = record
+        .run_ownership
+        .get(&config.run_id)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_run_ownership"))?;
+    let process_generation_delta = demo_process_generation_delta(record, ownership)?;
+    if config.demo_supervisor_process_generation_baseline
+        != Some(ownership.process_generation_at_claim)
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_process_generation",
+        ));
+    }
     let record_updated_at = snapshot_timestamp(&record.updated_at).ok_or_else(|| {
         product_error(
             ProductErrorKind::SourceInvalid,
@@ -6606,6 +6646,12 @@ fn project_demo_lifecycle(
         record.last_known_status.lifecycle_state,
     ) {
         (SupervisorProcessState::NotStarted, LifecycleStatus::Stopped) => {
+            if process_generation_delta != 0 {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_process_generation",
+                ));
+            }
             config.lifecycle = RunLifecycle::Created;
             config.started_at_unix_ms = None;
             config.completed_at_unix_ms = None;
@@ -6615,12 +6661,14 @@ fn project_demo_lifecycle(
             SupervisorProcessState::Running,
             LifecycleStatus::Starting | LifecycleStatus::Resuming,
         ) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Queued;
             config.started_at_unix_ms = None;
             config.completed_at_unix_ms = None;
             config.risk_status = RunRiskStatus::Pending;
         }
         (SupervisorProcessState::Running, LifecycleStatus::Running) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Running;
             config.started_at_unix_ms = Some(started.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
@@ -6629,6 +6677,7 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Running, LifecycleStatus::Paused | LifecycleStatus::Pausing) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Paused;
             config.started_at_unix_ms = Some(started.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
@@ -6637,6 +6686,7 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Running, LifecycleStatus::Stopping) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Stopping;
             config.started_at_unix_ms = Some(started.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
@@ -6645,15 +6695,14 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Stopped, LifecycleStatus::Stopped) => {
-            if observed_started.is_none()
-                && observed_stopped.is_none_or(|value| value <= config.created_at_unix_ms)
-            {
+            if process_generation_delta == 0 {
                 config.lifecycle = RunLifecycle::Created;
                 config.started_at_unix_ms = None;
                 config.completed_at_unix_ms = None;
                 config.risk_status = RunRiskStatus::Pending;
                 return Ok(());
             }
+            require_started_process_generation(process_generation_delta)?;
             let completed = stopped.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_stopped_at")
             })?;
@@ -6664,6 +6713,7 @@ fn project_demo_lifecycle(
         }
         (SupervisorProcessState::Stale | SupervisorProcessState::Unknown, _)
         | (_, LifecycleStatus::Error | LifecycleStatus::Unknown) => {
+            require_started_process_generation(process_generation_delta)?;
             if record_updated_at <= record_baseline {
                 return Err(product_error(
                     ProductErrorKind::SourceInvalid,
@@ -6687,6 +6737,17 @@ fn project_demo_lifecycle(
         }
     }
     Ok(())
+}
+
+fn require_started_process_generation(process_generation_delta: u64) -> Result<(), ProductError> {
+    if process_generation_delta == 1 {
+        Ok(())
+    } else {
+        Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_process_generation",
+        ))
+    }
 }
 
 fn snapshot_timestamp(value: &nautilus_live::status::SnapshotValue<String>) -> Option<u64> {
@@ -6751,6 +6812,94 @@ fn canonical_demo_artifact_root(
         ));
     }
     Ok(root)
+}
+
+pub(super) fn validate_unstarted_demo_ownership(
+    state: &DashboardServerState,
+    identity: &MvpIdentityContract,
+    record: &SupervisorNodeRecord,
+    ownership: &SupervisorRunOwnership,
+) -> Result<(), ProductError> {
+    let invalid = || product_error(ProductErrorKind::SourceInvalid, "demo_run_ownership");
+    let run_id = ownership.run_id.as_str();
+    let run_root = canonical_demo_artifact_root(state, false)
+        .map_err(|_| invalid())?
+        .join(run_id);
+    let manifest_raw =
+        read_backtest_result_bytes(&run_root.join("run-manifest.json")).map_err(|_| invalid())?;
+    let request_raw =
+        read_backtest_result_bytes(&run_root.join("request.json")).map_err(|_| invalid())?;
+    let version_raw = read_backtest_result_bytes(&run_root.join("strategy-version.json"))
+        .map_err(|_| invalid())?;
+    let manifest: DynamicDemoRunManifest =
+        strict_json(&manifest_raw, "demo_run_ownership").map_err(|_| invalid())?;
+    let request: CreateDemoRunRequest =
+        strict_json(&request_raw, "demo_run_ownership").map_err(|_| invalid())?;
+    let config = &manifest.config;
+    let baseline = config.demo_supervisor_record_baseline_unix_ms;
+    let process_generation_baseline = config.demo_supervisor_process_generation_baseline;
+    if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
+        || sha256_ref(&manifest_raw) != ownership.manifest_sha256
+        || manifest.request_sha256 != sha256_ref(&request_raw)
+        || manifest.strategy_version_snapshot_sha256 != sha256_ref(&version_raw)
+        || config.run_id != run_id
+        || config.strategy_id != identity.identities.strategy_id
+        || config.strategy_version_id != request.strategy_version_id
+        || config.environment != RunEnvironment::Sandbox
+        || config.lifecycle != RunLifecycle::Created
+        || config.result_status != RunResultStatus::Pending
+        || config.risk_status != RunRiskStatus::Pending
+        || config.config_ref != format!("artifact://demo-runs/{run_id}/request.json")
+        || config.adapter_ref != "adapter://sandbox/fixture-stream"
+        || config.risk_ref != format!("artifact://demo-runs/{run_id}/run-manifest.json#risk")
+        || config.strategy_version_snapshot_sha256.as_deref()
+            != Some(manifest.strategy_version_snapshot_sha256.as_str())
+        || config.demo_supervisor_node_id.as_deref() != Some(record.node_id.as_str())
+        || record.node_id != identity.identities.node_id
+        || config.demo_strategy_instance_id.as_deref()
+            != Some(identity.identities.strategy_instance_id.as_str())
+        || config.demo_identity_contract_id.as_deref() != Some(identity.contract_id.as_str())
+        || baseline.is_none_or(|value| value == 0 || value > ownership.claimed_at_unix_ms)
+        || process_generation_baseline != Some(ownership.process_generation_at_claim)
+        || record.process_generation != ownership.process_generation_at_claim
+        || config.created_at_unix_ms != ownership.claimed_at_unix_ms
+        || config.updated_at_unix_ms != ownership.claimed_at_unix_ms
+        || config.started_at_unix_ms.is_some()
+        || config.completed_at_unix_ms.is_some()
+        || config.result_ref.is_some()
+        || config.error_code.is_some()
+        || config.error_summary.is_some()
+        || request.strategy_id != config.strategy_id
+        || request.environment != RunEnvironment::Sandbox
+        || request.supervisor_node_id != record.node_id
+        || request.account_ref != config.account_ref
+        || request.venue_ref != config.venue_ref
+        || !request.user_confirmed
+    {
+        return Err(invalid());
+    }
+    validate_run_config_capabilities(config).map_err(|_| invalid())?;
+    match fs::symlink_metadata(run_root.join("terminal-state.json")) {
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        _ => Err(invalid()),
+    }
+}
+
+pub(super) fn demo_process_generation_delta(
+    record: &SupervisorNodeRecord,
+    ownership: &SupervisorRunOwnership,
+) -> Result<u64, ProductError> {
+    let delta = record
+        .process_generation
+        .checked_sub(ownership.process_generation_at_claim)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_process_generation"))?;
+    if delta > 1 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_process_generation",
+        ));
+    }
+    Ok(delta)
 }
 
 fn load_dynamic_run_configs(
@@ -7136,6 +7285,7 @@ fn validate_run_references(
                     && config.demo_identity_contract_id.as_deref()
                         == Some(source.identity.contract_id.as_str())
                     && config.demo_supervisor_record_baseline_unix_ms.is_some()
+                    && config.demo_supervisor_process_generation_baseline.is_some()
                     && config.strategy_version_snapshot_sha256.is_some()
                     && config.demo_process_state.is_some()
                     && config.demo_lifecycle_state.is_some()
@@ -7145,6 +7295,7 @@ fn validate_run_references(
                     && config.demo_strategy_instance_id.is_none()
                     && config.demo_identity_contract_id.is_none()
                     && config.demo_supervisor_record_baseline_unix_ms.is_none()
+                    && config.demo_supervisor_process_generation_baseline.is_none()
                     && config.demo_process_state.is_none()
                     && config.demo_lifecycle_state.is_none()
             };
@@ -7167,6 +7318,7 @@ fn validate_run_references(
                 && config.demo_strategy_instance_id.is_none()
                 && config.demo_identity_contract_id.is_none()
                 && config.demo_supervisor_record_baseline_unix_ms.is_none()
+                && config.demo_supervisor_process_generation_baseline.is_none()
                 && config.demo_process_state.is_none()
                 && config.demo_lifecycle_state.is_none()
                 && config.data_ref == "market://live/disabled"

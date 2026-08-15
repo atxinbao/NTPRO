@@ -782,7 +782,11 @@
 }
 
 .backtestForm > footer {
+  position: sticky;
+  z-index: 2;
+  bottom: 12px;
   border-top: 1px solid var(--line-soft);
+  background: var(--panel);
 }
 
 .backtestForm > footer div {
