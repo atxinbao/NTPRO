@@ -13,6 +13,7 @@ import { BacktestComparePage } from "../pages/BacktestComparePage";
 import { DemoPage } from "../pages/DemoPage";
 import { LivePage } from "../pages/LivePage";
 import { RunDetailPage } from "../pages/RunDetailPage";
+import { StrategyPage } from "../pages/StrategyPage";
 import { SystemStatusPage } from "../pages/SystemStatusPage";
 
 const rootRoute = createRootRoute({
@@ -36,6 +37,12 @@ const overviewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/overview",
   component: OverviewPage,
+});
+
+const strategyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/strategies",
+  component: StrategyPage,
 });
 
 const backtestRoute = createRoute({
@@ -77,6 +84,7 @@ const runDetailRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   overviewRoute,
+  strategyRoute,
   backtestRoute,
   backtestCompareRoute,
   demoRoute,

@@ -699,6 +699,7 @@ try {
   }
   for (const [method, url, expected, expectedAllow] of [
     ["GET", "/strategy-workbench/system-status", 200, null],
+    ["GET", "/strategy-workbench/strategies", 200, null],
     ["POST", "/strategy-workbench/overview", 405, null],
     ["GET", "/strategy-workbench/assets/missing.js", 404, null],
     ["GET", "/api/product/v1/unknown", 404, null],
@@ -890,6 +891,30 @@ try {
       "Live admission route is not available from the product shell",
     );
   }
+  const strategyLink = page.getByRole("link", {
+    name: "策略",
+    exact: true,
+  });
+  if (
+    (await strategyLink.getAttribute("href")) !==
+    "/strategy-workbench/strategies"
+  ) {
+    throw new Error("strategy route is not available from the product shell");
+  }
+  await strategyLink.click();
+  await page.getByRole("heading", { name: "策略管理" }).waitFor();
+  await page.getByRole("region", { name: "当前策略身份" }).waitFor();
+  await page.getByRole("region", { name: "默认不可变版本" }).waitFor();
+  await page.getByRole("region", { name: "策略运行模式摘要" }).waitFor();
+  if (!page.url().endsWith("/strategy-workbench/strategies")) {
+    throw new Error(`strategy navigation URL drifted: ${page.url()}`);
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-strategies-1440.png"),
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: "总览", exact: true }).click();
+  await page.getByText("产品资源已验证").waitFor();
   if (await page.getByRole("button", { name: /下单|撤单|改单|平仓/ }).count()) {
     throw new Error("trading control appeared in strategy shell");
   }
@@ -1248,6 +1273,27 @@ try {
     path: path.join(evidenceDir, "strategy-workbench-390.png"),
     fullPage: true,
   });
+  await page.goto(`${baseUrl}/strategy-workbench/strategies`, {
+    waitUntil: "networkidle",
+  });
+  await page.getByRole("heading", { name: "策略管理" }).waitFor();
+  const mobileStrategyLayout = await page.evaluate(() => ({
+    scrollX: window.scrollX,
+    documentWidth: document.documentElement.scrollWidth,
+    viewportWidth: document.documentElement.clientWidth,
+  }));
+  if (
+    mobileStrategyLayout.documentWidth > mobileStrategyLayout.viewportWidth ||
+    mobileStrategyLayout.scrollX !== 0
+  ) {
+    throw new Error(
+      `390 strategy layout drift: ${JSON.stringify(mobileStrategyLayout)}`,
+    );
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-strategies-390.png"),
+    fullPage: true,
+  });
   await page.goto(`${baseUrl}/strategy-workbench/runs/${backtestRunId}`, {
     waitUntil: "networkidle",
   });
@@ -1438,6 +1484,8 @@ writeEvidence({
   product_strategy_detail: 1,
   product_strategy_error: 1,
   product_strategy_access_control: 1,
+  product_strategy_navigation_page: 1,
+  product_strategy_navigation_mobile: 1,
   product_run_list: 1,
   product_run_detail: 1,
   product_run_metrics: 1,

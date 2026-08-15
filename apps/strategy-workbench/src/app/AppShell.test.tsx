@@ -1125,6 +1125,36 @@ describe("strategy workbench product slice", () => {
     expect(await screen.findByText("当前没有已注册策略")).toBeInTheDocument();
   });
 
+  it("opens the independent strategy page from the left navigation", async () => {
+    renderWorkbench("/overview");
+    expect(
+      await screen.findByRole("heading", { name: "BTC/USDT EMA Cross" }),
+    ).toBeInTheDocument();
+
+    const strategyLink = screen.getByRole("link", { name: "策略" });
+    expect(strategyLink).toHaveAttribute(
+      "href",
+      "/strategy-workbench/strategies",
+    );
+    await userEvent.click(strategyLink);
+
+    expect(
+      await screen.findByRole("heading", { name: "策略管理" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "当前策略身份" }),
+    ).toHaveTextContent("ema-cross");
+    expect(
+      screen.getByRole("region", { name: "默认不可变版本" }),
+    ).toHaveTextContent("ema-cross@v1");
+    expect(
+      screen.getByRole("region", { name: "策略固定参数" }),
+    ).toHaveTextContent("fast_period3");
+    expect(
+      screen.getByRole("region", { name: "策略运行模式摘要" }),
+    ).toHaveTextContent("Backtest");
+  });
+
   it("keeps the strategy catalog visible when runtime data is stale", async () => {
     const stale = structuredClone(errorFixture);
     stale.error.code = "product_source_stale";
