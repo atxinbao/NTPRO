@@ -1267,6 +1267,7 @@ fn terminal_demo_snapshot_remains_readable_without_weakening_boundaries() {
             run_id: "demo-terminal-001".to_string(),
             manifest_sha256: format!("sha256:{}", "a".repeat(64)),
             claimed_at_unix_ms: terminal_at.saturating_sub(1),
+            process_generation_at_claim: record.process_generation,
             terminal: Some(SupervisorRunTerminalAnchor {
                 lifecycle: "stopped".to_string(),
                 terminal_state_sha256: format!("sha256:{}", "b".repeat(64)),
@@ -1353,7 +1354,7 @@ async fn stopped_node_without_run_ownership_can_create_demo_after_freshness_wind
 }
 
 #[tokio::test]
-async fn stopped_node_with_started_run_ownership_is_not_stationary() {
+async fn stopped_node_uses_process_generation_instead_of_ambiguous_claim_time() {
     let fixture = Fixture::new("stopped-active-ownership");
     create_demo_fixture_run(&fixture).await;
     let now = unix_time_ms();
@@ -1363,28 +1364,30 @@ async fn stopped_node_with_started_run_ownership_is_not_stationary() {
         .nodes
         .get_mut("mvp-node-001")
         .expect("fixture node should exist");
-    let claimed_at = record
+    let ownership = record
         .run_ownership
         .values()
         .find(|ownership| ownership.terminal.is_none())
         .expect("created Demo ownership should exist")
-        .claimed_at_unix_ms;
+        .clone();
+    let claimed_at = ownership.claimed_at_unix_ms;
     record.process.state = SupervisorProcessState::Stopped;
     record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
     record.last_known_status.started_at = SnapshotValue::available(claimed_at.to_string());
+    record.last_known_status.stopped_at = SnapshotValue::available(claimed_at.to_string());
+    record.process.updated_at = SnapshotValue::available(claimed_at.to_string());
 
     assert!(
-        !runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
+        runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
             .expect("ownership should validate"),
-        "a start attempt without a registered PID must remain nonstationary"
+        "same-millisecond history without a new process generation must remain unstarted"
     );
 
-    record.last_known_status.started_at = SnapshotValue::unknown();
-    record.process.updated_at = SnapshotValue::available(claimed_at.to_string());
+    record.process_generation = ownership.process_generation_at_claim + 1;
     assert!(
         !runtime_snapshot_is_stationary(&fixture.state(), record, &fixture.identity, now)
-            .expect("process transition should validate"),
-        "a process transition without a registered PID must remain nonstationary"
+            .expect("process generation should validate"),
+        "a new process generation without a registered PID must remain nonstationary"
     );
 
     record.process.state = SupervisorProcessState::NotStarted;
@@ -1441,6 +1444,7 @@ fn stopped_node_with_unbound_or_multiple_active_claims_fails_closed() {
                 run_id,
                 manifest_sha256: format!("sha256:{}", &suffix.repeat(64)[..64]),
                 claimed_at_unix_ms: now,
+                process_generation_at_claim: record.process_generation,
                 terminal: None,
             },
         );
@@ -1454,7 +1458,7 @@ fn stopped_node_with_unbound_or_multiple_active_claims_fails_closed() {
 
 #[tokio::test]
 async fn unstarted_demo_claim_manifest_hash_node_and_environment_drift_fail_closed() {
-    for drift in ["hash", "node", "environment"] {
+    for drift in ["hash", "node", "environment", "process_generation"] {
         let fixture = Fixture::new(&format!("unstarted-claim-{drift}"));
         let run_id = create_demo_fixture_run(&fixture).await;
         let store = SupervisorRegistryStore::new(&fixture.registry_path);
@@ -1467,14 +1471,18 @@ async fn unstarted_demo_claim_manifest_hash_node_and_environment_drift_fail_clos
             .run_ownership
             .get_mut(&run_id)
             .expect("created Demo ownership should exist");
+        let process_generation_at_claim = ownership.process_generation_at_claim;
         if drift == "hash" {
             ownership.manifest_sha256 = format!("sha256:{}", "f".repeat(64));
         } else {
             ownership.manifest_sha256 = rewrite_demo_manifest(&fixture, &run_id, |manifest| {
                 if drift == "node" {
                     manifest["config"]["demo_supervisor_node_id"] = json!("mvp-node-forged");
-                } else {
+                } else if drift == "environment" {
                     manifest["config"]["environment"] = json!("live");
+                } else {
+                    manifest["config"]["demo_supervisor_process_generation_baseline"] =
+                        json!(process_generation_at_claim + 1);
                 }
             });
         }
@@ -3801,7 +3809,14 @@ async fn demo_terminal_publication_is_idempotent_for_get_and_stop_races() {
     assert_eq!(status, StatusCode::OK, "{started}");
 
     let store = SupervisorRegistryStore::new(&fixture.registry_path);
-    let ownership = store.load().unwrap().nodes["mvp-node-001"].run_ownership[&run_id].clone();
+    let started_registry = store.load().unwrap();
+    let started_record = &started_registry.nodes["mvp-node-001"];
+    let ownership = started_record.run_ownership[&run_id].clone();
+    assert_eq!(
+        started_record.process_generation,
+        ownership.process_generation_at_claim + 1,
+        "a real start must advance exactly one process generation"
+    );
     store
         .stop_node_process_for_run(
             &StopNodeRequest {
@@ -3971,8 +3986,6 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
     let old_record = &old_registry.nodes["mvp-node-001"];
     assert!(old_record.last_known_status.started_at.value.is_some());
     assert!(old_record.last_known_status.stopped_at.value.is_some());
-    let old_started_at = old_record.last_known_status.started_at.clone();
-    let old_stopped_at = old_record.last_known_status.stopped_at.clone();
     let old_terminal = old_record.run_ownership[&old_run_id]
         .terminal
         .clone()
@@ -3999,7 +4012,7 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
         record.run_ownership[&old_run_id].terminal.as_ref(),
         Some(&old_terminal)
     );
-    let new_ownership = &record.run_ownership[new_run_id];
+    let new_ownership = record.run_ownership[new_run_id].clone();
     assert!(new_ownership.terminal.is_none());
     let new_manifest: Value = serde_json::from_slice(
         &fs::read(
@@ -4018,14 +4031,25 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
             .is_some_and(|baseline| baseline <= new_ownership.claimed_at_unix_ms),
         "replacement ownership must not predate its Supervisor baseline"
     );
+    assert_eq!(
+        new_manifest["config"]["demo_supervisor_process_generation_baseline"],
+        new_ownership.process_generation_at_claim
+    );
+    assert_eq!(
+        record.process_generation, new_ownership.process_generation_at_claim,
+        "replacement must not inherit a started process generation"
+    );
 
     let mut historical_registry = registry;
     let historical_record = historical_registry
         .nodes
         .get_mut("mvp-node-001")
         .expect("replacement node should remain registered");
-    historical_record.last_known_status.started_at = old_started_at;
-    historical_record.last_known_status.stopped_at = old_stopped_at;
+    let ambiguous_history = new_ownership.claimed_at_unix_ms.to_string();
+    historical_record.process.updated_at = SnapshotValue::available(ambiguous_history.clone());
+    historical_record.last_known_status.started_at =
+        SnapshotValue::available(ambiguous_history.clone());
+    historical_record.last_known_status.stopped_at = SnapshotValue::available(ambiguous_history);
     store
         .save(&historical_registry)
         .expect("historical runtime times should be restored for the regression");
@@ -4038,7 +4062,7 @@ async fn demo_new_ownership_clears_previous_session_times_and_preserves_terminal
             .and_then(|items| items.iter().find(|run| run["run_id"] == new_run_id))
             .map(|run| &run["lifecycle"]),
         Some(&json!("created")),
-        "history from the previous Run must not finalize the replacement"
+        "same-millisecond history from the previous generation must not finalize the replacement"
     );
     let projected_registry = store
         .load()
@@ -4167,6 +4191,7 @@ async fn demo_runtime_exit_is_anchored_failed_and_missing_registry_time_fails_cl
     let mut registry = store.load().unwrap();
     let record = registry.nodes.get_mut("mvp-node-001").unwrap();
     let failed_at = unix_time_ms().saturating_add(1_000);
+    record.process_generation = record.process_generation.saturating_add(1);
     record.process.state = SupervisorProcessState::Stale;
     record.process.pid = SnapshotValue::not_configured();
     record.last_known_status.lifecycle_state = LifecycleStatus::Error;

@@ -3626,6 +3626,7 @@ where
                         run_id: path_run_id.to_string(),
                         manifest_sha256: manifest_sha256.clone(),
                         claimed_at_unix_ms: starting_at,
+                        process_generation_at_claim: 0,
                         terminal: None,
                     },
                 )
@@ -9439,6 +9440,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
         run_id: &str,
         manifest_sha256: &str,
     ) {
+        let process_generation = store.load().unwrap().nodes[run_id].process_generation;
         store
             .claim_run_ownership(
                 run_id,
@@ -9446,6 +9448,7 @@ printf '%s\n' 'phase=stop status=ok real_orders_submitted=false' >> "$output/log
                     run_id: run_id.to_string(),
                     manifest_sha256: manifest_sha256.to_string(),
                     claimed_at_unix_ms: unix_time_ms(),
+                    process_generation_at_claim: process_generation,
                     terminal: None,
                 },
             )

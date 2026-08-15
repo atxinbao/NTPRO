@@ -736,20 +736,8 @@ fn runtime_snapshot_is_stationary(
         }
     }
     let pending_unstarted_ownership = if let Some(ownership) = active_ownership {
-        if record.process.pid.value.is_some()
-            || snapshot_is_at_or_after_claim(
-                &record.process.updated_at,
-                ownership.claimed_at_unix_ms,
-            )
-            || snapshot_is_at_or_after_claim(
-                &record.last_known_status.started_at,
-                ownership.claimed_at_unix_ms,
-            )
-            || snapshot_is_at_or_after_claim(
-                &record.last_known_status.stopped_at,
-                ownership.claimed_at_unix_ms,
-            )
-        {
+        let process_generation_delta = run::demo_process_generation_delta(record, ownership)?;
+        if record.process.pid.value.is_some() || process_generation_delta == 1 {
             false
         } else {
             run::validate_unstarted_demo_ownership(state, identity, record, ownership)?;
@@ -760,13 +748,6 @@ fn runtime_snapshot_is_stationary(
     };
     Ok((prepared_without_runtime_artifacts || stopped_runtime)
         && (active_ownership.is_none() || pending_unstarted_ownership))
-}
-
-fn snapshot_is_at_or_after_claim(value: &SnapshotValue<String>, claimed_at_unix_ms: u64) -> bool {
-    value.value.as_deref().is_some_and(|raw| {
-        raw.parse::<u64>()
-            .map_or(true, |timestamp| timestamp >= claimed_at_unix_ms)
-    })
 }
 
 fn validate_product_identity(

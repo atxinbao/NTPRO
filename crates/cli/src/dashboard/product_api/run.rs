@@ -222,6 +222,8 @@ struct ProductRunConfig {
     demo_identity_contract_id: Option<String>,
     #[serde(default)]
     demo_supervisor_record_baseline_unix_ms: Option<u64>,
+    #[serde(default)]
+    demo_supervisor_process_generation_baseline: Option<u64>,
     #[serde(skip)]
     demo_process_state: Option<SupervisorProcessState>,
     #[serde(skip)]
@@ -1625,6 +1627,7 @@ fn create_demo_run(
                 )
             })?,
         ),
+        demo_supervisor_process_generation_baseline: Some(record.process_generation),
         demo_process_state: Some(record.process.state),
         demo_lifecycle_state: Some(record.last_known_status.lifecycle_state),
     };
@@ -1660,6 +1663,7 @@ fn create_demo_run(
                 run_id: run_id.clone(),
                 manifest_sha256,
                 claimed_at_unix_ms: now,
+                process_generation_at_claim: record.process_generation,
                 terminal: None,
             },
         )
@@ -3936,6 +3940,7 @@ fn create_backtest_run(
                 demo_strategy_instance_id: None,
                 demo_identity_contract_id: None,
                 demo_supervisor_record_baseline_unix_ms: None,
+                demo_supervisor_process_generation_baseline: None,
                 demo_process_state: None,
                 demo_lifecycle_state: None,
             };
@@ -4008,6 +4013,7 @@ fn create_backtest_run(
                 demo_strategy_instance_id: None,
                 demo_identity_contract_id: None,
                 demo_supervisor_record_baseline_unix_ms: None,
+                demo_supervisor_process_generation_baseline: None,
                 demo_process_state: None,
                 demo_lifecycle_state: None,
             };
@@ -6372,6 +6378,10 @@ fn load_dynamic_demo_run_configs(
                 .config
                 .demo_supervisor_record_baseline_unix_ms
                 .is_none()
+            || manifest
+                .config
+                .demo_supervisor_process_generation_baseline
+                .is_none()
         {
             return Err(product_error(
                 ProductErrorKind::SourceInvalid,
@@ -6577,9 +6587,19 @@ fn project_demo_lifecycle(
     config.demo_lifecycle_state = Some(record.last_known_status.lifecycle_state);
     config.updated_at_unix_ms = now_unix_ms.max(config.created_at_unix_ms);
     let observed_started = snapshot_timestamp(&record.last_known_status.started_at);
-    let process_updated_at = snapshot_timestamp(&record.process.updated_at);
-    let process_updated_for_run =
-        process_updated_at.is_some_and(|timestamp| timestamp >= config.created_at_unix_ms);
+    let ownership = record
+        .run_ownership
+        .get(&config.run_id)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_run_ownership"))?;
+    let process_generation_delta = demo_process_generation_delta(record, ownership)?;
+    if config.demo_supervisor_process_generation_baseline
+        != Some(ownership.process_generation_at_claim)
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_process_generation",
+        ));
+    }
     let record_updated_at = snapshot_timestamp(&record.updated_at).ok_or_else(|| {
         product_error(
             ProductErrorKind::SourceInvalid,
@@ -6609,6 +6629,12 @@ fn project_demo_lifecycle(
         record.last_known_status.lifecycle_state,
     ) {
         (SupervisorProcessState::NotStarted, LifecycleStatus::Stopped) => {
+            if process_generation_delta != 0 {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "demo_process_generation",
+                ));
+            }
             config.lifecycle = RunLifecycle::Created;
             config.started_at_unix_ms = None;
             config.completed_at_unix_ms = None;
@@ -6618,12 +6644,14 @@ fn project_demo_lifecycle(
             SupervisorProcessState::Running,
             LifecycleStatus::Starting | LifecycleStatus::Resuming,
         ) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Queued;
             config.started_at_unix_ms = None;
             config.completed_at_unix_ms = None;
             config.risk_status = RunRiskStatus::Pending;
         }
         (SupervisorProcessState::Running, LifecycleStatus::Running) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Running;
             config.started_at_unix_ms = Some(started.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
@@ -6632,6 +6660,7 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Running, LifecycleStatus::Paused | LifecycleStatus::Pausing) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Paused;
             config.started_at_unix_ms = Some(started.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
@@ -6640,6 +6669,7 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Running, LifecycleStatus::Stopping) => {
+            require_started_process_generation(process_generation_delta)?;
             config.lifecycle = RunLifecycle::Stopping;
             config.started_at_unix_ms = Some(started.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_started_at")
@@ -6648,17 +6678,14 @@ fn project_demo_lifecycle(
             config.risk_status = RunRiskStatus::Active;
         }
         (SupervisorProcessState::Stopped, LifecycleStatus::Stopped) => {
-            let historical_started =
-                observed_started.is_none_or(|timestamp| timestamp < config.created_at_unix_ms);
-            let historical_stopped =
-                observed_stopped.is_none_or(|timestamp| timestamp < config.created_at_unix_ms);
-            if !process_updated_for_run && historical_started && historical_stopped {
+            if process_generation_delta == 0 {
                 config.lifecycle = RunLifecycle::Created;
                 config.started_at_unix_ms = None;
                 config.completed_at_unix_ms = None;
                 config.risk_status = RunRiskStatus::Pending;
                 return Ok(());
             }
+            require_started_process_generation(process_generation_delta)?;
             let completed = stopped.ok_or_else(|| {
                 product_error(ProductErrorKind::SourceInvalid, "demo_runtime_stopped_at")
             })?;
@@ -6669,6 +6696,7 @@ fn project_demo_lifecycle(
         }
         (SupervisorProcessState::Stale | SupervisorProcessState::Unknown, _)
         | (_, LifecycleStatus::Error | LifecycleStatus::Unknown) => {
+            require_started_process_generation(process_generation_delta)?;
             if record_updated_at <= record_baseline {
                 return Err(product_error(
                     ProductErrorKind::SourceInvalid,
@@ -6692,6 +6720,17 @@ fn project_demo_lifecycle(
         }
     }
     Ok(())
+}
+
+fn require_started_process_generation(process_generation_delta: u64) -> Result<(), ProductError> {
+    if process_generation_delta == 1 {
+        Ok(())
+    } else {
+        Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_process_generation",
+        ))
+    }
 }
 
 fn snapshot_timestamp(value: &nautilus_live::status::SnapshotValue<String>) -> Option<u64> {
@@ -6781,6 +6820,7 @@ pub(super) fn validate_unstarted_demo_ownership(
         strict_json(&request_raw, "demo_run_ownership").map_err(|_| invalid())?;
     let config = &manifest.config;
     let baseline = config.demo_supervisor_record_baseline_unix_ms;
+    let process_generation_baseline = config.demo_supervisor_process_generation_baseline;
     if manifest.schema_version != DEMO_RUN_MANIFEST_SCHEMA_VERSION
         || sha256_ref(&manifest_raw) != ownership.manifest_sha256
         || manifest.request_sha256 != sha256_ref(&request_raw)
@@ -6803,6 +6843,8 @@ pub(super) fn validate_unstarted_demo_ownership(
             != Some(identity.identities.strategy_instance_id.as_str())
         || config.demo_identity_contract_id.as_deref() != Some(identity.contract_id.as_str())
         || baseline.is_none_or(|value| value == 0 || value > ownership.claimed_at_unix_ms)
+        || process_generation_baseline != Some(ownership.process_generation_at_claim)
+        || record.process_generation != ownership.process_generation_at_claim
         || config.created_at_unix_ms != ownership.claimed_at_unix_ms
         || config.updated_at_unix_ms != ownership.claimed_at_unix_ms
         || config.started_at_unix_ms.is_some()
@@ -6824,6 +6866,23 @@ pub(super) fn validate_unstarted_demo_ownership(
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
         _ => Err(invalid()),
     }
+}
+
+pub(super) fn demo_process_generation_delta(
+    record: &SupervisorNodeRecord,
+    ownership: &SupervisorRunOwnership,
+) -> Result<u64, ProductError> {
+    let delta = record
+        .process_generation
+        .checked_sub(ownership.process_generation_at_claim)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "demo_process_generation"))?;
+    if delta > 1 {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "demo_process_generation",
+        ));
+    }
+    Ok(delta)
 }
 
 fn load_dynamic_run_configs(
@@ -7209,6 +7268,7 @@ fn validate_run_references(
                     && config.demo_identity_contract_id.as_deref()
                         == Some(source.identity.contract_id.as_str())
                     && config.demo_supervisor_record_baseline_unix_ms.is_some()
+                    && config.demo_supervisor_process_generation_baseline.is_some()
                     && config.strategy_version_snapshot_sha256.is_some()
                     && config.demo_process_state.is_some()
                     && config.demo_lifecycle_state.is_some()
@@ -7218,6 +7278,7 @@ fn validate_run_references(
                     && config.demo_strategy_instance_id.is_none()
                     && config.demo_identity_contract_id.is_none()
                     && config.demo_supervisor_record_baseline_unix_ms.is_none()
+                    && config.demo_supervisor_process_generation_baseline.is_none()
                     && config.demo_process_state.is_none()
                     && config.demo_lifecycle_state.is_none()
             };
@@ -7240,6 +7301,7 @@ fn validate_run_references(
                 && config.demo_strategy_instance_id.is_none()
                 && config.demo_identity_contract_id.is_none()
                 && config.demo_supervisor_record_baseline_unix_ms.is_none()
+                && config.demo_supervisor_process_generation_baseline.is_none()
                 && config.demo_process_state.is_none()
                 && config.demo_lifecycle_state.is_none()
                 && config.data_ref == "market://live/disabled"
