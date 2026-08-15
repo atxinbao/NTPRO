@@ -469,6 +469,10 @@ export function useRunProductContext(runId?: string) {
   const reproduction = useRunReproductionProof(runId, expectsReproductionProof);
   const error =
     run.error ?? strategy.error ?? version.error ?? demoSnapshot.error;
+  const isDemoSnapshotLoading = Boolean(
+    expectsDemoSnapshot &&
+    (demoSnapshot.isPending || (!demoSnapshot.data && demoSnapshot.isFetching)),
+  );
   const isVerifying = Boolean(
     runId &&
     (run.isPending ||
@@ -478,10 +482,7 @@ export function useRunProductContext(runId?: string) {
           strategy.isFetching ||
           version.isPending ||
           version.isFetching ||
-          (expectsDemoSnapshot &&
-            (demoSnapshot.isPending ||
-              (!demoSnapshot.data && demoSnapshot.isFetching))) ||
-          (expectsMetrics && (metrics.isPending || metrics.isFetching))))),
+          isDemoSnapshotLoading))),
   );
   const isReady = Boolean(
     runId &&
@@ -490,8 +491,7 @@ export function useRunProductContext(runId?: string) {
     run.data &&
     strategy.data &&
     version.data &&
-    (!expectsDemoSnapshot || demoSnapshot.data) &&
-    (!expectsMetrics || metrics.data || metrics.error),
+    (!expectsDemoSnapshot || demoSnapshot.data),
   );
 
   return {
