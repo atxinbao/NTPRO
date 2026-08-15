@@ -357,6 +357,15 @@ export function RunDetailPage() {
             />
           </div>
         </section>
+      ) : product.isMetricsVerifying ? (
+        <ProductLoading label="正在加载 Backtest 指标" />
+      ) : product.metricsError ? (
+        <ProductErrorState
+          error={product.metricsError}
+          onRetry={product.retryMetrics}
+          retrying={product.isMetricsVerifying}
+          retryLabel="重试指标"
+        />
       ) : null}
 
       {product.report ? (

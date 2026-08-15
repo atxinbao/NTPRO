@@ -2,7 +2,7 @@ import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 
 const playwrightPath = process.env.NTPRO_PLAYWRIGHT_CORE_PATH;
@@ -20,28 +20,9 @@ const evidenceDir =
   process.env.NTPRO_BROWSER_EVIDENCE_DIR || path.join(root, "evidence");
 const workspace = path.join(root, "workspace");
 const config = path.resolve("configs/nodes/btc-ema-shadow.toml");
-const backtestConfig = path.resolve(
-  "configs/backtests/ema-cross-btcusdt-product.toml",
-);
 const dist = path.resolve("apps/strategy-workbench/dist");
 fs.mkdirSync(evidenceDir, { recursive: true });
 const backtestRunId = "ema-cross-btcusdt-baseline-v1";
-const backtestOutput = path.join(
-  workspace,
-  "artifacts",
-  "backtests",
-  backtestRunId,
-);
-const backtest = spawnSync(
-  "target/debug/nautilus",
-  ["backtest", "run", "--config", backtestConfig, "--output", backtestOutput],
-  { encoding: "utf8" },
-);
-if (backtest.status !== 0) {
-  throw new Error(
-    `product backtest failed before browser smoke: ${backtest.stdout}${backtest.stderr}`,
-  );
-}
 
 const redact = (value) =>
   value.replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]");
@@ -1187,6 +1168,8 @@ try {
   await page.getByRole("heading", { name: backtestRunId }).waitFor();
   await page.getByText("真实引擎回测结果").waitFor();
   await page.getByRole("region", { name: "Backtest 指标" }).waitFor();
+  await page.getByRole("region", { name: "Backtest 成交明细" }).waitFor();
+  await page.getByRole("region", { name: "Backtest 运行记录" }).waitFor();
   await page.screenshot({
     path: path.join(
       evidenceDir,
@@ -1458,6 +1441,7 @@ writeEvidence({
   product_run_list: 1,
   product_run_detail: 1,
   product_run_metrics: 1,
+  product_run_baseline_bootstrap: 1,
   product_run_metrics_mobile: 1,
   product_run_create_api: 1,
   product_run_create_browser: 1,

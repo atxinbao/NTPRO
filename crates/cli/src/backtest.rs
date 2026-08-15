@@ -1375,7 +1375,7 @@ fn canonical_float(value: f64) -> String {
     }
 }
 
-fn sha256_ref(bytes: &[u8]) -> String {
+pub(crate) fn sha256_ref(bytes: &[u8]) -> String {
     let hash = digest(&SHA256, bytes);
     let mut value = String::with_capacity(71);
     value.push_str("sha256:");

@@ -909,6 +909,44 @@ describe("strategy workbench product slice", () => {
     ).toHaveTextContent("artifact://backtests/backtest-001/summary.json");
   });
 
+  it("keeps Run identity visible when Backtest metrics are unavailable", async () => {
+    let releaseRetry: (() => void) | undefined;
+    const retryGate = new Promise<void>((resolve) => {
+      releaseRetry = resolve;
+    });
+    let retryEnabled = false;
+    server.use(
+      http.get("/api/product/v1/runs/:runId/metrics", async () => {
+        if (!retryEnabled) {
+          return HttpResponse.json(errorFixture, { status: 503 });
+        }
+        await retryGate;
+        return HttpResponse.json(runMetricsFixture);
+      }),
+    );
+
+    renderWorkbench("/runs/backtest-001");
+    expect(
+      await screen.findByRole("heading", { name: "backtest-001" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Backtest · 已完成")).toBeInTheDocument();
+    const retry = await screen.findByRole("button", { name: "重试指标" });
+    expect(screen.queryByText("真实引擎回测结果")).not.toBeInTheDocument();
+    retryEnabled = true;
+    await userEvent.click(retry);
+    expect(
+      await screen.findByText("正在加载 Backtest 指标"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "backtest-001" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Backtest · 已完成")).toBeInTheDocument();
+    releaseRetry?.();
+    expect(
+      await screen.findByRole("region", { name: "Backtest 指标" }),
+    ).toBeInTheDocument();
+  });
+
   it.each([404, 500, 503])(
     "keeps Run metrics visible when the report route returns %s",
     async (status) => {
