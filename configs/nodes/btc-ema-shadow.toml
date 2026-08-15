@@ -53,6 +53,7 @@ order_submission_default = false
 strategy_version = "v1"
 backtest_run_id = "ema-cross-btcusdt-baseline-v1"
 backtest_result_ref = "artifact://backtests/ema-cross-btcusdt-baseline-v1/summary.json"
+baseline_backtest_config = "../backtests/ema-cross-btcusdt-product.toml"
 account_id = "SANDBOX-001"
 environment = "sandbox"
 
@@ -72,6 +73,8 @@ result_ref = "artifact://backtests/ema-cross-btcusdt-baseline-v1/summary.json"
 backtest_config_sha256 = "sha256:fb6cbc40cf8e82dc295620243d5cfdc2cf82c89b45fb9097cae2961bbc6d2838"
 backtest_data_sha256 = "sha256:18ed30b352b17a11c33294df39387976f15a587b859f729ffbe5e59bc9c75d1e"
 backtest_result_sha256 = "sha256:4b9bc548f226e55b136eb4c08f2ef5e0274bed104b8626d5431b39fb0a3b8760"
+backtest_details_sha256 = "sha256:0c5a6685b0383f8093a114506213fe60cf381b0d3355c31a506148efdeddc7de"
+backtest_analysis_sha256 = "sha256:a08bcd6a151917368a65acfba08121959b959f82e8d6cabed8418e1f673b2156"
 backtest_trade_size = "0.001000"
 backtest_quotes = 120
 backtest_fast_period = 3

@@ -468,11 +468,7 @@ export function useRunProductContext(runId?: string) {
   );
   const reproduction = useRunReproductionProof(runId, expectsReproductionProof);
   const error =
-    run.error ??
-    strategy.error ??
-    version.error ??
-    metrics.error ??
-    demoSnapshot.error;
+    run.error ?? strategy.error ?? version.error ?? demoSnapshot.error;
   const isVerifying = Boolean(
     runId &&
     (run.isPending ||
@@ -495,7 +491,7 @@ export function useRunProductContext(runId?: string) {
     strategy.data &&
     version.data &&
     (!expectsDemoSnapshot || demoSnapshot.data) &&
-    (!expectsMetrics || metrics.data),
+    (!expectsMetrics || metrics.data || metrics.error),
   );
 
   return {
@@ -508,6 +504,11 @@ export function useRunProductContext(runId?: string) {
     demoSnapshot:
       isReady && expectsDemoSnapshot ? demoSnapshot.data?.data : undefined,
     metrics: isReady ? metrics.data?.data : undefined,
+    metricsError: isReady && expectsMetrics ? metrics.error : null,
+    isMetricsVerifying: Boolean(
+      isReady && expectsMetrics && (metrics.isPending || metrics.isFetching),
+    ),
+    retryMetrics: metrics.refetch,
     report: isReady && expectsReport ? report.data?.data : undefined,
     reportError: isReady && expectsReport ? report.error : null,
     isReportVerifying: Boolean(

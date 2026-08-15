@@ -213,6 +213,8 @@ struct IdentityMvpSection {
     strategy_version: String,
     backtest_run_id: String,
     backtest_result_ref: String,
+    #[serde(rename = "baseline_backtest_config")]
+    _baseline_backtest_config: Option<String>,
     account_id: String,
     environment: String,
 }

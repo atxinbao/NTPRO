@@ -17,7 +17,7 @@
 
 use std::{
     collections::BTreeMap,
-    fs::OpenOptions,
+    fs::{self, OpenOptions},
     io::Write,
     path::{Path, PathBuf},
     thread,
@@ -30,12 +30,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     artifacts::{atomic_write_json, remove_file_if_exists},
+    backtest::{run_backtest_command, sha256_ref},
     dashboard::run_dashboard_command,
     mvp_contract::{
         MVP_IDENTITY_CONTRACT_PATH, MVP_STATUS_CONTRACT_PATH, MvpIdentityContract,
         MvpStatusContract,
     },
-    opt::{DashboardCommand, DashboardOpt, DashboardServeOpt, MvpCommand, MvpOpt, MvpServeOpt},
+    opt::{
+        BacktestCommand, BacktestOpt, BacktestRunOpt, DashboardCommand, DashboardOpt,
+        DashboardServeOpt, MvpCommand, MvpOpt, MvpServeOpt,
+    },
     supervisor::{
         RegisterNodeRequest, StartNodeRequest, StopNodeRequest, SupervisorProcessState,
         SupervisorRegistryStore,
@@ -48,6 +52,30 @@ const PRODUCT_BACKTEST_ARTIFACT_ROOT: &str = "artifacts/backtests";
 const STRATEGY_VERSION_REGISTRY_PATH: &str = "mvp/strategy_version_registry.json";
 const STRATEGY_VERSION_REGISTRY_SCHEMA_VERSION: &str = "ntpro.mvp_strategy_version_registry.v1";
 const MIN_STATUS_FRESHNESS_MAX_AGE_MS: u64 = 2_000;
+
+#[derive(Debug, Deserialize)]
+struct MvpBaselineConfigProjection {
+    mvp: MvpBaselineSection,
+    #[serde(default)]
+    product_runs: Vec<MvpBaselineProductRun>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MvpBaselineSection {
+    baseline_backtest_config: Option<PathBuf>,
+}
+
+#[derive(Debug, Deserialize)]
+struct MvpBaselineProductRun {
+    run_id: String,
+    environment: String,
+    lifecycle: String,
+    result_status: String,
+    result_ref: Option<String>,
+    backtest_result_sha256: Option<String>,
+    backtest_details_sha256: Option<String>,
+    backtest_analysis_sha256: Option<String>,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -154,6 +182,15 @@ impl MvpRuntime {
                 opt.node_id
             );
         }
+        fs::create_dir_all(opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT)).with_context(
+            || {
+                format!(
+                    "初始化 MVP Backtest 工件目录 '{}' 失败",
+                    opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT).display()
+                )
+            },
+        )?;
+        prepare_mvp_baseline_backtest(opt, &identity_contract)?;
         if let Some(registry) = strategy_version_registry_update {
             atomic_write_json(&strategy_version_registry_path, &registry).with_context(|| {
                 format!(
@@ -212,14 +249,6 @@ impl MvpRuntime {
                 artifact_root: Some(artifact_root.clone()),
             })?;
         }
-        std::fs::create_dir_all(opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT)).with_context(
-            || {
-                format!(
-                    "初始化 MVP Backtest 工件目录 '{}' 失败",
-                    opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT).display()
-                )
-            },
-        )?;
         let startup_timeout = duration_from_millis("startup_timeout_ms", opt.startup_timeout_ms)?;
         let node_shutdown_timeout =
             duration_from_millis("node_shutdown_timeout_ms", opt.node_shutdown_timeout_ms)?;
@@ -408,6 +437,205 @@ impl MvpRuntime {
         (published != self.identity_contract)
             .then(|| "MVP identity contract does not match current runtime identity".to_string())
     }
+}
+
+fn prepare_mvp_baseline_backtest(
+    opt: &MvpServeOpt,
+    identity: &MvpIdentityContract,
+) -> anyhow::Result<()> {
+    let raw = fs::read_to_string(&opt.config)
+        .with_context(|| format!("读取 MVP 基线配置 '{}' 失败", opt.config.display()))?;
+    let projection: MvpBaselineConfigProjection = toml::from_str(&raw)
+        .with_context(|| format!("解析 MVP 基线配置 '{}' 失败", opt.config.display()))?;
+    let Some(config_ref) = projection.mvp.baseline_backtest_config else {
+        return Ok(());
+    };
+    let run_id = identity.identities.backtest_run_id.as_str();
+    ensure_safe_baseline_run_id(run_id)?;
+    let run = projection
+        .product_runs
+        .iter()
+        .find(|run| run.run_id == run_id)
+        .with_context(|| format!("MVP 默认基线 Run '{run_id}' 未出现在 product_runs"))?;
+    ensure!(
+        run.environment == "backtest"
+            && run.lifecycle == "completed"
+            && run.result_status == "available",
+        "MVP 默认基线 Run '{run_id}' 必须声明为 completed/available backtest"
+    );
+    ensure!(
+        run.result_ref.as_deref() == Some(identity.identities.backtest_result_ref.as_str()),
+        "MVP 默认基线 Run '{run_id}' 的 result_ref 与身份合同不一致"
+    );
+    let expected = [
+        (
+            "summary.json",
+            required_baseline_hash(
+                run_id,
+                "backtest_result_sha256",
+                &run.backtest_result_sha256,
+            )?,
+        ),
+        (
+            "details.json",
+            required_baseline_hash(
+                run_id,
+                "backtest_details_sha256",
+                &run.backtest_details_sha256,
+            )?,
+        ),
+        (
+            "analysis.json",
+            required_baseline_hash(
+                run_id,
+                "backtest_analysis_sha256",
+                &run.backtest_analysis_sha256,
+            )?,
+        ),
+    ];
+    let artifact_root = opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT);
+    let run_root = artifact_root.join(run_id);
+    match fs::symlink_metadata(&run_root) {
+        Ok(_) => return validate_mvp_baseline_artifacts(&run_root, run_id, &expected),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!("检查 MVP 默认基线工件路径 '{}' 失败", run_root.display())
+            });
+        }
+    }
+
+    let backtest_config = if config_ref.is_absolute() {
+        config_ref
+    } else {
+        opt.config
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(config_ref)
+    };
+    ensure!(
+        backtest_config.is_file(),
+        "MVP 默认基线 Backtest 配置 '{}' 不存在",
+        backtest_config.display()
+    );
+    let staging = artifact_root.join(format!(".{run_id}.bootstrap-{}", std::process::id()));
+    remove_mvp_baseline_staging(&staging)?;
+    let generation = run_backtest_command(BacktestOpt {
+        command: BacktestCommand::Run(BacktestRunOpt {
+            config: backtest_config,
+            run_id: None,
+            output: Some(staging.clone()),
+            dry_run: false,
+        }),
+    })
+    .and_then(|()| validate_mvp_baseline_artifacts(&staging, run_id, &expected))
+    .and_then(|()| {
+        fs::rename(&staging, &run_root)
+            .with_context(|| format!("发布 MVP 默认基线工件 '{}' 失败", run_root.display()))
+    });
+    if generation.is_err() {
+        let cleanup = remove_mvp_baseline_staging(&staging);
+        return match cleanup {
+            Ok(()) => generation,
+            Err(cleanup_error) => generation.map_err(|error| {
+                error.context(format!(
+                    "清理失败的默认基线暂存目录同时失败: {cleanup_error:#}"
+                ))
+            }),
+        };
+    }
+    println!(
+        "mvp.baseline_backtest status=ready run_id={run_id} artifact_root={} generated=true external_venue_connection=false real_orders_submitted=false",
+        run_root.display()
+    );
+    Ok(())
+}
+
+fn required_baseline_hash<'a>(
+    run_id: &str,
+    field: &str,
+    value: &'a Option<String>,
+) -> anyhow::Result<&'a str> {
+    let value = value
+        .as_deref()
+        .with_context(|| format!("MVP 默认基线 Run '{run_id}' 缺少 {field}"))?;
+    ensure!(
+        value.len() == 71
+            && value.starts_with("sha256:")
+            && value[7..].bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "MVP 默认基线 Run '{run_id}' 的 {field} 不是 SHA-256 引用"
+    );
+    Ok(value)
+}
+
+fn ensure_safe_baseline_run_id(run_id: &str) -> anyhow::Result<()> {
+    ensure!(
+        !run_id.is_empty()
+            && run_id != "."
+            && run_id != ".."
+            && run_id
+                .bytes()
+                .all(|byte| { byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.') }),
+        "MVP 默认基线 run_id '{run_id}' 不能作为安全工件目录"
+    );
+    Ok(())
+}
+
+fn validate_mvp_baseline_artifacts(
+    run_root: &Path,
+    run_id: &str,
+    expected: &[(&str, &str); 3],
+) -> anyhow::Result<()> {
+    let root_metadata = fs::symlink_metadata(run_root)
+        .with_context(|| format!("检查 MVP 默认基线工件目录 '{}' 失败", run_root.display()))?;
+    ensure!(
+        root_metadata.file_type().is_dir() && !root_metadata.file_type().is_symlink(),
+        "MVP 默认基线工件路径 '{}' 不是受控目录",
+        run_root.display()
+    );
+    for (file_name, expected_sha256) in expected {
+        let path = run_root.join(file_name);
+        let metadata = fs::symlink_metadata(&path)
+            .with_context(|| format!("检查 MVP 默认基线工件 '{}' 失败", path.display()))?;
+        ensure!(
+            metadata.file_type().is_file() && !metadata.file_type().is_symlink(),
+            "MVP 默认基线工件 '{}' 不是受控文件",
+            path.display()
+        );
+        let raw = fs::read(&path)
+            .with_context(|| format!("读取 MVP 默认基线工件 '{}' 失败", path.display()))?;
+        ensure!(
+            sha256_ref(&raw) == *expected_sha256,
+            "MVP 默认基线工件 '{}' 的 SHA-256 与节点配置不一致",
+            path.display()
+        );
+        let artifact: serde_json::Value = serde_json::from_slice(&raw)
+            .with_context(|| format!("解析 MVP 默认基线工件 '{}' 失败", path.display()))?;
+        ensure!(
+            artifact.get("run_id").and_then(serde_json::Value::as_str) == Some(run_id),
+            "MVP 默认基线工件 '{}' 的 run_id 不一致",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
+fn remove_mvp_baseline_staging(path: &Path) -> anyhow::Result<()> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(error)
+                .with_context(|| format!("检查默认基线暂存路径 '{}' 失败", path.display()));
+        }
+    };
+    ensure!(
+        metadata.file_type().is_dir() && !metadata.file_type().is_symlink(),
+        "默认基线暂存路径 '{}' 不是受控目录",
+        path.display()
+    );
+    fs::remove_dir_all(path)
+        .with_context(|| format!("清理默认基线暂存目录 '{}' 失败", path.display()))
 }
 
 fn validate_mvp_registry_record_paths(
@@ -679,7 +907,7 @@ mod tests {
     };
 
     #[cfg(unix)]
-    use std::os::unix::fs::PermissionsExt;
+    use std::os::unix::fs::{PermissionsExt, symlink};
 
     use axum::{
         Router,
@@ -690,11 +918,7 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
-    use crate::{
-        backtest::run_backtest_command,
-        opt::{BacktestCommand, BacktestOpt, BacktestRunOpt},
-        supervisor::RegistryArtifactState,
-    };
+    use crate::supervisor::RegistryArtifactState;
 
     #[cfg(unix)]
     static MVP_PROCESS_TEST_LOCK: Mutex<()> = Mutex::new(());
@@ -1006,19 +1230,6 @@ environment = "sandbox"
         let root = temp_root("demo-entry-restart");
         let fixture_node = write_fixture_node(&root);
         let opt = mvp_product_options(&root, fixture_node.clone());
-        run_backtest_command(BacktestOpt {
-            command: BacktestCommand::Run(BacktestRunOpt {
-                config: PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../configs/backtests/ema-cross-btcusdt-product.toml"),
-                run_id: None,
-                output: Some(
-                    opt.workspace
-                        .join("artifacts/backtests/ema-cross-btcusdt-baseline-v1"),
-                ),
-                dry_run: false,
-            }),
-        })
-        .expect("the current StrategyVersion backtest baseline should be created first");
 
         let runtime = MvpRuntime::prepare(&opt, fixture_node.clone())
             .expect("official MVP entry should prepare without prestarting the node");
@@ -1027,9 +1238,24 @@ environment = "sandbox"
             prepared.nodes[&opt.node_id].process.state,
             SupervisorProcessState::NotStarted
         );
+        let baseline_root = opt
+            .workspace
+            .join("artifacts/backtests/ema-cross-btcusdt-baseline-v1");
+        let baseline_summary = fs::read(baseline_root.join("summary.json"))
+            .expect("MVP prepare should generate the default Backtest baseline");
 
         let router =
             crate::dashboard::dashboard_router(runtime.registry_path.clone(), fixture_node.clone());
+        for suffix in ["", "/metrics", "/report", "/analysis"] {
+            let (status, payload) = mvp_router_json(
+                &router,
+                Method::GET,
+                &format!("/api/product/v1/runs/ema-cross-btcusdt-baseline-v1{suffix}"),
+                None,
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK, "{suffix}: {payload}");
+        }
         let identity = &runtime.identity_contract.identities;
         let create = json!({
             "strategy_id": identity.strategy_id,
@@ -1094,6 +1320,12 @@ environment = "sandbox"
         assert!(!restarted_registry.nodes[&opt.node_id].metrics_path.exists());
         let ownership = &restarted_registry.nodes[&opt.node_id].run_ownership[&run_id];
         assert!(ownership.terminal.is_some());
+        assert_eq!(
+            fs::read(baseline_root.join("summary.json"))
+                .expect("restarted MVP baseline should remain readable"),
+            baseline_summary,
+            "MVP restart must verify instead of rewriting the immutable baseline"
+        );
 
         let mut delayed_status = read_json(&restarted.status_contract_path);
         delayed_status["provenance"]["generated_at_unix_ms"] = json!(1);
@@ -1115,6 +1347,64 @@ environment = "sandbox"
         restarted
             .stop(Duration::from_secs(2))
             .expect("restarted MVP runtime should stop cleanly");
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[test]
+    fn mvp_prepare_rejects_tampered_existing_baseline_without_overwriting_it() {
+        let root = temp_root("tampered-baseline");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_product_options(&root, fixture_node.clone());
+        let runtime = MvpRuntime::prepare(&opt, fixture_node.clone())
+            .expect("first MVP prepare should generate the baseline");
+        runtime
+            .stop(Duration::from_secs(2))
+            .expect("prepared MVP should stop cleanly");
+        drop(runtime);
+
+        let summary = opt
+            .workspace
+            .join("artifacts/backtests/ema-cross-btcusdt-baseline-v1/summary.json");
+        fs::write(&summary, b"{}\n").expect("baseline tamper fixture should be written");
+        let error = MvpRuntime::prepare(&opt, fixture_node)
+            .expect_err("tampered immutable baseline must block MVP startup");
+        assert!(
+            format!("{error:#}").contains("SHA-256"),
+            "unexpected error: {error:#}"
+        );
+        assert_eq!(
+            fs::read(&summary).expect("tampered baseline should remain present"),
+            b"{}\n",
+            "MVP prepare must not overwrite an existing baseline"
+        );
+        fs::remove_dir_all(root).expect("temporary MVP root should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn mvp_prepare_rejects_symlinked_existing_baseline_directory() {
+        let root = temp_root("symlinked-baseline");
+        let fixture_node = write_fixture_node(&root);
+        let opt = mvp_product_options(&root, fixture_node.clone());
+        let runtime = MvpRuntime::prepare(&opt, fixture_node.clone())
+            .expect("first MVP prepare should generate the baseline");
+        runtime
+            .stop(Duration::from_secs(2))
+            .expect("prepared MVP should stop cleanly");
+        drop(runtime);
+
+        let baseline = opt
+            .workspace
+            .join("artifacts/backtests/ema-cross-btcusdt-baseline-v1");
+        let backing = root.join("baseline-backing");
+        fs::rename(&baseline, &backing).expect("baseline fixture should move to backing path");
+        symlink(&backing, &baseline).expect("baseline symlink fixture should be created");
+        let error = MvpRuntime::prepare(&opt, fixture_node)
+            .expect_err("symlinked baseline directory must block MVP startup");
+        assert!(
+            format!("{error:#}").contains("不是受控目录"),
+            "unexpected error: {error:#}"
+        );
         fs::remove_dir_all(root).expect("temporary MVP root should be removed");
     }
 

@@ -909,6 +909,24 @@ describe("strategy workbench product slice", () => {
     ).toHaveTextContent("artifact://backtests/backtest-001/summary.json");
   });
 
+  it("keeps Run identity visible when Backtest metrics are unavailable", async () => {
+    server.use(
+      http.get("/api/product/v1/runs/:runId/metrics", () =>
+        HttpResponse.json(errorFixture, { status: 503 }),
+      ),
+    );
+
+    renderWorkbench("/runs/backtest-001");
+    expect(
+      await screen.findByRole("heading", { name: "backtest-001" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Backtest · 已完成")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "重试指标" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("真实引擎回测结果")).not.toBeInTheDocument();
+  });
+
   it.each([404, 500, 503])(
     "keeps Run metrics visible when the report route returns %s",
     async (status) => {

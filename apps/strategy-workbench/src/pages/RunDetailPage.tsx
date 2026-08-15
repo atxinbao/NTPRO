@@ -357,6 +357,13 @@ export function RunDetailPage() {
             />
           </div>
         </section>
+      ) : product.metricsError ? (
+        <ProductErrorState
+          error={product.metricsError}
+          onRetry={product.retryMetrics}
+          retrying={product.isMetricsVerifying}
+          retryLabel="重试指标"
+        />
       ) : null}
 
       {product.report ? (
