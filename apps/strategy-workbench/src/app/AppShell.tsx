@@ -40,6 +40,7 @@ interface NavigationItem {
   icon: LucideIcon;
   to?:
     | "/overview"
+    | "/strategies"
     | "/backtests"
     | "/backtests/compare"
     | "/demo"
@@ -53,7 +54,7 @@ const navigation: NavigationItem[] = [
   {
     label: "策略",
     icon: BookOpenCheck,
-    disabledReason: "当前在总览中选择策略",
+    to: "/strategies",
   },
   { label: "Backtest", icon: FlaskConical, to: "/backtests" },
   { label: "运行对比", icon: GitCompareArrows, to: "/backtests/compare" },
