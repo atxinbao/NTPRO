@@ -1316,10 +1316,10 @@ try {
     path: path.join(evidenceDir, "strategy-workbench-backtest-metrics-390.png"),
     fullPage: true,
   });
-  await page.goto(`${baseUrl}/strategy-workbench/overview`, {
+  await page.goto(`${baseUrl}/strategy-workbench/strategies`, {
     waitUntil: "networkidle",
   });
-  await page.getByText("产品资源已验证").waitFor();
+  await page.getByText("策略资源已验证").waitFor();
 
   const refreshButton = page.getByRole("button", {
     name: "刷新产品与系统状态",
@@ -1345,14 +1345,17 @@ try {
   const staleRunResponse = waitForRunListRefresh(503);
   await refreshButton.click();
   await staleRunResponse;
-  await page.getByText("策略目录已验证，运行数据降级").waitFor();
-  await page
-    .getByRole("heading", { name: productStrategy.name, exact: true })
-    .waitFor();
-  await page.getByText(productVersion.strategy_version_id).first().waitFor();
+  await page.getByText("策略目录已验证，运行摘要降级").waitFor();
+  await page.getByRole("heading", { name: "策略管理" }).waitFor();
+  await page.getByRole("region", { name: "当前策略身份" }).waitFor();
+  const staleModeSummary = page.getByRole("region", {
+    name: "策略运行模式摘要",
+  });
   if (
     (await page.getByText("当前没有已注册策略").count()) !== 0 ||
     (await page.getByText(backtestRunId, { exact: true }).count()) !== 0 ||
+    (await staleModeSummary.getByText("--", { exact: true }).count()) !== 3 ||
+    (await staleModeSummary.getByText("0 个", { exact: true }).count()) !== 0 ||
     expectedProductStaleResponses < 1
   ) {
     throw new Error(
@@ -1363,7 +1366,7 @@ try {
   const restoredRunResponse = waitForRunListRefresh(200);
   await refreshButton.click();
   await restoredRunResponse;
-  await page.getByText("产品资源已验证").waitFor();
+  await page.getByText("策略资源已验证").waitFor();
   scenario = "boundary";
   const boundaryStatusResponse = waitForStatusRefresh();
   await refreshButton.click();

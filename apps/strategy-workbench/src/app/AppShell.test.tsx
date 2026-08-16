@@ -1155,6 +1155,97 @@ describe("strategy workbench product slice", () => {
     ).toHaveTextContent("Backtest");
   });
 
+  it("keeps Run counts unknown while the strategy page runtime query is pending", async () => {
+    let releaseRuns: (() => void) | undefined;
+    const runGate = new Promise<void>((resolve) => {
+      releaseRuns = resolve;
+    });
+    server.use(
+      http.get("/api/product/v1/runs", async () => {
+        await runGate;
+        return HttpResponse.json(runListFixture);
+      }),
+    );
+
+    renderWorkbench("/strategies");
+    expect(
+      await screen.findByRole("heading", { name: "策略管理" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("策略目录已验证，正在验证运行数据"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("运行状态未知")).toHaveLength(2);
+    expect(screen.queryByText("来源新鲜")).not.toBeInTheDocument();
+    const modes = screen.getByRole("region", { name: "策略运行模式摘要" });
+    expect(within(modes).getAllByText("--")).toHaveLength(3);
+    expect(within(modes).queryByText("0 个")).not.toBeInTheDocument();
+
+    releaseRuns?.();
+    expect(await screen.findByText("策略资源已验证")).toBeInTheDocument();
+    expect(within(modes).queryByText("--")).not.toBeInTheDocument();
+  });
+
+  it("renders a verified empty strategy state on the strategy route", async () => {
+    const empty = structuredClone(strategyListFixture);
+    empty.data = [];
+    empty.page.returned_count = 0;
+    server.use(
+      http.get("/api/product/v1/strategies", () => HttpResponse.json(empty)),
+    );
+
+    renderWorkbench("/strategies");
+    expect(await screen.findByText("当前没有已注册策略")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "策略管理" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the strategy page catalog visible when runtime data is stale", async () => {
+    const stale = structuredClone(errorFixture);
+    stale.error.code = "product_source_stale";
+    stale.error.field = "node_status";
+    stale.error.summary = "策略产品数据源已过期，需要刷新对应来源后重试";
+    stale.error.retryable = true;
+    server.use(
+      http.get("/api/product/v1/runs", () =>
+        HttpResponse.json(stale, { status: 503 }),
+      ),
+    );
+
+    renderWorkbench("/strategies");
+    expect(
+      await screen.findByRole("heading", { name: "策略管理" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("策略目录已验证，运行摘要降级"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "当前策略身份" }),
+    ).toHaveTextContent("ema-cross");
+    expect(
+      screen.getByText(/策略产品数据源已过期，需要刷新对应来源后重试/),
+    ).toBeInTheDocument();
+    const modes = screen.getByRole("region", { name: "策略运行模式摘要" });
+    expect(within(modes).getAllByText("--")).toHaveLength(3);
+    expect(within(modes).queryByText("0 个")).not.toBeInTheDocument();
+  });
+
+  it("fails closed on the strategy route when a Product API boundary opens", async () => {
+    const invalid = structuredClone(strategyListFixture) as Record<string, any>;
+    invalid.boundaries.order_submission_allowed = true;
+    server.use(
+      http.get("/api/product/v1/strategies", () => HttpResponse.json(invalid)),
+    );
+
+    renderWorkbench("/strategies");
+    expect(await screen.findByText("产品合同验证失败")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "策略管理" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("strategy-name")).toHaveTextContent("策略未加载");
+    expect(screen.getByText("产品阻断")).toBeInTheDocument();
+  });
+
   it("keeps the strategy catalog visible when runtime data is stale", async () => {
     const stale = structuredClone(errorFixture);
     stale.error.code = "product_source_stale";

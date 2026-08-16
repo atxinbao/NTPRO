@@ -53,6 +53,23 @@ export function StrategyPage() {
   const runtimeMessage = product.runtimeError
     ? productErrorMessage(product.runtimeError)
     : undefined;
+  const runtimePending = product.isRuntimeVerifying;
+  const runtimeUnavailable = runtimePending || Boolean(runtimeMessage);
+  const runtimeBannerTitle = runtimePending
+    ? "策略目录已验证，正在验证运行数据"
+    : runtimeMessage
+      ? "策略目录已验证，运行摘要降级"
+      : "策略资源已验证";
+  const runtimeBannerDetail = runtimePending
+    ? "Run 查询尚未完成，不展示数量或生命周期"
+    : runtimeMessage
+      ? runtimeMessage.detail
+      : `${product.strategies.contract_version} · 请求 ${product.strategies.request_id}`;
+  const runtimeStatus = runtimePending
+    ? "运行状态未知"
+    : runtimeMessage
+      ? "运行源不可用"
+      : "来源新鲜";
   const parameters = version ? fixedParameters(version.parameter_schema) : [];
 
   return (
@@ -71,20 +88,14 @@ export function StrategyPage() {
       </header>
 
       <section
-        className={`${styles.connectionBanner} ${runtimeMessage ? styles.connectionBlocked : styles.connectionReady}`}
+        className={`${styles.connectionBanner} ${runtimeMessage ? styles.connectionBlocked : runtimePending ? "" : styles.connectionReady}`}
         aria-live="polite"
       >
         <div>
-          <strong>
-            {runtimeMessage ? "策略目录已验证，运行摘要降级" : "策略资源已验证"}
-          </strong>
-          <span>
-            {runtimeMessage
-              ? runtimeMessage.detail
-              : `${product.strategies.contract_version} · 请求 ${product.strategies.request_id}`}
-          </span>
+          <strong>{runtimeBannerTitle}</strong>
+          <span>{runtimeBannerDetail}</span>
         </div>
-        <em>{runtimeMessage ? "运行源不可用" : "来源新鲜"}</em>
+        <em>{runtimeStatus}</em>
       </section>
 
       <section className={styles.metricGrid} aria-label="策略目录摘要">
@@ -229,7 +240,11 @@ export function StrategyPage() {
             <h2>同一策略版本的三种运行环境</h2>
           </div>
           <span>
-            {runtimeMessage ? "运行源不可用" : `${runs.length} 个 Run`}
+            {runtimePending
+              ? "运行状态未知"
+              : runtimeMessage
+                ? "运行源不可用"
+                : `${runs.length} 个 Run`}
           </span>
         </header>
         <div className={styles.modeProgress}>
@@ -244,14 +259,20 @@ export function StrategyPage() {
                 <div>
                   <strong>{environmentLabels[environment]}</strong>
                   <small>
-                    {latest ? lifecycleLabels[latest.lifecycle] : "暂无 Run"}
+                    {runtimePending
+                      ? "正在验证"
+                      : runtimeMessage
+                        ? "运行源不可用"
+                        : latest
+                          ? lifecycleLabels[latest.lifecycle]
+                          : "暂无 Run"}
                   </small>
                 </div>
                 <Link
                   className={styles.runLink}
                   to={environmentRoutes[environment]}
                 >
-                  {environmentRuns.length} 个
+                  {runtimeUnavailable ? "--" : `${environmentRuns.length} 个`}
                   <ArrowUpRight aria-hidden="true" />
                 </Link>
               </article>
