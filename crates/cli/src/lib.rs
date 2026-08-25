@@ -55,6 +55,7 @@ mod artifacts;
 mod backtest;
 #[cfg(feature = "defi")]
 mod blockchain;
+mod catalog_dataset;
 mod config;
 pub mod dashboard;
 mod data;

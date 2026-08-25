@@ -25,13 +25,14 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-nautilus-backtest = { workspace = true }
+nautilus-backtest = { workspace = true, features = ["streaming"] }
 nautilus-binance = { workspace = true }
 nautilus-common = { workspace = true }
 nautilus-core = { workspace = true }
 nautilus-infrastructure = { workspace = true, features = ["postgres"] }
 nautilus-live = { workspace = true, features = ["node"] }
 nautilus-model = { workspace = true }
+nautilus-persistence = { workspace = true }
 nautilus-risk = { workspace = true }
 nautilus-sandbox = { workspace = true }
 nautilus-trading = { workspace = true, features = ["examples"] }
@@ -51,12 +52,14 @@ clap = { workspace = true }
 dotenvy = { workspace = true }
 ed25519-dalek = { workspace = true }
 jsonschema = { workspace = true }
+libc = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"] }
 rust_decimal = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 tower-http = { workspace = true }
@@ -66,7 +69,6 @@ ustr = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-tempfile = { workspace = true }
 tower = { workspace = true }
 
 [[bin]]

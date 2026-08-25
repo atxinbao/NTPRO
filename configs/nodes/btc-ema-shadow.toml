@@ -17,7 +17,7 @@ strategy_runtime = "ema_cross_demo"
 strategy_version_id = "ema_cross_btcusdt_v1@v1"
 strategy_id = "ema_cross_btcusdt_v1"
 version = "v1"
-content_hash = "sha256:2f58f5cf2bd2680773a10fb136db0c3214af9ae23b1d757c7be2b26cadc1148d"
+content_hash = "sha256:06bd95c4371eea8400e78c6d4d67f45267fa8f2a2ac5fd0498c6643e7e22f418"
 code_ref = "git://NTPRO@e24de1825b66f9e7b9bfb2fc4662c928e56d6c18/crates/cli/src/strategy_session.rs#ema_cross_demo"
 status = "registered"
 created_at_unix_ms = 1767225600000
@@ -39,8 +39,8 @@ const = 5
 [strategy_version.data_requirements]
 venues = ["BINANCE_TESTNET"]
 symbols = ["BTCUSDT.BINANCE"]
-data_types = ["bar"]
-timeframes = ["fixture_sequence"]
+data_types = ["quote_tick"]
+timeframes = ["tick"]
 deterministic_replay_required = true
 
 [strategy_version.risk_config]
@@ -70,11 +70,11 @@ venue_ref = "venue://simulated/BINANCE_TESTNET"
 lifecycle = "completed"
 result_status = "available"
 result_ref = "artifact://backtests/ema-cross-btcusdt-baseline-v1/summary.json"
-backtest_config_sha256 = "sha256:fb6cbc40cf8e82dc295620243d5cfdc2cf82c89b45fb9097cae2961bbc6d2838"
+backtest_config_sha256 = "sha256:5c066d811a86248899d9d3c896b37925db03bea5243ca7ae3a58a8ca889356cb"
 backtest_data_sha256 = "sha256:18ed30b352b17a11c33294df39387976f15a587b859f729ffbe5e59bc9c75d1e"
-backtest_result_sha256 = "sha256:4b9bc548f226e55b136eb4c08f2ef5e0274bed104b8626d5431b39fb0a3b8760"
-backtest_details_sha256 = "sha256:0c5a6685b0383f8093a114506213fe60cf381b0d3355c31a506148efdeddc7de"
-backtest_analysis_sha256 = "sha256:a08bcd6a151917368a65acfba08121959b959f82e8d6cabed8418e1f673b2156"
+backtest_result_sha256 = "sha256:51ca83710448e0433153415411a30b1480a8d1518ce7f4af1d47ed5b17317f29"
+backtest_details_sha256 = "sha256:003ad1c580ab8e87d43ce0d60273f3f63f7add40e024e50b3ccc44ea932333f2"
+backtest_analysis_sha256 = "sha256:382acf282129c793f51e4035e3ccc97263d0f3ee894e1677ca69fcddf0d52706"
 backtest_trade_size = "0.001000"
 backtest_quotes = 120
 backtest_fast_period = 3

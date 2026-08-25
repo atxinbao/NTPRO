@@ -1315,7 +1315,7 @@ version = "0.13.0"
 criteria = "safe-to-deploy"
 
 [[exemptions.h2]]
-version = "0.4.14"
+version = "0.4.16"
 criteria = "safe-to-deploy"
 
 [[exemptions.half]]

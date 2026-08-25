@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import datasetListFixture from "../test/product-api-fixtures/dataset-list.json";
 import liveAccountRefreshConnectedFixture from "../test/product-api-fixtures/live-account-refresh-connected.json";
 import liveAccountRefreshFixture from "../test/product-api-fixtures/live-account-refresh.json";
 import liveAdmissionFixture from "../test/product-api-fixtures/live-admission.json";
@@ -945,6 +946,16 @@ describe("product API generated client", () => {
         }),
     },
     {
+      name: "compatible dataset list",
+      fixture: datasetListFixture,
+      path: "/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/datasets",
+      invoke: (fetch: typeof globalThis.fetch) =>
+        createProductApiClient({ fetch }).listCompatibleDatasets({
+          strategy_id: "ema-cross",
+          version_id: "ema-cross@v1",
+        }),
+    },
+    {
       name: "live admission",
       fixture: liveAdmissionFixture,
       path: "/api/product/v1/strategies/ema-cross/versions/ema-cross%40v1/live-admission",
@@ -1832,6 +1843,19 @@ describe("product API generated client", () => {
           version_id: "ema-cross@v1",
         }),
       field: "strategy_version_detail.path.version_id",
+    },
+    {
+      name: "dataset instrument identity",
+      fixture: datasetListFixture,
+      mutate: (payload) => {
+        payload.data[0].instrument_id = "ETHUSDT.BINANCE";
+      },
+      invoke: (fetch) =>
+        createProductApiClient({ fetch }).listCompatibleDatasets({
+          strategy_id: "ema-cross",
+          version_id: "ema-cross@v1",
+        }),
+      field: "dataset_list.data.identity",
     },
     {
       name: "run list strategy filter",

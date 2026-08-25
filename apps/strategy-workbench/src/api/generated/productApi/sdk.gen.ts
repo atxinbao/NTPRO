@@ -72,6 +72,9 @@ import type {
   GetStrategyVersionData,
   GetStrategyVersionErrors,
   GetStrategyVersionResponses,
+  ListCompatibleDatasetsData,
+  ListCompatibleDatasetsErrors,
+  ListCompatibleDatasetsResponses,
   ListLiveRunCandidatesData,
   ListLiveRunCandidatesErrors,
   ListLiveRunCandidatesResponses,
@@ -223,6 +226,37 @@ export const getStrategyVersion = <ThrowOnError extends boolean = false>(
       },
     ],
     url: "/strategies/{strategy_id}/versions/{version_id}",
+    ...options,
+  });
+
+/**
+ * 读取策略版本兼容的本地历史数据集
+ */
+export const listCompatibleDatasets = <ThrowOnError extends boolean = false>(
+  options: Options<ListCompatibleDatasetsData, ThrowOnError>,
+): RequestResult<
+  ListCompatibleDatasetsResponses,
+  ListCompatibleDatasetsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    ListCompatibleDatasetsResponses,
+    ListCompatibleDatasetsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: "cookie",
+        name: "ntpro_mvp_institution_access",
+        type: "apiKey",
+      },
+      {
+        in: "cookie",
+        name: "ntpro_mvp_operator_access",
+        type: "apiKey",
+      },
+    ],
+    url: "/strategies/{strategy_id}/versions/{version_id}/datasets",
     ...options,
   });
 

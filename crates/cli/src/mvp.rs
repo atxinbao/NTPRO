@@ -572,6 +572,7 @@ fn prepare_mvp_backtest_artifact_root(workspace: &Path) -> anyhow::Result<cap_st
     let workspace_directory =
         cap_std::fs::Dir::open_ambient_dir(workspace, cap_std::ambient_authority())
             .with_context(|| format!("打开 MVP workspace '{}' 失败", workspace.display()))?;
+    open_or_create_mvp_directory(&workspace_directory, "catalog", workspace)?;
     let artifacts = open_or_create_mvp_directory(&workspace_directory, "artifacts", workspace)?;
     open_or_create_mvp_directory(&artifacts, "backtests", &workspace.join("artifacts"))
 }
@@ -1667,6 +1668,10 @@ environment = "sandbox"
         assert!(
             opt.workspace.join(PRODUCT_BACKTEST_ARTIFACT_ROOT).is_dir(),
             "MVP prepare must create the empty Backtest root"
+        );
+        assert!(
+            opt.workspace.join("catalog").is_dir(),
+            "MVP prepare must create the empty local data catalog root"
         );
 
         runtime

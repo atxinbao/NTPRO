@@ -47,8 +47,8 @@ use crate::opt::{DashboardCommand, DashboardOpt, DashboardServeOpt};
 
 use super::mvp_status_api::{mvp_event_correlation_api, mvp_shared_status_api};
 use super::product_api::{
-    demo_run_action_api, demo_run_create_api, demo_run_snapshot_api, live_account_refresh_api,
-    live_admission_api, live_execution_cancel_operator_approval_api,
+    compatible_dataset_list_api, demo_run_action_api, demo_run_create_api, demo_run_snapshot_api,
+    live_account_refresh_api, live_admission_api, live_execution_cancel_operator_approval_api,
     live_execution_cancel_owner_approval_api, live_execution_operator_approval_api,
     live_execution_owner_approval_api, live_execution_risk_approval_api,
     live_run_candidate_action_api, live_run_candidate_create_api, live_run_candidate_detail_api,
@@ -376,6 +376,12 @@ fn dashboard_router_with_workflow_root(
         .route(
             "/api/product/v1/strategies/{strategy_id}/versions/{version_id}",
             get(strategy_version_detail_api)
+                .head(product_method_not_allowed)
+                .fallback(product_method_not_allowed),
+        )
+        .route(
+            "/api/product/v1/strategies/{strategy_id}/versions/{version_id}/datasets",
+            get(compatible_dataset_list_api)
                 .head(product_method_not_allowed)
                 .fallback(product_method_not_allowed),
         )

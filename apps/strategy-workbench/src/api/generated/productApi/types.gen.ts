@@ -173,6 +173,7 @@ export type CreateBacktestRunRequest = {
   strategy_version_id: StrategyVersionId;
   environment: "backtest";
   data_ref: string;
+  data_sha256?: ContentHash;
   venue_ref: string;
   starting_balance: string;
   quotes: number;
@@ -812,6 +813,37 @@ export type StrategyVersionDetailResponse = {
   contract_version: "ntpro.product_api.v1";
   request_id: RequestId;
   data: StrategyVersion;
+  boundaries: ReadOnlyBoundaries;
+};
+
+export type DatasetSource = {
+  source_type: "local_parquet_catalog";
+  freshness_status: "verified";
+  source_refs: Array<string>;
+};
+
+export type ProductDataset = {
+  dataset_id: string;
+  data_ref: string;
+  data_type: "quote_tick";
+  storage_format: "parquet";
+  instrument_id: string;
+  venue: string;
+  venue_ref: string;
+  record_count: number;
+  start_time_ns: string;
+  end_time_ns: string;
+  file_count: number;
+  size_bytes: number;
+  data_sha256: ContentHash;
+  source: DatasetSource;
+};
+
+export type DatasetListResponse = {
+  schema_version: "ntpro.product_api.dataset_list.response.v1";
+  contract_version: "ntpro.product_api.v1";
+  request_id: RequestId;
+  data: Array<ProductDataset>;
   boundaries: ReadOnlyBoundaries;
 };
 
@@ -1784,6 +1816,56 @@ export type GetStrategyVersionResponses = {
 
 export type GetStrategyVersionResponse =
   GetStrategyVersionResponses[keyof GetStrategyVersionResponses];
+
+export type ListCompatibleDatasetsData = {
+  body?: never;
+  path: {
+    strategy_id: StrategyId;
+    version_id: StrategyVersionId;
+  };
+  query?: never;
+  url: "/strategies/{strategy_id}/versions/{version_id}/datasets";
+};
+
+export type ListCompatibleDatasetsErrors = {
+  /**
+   * 产品 API 稳定错误
+   */
+  400: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  403: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  404: ProductErrorResponse;
+  /**
+   * 产品 API 仅允许 GET
+   */
+  405: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  500: ProductErrorResponse;
+  /**
+   * 产品 API 稳定错误
+   */
+  503: ProductErrorResponse;
+};
+
+export type ListCompatibleDatasetsError =
+  ListCompatibleDatasetsErrors[keyof ListCompatibleDatasetsErrors];
+
+export type ListCompatibleDatasetsResponses = {
+  /**
+   * 已验证且与策略版本兼容的本地历史数据集
+   */
+  200: DatasetListResponse;
+};
+
+export type ListCompatibleDatasetsResponse =
+  ListCompatibleDatasetsResponses[keyof ListCompatibleDatasetsResponses];
 
 export type GetLiveAdmissionData = {
   body?: never;

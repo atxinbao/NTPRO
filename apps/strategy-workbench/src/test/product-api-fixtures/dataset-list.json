@@ -1,0 +1,39 @@
+{
+  "boundaries": {
+    "automatic_remediation_allowed": false,
+    "automatic_retry_allowed": false,
+    "external_venue_connection": false,
+    "order_mutation_allowed": false,
+    "order_submission_allowed": false,
+    "read_only": true,
+    "real_orders_submitted": false,
+    "run_mutation_allowed": false,
+    "strategy_mutation_allowed": false,
+    "trading_controls_enabled": false
+  },
+  "contract_version": "ntpro.product_api.v1",
+  "data": [
+    {
+      "data_ref": "dataset://local/quotes/BTCUSDT.BINANCE",
+      "data_sha256": "sha256:306eec13fe1d3305526570080244716701214917af4d2c49ce28431cab6a7ef7",
+      "data_type": "quote_tick",
+      "dataset_id": "local-quotes-306eec13fe1d",
+      "end_time_ns": "1735689719000000000",
+      "file_count": 2,
+      "instrument_id": "BTCUSDT.BINANCE",
+      "record_count": 120,
+      "size_bytes": 11984,
+      "source": {
+        "freshness_status": "verified",
+        "source_refs": ["workspace://catalog/data/quotes/BTCUSDT.BINANCE"],
+        "source_type": "local_parquet_catalog"
+      },
+      "start_time_ns": "1735689600000000000",
+      "storage_format": "parquet",
+      "venue": "BINANCE",
+      "venue_ref": "venue://simulated/BINANCE"
+    }
+  ],
+  "request_id": "product-0000000000000000-0000000000000000",
+  "schema_version": "ntpro.product_api.dataset_list.response.v1"
+}

@@ -75,7 +75,7 @@
     },
     "source_refs": [
       "node-config:node.toml#live_admission",
-      "sha256:950d09dddab99e9beb225eb1b54f867d5068bc2b6051635b07e612ccce3f101c"
+      "sha256:2afc8d4febcd8cf4523c4ca35814907136b902bb3d7fda168143ab1d34c9072b"
     ],
     "strategy_id": "ema-cross",
     "strategy_version_id": "ema-cross@v1",
