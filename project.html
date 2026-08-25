@@ -2112,7 +2112,7 @@
       <div class="brand-mark" aria-hidden="true">NT</div>
       <div>
         <p class="brand-name">NTPRO / 项目说明</p>
-        <p class="brand-meta">产品怎么用 · 系统怎么实现 · 2026-08-05</p>
+        <p class="brand-meta">产品怎么用 · 系统怎么实现 · 2026-08-25</p>
       </div>
     </div>
     <div class="topbar-actions">
@@ -2143,41 +2143,41 @@
       </nav>
       <a class="nav-link" href="changelog.html">项目变更记录</a>
       <div class="sidebar-note">
-        产品说明只讲策略人员如何完成闭环；技术说明解释引擎、节点和当前边界。Live 生产行情正在建设，真实订单仍未开放。
+        当前先交付一个人可以直接使用的策略工作台：Backtest + Demo 完成产品闭环；技术说明只解释必要的运行支撑。Live 保持独立受控准入。
       </div>
     </aside>
 
     <main>
       <div class="content">
         <section id="overview" data-document-part="product">
-          <p class="eyebrow">产品说明 · 最终当前北极星</p>
-          <h1>让同一个策略从 Backtest 走到 Demo，再进入真实 Live。</h1>
+          <p class="eyebrow">产品说明 · 当前北极星</p>
+          <h1>先把一个策略的 Backtest 和 Demo 做成真正可用的产品。</h1>
           <p class="lead">
-            NTPRO 当前只聚焦量化策略闭环。用户固定一个策略版本，用历史数据回测，在沙盒环境验证实时运行，满足独立 Live 准入条件后连接真实账户和 Venue；三种模式共享策略逻辑、参数结构、订单语义、风险指标和证据格式。
+            NTPRO 当前面向单个量化研发和运行人员。用户打开策略工作台，查看一个不可变策略版本，创建 Backtest，启动 Demo，比较结果并复盘；不需要先理解 Supervisor、node、Axum、Cargo 或底层目录。
           </p>
           <div class="status-row" aria-label="项目状态">
-            <span class="status ok">Backtest：Rust 引擎已存在</span>
-            <span class="status ok">Demo：单节点 Sandbox MVP 已冻结</span>
-            <span class="status info">Live：生产行情可显式启动，订单未开放</span>
-            <span class="status info">当前真实订单权限为 false</span>
+            <span class="status ok">产品技术栈：Rust + Axum + React</span>
+            <span class="status ok">当前策略：BTC/USDT EMA Cross v1</span>
+            <span class="status info">当前数据：内置确定性数据</span>
+            <span class="status info">Live：独立准入，不阻塞 v1</span>
           </div>
 
           <div class="summary-callout">
             <strong>一句话北极星</strong>
-            一个量化人员可以在同一个策略工作台中完成策略版本固定、Backtest、Demo、Live、跨模式比较和复盘，不需要理解 Supervisor、node、Axum 或 Rust 底层实现。
+            一个新用户可以从空的运行历史开始，只通过策略工作台完成首次 Backtest、Demo、结果比较和复盘，并在重启后重新打开历史结果。
           </div>
 
           <div class="summary-callout">
             <strong>产品合同</strong>
-            同一个 <code>Strategy + StrategyVersion</code> 可以产生多个独立 Run。Backtest 使用历史回放；Demo 和 Live 由同一套实时节点语义承载，只替换数据源、执行适配器、账户、Venue 和运行授权，不复制策略代码。
+            当前只收口一个用户、一个策略、一个品种、一个账户、一台机器和一个 Supervisor + node。Backtest 与 Demo 引用同一个 <code>StrategyVersion</code>；Live 保留同一策略语义，但必须后续独立授权。
           </div>
 
           <div class="metric-grid" aria-label="项目指标">
-            <div class="metric"><span class="metric-value">1</span><span class="metric-label">统一策略资产</span></div>
-            <div class="metric"><span class="metric-value">3</span><span class="metric-label">运行模式</span></div>
-            <div class="metric"><span class="metric-value">1:N</span><span class="metric-label">策略版本到运行记录</span></div>
-            <div class="metric"><span class="metric-value">1</span><span class="metric-label">当前 Demo 节点基线</span></div>
-            <div class="metric"><span class="metric-value">0</span><span class="metric-label">当前允许的真实订单</span></div>
+            <div class="metric"><span class="metric-value">1</span><span class="metric-label">当前产品入口</span></div>
+            <div class="metric"><span class="metric-value">1</span><span class="metric-label">首个内置策略</span></div>
+            <div class="metric"><span class="metric-value">2</span><span class="metric-label">v1 当前模式</span></div>
+            <div class="metric"><span class="metric-value">1</span><span class="metric-label">本地运行节点</span></div>
+            <div class="metric"><span class="metric-value">0</span><span class="metric-label">v1 真实订单</span></div>
           </div>
         </section>
 
@@ -2185,25 +2185,23 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">产品说明 · 策略闭环</p>
-              <h2>产品从一个策略版本开始，也回到下一个策略版本</h2>
-              <p class="section-intro">研究、验证、运行和复盘使用同一身份链；切换模式不复制策略，也不丢失数据、配置和结果来源。</p>
+              <h2>先把一条普通用户能走完的流程做完整</h2>
+              <p class="section-intro">当前不是策略开发平台，也不是机构运维平台。产品先证明一个已注册策略可以被回测、模拟运行、比较和复盘。</p>
             </div>
           </div>
 
           <div class="business-flow" aria-label="策略三模式闭环">
-            <div class="business-step"><small>01</small><strong>创建策略</strong><span>定义策略逻辑、参数结构、数据需求和风险约束。</span></div>
-            <div class="business-step"><small>02</small><strong>固定版本</strong><span>保存不可变的代码、参数、数据引用和版本标识。</span></div>
-            <div class="business-step"><small>03</small><strong>Backtest</strong><span>在历史数据上执行确定性回放，检查交易与风险结果。</span></div>
-            <div class="business-step"><small>04</small><strong>结果比较</strong><span>比较不同版本和参数的收益、回撤、成交与稳定性。</span></div>
-            <div class="business-step"><small>05</small><strong>Demo</strong><span>同一版本进入 Sandbox，验证实时数据、订单语义和运行稳定性。</span></div>
-            <div class="business-step"><small>06</small><strong>Live 准入</strong><span>单独绑定真实账户、Venue、适配器、风险限额和人工授权。</span></div>
-            <div class="business-step"><small>07</small><strong>Live 运行</strong><span>在真实市场运行，并持续观察订单、成交、持仓、风险和健康。</span></div>
-            <div class="business-step"><small>08</small><strong>复盘迭代</strong><span>统一对比三种模式的结果，形成下一策略版本。</span></div>
+            <div class="business-step"><small>01</small><strong>查看策略</strong><span>确认当前策略、不可变版本、参数和数据要求。</span></div>
+            <div class="business-step"><small>02</small><strong>创建 Backtest</strong><span>选择当前可用数据与资金，执行确定性模拟回放。</span></div>
+            <div class="business-step"><small>03</small><strong>查看结果</strong><span>检查交易、持仓、收益、回撤、风险、日志和来源。</span></div>
+            <div class="business-step"><small>04</small><strong>启动 Demo</strong><span>同一版本进入 Sandbox，观察实时策略和模拟执行。</span></div>
+            <div class="business-step"><small>05</small><strong>比较复盘</strong><span>解释 Backtest 与 Demo 的行为和结果差异。</span></div>
+            <div class="business-step"><small>06</small><strong>继续迭代</strong><span>从证据回到策略版本，决定下一次产品或策略改动。</span></div>
           </div>
 
           <div class="summary-callout">
-            <strong>共享策略，不共享运行权限</strong>
-            Backtest、Demo、Live 使用同一个策略版本，但每个 Run 都有独立的模式、数据、配置、账户、Venue、时间范围、订单、成交、持仓、风险和证据。Backtest 或 Demo 通过不能自动开启 Live。
+            <strong>当前先把 Backtest + Demo 做好</strong>
+            Live 仍是后续能力，但不再主导当前 Roadmap。真实账户、真实 Venue 和订单权限继续独立准入，也不会由 Usable Product v1 自动开启。
           </div>
 
           <div class="decision-grid">
@@ -2217,15 +2215,15 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">产品说明 · 三种模式</p>
-              <h2>模式不同，策略资产和观察语言相同</h2>
-              <p class="section-intro">产品使用 Backtest、Demo、Live 三个明确名称；代码中的 Demo 对应 <code>Environment::Sandbox</code>。</p>
+              <h2>两种当前模式先形成闭环，Live 保持独立</h2>
+              <p class="section-intro">产品继续使用 Backtest、Demo、Live 三个明确名称；Usable Product v1 只以 Backtest + Demo 可交付为完成条件。</p>
             </div>
           </div>
 
           <div class="mvp-principles" aria-label="策略运行模式合同">
-            <div class="mvp-principle"><small>BACKTEST</small><strong>历史验证</strong><span>历史数据 + BacktestEngine + 模拟撮合；当前已有 Rust 底层能力，产品闭环待整合。</span></div>
-            <div class="mvp-principle"><small>DEMO / SANDBOX</small><strong>实时验证</strong><span>实时或沙盒数据 + LiveNode + 模拟执行；当前单节点 MVP 已完成并冻结。</span></div>
-            <div class="mvp-principle"><small>LIVE</small><strong>真实交易</strong><span>实时数据 + 同一 LiveNode 语义 + 真实适配器和账户；生产行情 Runtime 正在建设，执行与订单未开放。</span></div>
+            <div class="mvp-principle"><small>BACKTEST · V1</small><strong>历史验证</strong><span>当前先用内置确定性数据打通产品流程；下一任务接入 Rust 本地历史数据目录。</span></div>
+            <div class="mvp-principle"><small>DEMO / SANDBOX · V1</small><strong>实时验证</strong><span>同一策略版本接入单 Supervisor + 单 Sandbox node，完成可重复 start/stop 和复盘。</span></div>
+            <div class="mvp-principle"><small>LIVE · 后续</small><strong>独立受控能力</strong><span>已有受控技术路径，真实资金端到端验收仍需 owner 明确授权，不阻塞 v1。</span></div>
           </div>
 
           <div class="handoff-strip" aria-label="策略三模式关系">
@@ -2236,7 +2234,7 @@
 
           <div class="summary-callout">
             <strong>当前状态必须如实显示</strong>
-            产品导航可以出现 Live，并提供通过独立准入后的生产行情显式启动和人工停止；不得渲染下单、撤单、改单或平仓入口。真实执行能力必须在后续高风险任务中独立实现和验收。
+            产品导航可以保留 Live，用于如实展示准入与受控状态；不得把 fixture、loopback 或代码路径描述为真实资金验收完成。真实交易继续由独立高风险任务管理。
           </div>
         </section>
 
@@ -2278,8 +2276,8 @@
 
             <div class="product-stage">
               <header class="product-topbar">
-                <span class="product-scope">策略<strong>BTC 动量</strong></span>
-                <span class="product-scope">版本<strong>v12 · 已冻结</strong></span>
+                <span class="product-scope">策略<strong>BTC/USDT EMA Cross</strong></span>
+                <span class="product-scope">版本<strong>v1 · 不可变</strong></span>
                 <span class="product-scope">模式<strong>Demo</strong></span>
                 <span class="product-search">搜索策略、Run、订单或品种</span>
                 <span class="product-live">Sandbox 实时</span>
@@ -2295,14 +2293,14 @@
               <div class="product-workarea">
                 <div class="product-canvas" role="main">
                   <div class="product-canvas-head">
-                    <div><h4>BTC 动量 v12</h4><p>同一策略版本在三种模式下使用一致的订单、成交、持仓和风险语言。</p></div>
+                    <div><h4>BTC/USDT EMA Cross v1</h4><p>当前先用同一策略版本完成 Backtest 与 Demo 的创建、观察、比较和复盘。</p></div>
                     <span class="maturity backend">Demo / Sandbox</span>
                   </div>
                   <div class="product-summary">
-                    <div class="product-metric"><span>当前 Run</span><strong>RUN-D-1042</strong><small>运行 03:42:18</small></div>
-                    <div class="product-metric"><span>累计收益</span><strong>+8.42%</strong><small>Backtest +11.06%</small></div>
-                    <div class="product-metric"><span>最大回撤</span><strong>-2.18%</strong><small>限额 -6.00%</small></div>
-                    <div class="product-metric"><span>Live 准入</span><strong>行情可启动</strong><small class="warn">订单权限为 false</small></div>
+                    <div class="product-metric"><span>当前 Run</span><strong>demo-&lt;request-id&gt;</strong><small>单节点 Sandbox</small></div>
+                    <div class="product-metric"><span>回测来源</span><strong>内置确定性数据</strong><small>真实历史目录待接入</small></div>
+                    <div class="product-metric"><span>当前比较</span><strong>Backtest / Demo</strong><small>同一 StrategyVersion</small></div>
+                    <div class="product-metric"><span>Live 准入</span><strong>独立受控</strong><small class="warn">不阻塞 Usable Product v1</small></div>
                   </div>
                   <div class="product-grid">
                     <section class="product-panel">
@@ -2323,8 +2321,8 @@
                 <aside class="product-inspector" aria-label="当前策略运行详情">
                   <button class="product-drawer-toggle" type="button" aria-label="收起当前策略运行详情" title="收起当前策略运行详情" aria-expanded="true">›</button>
                   <div class="product-inspector-body">
-                    <strong>当前 Run · RUN-D-1042</strong>
-                    <div class="product-kv"><span>策略版本</span><strong>BTC 动量 v12</strong></div>
+                    <strong>当前 Run · demo-&lt;request-id&gt;</strong>
+                    <div class="product-kv"><span>策略版本</span><strong>ema_cross_btcusdt_v1@v1</strong></div>
                     <div class="product-kv"><span>Environment</span><strong>Sandbox</strong></div>
                     <div class="product-kv"><span>账户</span><strong>DEMO-001</strong></div>
                     <div class="product-kv"><span>Venue</span><strong>Sandbox</strong></div>
@@ -2390,7 +2388,7 @@
             <div>
               <p class="eyebrow">技术说明 · 系统拓扑</p>
               <h2>当前技术基线是本地单节点 Demo</h2>
-              <p class="section-intro">代码入口为 <code>nautilus mvp serve</code>。一个进程内的 <code>MvpRuntime</code> 使用 <code>SupervisorRegistryStore</code> 注册并启动一个 <code>ntpro-node</code>，随后启动 Axum HTTP 服务提供两个门户。</p>
+              <p class="section-intro">代码入口为 <code>nautilus mvp serve</code>。一个进程内的 <code>MvpRuntime</code> 使用 <code>SupervisorRegistryStore</code> 注册并启动一个 <code>ntpro-node</code>，随后由 Axum 提供 Product API、策略工作台静态资源和辅助技术状态页。</p>
             </div>
           </div>
 
@@ -2398,12 +2396,12 @@
             <div class="gap-step"><span class="step-number">1</span><h3>CLI 入口</h3><p><code>nautilus mvp serve</code> 读取沙盒节点配置和本地工作目录。</p></div>
             <div class="gap-step"><span class="step-number">2</span><h3>Supervisor 存储</h3><p><code>SupervisorRegistryStore</code> 管理节点注册、进程状态、日志与指标文件。</p></div>
             <div class="gap-step"><span class="step-number">3</span><h3>单个节点</h3><p>一个 <code>ntpro-node</code> 承载一个策略实例、一个沙盒账户和一个 Venue。</p></div>
-            <div class="gap-step"><span class="step-number">4</span><h3>Axum 门户</h3><p>同一 HTTP 服务提供机构工作台、控制中心和版本化 MVP API。</p></div>
+            <div class="gap-step"><span class="step-number">4</span><h3>Axum 产品服务</h3><p>同一 HTTP 服务提供策略工作台、版本化 Product API 和辅助技术状态接口。</p></div>
           </div>
 
           <div class="summary-callout">
             <strong>部署边界</strong>
-            当前没有远程 node agent、共享注册中心、多主机调度或自动故障转移。一个节点也不等于一套工作台；两个门户是同一运行实例上的集中视图。
+            当前没有远程 node agent、共享注册中心、多主机调度或自动故障转移。一个节点也不等于一套工作台；策略工作台是当前单机运行实例的产品入口。
           </div>
 
           <div class="summary-callout">
@@ -2495,14 +2493,14 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 运行链路</p>
-              <h2>一次启动如何变成两个可访问门户</h2>
+              <h2>一次启动如何变成可访问的策略工作台</h2>
               <p class="section-intro">以下顺序直接对应 <code>crates/cli/src/mvp.rs</code>，描述当前代码行为，不是未来架构设想。</p>
             </div>
           </div>
           <div class="gap-flow">
             <div class="gap-step"><span class="step-number">1</span><h3>注册并启动</h3><p><code>MvpRuntime::start</code> 注册节点，再通过 <code>start_node_process</code> 启动子进程。</p></div>
             <div class="gap-step"><span class="step-number">2</span><h3>生成本地事实</h3><p>写入 registry、identity contract、status contract、节点状态、指标和日志。</p></div>
-            <div class="gap-step"><span class="step-number">3</span><h3>启动 HTTP 服务</h3><p><code>run_dashboard_command</code> 挂载门户静态资源、只读查询和受限 start/stop 动作。</p></div>
+            <div class="gap-step"><span class="step-number">3</span><h3>启动 HTTP 服务</h3><p><code>run_dashboard_command</code> 挂载策略工作台静态资源、Product API、状态查询和受限生命周期动作。</p></div>
             <div class="gap-step"><span class="step-number">4</span><h3>持续刷新与退出</h3><p>运行时定期刷新状态；Ctrl-C、服务错误或状态刷新失败都会进入节点停止流程。</p></div>
           </div>
           <div class="summary-callout">
@@ -2515,8 +2513,8 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 合同与接口</p>
-              <h2>当前 MVP 接口仍服务双门户技术基线</h2>
-              <p class="section-intro">路由由 <code>crates/cli/src/dashboard/server.rs</code> 挂载；状态语义由 <code>crates/cli/src/mvp_contract.rs</code> 定义。下一阶段策略工作台需要在此基础上新增 StrategyVersion 与 Run 产品合同。</p>
+              <h2>Product API 已经是策略工作台的正式数据入口</h2>
+              <p class="section-intro">路由由 <code>crates/cli/src/dashboard/server.rs</code> 挂载；Strategy、StrategyVersion、Run、Backtest、Demo 和 Live 合同位于 <code>/api/product/v1</code>。MVP API 继续服务辅助技术状态，不再定义产品信息架构。</p>
             </div>
           </div>
 
@@ -2524,11 +2522,11 @@
             <table>
               <thead><tr><th>接口</th><th>消费者</th><th>当前用途</th></tr></thead>
               <tbody>
-                <tr><td><code>GET /api/mvp/v1/status</code></td><td>两个门户</td><td>读取共享的策略、账户、运行和健康状态</td></tr>
-                <tr><td><code>GET /api/mvp/v1/event-correlation</code></td><td>两个门户</td><td>用同一事件编号连接业务影响与技术根因</td></tr>
-                <tr><td><code>GET /api/mvp/v1/control-center</code></td><td>控制中心</td><td>读取单节点运维投影</td></tr>
-                <tr><td><code>POST .../actions/start</code></td><td>控制中心</td><td>启动当前本地沙盒节点</td></tr>
-                <tr><td><code>POST .../actions/stop</code></td><td>控制中心</td><td>停止当前本地沙盒节点</td></tr>
+                <tr><td><code>GET /api/product/v1/strategies*</code></td><td>策略工作台</td><td>读取策略和不可变 StrategyVersion</td></tr>
+                <tr><td><code>GET/POST /api/product/v1/runs*</code></td><td>策略工作台</td><td>创建并读取 Backtest、结果、比较和复现</td></tr>
+                <tr><td><code>POST /api/product/v1/demo-runs*</code></td><td>策略工作台</td><td>创建、启动和停止单节点 Demo</td></tr>
+                <tr><td><code>GET /api/mvp/v1/status</code></td><td>辅助系统状态页</td><td>读取 Supervisor、node 和技术健康</td></tr>
+                <tr><td><code>Live admission / candidates</code></td><td>策略工作台</td><td>如实展示独立准入；不由 v1 自动开放真实订单</td></tr>
               </tbody>
             </table>
           </div>
@@ -2540,155 +2538,122 @@
             <div class="mvp-principle"><small>trading_readiness</small><strong>交易准备度</strong><span>当前代码只能是 blocked，不能由 HTTP 成功或进程存活推导。</span></div>
           </div>
 
-          <details class="technical-details">
-            <summary>展开未来商业产品目标框架（尚未交付）</summary>
-          <div class="diagram" aria-label="NTPRO 目标终端架构图">
-            <div class="diagram-caption"><span>红色左边框为新增边界；绿色为直接复用；蓝色为后置能力</span><span>网页优先 / 桌面封装后置</span></div>
-            <div class="target-stack">
-              <div class="stack-layer">
-                <div class="stack-title">产品应用层</div>
-                <div class="stack-items">
-                  <div class="stack-item required"><strong>机构工作台</strong><span>组合、交易、策略研发、回测、模拟、风险和报告</span></div>
-                  <div class="stack-item required"><strong>控制中心</strong><span>组织权限、模型审批、数据账户、部署、运行和审计</span></div>
-                  <div class="stack-item required"><strong>共享控制平面</strong><span>身份范围、四轴状态、申请审批、事件和证据引用</span></div>
-                  <div class="stack-item required"><strong>共享界面基础</strong><span>中文设计系统、可访问性、错误状态和响应式组件</span></div>
-                </div>
-              </div>
-              <div class="stack-layer">
-                <div class="stack-title">客户端协议层</div>
-                <div class="stack-items">
-                  <div class="stack-item required"><strong>机构身份上下文</strong><span>机构、交易台、账簿、环境、角色和授权范围</span></div>
-                  <div class="stack-item required"><strong>查询状态库</strong><span>只保存服务器投影，不复制交易状态机</span></div>
-                  <div class="stack-item required"><strong>实时增量客户端</strong><span>负责序号、续传、时效和事件缺口检测</span></div>
-                  <div class="stack-item required"><strong>证据与命令回执</strong><span>连接申请、审批、拒绝、完成和审计引用</span></div>
-                </div>
-              </div>
-              <div class="stack-layer">
-                <div class="stack-title">Rust 产品合同与接口</div>
-                <div class="stack-items">
-                  <div class="stack-item required"><strong>机构工作台查询</strong><span>组合、交易、策略、回测、模拟和业务风险投影</span></div>
-                  <div class="stack-item reuse"><strong>控制中心只读接口</strong><span>复用 v0.28 六个治理投影与节点接口</span></div>
-                  <div class="stack-item required"><strong>共享合同服务</strong><span>身份、状态、审批、事件、时效、来源和版本</span></div>
-                  <div class="stack-item later"><strong>独立命令门禁</strong><span>任何写操作必须另行授权，并经过审批、风控、幂等和审计</span></div>
-                </div>
-              </div>
-              <div class="stack-layer">
-                <div class="stack-title">现有后端资产</div>
-                <div class="stack-items">
-                  <div class="stack-item reuse"><strong>统一读模型</strong><span>账户、仓位、订单、成交和风险</span></div>
-                  <div class="stack-item reuse"><strong>运行监督器</strong><span>节点、生命周期、日志和指标</span></div>
-                  <div class="stack-item reuse"><strong>策略与回测</strong><span>策略会话、确定性回测和运行证据</span></div>
-                  <div class="stack-item reuse"><strong>状态与事件存储</strong><span>只读责任方事实、诊断、审计和证据引用</span></div>
-                </div>
-              </div>
-            </div>
+          <div class="summary-callout">
+            <strong>当前不做平台化扩张</strong>
+            多机构、双门户、多节点、集中运维和复杂角色权限没有当前用户需求，不进入 Usable Product v1。后续只有在真实使用中出现明确的组织、并发、隔离或容量需求时再独立规划。
           </div>
-
-          <div class="decision-grid">
-            <div class="decision"><h3>为什么必须拆成两个门户</h3><p>机构用户围绕收益、风险、策略和交易结果工作；控制团队围绕审批、部署、凭证和系统健康工作。合并导航会模糊责任与告警优先级。</p></div>
-            <div class="decision"><h3>为什么策略仍在机构工作台</h3><p>策略是投资资产，需要与组合、账簿、风险目标和交易结果连续呈现；独立审批与生产部署则必须留在控制中心。</p></div>
-            <div class="decision"><h3>为什么控制平面不是第三个产品</h3><p>它只保存权威身份、状态、审批、事件和审计事实，并向两个门户投影；没有独立用户旅程，也不能成为第二套交易状态源。</p></div>
-            <div class="decision"><h3>为什么命令门禁必须独立</h3><p>查询与操作承担不同风险；写命令必须经过独立授权、审批、风控、幂等和审计，不能由只读页面能力自动继承。</p></div>
-          </div>
-          </details>
         </section>
 
         <section id="roadmap" data-document-part="product">
           <div class="section-head">
             <div>
               <p class="eyebrow">产品说明 · 推进路线</p>
-              <h2>先做完整策略闭环，再扩展机构平台</h2>
-              <p class="section-intro">既有 M0-M4 提供单节点 Demo 技术基线。下一阶段只围绕同一策略的 Backtest、Demo、Live 三模式产品化推进；真实 Live 是必达能力，但必须作为独立高风险阶段实现和验收。</p>
+              <h2>先交付 Usable Product v1，再根据真实使用继续迭代</h2>
+              <p class="section-intro">既有引擎、API 和页面是技术基础。当前路线只围绕首次 Backtest、真实历史数据、Demo、持久化、本地交付和浏览器验收推进。</p>
             </div>
           </div>
 
           <div class="summary-callout">
             <strong>Roadmap 判断标准</strong>
-            不是“有引擎、有命令或能启动节点”就算产品完成。用户必须能在策略工作台中创建版本、发起 Run、查看结果、比较模式、理解失败原因，并在明确准入后运行真实 Live。
+            不是“有引擎、有命令或能启动节点”就算产品完成。一个不了解仓库内部结构的用户，必须能按中文说明启动系统，只通过页面完成 Backtest + Demo，并在重启后重新打开结果。
           </div>
 
-          <div class="roadmap" aria-label="策略三模式产品路线">
+          <div class="roadmap" aria-label="Usable Product v1 产品路线">
             <article class="phase">
-              <div class="phase-dot">S0</div>
-              <div class="phase-time">产品合同 · 下一阶段</div>
+              <div class="phase-dot">U1</div>
+              <div class="phase-time">定位与首次使用 · 当前</div>
               <div class="phase-body">
-                <h3>策略、版本与运行资源</h3>
-                <p>建立一个可贯穿三种模式的产品身份链，避免 Backtest、Demo 和 Live 各自形成孤立入口。</p>
+                <h3>产品定位与首次 Backtest</h3>
+                <p>统一权威文档，并移除“必须先有一个历史 Run 才能创建 Backtest”的首次使用断点。</p>
                 <ul>
-                  <li>固定 Strategy、不可变 StrategyVersion 和独立 Run 三层资源。</li>
-                  <li>统一参数、数据需求、订单语义、风险指标和证据格式。</li>
-                  <li>每个 Run 明确记录 Environment、适配器、账户、Venue、配置和结果。</li>
+                  <li>当前只面向一个用户、一个策略、一个品种、一个账户和一台机器。</li>
+                  <li>空 Run 历史使用已验证 StrategyVersion 的内置确定性来源。</li>
+                  <li>pending、stale 和 invalid 继续 fail closed。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>同一 StrategyVersion 可创建三类 Run，身份、状态、来源和错误合同稳定；任何模式都不能修改已冻结版本。</div>
+              <div class="exit-gate"><strong>退出条件</strong>文档与页面定位一致；新用户无需预置历史 Run 即可创建首次内置 Backtest。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">S1</div>
-              <div class="phase-time">Backtest · 产品化</div>
+              <div class="phase-dot">U2</div>
+              <div class="phase-time">真实数据 · 下一项</div>
               <div class="phase-body">
-                <h3>历史验证闭环</h3>
-                <p>把已有 Rust BacktestEngine 从底层能力变成策略工作台中的完整用户流程。</p>
+                <h3>本地历史数据目录</h3>
+                <p>复用 Rust ParquetDataCatalog 和 BacktestNode，把真实本地历史数据接入 Product API。</p>
                 <ul>
-                  <li>选择策略版本、数据集、时间范围、资金和模拟 Venue。</li>
-                  <li>展示运行状态、交易明细、持仓、收益、回撤、风险和日志。</li>
-                  <li>支持多个版本与参数 Run 的确定性比较和结果留证。</li>
+                  <li>展示经过验证的数据集、品种、时间范围和数据指纹。</li>
+                  <li>工作台允许选择一个数据集并冻结到 Run。</li>
+                  <li>内置确定性数据保留为测试来源，不再是唯一来源。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>用户无需命令行即可完成创建、运行、查看、比较和复现 Backtest，结果可追溯到同一 StrategyVersion。</div>
+              <div class="exit-gate"><strong>退出条件</strong>用户可以选择本地真实历史数据完成 Backtest，结果包含数据范围和 SHA-256 来源证据。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">S2</div>
-              <div class="phase-time">Demo · 已完成</div>
+              <div class="phase-dot">U3</div>
+              <div class="phase-time">Backtest · 产品验收</div>
               <div class="phase-body">
-                <h3>实时沙盒验证</h3>
-                <p>将已经冻结的单 Supervisor + 单 Sandbox 节点接入同一策略工作台。</p>
+                <h3>从空工作区完成回测闭环</h3>
+                <p>重新按普通用户流程验证已有 Backtest 创建、结果、分析、比较和复现能力。</p>
                 <ul>
-                  <li>直接选择通过验证的 StrategyVersion 创建 Demo Run。</li>
-                  <li>观察实时数据、信号、订单意图、模拟成交、持仓、风险和健康。</li>
-                  <li>把 Demo 与 Backtest 的行为和结果差异放在同一比较视图。</li>
+                  <li>统一加载、空状态、失败和恢复语言。</li>
+                  <li>刷新页面和重启服务后历史 Run 仍可读取。</li>
+                  <li>用户不需要理解 Cargo 或工件目录。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>Demo 不复制策略代码；工作台可完整解释运行状态和模式差异，真实订单仍保持关闭。</div>
+              <div class="exit-gate"><strong>退出条件</strong>新用户只通过页面完成创建、运行、查看、比较和复现 Backtest。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">S3</div>
-              <div class="phase-time">Live · 必达能力</div>
+              <div class="phase-dot">U4</div>
+              <div class="phase-time">Demo · 产品验收</div>
               <div class="phase-body">
-                <h3>真实交易产品能力</h3>
-                <p>在同一 LiveNode 和 StrategyVersion 语义上接入真实数据与执行，不另建一套 Live 策略。</p>
+                <h3>实时沙盒闭环</h3>
+                <p>用同一 StrategyVersion 创建 Demo，完成 start、观察、stop、冻结结果和跨模式比较。</p>
                 <ul>
-                  <li>建设真实 Venue 数据/执行适配器、账户绑定、凭证和连接状态。</li>
-                  <li>实现订单提交、撤改、成交回报、持仓对账、风险门禁和人工停机。</li>
-                  <li>建立 Live 独立准入、最小权限、幂等、审计、恢复和回滚证据。</li>
+                  <li>覆盖策略、信号、模拟订单、成交、持仓、权益和风险。</li>
+                  <li>验证进程退出、状态陈旧和重启后的安全收口。</li>
+                  <li>真实订单继续保持独立关闭。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>当前进度</strong>S3-LV-001 至 S3-LV-010 已完成生产代码路径和 fail-closed 自动验证。S3 正式退出条件尚未满足：现有证据未包含真实资金账户的受控端到端成交；S3-LV-011 等待 owner 明确授权后验收。追加订单、改单、自动重试和自动恢复仍保持阻断。</div>
-              <div class="exit-gate"><strong>退出条件</strong>真实账户和 Venue 在独立授权下完成受控端到端交易；异常、断连、重复回报和恢复场景 fail closed，并证明不会由 Demo 自动继承权限。</div>
+              <div class="exit-gate"><strong>退出条件</strong>Demo 可以重复操作和解释，并能与 Backtest 使用同一语言比较。</div>
             </article>
 
             <article class="phase">
-              <div class="phase-dot">S4</div>
-              <div class="phase-time">三模式闭环 · 产品冻结</div>
+              <div class="phase-dot">U5</div>
+              <div class="phase-time">本地交付 · 操作说明</div>
               <div class="phase-body">
-                <h3>统一比较与持续迭代</h3>
-                <p>让策略人员在一个工作台中判断历史、沙盒和真实运行之间的偏差，并形成下一版本。</p>
+                <h3>一个入口完成启动与停止</h3>
+                <p>初始化工作目录并启动 Supervisor、node、Product API 和前端，不要求用户手动编排进程。</p>
                 <ul>
-                  <li>统一比较收益、回撤、滑点、成交质量、风险事件和运行稳定性。</li>
-                  <li>从任何结果追溯策略版本、数据、配置、账户、Venue 和证据。</li>
-                  <li>完成浏览器、性能、故障、操作手册、发布和回滚验收。</li>
+                  <li>覆盖端口冲突、停止、重启和数据保留。</li>
+                  <li>提供面向普通用户的中文操作说明。</li>
+                  <li>不要求用户操作 Cargo、日志目录或 Rust 进程。</li>
                 </ul>
               </div>
-              <div class="exit-gate"><strong>退出条件</strong>一个策略版本可在三种模式中独立运行并统一复盘，产品声明、页面能力和实际交易边界完全一致。</div>
+              <div class="exit-gate"><strong>退出条件</strong>全新本地环境按说明可以启动、使用和停止 NTPRO。</div>
+            </article>
+
+            <article class="phase">
+              <div class="phase-dot">U6</div>
+              <div class="phase-time">浏览器总验收 · v1 冻结</div>
+              <div class="phase-body">
+                <h3>证明产品可以重复交付</h3>
+                <p>用 production bundle 验收首次 Backtest、Demo、深链、刷新、错误、持久化和响应式布局。</p>
+                <ul>
+                  <li>固定产品声明、页面能力和真实数据边界。</li>
+                  <li>完成性能、故障、操作手册和回滚检查。</li>
+                  <li>Live 保持独立准入，不阻塞 v1 收口。</li>
+                </ul>
+              </div>
+              <div class="exit-gate"><strong>退出条件</strong>Backtest + Demo 可以重复演示、审计和交付。</div>
             </article>
           </div>
 
           <div class="decision-grid">
-            <div class="decision"><h3>当前推进 S3</h3><p>S0-S2 与 Live 独立准入、生产行情、单笔订单、对账、人工撤单和策略意图绑定已交付；当前建设每笔订单的确定性风险预算与仓位 sizing。</p></div>
-            <div class="decision"><h3>Live 不是 Sandbox 开关</h3><p>策略代码相同，但真实数据、执行、账户、风控、授权和故障处置必须单独建设。</p></div>
-            <div class="decision"><h3>平台化后置</h3><p>多机构、多节点、集中运维和复杂角色治理在策略三模式闭环完成后再独立规划。</p></div>
+            <div class="decision"><h3>当前推进 U1</h3><p>先统一产品定位并打通没有历史 Run 的首次 Backtest 创建，然后进入真实本地历史数据目录。</p></div>
+            <div class="decision"><h3>现有能力不重写</h3><p>BacktestEngine、Supervisor、node、Product API 和 React 工作台继续复用，只修复真实用户流程断点。</p></div>
+            <div class="decision"><h3>Live 与平台化后置</h3><p>真实资金验收、多机构、多节点和复杂运维不阻塞 Usable Product v1。</p></div>
           </div>
 
           <details class="technical-details">
@@ -2813,23 +2778,23 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">技术说明 · 边界与验证</p>
-              <h2>Demo 基线已冻结，Live 单笔执行进入恢复治理</h2>
-              <p class="section-intro">权威边界来自 <code>docs/product/mvp_freeze_manifest.json</code>。当前冻结拓扑为一个 Supervisor、一个节点、一个策略实例、一个账户、一个 Venue 和 sandbox 环境。</p>
+              <h2>可用产品 v1 建立在已冻结的单节点技术基线上</h2>
+              <p class="section-intro">权威冻结边界来自 <code>docs/product/mvp_freeze_manifest.json</code>。当前产品开发复用一个 Supervisor、一个节点、一个策略实例、一个账户和一个 Venue，不重新建设运行底座。</p>
             </div>
           </div>
 
           <div class="status-row" aria-label="MVP 冻结边界">
-            <span class="status ok">M0-M4 complete / frozen</span>
-            <span class="status info">机构工作台受控操作</span>
-            <span class="status info">控制中心仅 start / stop</span>
-            <span class="status info">单笔真实订单独立准入</span>
-            <span class="status info">Live 是 S3 必达目标</span>
-            <span class="status info">追加、改单与自动恢复关闭</span>
+            <span class="status ok">M0-M4 技术基线已冻结</span>
+            <span class="status info">当前推进 UPV1-001</span>
+            <span class="status info">Backtest 使用内置确定性数据</span>
+            <span class="status info">Demo 使用单节点 Sandbox</span>
+            <span class="status info">真实历史数据进入 UPV1-002</span>
+            <span class="status info">Live 保持独立准入</span>
           </div>
 
           <div class="summary-callout">
             <strong>验证入口</strong>
-            确定性闭环、11 项故障矩阵、两个浏览器视口和 6 组性能工作负载已经登记在冻结清单；后续改动必须单独立项，并同步风险、回滚证据和冻结清单。
+            M0-M4 的确定性闭环、故障矩阵、浏览器和性能证据继续有效。Usable Product v1 在其上逐项验证首次 Backtest、真实历史数据、Demo、本地交付和最终浏览器验收；Live 不从该路线自动取得权限。
           </div>
 
           <details class="technical-details">
@@ -2918,7 +2883,7 @@
           </ul>
           </details>
 
-          <p class="footer-note">项目说明版本：第十八版 · 更新日期：2026-08-12 · 执行者：Codex · 当前北极星为同一策略的 Backtest / Demo / Live 三模式闭环 · Demo 单节点 MVP M0-M4 已冻结 · Live 生产行情 Runtime 正在产品化，真实订单尚未开放 · 正式发布基线：v0.33.0</p>
+          <p class="footer-note">项目说明版本：第十九版 · 更新日期：2026-08-25 · 执行者：Codex · 当前北极星为一个用户通过策略工作台完成 Backtest + Demo 可用闭环 · M0-M4 单节点技术基线已冻结 · Live 保持独立受控准入 · 正式发布基线：v0.33.0</p>
         </section>
       </div>
     </main>

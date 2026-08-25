@@ -819,8 +819,28 @@ try {
   let runScenario = "valid";
   await page.route("**/api/product/v1/runs**", async (route) => {
     const url = new URL(route.request().url());
-    if (url.pathname !== "/api/product/v1/runs" || runScenario === "valid") {
+    if (
+      route.request().method() !== "GET" ||
+      url.pathname !== "/api/product/v1/runs" ||
+      runScenario === "valid"
+    ) {
       return route.continue();
+    }
+    if (runScenario === "empty") {
+      const upstream = await route.fetch();
+      const response = await upstream.json();
+      response.data = [];
+      response.page = {
+        ...response.page,
+        returned_count: 0,
+        next_cursor: null,
+        has_more: false,
+      };
+      return route.fulfill({
+        response: upstream,
+        contentType: "application/json",
+        body: JSON.stringify(response),
+      });
     }
     expectedProductStaleResponses += 1;
     const response = structuredClone(unauthorizedProductBody);
@@ -1132,8 +1152,13 @@ try {
     path: path.join(evidenceDir, "strategy-workbench-demo-comparison-1440.png"),
     fullPage: true,
   });
+  runScenario = "empty";
   await page.getByRole("link", { name: "Backtest", exact: true }).click();
   await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
+  await page.getByText(/当前没有历史 Backtest/).waitFor();
+  await page
+    .locator('input[value="dataset://fixtures/ema-cross-btcusdt-v1"]')
+    .waitFor();
   await page.setViewportSize({ width: 1280, height: 720 });
   const createBacktestButton = page.getByRole("button", {
     name: "创建并运行",
@@ -1184,6 +1209,7 @@ try {
     ),
     fullPage: true,
   });
+  runScenario = "valid";
   await page.getByRole("link", { name: "返回策略总览" }).click();
   const baselineBacktestLink = page.getByRole("link", {
     name: new RegExp(backtestRunId),
@@ -1496,6 +1522,7 @@ writeEvidence({
   product_run_metrics_mobile: 1,
   product_run_create_api: 1,
   product_run_create_browser: 1,
+  product_run_first_backtest_without_history: 1,
   product_run_create_readback: 1,
   product_run_create_access_control: 1,
   product_run_metrics_non_backtest_closed: 1,
