@@ -1284,7 +1284,7 @@ struct ReproductionExpectation {
 #[derive(Clone, Debug)]
 enum BacktestDataSelection {
     Synthetic,
-    Local(dataset::ValidatedProductDataset),
+    Local(Box<dataset::ValidatedProductDataset>),
 }
 
 struct VerifiedBacktestBundle {
@@ -3823,7 +3823,7 @@ fn create_backtest_run(
     let risk_ref = format!("artifact://backtests/{run_id}/run-manifest.json#risk");
     let artifact_root = canonical_backtest_artifact_root(state)?;
     let run_root = artifact_root.join(&run_id);
-    let run_directory = create_dynamic_run_directory(state, &run_id)?;
+    let mut run_directory = create_dynamic_run_directory(state, &run_id)?;
     let data_selection = match source_data_selection {
         BacktestDataSelection::Synthetic => BacktestDataSelection::Synthetic,
         BacktestDataSelection::Local(dataset) => {
@@ -3831,16 +3831,16 @@ fn create_backtest_run(
                 run_root.join(crate::catalog_dataset::PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY);
             let inspection = crate::catalog_dataset::snapshot_local_quote_dataset(
                 &dataset.inspection,
-                &run_directory,
+                run_directory.directory(),
                 &snapshot_root,
             )
             .map_err(|_| {
                 product_error(ProductErrorKind::SourceInvalid, "backtest_dataset_snapshot")
             })?;
-            BacktestDataSelection::Local(dataset::ValidatedProductDataset {
+            BacktestDataSelection::Local(Box::new(dataset::ValidatedProductDataset {
                 inspection,
                 venue_ref: dataset.venue_ref,
-            })
+            }))
         }
     };
     let config_raw = build_backtest_config(
@@ -3855,9 +3855,9 @@ fn create_backtest_run(
     let strategy_version_raw =
         strategy_version::serialize_strategy_version_snapshot(&strategy_version)?;
     let strategy_version_snapshot_sha256 = sha256_ref(&strategy_version_raw);
-    write_new_run_file(&run_directory, "request.toml", &config_raw)?;
+    write_new_run_file(run_directory.directory(), "request.toml", &config_raw)?;
     write_new_run_file(
-        &run_directory,
+        run_directory.directory(),
         "strategy-version.json",
         &strategy_version_raw,
     )?;
@@ -4024,11 +4024,23 @@ fn create_backtest_run(
                     analysis: &analysis,
                 },
             )?;
-            write_new_run_file(&run_directory, "summary.json", &artifacts.summary)?;
-            write_new_run_file(&run_directory, "details.json", &artifacts.details)?;
-            write_new_run_file(&run_directory, "analysis.json", &artifacts.analysis)?;
+            write_new_run_file(
+                run_directory.directory(),
+                "summary.json",
+                &artifacts.summary,
+            )?;
+            write_new_run_file(
+                run_directory.directory(),
+                "details.json",
+                &artifacts.details,
+            )?;
+            write_new_run_file(
+                run_directory.directory(),
+                "analysis.json",
+                &artifacts.analysis,
+            )?;
             if let Some(raw) = reproduction_raw.as_deref() {
-                write_new_run_file(&run_directory, "reproduction.json", raw)?;
+                write_new_run_file(run_directory.directory(), "reproduction.json", raw)?;
             }
             config
         }
@@ -4084,14 +4096,15 @@ fn create_backtest_run(
                 demo_process_state: None,
                 demo_lifecycle_state: None,
             };
-            write_dynamic_manifest(&run_directory, &request_sha256, &config)?;
+            write_dynamic_manifest(run_directory.directory(), &request_sha256, &config)?;
+            run_directory.persist();
             return Err(product_error(
                 ProductErrorKind::ExecutionFailed,
                 "backtest_engine",
             ));
         }
     };
-    write_dynamic_manifest(&run_directory, &request_sha256, &config)?;
+    write_dynamic_manifest(run_directory.directory(), &request_sha256, &config)?;
     let expected_version_id = strategy_version.strategy_version_id();
     let run = validate_and_project_run(
         config,
@@ -4110,6 +4123,7 @@ fn create_backtest_run(
     } else {
         None
     };
+    run_directory.persist();
     Ok((run, proof))
 }
 
@@ -4282,7 +4296,7 @@ fn validate_backtest_creation_request(
         if request.quotes != dataset.inspection.record_count {
             return Err(product_error(ProductErrorKind::BadRequest, "quotes"));
         }
-        BacktestDataSelection::Local(dataset)
+        BacktestDataSelection::Local(Box::new(dataset))
     };
     if !(dataset::MIN_PRODUCT_BACKTEST_QUOTES..=dataset::MAX_PRODUCT_BACKTEST_QUOTES)
         .contains(&request.quotes)
@@ -4321,10 +4335,35 @@ fn validate_backtest_creation_request(
     Ok(data_selection)
 }
 
-fn create_dynamic_run_directory(
+pub(super) struct DynamicRunDirectoryGuard {
+    root: cap_std::fs::Dir,
+    directory: cap_std::fs::Dir,
+    run_id: String,
+    persisted: bool,
+}
+
+impl DynamicRunDirectoryGuard {
+    fn directory(&self) -> &cap_std::fs::Dir {
+        &self.directory
+    }
+
+    pub(super) fn persist(&mut self) {
+        self.persisted = true;
+    }
+}
+
+impl Drop for DynamicRunDirectoryGuard {
+    fn drop(&mut self) {
+        if !self.persisted {
+            let _ = self.root.remove_dir_all(&self.run_id);
+        }
+    }
+}
+
+pub(super) fn create_dynamic_run_directory(
     state: &DashboardServerState,
     run_id: &str,
-) -> Result<cap_std::fs::Dir, ProductError> {
+) -> Result<DynamicRunDirectoryGuard, ProductError> {
     let artifact_root = canonical_backtest_artifact_root(state)?;
     let root = open_absolute_directory_nofollow(&artifact_root)?;
     root.create_dir(run_id).map_err(|error| {
@@ -4334,8 +4373,22 @@ fn create_dynamic_run_directory(
             product_error(ProductErrorKind::SourceUnavailable, "result_root")
         }
     })?;
-    root.open_dir_nofollow(run_id)
-        .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "result_root_containment"))
+    let directory = match root.open_dir_nofollow(run_id) {
+        Ok(directory) => directory,
+        Err(_) => {
+            let _ = root.remove_dir_all(run_id);
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "result_root_containment",
+            ));
+        }
+    };
+    Ok(DynamicRunDirectoryGuard {
+        root,
+        directory,
+        run_id: run_id.to_string(),
+        persisted: false,
+    })
 }
 
 pub(super) fn write_new_run_file(

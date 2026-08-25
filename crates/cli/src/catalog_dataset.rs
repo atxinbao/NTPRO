@@ -27,7 +27,7 @@ use aws_lc_rs::digest::{Context as DigestContext, SHA256};
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
 use cap_std::fs::{Dir, OpenOptions};
 use nautilus_model::{
-    data::HasTsInit,
+    data::{HasTsInit, QuoteTick},
     instruments::{Instrument, InstrumentAny},
 };
 use nautilus_persistence::backend::catalog::ParquetDataCatalog;
@@ -36,7 +36,7 @@ use serde::Serialize;
 pub(crate) const PRODUCT_CATALOG_DIRECTORY: &str = "catalog";
 pub(crate) const PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY: &str = "catalog-snapshot";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct LocalQuoteDatasetInspection {
     pub(crate) catalog_path: PathBuf,
     pub(crate) instrument_id: String,
@@ -47,6 +47,8 @@ pub(crate) struct LocalQuoteDatasetInspection {
     pub(crate) file_count: usize,
     pub(crate) size_bytes: u64,
     pub(crate) data_sha256: String,
+    pub(crate) instrument: InstrumentAny,
+    pub(crate) quotes: Vec<QuoteTick>,
     catalog_files: Vec<PathBuf>,
 }
 
@@ -61,7 +63,7 @@ impl LocalQuoteDatasetInspection {
         format!("local-quotes-{}", &self.data_sha256[7..19])
     }
 
-    fn same_content_as(&self, other: &Self) -> bool {
+    pub(crate) fn same_content_as(&self, other: &Self) -> bool {
         self.instrument_id == other.instrument_id
             && self.venue == other.venue
             && self.record_count == other.record_count
@@ -123,6 +125,7 @@ pub(crate) fn inspect_local_quote_datasets(
     catalog_root: &Path,
 ) -> anyhow::Result<Vec<LocalQuoteDatasetInspection>> {
     let canonical_root = validate_catalog_root(catalog_root)?;
+    validate_catalog_tree_nofollow(&canonical_root)?;
     let mut catalog = ParquetDataCatalog::from_uri(
         canonical_root.to_string_lossy().as_ref(),
         None,
@@ -265,8 +268,41 @@ fn inspect_instrument_quotes(
         file_count: files.len(),
         size_bytes,
         data_sha256,
+        instrument: instrument.clone(),
+        quotes,
         catalog_files,
     }))
+}
+
+fn validate_catalog_tree_nofollow(root: &Path) -> anyhow::Result<()> {
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let mut entries = fs::read_dir(&directory)
+            .with_context(|| format!("failed to list catalog directory '{}'", directory.display()))?
+            .collect::<Result<Vec<_>, _>>()?;
+        entries.sort_by_key(fs::DirEntry::file_name);
+        for entry in entries {
+            let path = entry.path();
+            let file_type = entry
+                .file_type()
+                .with_context(|| format!("failed to inspect catalog path '{}'", path.display()))?;
+            ensure!(
+                !file_type.is_symlink(),
+                "catalog path '{}' must not contain symbolic links",
+                path.display()
+            );
+            if file_type.is_dir() {
+                pending.push(path);
+            } else {
+                ensure!(
+                    file_type.is_file(),
+                    "catalog path '{}' must be a normal file or directory",
+                    path.display()
+                );
+            }
+        }
+    }
+    Ok(())
 }
 
 fn local_catalog_files(

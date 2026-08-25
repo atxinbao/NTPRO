@@ -25,15 +25,11 @@ use anyhow::Context;
 use aws_lc_rs::digest::{SHA256, digest};
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
 use nautilus_backtest::{
-    config::{
-        BacktestDataConfig, BacktestEngineConfig, BacktestRunConfig, BacktestVenueConfig,
-        NautilusDataType, SimulatedVenueConfig,
-    },
+    config::{BacktestEngineConfig, BacktestRunConfig, BacktestVenueConfig, SimulatedVenueConfig},
     engine::BacktestEngine,
     node::BacktestNode,
     result::BacktestResult,
 };
-use nautilus_core::UnixNanos;
 use nautilus_model::{
     data::{Data, QuoteTick},
     enums::{AccountType, BookType, OmsType},
@@ -768,7 +764,7 @@ fn run_catalog_ema_cross_engine(
     let expected_start =
         parse_unix_nanos("data.start_time_ns", config.data.start_time_ns.as_deref())?;
     let expected_end = parse_unix_nanos("data.end_time_ns", config.data.end_time_ns.as_deref())?;
-    let before = inspect_local_quote_dataset(catalog_path, &config.data.instrument_id)
+    let mut before = inspect_local_quote_dataset(catalog_path, &config.data.instrument_id)
         .context("local parquet catalog validation failed before backtest")?;
     validate_catalog_inspection(
         &before,
@@ -794,45 +790,42 @@ fn run_catalog_ema_cross_engine(
         .book_type(BookType::L1_MBP)
         .starting_balances(vec![starting_balance.to_string()])
         .build();
-    let data_config = BacktestDataConfig::builder()
-        .data_type(NautilusDataType::QuoteTick)
-        .catalog_path(before.catalog_path.to_string_lossy().into_owned())
-        .instrument_id(instrument_id)
-        .start_time(UnixNanos::from(expected_start))
-        .end_time(UnixNanos::from(expected_end))
-        .build();
     let run_config = BacktestRunConfig::builder()
         .id(config.run.id.clone())
         .venues(vec![venue_config])
-        .data(vec![data_config])
+        .data(Vec::new())
         .dispose_on_completion(false)
         .build();
     let mut node = BacktestNode::new(vec![run_config])?;
     node.build()?;
-    let engine = node
-        .get_engine_mut(&config.run.id)
-        .context("catalog backtest engine was not built")?;
-    engine.add_strategy(EmaCross::new(
-        instrument_id,
-        strategy.trade_size,
-        strategy.fast_period,
-        strategy.slow_period,
-    ))?;
-    let mut results = node.run()?;
-    anyhow::ensure!(
-        results.len() == 1,
-        "catalog backtest returned no unique result"
-    );
-    let result = results.remove(0);
+    {
+        let engine = node
+            .get_engine_mut(&config.run.id)
+            .context("catalog backtest engine was not built")?;
+        engine.add_instrument(&before.instrument)?;
+        engine.add_strategy(EmaCross::new(
+            instrument_id,
+            strategy.trade_size,
+            strategy.fast_period,
+            strategy.slow_period,
+        ))?;
+        let quotes = std::mem::take(&mut before.quotes)
+            .into_iter()
+            .map(Data::Quote)
+            .collect();
+        engine.add_data(quotes, None, true, true)?;
+        engine.run(None, None, None, false)?;
+    }
     let engine = node
         .get_engine(&config.run.id)
         .context("catalog backtest engine is unavailable after execution")?;
+    let result = engine.get_result();
     let details = collect_engine_details(engine, venue)?;
 
     let after = inspect_local_quote_dataset(catalog_path, &config.data.instrument_id)
         .context("local parquet catalog validation failed after backtest")?;
     anyhow::ensure!(
-        before == after,
+        before.same_content_as(&after),
         "local parquet dataset changed while the backtest was running"
     );
 

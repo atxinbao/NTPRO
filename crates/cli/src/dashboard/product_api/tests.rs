@@ -2631,7 +2631,7 @@ async fn local_quote_catalog_is_listed_and_frozen_into_a_real_backtest_run() {
     assert!(snapshot_root.is_dir());
     assert!(
         stored_request.contains(snapshot_root.to_string_lossy().as_ref()),
-        "BacktestNode must consume the Run-owned catalog snapshot"
+        "request provenance must bind the Run-owned catalog snapshot"
     );
     let summary: Value = serde_json::from_slice(
         &fs::read(run_root.join("summary.json")).expect("summary should be readable"),
@@ -2703,6 +2703,41 @@ async fn local_quote_catalog_is_listed_and_frozen_into_a_real_backtest_run() {
     .await;
     assert_eq!(status, StatusCode::OK, "{detail}");
     assert_eq!(detail["data"]["data_ref"], dataset["data_ref"]);
+}
+
+#[test]
+fn incomplete_dynamic_backtest_run_directories_are_transactional() {
+    let fixture = Fixture::new("dynamic-run-directory-guard");
+    let state = fixture.state();
+    let incomplete_run_id = "backtest-incomplete-guard";
+    let incomplete_path = fixture
+        .root
+        .join("artifacts/backtests")
+        .join(incomplete_run_id);
+    {
+        let _guard = create_dynamic_run_directory(&state, incomplete_run_id)
+            .expect("incomplete Run directory should be created");
+        assert!(incomplete_path.is_dir());
+    }
+    assert!(
+        !incomplete_path.exists(),
+        "an uncommitted Run directory must be removed on failure"
+    );
+
+    let persisted_run_id = "backtest-persisted-guard";
+    let persisted_path = fixture
+        .root
+        .join("artifacts/backtests")
+        .join(persisted_run_id);
+    {
+        let mut guard = create_dynamic_run_directory(&state, persisted_run_id)
+            .expect("persisted Run directory should be created");
+        guard.persist();
+    }
+    assert!(
+        persisted_path.is_dir(),
+        "a committed Run directory must remain available"
+    );
 }
 
 #[tokio::test]
