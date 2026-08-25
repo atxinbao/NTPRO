@@ -60,7 +60,9 @@ export function BacktestPage() {
   if (datasets.error) return <ProductErrorState error={datasets.error} />;
 
   const baseline = product.runs?.data.find(
-    (run) => run.environment === "backtest",
+    (run) =>
+      run.environment === "backtest" &&
+      run.data_ref.startsWith("dataset://fixtures/"),
   );
   const builtinSource = resolveBacktestSource(
     product.strategy.strategy_id,
@@ -258,7 +260,7 @@ function resolveBacktestSource(
   version: StrategyVersion,
   baseline?: Run,
 ): BacktestSource | undefined {
-  if (baseline) {
+  if (baseline?.data_ref.startsWith("dataset://fixtures/")) {
     return {
       dataRef: baseline.data_ref,
       venueRef: baseline.venue_ref,

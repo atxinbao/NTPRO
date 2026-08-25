@@ -2552,6 +2552,18 @@ fn live_account_refresh_rejects_incoherent_connected_observations() {
 #[tokio::test]
 async fn local_quote_catalog_is_listed_and_frozen_into_a_real_backtest_run() {
     let fixture = Fixture::new("local-quote-catalog-run");
+    let testnet_config = valid_config()
+        .replace("venues = [\"BINANCE\"]", "venues = [\"BINANCE_TESTNET\"]")
+        .replace(
+            "venue_ref = \"venue://simulated/BINANCE\"",
+            "venue_ref = \"venue://simulated/BINANCE_TESTNET\"",
+        );
+    fixture.write_config(&config_with_computed_version_hash(&testnet_config));
+    let mut identity = fixture.read_identity();
+    identity.identities.strategy_version_content_hash =
+        strategy_version_content_hash(&fixture.config_path);
+    fixture.write_identity(&identity);
+    fixture.refresh_identity_and_status_provenance();
     let catalog_root = fixture.root.clone();
     tokio::task::spawn_blocking(move || Fixture::write_quote_catalog(&catalog_root))
         .await
@@ -2577,7 +2589,7 @@ async fn local_quote_catalog_is_listed_and_frozen_into_a_real_backtest_run() {
     assert_eq!(dataset["data_type"], "quote_tick");
     assert_eq!(dataset["storage_format"], "parquet");
     assert_eq!(dataset["record_count"], 120);
-    assert_eq!(dataset["venue_ref"], "venue://simulated/BINANCE");
+    assert_eq!(dataset["venue_ref"], "venue://simulated/BINANCE_TESTNET");
     assert_eq!(dataset["source"]["freshness_status"], "verified");
     let catalog_raw = serde_json::to_string(&catalog).expect("catalog response should serialize");
     assert!(
@@ -2614,6 +2626,12 @@ async fn local_quote_catalog_is_listed_and_frozen_into_a_real_backtest_run() {
                 .as_str()
                 .expect("dataset fingerprint should exist")
         )
+    );
+    let snapshot_root = run_root.join("catalog-snapshot");
+    assert!(snapshot_root.is_dir());
+    assert!(
+        stored_request.contains(snapshot_root.to_string_lossy().as_ref()),
+        "BacktestNode must consume the Run-owned catalog snapshot"
     );
     let summary: Value = serde_json::from_slice(
         &fs::read(run_root.join("summary.json")).expect("summary should be readable"),
@@ -2658,6 +2676,23 @@ async fn local_quote_catalog_is_listed_and_frozen_into_a_real_backtest_run() {
         error_chain.contains("local parquet catalog validation failed"),
         "unexpected instrument failure: {error:#}"
     );
+
+    fs::remove_dir_all(fixture.root.join("catalog"))
+        .expect("workspace catalog should be removable after the Run snapshot is frozen");
+    let reproduce_path = format!("/api/product/v1/runs/{run_id}/reproduction");
+    let (status, reproduced) = router_json_body(
+        &router,
+        Method::POST,
+        &reproduce_path,
+        &json!({
+            "source_run_id": run_id,
+            "deterministic_replay": true
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{reproduced:#}");
+    assert_eq!(reproduced["data"]["proof"]["input_equivalent"], true);
+    assert_eq!(reproduced["data"]["proof"]["output_equivalent"], true);
 
     let restarted_router = fixture.router();
     let (status, detail) = router_json(
@@ -2773,6 +2808,50 @@ async fn local_quote_catalog_rejects_missing_and_mismatched_sources() {
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
     assert_eq!(body["error"]["code"], "product_source_invalid");
     assert_eq!(body["error"]["field"], "local_data_catalog");
+
+    #[cfg(unix)]
+    {
+        let linked = Fixture::new("linked-local-quote-catalog");
+        let catalog_root = linked.root.clone();
+        tokio::task::spawn_blocking(move || Fixture::write_quote_catalog(&catalog_root))
+            .await
+            .expect("catalog writer should join");
+        let quote_directory = linked.root.join("catalog/data/quotes/BTCUSDT.BINANCE");
+        let outside_directory = linked.root.join("outside-quotes");
+        fs::rename(&quote_directory, &outside_directory)
+            .expect("quote directory should move outside the catalog");
+        std::os::unix::fs::symlink(&outside_directory, &quote_directory)
+            .expect("quote directory symlink should be created");
+        let (status, body) = router_json(
+            &linked.router(),
+            Method::GET,
+            "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets",
+        )
+        .await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
+        assert_eq!(body["error"]["code"], "product_source_invalid");
+        assert_eq!(body["error"]["field"], "local_data_catalog");
+
+        let linked_root = Fixture::new("linked-local-quote-catalog-root");
+        let workspace = linked_root.root.clone();
+        tokio::task::spawn_blocking(move || Fixture::write_quote_catalog(&workspace))
+            .await
+            .expect("catalog writer should join");
+        let real_catalog = linked_root.root.join("real-catalog");
+        fs::rename(linked_root.root.join("catalog"), &real_catalog)
+            .expect("catalog root should move");
+        std::os::unix::fs::symlink(&real_catalog, linked_root.root.join("catalog"))
+            .expect("catalog root symlink should be created");
+        let (status, body) = router_json(
+            &linked_root.router(),
+            Method::GET,
+            "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets",
+        )
+        .await;
+        assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
+        assert_eq!(body["error"]["code"], "product_source_invalid");
+        assert_eq!(body["error"]["field"], "local_data_catalog");
+    }
 }
 
 #[tokio::test]

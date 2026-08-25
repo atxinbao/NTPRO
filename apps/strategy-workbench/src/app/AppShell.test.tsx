@@ -253,6 +253,37 @@ describe("strategy workbench product slice", () => {
     });
   });
 
+  it("does not mislabel a historical local Run as the built-in Backtest source", async () => {
+    const runs = structuredClone(runListFixture);
+    const localRun = structuredClone(runs.data[0]);
+    localRun.run_id = "backtest-local-history";
+    localRun.data_ref = datasetListFixture.data[0].data_ref;
+    localRun.updated_at_unix_ms += 10_000;
+    runs.data = [localRun, ...runs.data];
+    runs.page.returned_count = runs.data.length;
+    server.use(
+      http.get(
+        "/api/product/v1/strategies/:strategyId/versions/:versionId/datasets",
+        () =>
+          HttpResponse.json({
+            ...structuredClone(datasetListFixture),
+            data: [],
+          }),
+      ),
+      http.get("/api/product/v1/runs", () => HttpResponse.json(runs)),
+    );
+
+    renderWorkbench("/backtests");
+
+    expect(
+      await screen.findByRole("combobox", { name: "回测数据" }),
+    ).toHaveValue("dataset://fixtures/ema-cross");
+    expect(screen.getByRole("status")).toHaveTextContent("内置数据");
+    expect(screen.getByRole("status")).not.toHaveTextContent(
+      "dataset://local/quotes",
+    );
+  });
+
   it("creates a Backtest Run from the product page and opens its detail", async () => {
     let submittedBody: unknown;
     const registeredRuns = structuredClone(runListFixture);

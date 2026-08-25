@@ -19,11 +19,13 @@ use std::{
     collections::BTreeSet,
     fs,
     io::{self, Write},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use anyhow::{Context, ensure};
 use aws_lc_rs::digest::{Context as DigestContext, SHA256};
+use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
+use cap_std::fs::{Dir, OpenOptions};
 use nautilus_model::{
     data::HasTsInit,
     instruments::{Instrument, InstrumentAny},
@@ -32,6 +34,7 @@ use nautilus_persistence::backend::catalog::ParquetDataCatalog;
 use serde::Serialize;
 
 pub(crate) const PRODUCT_CATALOG_DIRECTORY: &str = "catalog";
+pub(crate) const PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY: &str = "catalog-snapshot";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct LocalQuoteDatasetInspection {
@@ -44,6 +47,7 @@ pub(crate) struct LocalQuoteDatasetInspection {
     pub(crate) file_count: usize,
     pub(crate) size_bytes: u64,
     pub(crate) data_sha256: String,
+    catalog_files: Vec<PathBuf>,
 }
 
 impl LocalQuoteDatasetInspection {
@@ -56,6 +60,57 @@ impl LocalQuoteDatasetInspection {
     pub(crate) fn dataset_id(&self) -> String {
         format!("local-quotes-{}", &self.data_sha256[7..19])
     }
+
+    fn same_content_as(&self, other: &Self) -> bool {
+        self.instrument_id == other.instrument_id
+            && self.venue == other.venue
+            && self.record_count == other.record_count
+            && self.start_time_ns == other.start_time_ns
+            && self.end_time_ns == other.end_time_ns
+            && self.file_count == other.file_count
+            && self.size_bytes == other.size_bytes
+            && self.data_sha256 == other.data_sha256
+    }
+}
+
+/// Copies one validated dataset into a fresh Run-owned catalog and validates the copy.
+///
+/// The caller must provide a newly created Run directory. Source and destination files are
+/// opened without following their final path component, and every intermediate directory is
+/// traversed with `open_dir_nofollow`.
+pub(crate) fn snapshot_local_quote_dataset(
+    source: &LocalQuoteDatasetInspection,
+    run_directory: &Dir,
+    snapshot_root: &Path,
+) -> anyhow::Result<LocalQuoteDatasetInspection> {
+    ensure!(
+        snapshot_root.is_absolute(),
+        "Run catalog snapshot path must be absolute"
+    );
+    run_directory
+        .create_dir(PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY)
+        .context("failed to create Run catalog snapshot")?;
+    let destination_root = run_directory
+        .open_dir_nofollow(PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY)
+        .context("failed to open Run catalog snapshot without following links")?;
+    let source_root = Dir::open_ambient_dir(&source.catalog_path, cap_std::ambient_authority())
+        .context("failed to open validated local catalog")?;
+
+    for source_file in &source.catalog_files {
+        let relative = source_file
+            .strip_prefix(&source.catalog_path)
+            .context("catalog file escaped its validated root before snapshot")?;
+        validate_relative_file_path(relative)?;
+        copy_file_nofollow(&source_root, &destination_root, relative)?;
+    }
+
+    let snapshot = inspect_local_quote_dataset(snapshot_root, &source.instrument_id)
+        .context("Run catalog snapshot validation failed")?;
+    ensure!(
+        snapshot.same_content_as(source),
+        "local catalog changed while the immutable Run snapshot was created"
+    );
+    Ok(snapshot)
 }
 
 /// Scans every instrument-backed QuoteTick dataset in a local standard catalog.
@@ -197,7 +252,7 @@ fn inspect_instrument_quotes(
         files.len() >= 2,
         "QuoteTick dataset '{instrument_id}' must contain instrument and quote Parquet files"
     );
-    let size_bytes = local_catalog_size(catalog, canonical_root, &files)?;
+    let (size_bytes, catalog_files) = local_catalog_files(catalog, canonical_root, &files)?;
     let data_sha256 = dataset_content_sha256(instrument, &quotes)?;
 
     Ok(Some(LocalQuoteDatasetInspection {
@@ -210,28 +265,20 @@ fn inspect_instrument_quotes(
         file_count: files.len(),
         size_bytes,
         data_sha256,
+        catalog_files,
     }))
 }
 
-fn local_catalog_size(
+fn local_catalog_files(
     catalog: &ParquetDataCatalog,
     canonical_root: &Path,
     files: &[String],
-) -> anyhow::Result<u64> {
+) -> anyhow::Result<(u64, Vec<PathBuf>)> {
     let mut total = 0_u64;
+    let mut canonical_files = Vec::with_capacity(files.len());
     for file in files {
         let reconstructed = PathBuf::from(catalog.reconstruct_full_uri(file));
-        let metadata = fs::symlink_metadata(&reconstructed).with_context(|| {
-            format!(
-                "failed to inspect catalog file '{}'",
-                reconstructed.display()
-            )
-        })?;
-        ensure!(
-            metadata.is_file() && !metadata.file_type().is_symlink(),
-            "catalog file '{}' must be a normal file",
-            reconstructed.display()
-        );
+        validate_catalog_path_components(canonical_root, &reconstructed)?;
         let canonical_file = reconstructed.canonicalize().with_context(|| {
             format!(
                 "failed to canonicalize catalog file '{}'",
@@ -243,11 +290,133 @@ fn local_catalog_size(
             "catalog file '{}' escapes the local catalog root",
             reconstructed.display()
         );
+        let metadata = fs::metadata(&canonical_file).with_context(|| {
+            format!(
+                "failed to inspect catalog file '{}'",
+                canonical_file.display()
+            )
+        })?;
         total = total
             .checked_add(metadata.len())
             .context("local catalog size overflow")?;
+        canonical_files.push(canonical_file);
     }
-    Ok(total)
+    canonical_files.sort();
+    canonical_files.dedup();
+    ensure!(
+        canonical_files.len() == files.len(),
+        "catalog file list contains aliases or duplicates"
+    );
+    Ok((total, canonical_files))
+}
+
+fn validate_catalog_path_components(root: &Path, path: &Path) -> anyhow::Result<()> {
+    let relative = path.strip_prefix(root).with_context(|| {
+        format!(
+            "catalog file '{}' escapes the local catalog root",
+            path.display()
+        )
+    })?;
+    validate_relative_file_path(relative)?;
+    let mut current = root.to_path_buf();
+    for component in relative.components() {
+        let Component::Normal(name) = component else {
+            anyhow::bail!(
+                "catalog file '{}' has an invalid path component",
+                path.display()
+            );
+        };
+        current.push(name);
+        let metadata = fs::symlink_metadata(&current)
+            .with_context(|| format!("failed to inspect catalog path '{}'", current.display()))?;
+        ensure!(
+            !metadata.file_type().is_symlink(),
+            "catalog path '{}' must not contain symbolic links",
+            current.display()
+        );
+    }
+    let metadata = fs::symlink_metadata(path)
+        .with_context(|| format!("failed to inspect catalog file '{}'", path.display()))?;
+    ensure!(
+        metadata.is_file(),
+        "catalog file '{}' must be a normal file",
+        path.display()
+    );
+    Ok(())
+}
+
+fn validate_relative_file_path(path: &Path) -> anyhow::Result<()> {
+    ensure!(
+        !path.as_os_str().is_empty(),
+        "catalog relative path is empty"
+    );
+    ensure!(
+        path.components()
+            .all(|component| matches!(component, Component::Normal(_))),
+        "catalog relative path '{}' is invalid",
+        path.display()
+    );
+    Ok(())
+}
+
+fn copy_file_nofollow(
+    source_root: &Dir,
+    destination_root: &Dir,
+    path: &Path,
+) -> anyhow::Result<()> {
+    let parent = path.parent().unwrap_or_else(|| Path::new(""));
+    let file_name = path
+        .file_name()
+        .context("catalog snapshot file is missing its name")?;
+    let source_parent = open_relative_directory_nofollow(source_root, parent, false)?;
+    let destination_parent = open_relative_directory_nofollow(destination_root, parent, true)?;
+
+    let mut source_options = OpenOptions::new();
+    source_options.read(true).follow(FollowSymlinks::No);
+    let mut source = source_parent
+        .open_with(file_name, &source_options)
+        .with_context(|| format!("failed to open catalog source '{}'", path.display()))?;
+
+    let mut destination_options = OpenOptions::new();
+    destination_options
+        .write(true)
+        .create_new(true)
+        .follow(FollowSymlinks::No);
+    let mut destination = destination_parent
+        .open_with(file_name, &destination_options)
+        .with_context(|| format!("failed to create catalog snapshot '{}'", path.display()))?;
+    io::copy(&mut source, &mut destination)
+        .with_context(|| format!("failed to copy catalog snapshot '{}'", path.display()))?;
+    destination
+        .sync_all()
+        .with_context(|| format!("failed to sync catalog snapshot '{}'", path.display()))?;
+    let mut permissions = destination.metadata()?.permissions();
+    permissions.set_readonly(true);
+    destination.set_permissions(permissions)?;
+    Ok(())
+}
+
+fn open_relative_directory_nofollow(root: &Dir, path: &Path, create: bool) -> anyhow::Result<Dir> {
+    let mut directory = root.try_clone()?;
+    for component in path.components() {
+        let Component::Normal(name) = component else {
+            anyhow::bail!(
+                "catalog directory '{}' has an invalid component",
+                path.display()
+            );
+        };
+        if create {
+            match directory.create_dir(name) {
+                Ok(()) => {}
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        directory = directory
+            .open_dir_nofollow(name)
+            .with_context(|| format!("failed to open catalog directory '{}'", path.display()))?;
+    }
+    Ok(directory)
 }
 
 fn dataset_content_sha256<T: Serialize, U: Serialize>(

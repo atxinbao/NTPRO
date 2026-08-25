@@ -1278,6 +1278,7 @@ struct ReproductionExpectation {
     source_input_sha256: String,
     source_output_sha256: String,
     strategy_version: strategy_version::ProductStrategyVersion,
+    source_dataset: Option<dataset::ValidatedProductDataset>,
 }
 
 #[derive(Clone, Debug)]
@@ -1342,6 +1343,11 @@ struct StoredBacktestConfig {
     strategy: StoredBacktestStrategyConfig,
     venue: StoredBacktestVenueConfig,
     product: StoredBacktestProductConfig,
+}
+
+struct VerifiedStoredBacktestRequest {
+    request: CreateBacktestRunRequest,
+    local_dataset: Option<dataset::ValidatedProductDataset>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3796,8 +3802,16 @@ fn create_backtest_run(
         .map_or(current_strategy_version, |expectation| {
             expectation.strategy_version.clone()
         });
-    let data_selection =
-        validate_backtest_creation_request(state, &request, &source, &strategy_version)?;
+    let source_dataset = reproduction
+        .as_ref()
+        .and_then(|expectation| expectation.source_dataset.as_ref());
+    let source_data_selection = validate_backtest_creation_request(
+        state,
+        &request,
+        &source,
+        &strategy_version,
+        source_dataset,
+    )?;
     if load_run_configs(state, &source)?.len() >= MAX_PAGE_LIMIT {
         return Err(product_error(ProductErrorKind::Conflict, "run_capacity"));
     }
@@ -3807,6 +3821,28 @@ fn create_backtest_run(
     let config_ref = format!("artifact://backtests/{run_id}/request.toml");
     let result_ref = format!("artifact://backtests/{run_id}/summary.json");
     let risk_ref = format!("artifact://backtests/{run_id}/run-manifest.json#risk");
+    let artifact_root = canonical_backtest_artifact_root(state)?;
+    let run_root = artifact_root.join(&run_id);
+    let run_directory = create_dynamic_run_directory(state, &run_id)?;
+    let data_selection = match source_data_selection {
+        BacktestDataSelection::Synthetic => BacktestDataSelection::Synthetic,
+        BacktestDataSelection::Local(dataset) => {
+            let snapshot_root =
+                run_root.join(crate::catalog_dataset::PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY);
+            let inspection = crate::catalog_dataset::snapshot_local_quote_dataset(
+                &dataset.inspection,
+                &run_directory,
+                &snapshot_root,
+            )
+            .map_err(|_| {
+                product_error(ProductErrorKind::SourceInvalid, "backtest_dataset_snapshot")
+            })?;
+            BacktestDataSelection::Local(dataset::ValidatedProductDataset {
+                inspection,
+                venue_ref: dataset.venue_ref,
+            })
+        }
+    };
     let config_raw = build_backtest_config(
         &run_id,
         &request,
@@ -3819,7 +3855,6 @@ fn create_backtest_run(
     let strategy_version_raw =
         strategy_version::serialize_strategy_version_snapshot(&strategy_version)?;
     let strategy_version_snapshot_sha256 = sha256_ref(&strategy_version_raw);
-    let run_directory = create_dynamic_run_directory(state, &run_id)?;
     write_new_run_file(&run_directory, "request.toml", &config_raw)?;
     write_new_run_file(
         &run_directory,
@@ -4187,6 +4222,7 @@ fn validate_backtest_creation_request(
     request: &CreateBacktestRunRequest,
     source: &ValidatedProductSource,
     strategy_version: &strategy_version::ProductStrategyVersion,
+    local_dataset_override: Option<&dataset::ValidatedProductDataset>,
 ) -> Result<BacktestDataSelection, ProductError> {
     if request.environment != RunEnvironment::Backtest {
         return Err(product_error(ProductErrorKind::BadRequest, "environment"));
@@ -4222,12 +4258,24 @@ fn validate_backtest_creation_request(
             .data_sha256
             .as_deref()
             .ok_or_else(|| product_error(ProductErrorKind::BadRequest, "data_sha256"))?;
-        let dataset = dataset::resolve_product_dataset(
-            state,
-            strategy_version,
-            &request.data_ref,
-            data_sha256,
-        )?;
+        let dataset = if let Some(dataset) = local_dataset_override {
+            if dataset.inspection.data_ref() != request.data_ref
+                || dataset.inspection.data_sha256 != data_sha256
+            {
+                return Err(product_error(
+                    ProductErrorKind::SourceInvalid,
+                    "data_sha256",
+                ));
+            }
+            dataset.clone()
+        } else {
+            dataset::resolve_product_dataset(
+                state,
+                strategy_version,
+                &request.data_ref,
+                data_sha256,
+            )?
+        };
         if request.venue_ref != dataset.venue_ref {
             return Err(product_error(ProductErrorKind::BadRequest, "venue_ref"));
         }
@@ -4236,7 +4284,9 @@ fn validate_backtest_creation_request(
         }
         BacktestDataSelection::Local(dataset)
     };
-    if !(30..=1_000_000).contains(&request.quotes) {
+    if !(dataset::MIN_PRODUCT_BACKTEST_QUOTES..=dataset::MAX_PRODUCT_BACKTEST_QUOTES)
+        .contains(&request.quotes)
+    {
         return Err(product_error(ProductErrorKind::BadRequest, "quotes"));
     }
     if request.fast_period == 0
@@ -4950,8 +5000,8 @@ fn reproduce_backtest_run(
 ) -> Result<BacktestReproduction, ProductError> {
     let source = load_product_source(state, unix_time_ms())?;
     let source_bundle = load_verified_backtest_bundle(state, &source, source_run_id)?;
-    let request = load_stored_backtest_request(state, &source_bundle)?;
-    validate_backtest_creation_request(state, &request, &source, &source_bundle.strategy_version)?;
+    let stored_request = load_stored_backtest_request(state, &source_bundle)?;
+    let request = stored_request.request;
     let source_input_sha256 = backtest_reproduction_input_sha256(
         &request,
         source_bundle.strategy_version.content_hash(),
@@ -4973,6 +5023,7 @@ fn reproduce_backtest_run(
             source_input_sha256,
             source_output_sha256,
             strategy_version: source_bundle.strategy_version,
+            source_dataset: stored_request.local_dataset,
         }),
     )?;
     let proof = proof.ok_or_else(|| {
@@ -5069,7 +5120,7 @@ fn load_run_config_and_version(
 fn load_stored_backtest_request(
     state: &DashboardServerState,
     bundle: &VerifiedBacktestBundle,
-) -> Result<CreateBacktestRunRequest, ProductError> {
+) -> Result<VerifiedStoredBacktestRequest, ProductError> {
     let expected_ref = format!("artifact://backtests/{}/request.toml", bundle.run.run_id);
     if bundle.config.config_ref != expected_ref {
         return Err(product_error(
@@ -5112,12 +5163,10 @@ fn load_stored_backtest_request(
         && stored.data.data_sha256.is_none()
         && stored.data.start_time_ns.is_none()
         && stored.data.end_time_ns.is_none();
+    let expected_snapshot_root =
+        run_root.join(crate::catalog_dataset::PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY);
     let valid_local_source = stored.data.source == "local-parquet-catalog"
-        && stored
-            .data
-            .catalog_path
-            .as_ref()
-            .is_some_and(|path| path.is_absolute())
+        && stored.data.catalog_path.as_ref() == Some(&expected_snapshot_root)
         && stored.data.data_sha256.as_deref() == Some(bundle.summary.data_sha256.as_str())
         && stored.data.start_time_ns.as_deref() == Some(bundle.summary.backtest_start.as_str())
         && stored.data.end_time_ns.as_deref() == Some(bundle.summary.backtest_end.as_str());
@@ -5144,7 +5193,37 @@ fn load_stored_backtest_request(
             "reproduction_source",
         ));
     }
-    Ok(CreateBacktestRunRequest {
+    let local_dataset = if valid_local_source {
+        let inspection = crate::catalog_dataset::inspect_local_quote_dataset(
+            &expected_snapshot_root,
+            &stored.data.instrument_id,
+        )
+        .map_err(|_| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "reproduction_source_catalog",
+            )
+        })?;
+        if inspection.data_sha256 != bundle.summary.data_sha256
+            || inspection.record_count != stored.data.quotes
+            || stored.data.start_time_ns.as_deref()
+                != Some(inspection.start_time_ns.to_string().as_str())
+            || stored.data.end_time_ns.as_deref()
+                != Some(inspection.end_time_ns.to_string().as_str())
+        {
+            return Err(product_error(
+                ProductErrorKind::SourceInvalid,
+                "reproduction_source_catalog",
+            ));
+        }
+        Some(dataset::ValidatedProductDataset {
+            inspection,
+            venue_ref: bundle.run.venue_ref.clone(),
+        })
+    } else {
+        None
+    };
+    let request = CreateBacktestRunRequest {
         strategy_id: stored.product.strategy_id,
         strategy_version_id: stored.product.strategy_version_id,
         environment: RunEnvironment::Backtest,
@@ -5156,6 +5235,10 @@ fn load_stored_backtest_request(
         trade_size: stored.strategy.trade_size,
         fast_period: stored.strategy.fast_period,
         slow_period: stored.strategy.slow_period,
+    };
+    Ok(VerifiedStoredBacktestRequest {
+        request,
+        local_dataset,
     })
 }
 
@@ -5263,8 +5346,8 @@ fn load_backtest_reproduction_proof(
     }
     let proof: BacktestReproductionProof = serde_json::from_slice(&raw)
         .map_err(|_| product_error(ProductErrorKind::SourceInvalid, "reproduction_proof"))?;
-    let source_request = load_stored_backtest_request(state, &source_bundle)?;
-    let target_request = load_stored_backtest_request(state, &target_bundle)?;
+    let source_request = load_stored_backtest_request(state, &source_bundle)?.request;
+    let target_request = load_stored_backtest_request(state, &target_bundle)?.request;
     let source_input_sha256 = backtest_reproduction_input_sha256(
         &source_request,
         source_bundle.strategy_version.content_hash(),

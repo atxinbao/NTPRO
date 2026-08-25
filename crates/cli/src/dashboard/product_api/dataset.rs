@@ -35,6 +35,8 @@ use super::{
 };
 
 const DATASET_LIST_SCHEMA_VERSION: &str = "ntpro.product_api.dataset_list.response.v1";
+pub(super) const MIN_PRODUCT_BACKTEST_QUOTES: usize = 30;
+pub(super) const MAX_PRODUCT_BACKTEST_QUOTES: usize = 1_000_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(super) struct ProductDataset {
@@ -222,10 +224,13 @@ fn load_compatible_dataset_inspections(
         {
             continue;
         }
+        if !product_backtest_quote_count_supported(inspection.record_count) {
+            continue;
+        }
         let venue_ref = version
             .data_venues()
             .iter()
-            .find(|venue| *venue == &inspection.venue || venue.ends_with(&inspection.venue))
+            .find(|venue| historical_venue_matches_strategy_venue(&inspection.venue, venue))
             .map(|venue| format!("venue://simulated/{venue}"))
             .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "dataset_venue"))?;
         compatible.push(ValidatedProductDataset {
@@ -239,4 +244,51 @@ fn load_compatible_dataset_inspections(
             .cmp(&right.inspection.instrument_id)
     });
     Ok(compatible)
+}
+
+fn historical_venue_matches_strategy_venue(historical: &str, strategy: &str) -> bool {
+    strategy == historical
+        || strategy
+            .strip_suffix("_TESTNET")
+            .is_some_and(|base| base == historical)
+        || strategy
+            .strip_suffix("_SANDBOX")
+            .is_some_and(|base| base == historical)
+}
+
+fn product_backtest_quote_count_supported(record_count: usize) -> bool {
+    (MIN_PRODUCT_BACKTEST_QUOTES..=MAX_PRODUCT_BACKTEST_QUOTES).contains(&record_count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        MAX_PRODUCT_BACKTEST_QUOTES, MIN_PRODUCT_BACKTEST_QUOTES,
+        historical_venue_matches_strategy_venue, product_backtest_quote_count_supported,
+    };
+
+    #[test]
+    fn product_dataset_compatibility_is_explicit_and_bounded() {
+        assert!(historical_venue_matches_strategy_venue(
+            "BINANCE", "BINANCE"
+        ));
+        assert!(historical_venue_matches_strategy_venue(
+            "BINANCE",
+            "BINANCE_TESTNET"
+        ));
+        assert!(historical_venue_matches_strategy_venue(
+            "BINANCE",
+            "BINANCE_SANDBOX"
+        ));
+        assert!(!historical_venue_matches_strategy_venue(
+            "BINANCE",
+            "KRAKEN_TESTNET"
+        ));
+        assert_eq!(MIN_PRODUCT_BACKTEST_QUOTES, 30);
+        assert_eq!(MAX_PRODUCT_BACKTEST_QUOTES, 1_000_000);
+        assert!(!product_backtest_quote_count_supported(29));
+        assert!(product_backtest_quote_count_supported(30));
+        assert!(product_backtest_quote_count_supported(1_000_000));
+        assert!(!product_backtest_quote_count_supported(1_000_001));
+    }
 }
