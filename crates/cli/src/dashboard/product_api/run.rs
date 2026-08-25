@@ -4355,7 +4355,7 @@ impl DynamicRunDirectoryGuard {
 impl Drop for DynamicRunDirectoryGuard {
     fn drop(&mut self) {
         if !self.persisted {
-            let _ = self.root.remove_dir_all(&self.run_id);
+            remove_dynamic_run_entry(&self.root, &self.run_id);
         }
     }
 }
@@ -4373,10 +4373,17 @@ pub(super) fn create_dynamic_run_directory(
             product_error(ProductErrorKind::SourceUnavailable, "result_root")
         }
     })?;
+    open_created_dynamic_run_directory(root, run_id)
+}
+
+pub(super) fn open_created_dynamic_run_directory(
+    root: cap_std::fs::Dir,
+    run_id: &str,
+) -> Result<DynamicRunDirectoryGuard, ProductError> {
     let directory = match root.open_dir_nofollow(run_id) {
         Ok(directory) => directory,
         Err(_) => {
-            let _ = root.remove_dir_all(run_id);
+            remove_dynamic_run_entry(&root, run_id);
             return Err(product_error(
                 ProductErrorKind::SourceInvalid,
                 "result_root_containment",
@@ -4389,6 +4396,12 @@ pub(super) fn create_dynamic_run_directory(
         run_id: run_id.to_string(),
         persisted: false,
     })
+}
+
+fn remove_dynamic_run_entry(root: &cap_std::fs::Dir, run_id: &str) {
+    if root.remove_dir_all(run_id).is_err() {
+        let _ = root.remove_file(run_id);
+    }
 }
 
 pub(super) fn write_new_run_file(

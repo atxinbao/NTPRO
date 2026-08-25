@@ -2738,6 +2738,27 @@ fn incomplete_dynamic_backtest_run_directories_are_transactional() {
         persisted_path.is_dir(),
         "a committed Run directory must remain available"
     );
+
+    let invalid_run_id = "backtest-invalid-created-entry";
+    let artifact_root = fixture.root.join("artifacts/backtests");
+    let invalid_path = artifact_root.join(invalid_run_id);
+    let root = cap_std::fs::Dir::open_ambient_dir(&artifact_root, cap_std::ambient_authority())
+        .expect("artifact root capability should open");
+    root.create_dir(invalid_run_id)
+        .expect("invalid Run directory should first be created");
+    root.remove_dir(invalid_run_id)
+        .expect("created Run directory should be replaceable for the negative test");
+    fs::write(&invalid_path, b"not-a-directory")
+        .expect("negative test should replace the Run directory with a file");
+    let error = match open_created_dynamic_run_directory(root, invalid_run_id) {
+        Ok(_) => panic!("opening a replaced Run entry must fail closed"),
+        Err(error) => error,
+    };
+    assert_eq!(error.field, "result_root_containment");
+    assert!(
+        !invalid_path.exists(),
+        "a replaced Run entry must be removed after construction fails"
+    );
 }
 
 #[tokio::test]

@@ -20,6 +20,7 @@ use std::{
     fs,
     io::{self, Write},
     path::{Component, Path, PathBuf},
+    sync::Arc,
 };
 
 use anyhow::{Context, ensure};
@@ -32,11 +33,19 @@ use nautilus_model::{
 };
 use nautilus_persistence::backend::catalog::ParquetDataCatalog;
 use serde::Serialize;
+use tempfile::TempDir;
 
 pub(crate) const PRODUCT_CATALOG_DIRECTORY: &str = "catalog";
 pub(crate) const PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY: &str = "catalog-snapshot";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug)]
+struct FixedCatalogSnapshot {
+    _temp_directory: TempDir,
+    directory: Dir,
+    path: PathBuf,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct LocalQuoteDatasetInspection {
     pub(crate) catalog_path: PathBuf,
     pub(crate) instrument_id: String,
@@ -49,6 +58,7 @@ pub(crate) struct LocalQuoteDatasetInspection {
     pub(crate) data_sha256: String,
     pub(crate) instrument: InstrumentAny,
     pub(crate) quotes: Vec<QuoteTick>,
+    fixed_snapshot: Arc<FixedCatalogSnapshot>,
     catalog_files: Vec<PathBuf>,
 }
 
@@ -95,15 +105,14 @@ pub(crate) fn snapshot_local_quote_dataset(
     let destination_root = run_directory
         .open_dir_nofollow(PRODUCT_RUN_CATALOG_SNAPSHOT_DIRECTORY)
         .context("failed to open Run catalog snapshot without following links")?;
-    let source_root = Dir::open_ambient_dir(&source.catalog_path, cap_std::ambient_authority())
-        .context("failed to open validated local catalog")?;
 
-    for source_file in &source.catalog_files {
-        let relative = source_file
-            .strip_prefix(&source.catalog_path)
-            .context("catalog file escaped its validated root before snapshot")?;
+    for relative in &source.catalog_files {
         validate_relative_file_path(relative)?;
-        copy_file_nofollow(&source_root, &destination_root, relative)?;
+        copy_file_nofollow(
+            &source.fixed_snapshot.directory,
+            &destination_root,
+            relative,
+        )?;
     }
 
     let snapshot = inspect_local_quote_dataset(snapshot_root, &source.instrument_id)
@@ -124,8 +133,8 @@ pub(crate) fn snapshot_local_quote_dataset(
 pub(crate) fn inspect_local_quote_datasets(
     catalog_root: &Path,
 ) -> anyhow::Result<Vec<LocalQuoteDatasetInspection>> {
-    let canonical_root = validate_catalog_root(catalog_root)?;
-    validate_catalog_tree_nofollow(&canonical_root)?;
+    let fixed_snapshot = freeze_catalog_tree_nofollow(catalog_root)?;
+    let canonical_root = fixed_snapshot.path.clone();
     let mut catalog = ParquetDataCatalog::from_uri(
         canonical_root.to_string_lossy().as_ref(),
         None,
@@ -151,9 +160,14 @@ pub(crate) fn inspect_local_quote_datasets(
             seen.insert(instrument_id.clone()),
             "duplicate instrument definition for '{instrument_id}'"
         );
-        if let Some(dataset) =
-            inspect_instrument_quotes(&mut catalog, &canonical_root, &instrument, &instrument_id)?
-        {
+        if let Some(dataset) = inspect_instrument_quotes(
+            &mut catalog,
+            catalog_root,
+            &canonical_root,
+            fixed_snapshot.clone(),
+            &instrument,
+            &instrument_id,
+        )? {
             datasets.push(dataset);
         }
     }
@@ -185,26 +199,11 @@ pub(crate) fn inspect_local_quote_dataset(
     Ok(dataset)
 }
 
-fn validate_catalog_root(catalog_root: &Path) -> anyhow::Result<PathBuf> {
-    let metadata = fs::symlink_metadata(catalog_root).with_context(|| {
-        format!(
-            "local catalog root '{}' does not exist",
-            catalog_root.display()
-        )
-    })?;
-    ensure!(
-        metadata.is_dir() && !metadata.file_type().is_symlink(),
-        "local catalog root '{}' must be a normal directory",
-        catalog_root.display()
-    );
-    catalog_root
-        .canonicalize()
-        .with_context(|| format!("failed to canonicalize '{}'", catalog_root.display()))
-}
-
 fn inspect_instrument_quotes(
     catalog: &mut ParquetDataCatalog,
+    logical_root: &Path,
     canonical_root: &Path,
+    fixed_snapshot: Arc<FixedCatalogSnapshot>,
     instrument: &InstrumentAny,
     instrument_id: &str,
 ) -> anyhow::Result<Option<LocalQuoteDatasetInspection>> {
@@ -259,7 +258,7 @@ fn inspect_instrument_quotes(
     let data_sha256 = dataset_content_sha256(instrument, &quotes)?;
 
     Ok(Some(LocalQuoteDatasetInspection {
-        catalog_path: canonical_root.to_path_buf(),
+        catalog_path: logical_root.to_path_buf(),
         instrument_id: instrument_id.to_string(),
         venue: instrument.id().venue.to_string(),
         record_count: quotes.len(),
@@ -270,35 +269,94 @@ fn inspect_instrument_quotes(
         data_sha256,
         instrument: instrument.clone(),
         quotes,
+        fixed_snapshot,
         catalog_files,
     }))
 }
 
-fn validate_catalog_tree_nofollow(root: &Path) -> anyhow::Result<()> {
-    let mut pending = vec![root.to_path_buf()];
-    while let Some(directory) = pending.pop() {
-        let mut entries = fs::read_dir(&directory)
-            .with_context(|| format!("failed to list catalog directory '{}'", directory.display()))?
+fn freeze_catalog_tree_nofollow(catalog_root: &Path) -> anyhow::Result<Arc<FixedCatalogSnapshot>> {
+    let parent_path = catalog_root.parent().with_context(|| {
+        format!(
+            "local catalog root '{}' has no parent directory",
+            catalog_root.display()
+        )
+    })?;
+    let root_name = catalog_root.file_name().with_context(|| {
+        format!(
+            "local catalog root '{}' has no directory name",
+            catalog_root.display()
+        )
+    })?;
+    ensure!(
+        matches!(
+            Path::new(root_name).components().next(),
+            Some(Component::Normal(_))
+        ),
+        "local catalog root '{}' has an invalid directory name",
+        catalog_root.display()
+    );
+    let parent =
+        Dir::open_ambient_dir(parent_path, cap_std::ambient_authority()).with_context(|| {
+            format!(
+                "failed to open local catalog parent '{}'",
+                parent_path.display()
+            )
+        })?;
+    let source = parent.open_dir_nofollow(root_name).with_context(|| {
+        format!(
+            "local catalog root '{}' must be a normal directory",
+            catalog_root.display()
+        )
+    })?;
+    freeze_open_catalog_tree(&source)
+}
+
+fn freeze_open_catalog_tree(source: &Dir) -> anyhow::Result<Arc<FixedCatalogSnapshot>> {
+    let temp_directory = tempfile::Builder::new()
+        .prefix("ntpro-catalog-inspection-")
+        .tempdir()
+        .context("failed to create private catalog inspection directory")?;
+    let path = temp_directory.path().canonicalize().with_context(|| {
+        format!(
+            "failed to canonicalize private catalog inspection directory '{}'",
+            temp_directory.path().display()
+        )
+    })?;
+    let destination = Dir::open_ambient_dir(&path, cap_std::ambient_authority())
+        .context("failed to open private catalog inspection directory")?;
+    copy_catalog_tree_nofollow(source, &destination)?;
+    Ok(Arc::new(FixedCatalogSnapshot {
+        _temp_directory: temp_directory,
+        directory: destination,
+        path,
+    }))
+}
+
+fn copy_catalog_tree_nofollow(source_root: &Dir, destination_root: &Dir) -> anyhow::Result<()> {
+    let mut pending = vec![PathBuf::new()];
+    while let Some(relative_directory) = pending.pop() {
+        let source_directory =
+            open_relative_directory_nofollow(source_root, &relative_directory, false)?;
+        let mut names = source_directory
+            .entries()
+            .with_context(|| {
+                format!(
+                    "failed to list catalog directory '{}'",
+                    relative_directory.display()
+                )
+            })?
+            .map(|entry| entry.map(|entry| entry.file_name()))
             .collect::<Result<Vec<_>, _>>()?;
-        entries.sort_by_key(fs::DirEntry::file_name);
-        for entry in entries {
-            let path = entry.path();
-            let file_type = entry
-                .file_type()
-                .with_context(|| format!("failed to inspect catalog path '{}'", path.display()))?;
-            ensure!(
-                !file_type.is_symlink(),
-                "catalog path '{}' must not contain symbolic links",
-                path.display()
-            );
-            if file_type.is_dir() {
-                pending.push(path);
-            } else {
-                ensure!(
-                    file_type.is_file(),
-                    "catalog path '{}' must be a normal file or directory",
-                    path.display()
-                );
+        names.sort();
+        for name in names {
+            let relative = relative_directory.join(&name);
+            validate_relative_file_path(&relative)?;
+            match source_directory.open_dir_nofollow(&name) {
+                Ok(_) => {
+                    open_relative_directory_nofollow(destination_root, &relative, true)?;
+                    pending.push(relative);
+                }
+                Err(_) => copy_file_nofollow(source_root, destination_root, &relative)?,
             }
         }
     }
@@ -311,7 +369,7 @@ fn local_catalog_files(
     files: &[String],
 ) -> anyhow::Result<(u64, Vec<PathBuf>)> {
     let mut total = 0_u64;
-    let mut canonical_files = Vec::with_capacity(files.len());
+    let mut relative_files = Vec::with_capacity(files.len());
     for file in files {
         let reconstructed = PathBuf::from(catalog.reconstruct_full_uri(file));
         validate_catalog_path_components(canonical_root, &reconstructed)?;
@@ -335,15 +393,20 @@ fn local_catalog_files(
         total = total
             .checked_add(metadata.len())
             .context("local catalog size overflow")?;
-        canonical_files.push(canonical_file);
+        relative_files.push(
+            canonical_file
+                .strip_prefix(canonical_root)
+                .context("validated catalog file escaped its private snapshot")?
+                .to_path_buf(),
+        );
     }
-    canonical_files.sort();
-    canonical_files.dedup();
+    relative_files.sort();
+    relative_files.dedup();
     ensure!(
-        canonical_files.len() == files.len(),
+        relative_files.len() == files.len(),
         "catalog file list contains aliases or duplicates"
     );
-    Ok((total, canonical_files))
+    Ok((total, relative_files))
 }
 
 fn validate_catalog_path_components(root: &Path, path: &Path) -> anyhow::Result<()> {
@@ -412,6 +475,11 @@ fn copy_file_nofollow(
     let mut source = source_parent
         .open_with(file_name, &source_options)
         .with_context(|| format!("failed to open catalog source '{}'", path.display()))?;
+    ensure!(
+        source.metadata()?.is_file(),
+        "catalog source '{}' must be a normal file",
+        path.display()
+    );
 
     let mut destination_options = OpenOptions::new();
     destination_options
@@ -503,4 +571,50 @@ fn lowercase_hex(bytes: &[u8]) -> String {
         output.push(HEX[(byte & 0x0f) as usize] as char);
     }
     output
+}
+
+#[cfg(test)]
+#[cfg(unix)]
+mod tests {
+    use std::{fs, os::unix::fs::symlink};
+
+    use cap_fs_ext::DirExt;
+    use cap_std::fs::Dir;
+
+    use super::freeze_open_catalog_tree;
+
+    #[test]
+    fn fixed_catalog_capability_does_not_follow_replaced_workspace_root() {
+        let workspace = tempfile::tempdir().expect("workspace fixture should be created");
+        let external = tempfile::tempdir().expect("external fixture should be created");
+        let catalog_path = workspace.path().join("catalog");
+        let original_path = workspace.path().join("catalog-original");
+        fs::create_dir(&catalog_path).expect("catalog fixture should be created");
+        fs::write(catalog_path.join("trusted.parquet"), b"trusted")
+            .expect("trusted fixture should be written");
+        fs::write(external.path().join("escaped.parquet"), b"escaped")
+            .expect("external fixture should be written");
+
+        let parent = Dir::open_ambient_dir(workspace.path(), cap_std::ambient_authority())
+            .expect("workspace capability should open");
+        let fixed_root = parent
+            .open_dir_nofollow("catalog")
+            .expect("catalog capability should open without following links");
+        fs::rename(&catalog_path, &original_path)
+            .expect("catalog path should be replaceable after the capability is fixed");
+        symlink(external.path(), &catalog_path)
+            .expect("negative test should replace catalog with an external symlink");
+
+        let snapshot = freeze_open_catalog_tree(&fixed_root)
+            .expect("fixed capability should still produce a private snapshot");
+        assert_eq!(
+            fs::read(snapshot.path.join("trusted.parquet"))
+                .expect("trusted snapshot file should remain readable"),
+            b"trusted"
+        );
+        assert!(
+            !snapshot.path.join("escaped.parquet").exists(),
+            "the replacement symlink target must not enter the private snapshot"
+        );
+    }
 }
