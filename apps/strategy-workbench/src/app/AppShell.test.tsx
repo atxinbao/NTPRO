@@ -206,10 +206,26 @@ describe("strategy workbench product slice", () => {
 
   it("creates a Backtest Run from the product page and opens its detail", async () => {
     let submittedBody: unknown;
+    const registeredRuns = structuredClone(runListFixture);
+    const registeredBaseline = registeredRuns.data.find(
+      (run) => run.environment === "backtest",
+    )!;
+    registeredBaseline.data_ref = "dataset://fixtures/registered-baseline";
+    registeredBaseline.venue_ref = "venue://simulated/KRAKEN";
+    const multiVenueVersion = structuredClone(strategyVersionDetailFixture);
+    multiVenueVersion.data.data_requirements.venues = ["BINANCE", "KRAKEN"];
+    const registeredResponse = structuredClone(createdBacktestResponse);
+    registeredResponse.data.data_ref = registeredBaseline.data_ref;
+    registeredResponse.data.venue_ref = registeredBaseline.venue_ref;
     server.use(
+      http.get("/api/product/v1/runs", () => HttpResponse.json(registeredRuns)),
+      http.get(
+        "/api/product/v1/strategies/:strategyId/versions/:versionId",
+        () => HttpResponse.json(multiVenueVersion),
+      ),
       http.post("/api/product/v1/runs", async ({ request }) => {
         submittedBody = await request.json();
-        return HttpResponse.json(createdBacktestResponse, { status: 201 });
+        return HttpResponse.json(registeredResponse, { status: 201 });
       }),
     );
     renderWorkbench("/backtests");
@@ -229,6 +245,47 @@ describe("strategy workbench product slice", () => {
       strategy_id: "ema-cross",
       strategy_version_id: "ema-cross@v1",
       environment: "backtest",
+      data_ref: "dataset://fixtures/registered-baseline",
+      venue_ref: "venue://simulated/KRAKEN",
+      starting_balance: "1000000 USDT",
+      quotes: 120,
+      trade_size: "0.001000",
+      fast_period: 3,
+      slow_period: 5,
+    });
+  });
+
+  it("creates the first Backtest from a verified empty Run list", async () => {
+    let submittedBody: unknown;
+    const emptyRuns = structuredClone(runListFixture);
+    emptyRuns.data = [];
+    emptyRuns.page.returned_count = 0;
+    server.use(
+      http.get("/api/product/v1/runs", () => HttpResponse.json(emptyRuns)),
+      http.post("/api/product/v1/runs", async ({ request }) => {
+        submittedBody = await request.json();
+        return HttpResponse.json(createdBacktestResponse, { status: 201 });
+      }),
+    );
+
+    renderWorkbench("/backtests");
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "当前没有历史 Backtest",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("内置确定性数据");
+    expect(
+      screen.getByDisplayValue("dataset://fixtures/ema-cross"),
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "创建并运行" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "backtest-created-001" }),
+    ).toBeInTheDocument();
+    expect(submittedBody).toEqual({
+      strategy_id: "ema-cross",
+      strategy_version_id: "ema-cross@v1",
+      environment: "backtest",
       data_ref: "dataset://fixtures/ema-cross",
       venue_ref: "venue://simulated/BINANCE",
       starting_balance: "1000000 USDT",
@@ -237,6 +294,59 @@ describe("strategy workbench product slice", () => {
       fast_period: 3,
       slow_period: 5,
     });
+  });
+
+  it("fails closed when an empty Run list has no unique Backtest source", async () => {
+    const emptyRuns = structuredClone(runListFixture);
+    emptyRuns.data = [];
+    emptyRuns.page.returned_count = 0;
+    const ambiguousVersion = structuredClone(
+      strategyVersionDetailFixture,
+    ) as Record<string, any>;
+    ambiguousVersion.data.data_requirements.venues = ["BINANCE", "SIM"];
+    server.use(
+      http.get("/api/product/v1/runs", () => HttpResponse.json(emptyRuns)),
+      http.get(
+        "/api/product/v1/strategies/:strategyId/versions/:versionId",
+        () => HttpResponse.json(ambiguousVersion),
+      ),
+    );
+
+    renderWorkbench("/backtests");
+
+    expect(
+      await screen.findByText("当前策略版本没有唯一的内置回测来源"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "创建并运行" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps Backtest creation closed while the Run list is pending", async () => {
+    let releaseRuns: (() => void) | undefined;
+    const runGate = new Promise<void>((resolve) => {
+      releaseRuns = resolve;
+    });
+    server.use(
+      http.get("/api/product/v1/runs", async () => {
+        await runGate;
+        return HttpResponse.json(runListFixture);
+      }),
+    );
+
+    renderWorkbench("/backtests");
+
+    expect(
+      await screen.findByText("正在验证 Backtest 运行数据"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "创建并运行" }),
+    ).not.toBeInTheDocument();
+
+    releaseRuns?.();
+    expect(
+      await screen.findByRole("heading", { name: "创建策略回测" }),
+    ).toBeInTheDocument();
   });
 
   it("compares frozen Runs and creates a user-confirmed Backtest reproduction", async () => {

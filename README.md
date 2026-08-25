@@ -1,58 +1,43 @@
 # NTPRO
 
-NTPRO 是面向系统化交易机构的 Rust 交易平台。项目采用“一个平台、两个门户、
-一个共享控制平面”的产品结构：
+NTPRO 是一个 Rust 策略工作台。当前目标不是先建设完整机构平台，而是让量化研发和
+运行人员在本地完成一个策略的配置、Backtest、Demo、比较和复盘。
 
-- **机构工作台**：面向交易员、研究员和投资组合负责人，承接组合观察、交易监控、
-  策略研发、回测、风险与报告。
-- **平台控制中心**：面向平台管理员、技术运维和风控人员，承接组织权限、数据账户、
-  模型部署、系统运行与审计。
-- **共享控制平面**：统一策略状态、审批、部署、风险和审计事实，连接前台业务与后台
-  运维，但不作为第三个独立产品。
-
-完整产品定义和中文信息架构见 [`project.html`](project.html)。
-
-## MVP 基线与下一步
-
-PR #1198 已交付 `nautilus mvp serve`：一个 Supervisor 注册、启动并停止一个
-本地沙盒 `ntpro-node`，同时提供本地 Dashboard。MVP-003 与 MVP-004 已完成身份
-追溯和四轴状态合同；MVP-005 已交付双门户共享的只读状态 API。上述能力仍不代表
-完整产品闭环已经完成。
-
-当前已形成可观察、可追溯的双门户只读 MVP 基线：
+当前产品边界是：
 
 ```text
-一个 Supervisor（运行基线已交付）
-  -> 一个 ntpro-node
-  -> 一个策略实例
-  -> 一个沙盒账户 / Venue
-  -> 共享只读状态 API（已交付）
-  -> 机构工作台（`/institution-workbench`，MVP-006 已合并）
-  -> 控制中心（`/control-center`，由 MVP-007 完成只读绑定）
-  -> 双门户事件关联（MVP-008 已合并）
+一个用户 + 一个策略 + 一个交易品种 + 一个账户 + 一台机器
+  -> 一个 Supervisor + 一个 ntpro-node
+  -> 同一个不可变 StrategyVersion
+  -> Backtest：当前产品闭环
+  -> Demo / Sandbox：当前产品闭环
+  -> Live：独立受控能力，不从 Backtest 或 Demo 自动继承
 ```
 
-策略版本与回测结果必须能追溯到运行实例；Supervisor 负责节点生命周期，
-机构工作台只展示账户、仓位、订单、成交、风险和策略状态，控制中心负责节点、
-日志、指标和故障定位。`node_id`、`strategy_id` 和交易员工作空间保持独立。
+用户只需要使用策略工作台，不需要理解 Supervisor、node、Axum 或 Rust 内部实现。
+系统状态、日志和节点控制是辅助诊断能力，不是当前产品主导航。完整中文产品说明见
+[`project.html`](project.html)，权威开发顺序见
+[`docs/product/roadmap.md`](docs/product/roadmap.md)。
 
-当前阶段状态：M0 实现已交付并记录历史审查证据例外；M1 已交付；MVP-006 与
-MVP-007 已合并，机构工作台和控制中心均消费版本化共享状态。M2 双门户消费退出条件
-已满足；MVP-008 已交付跨门户事件关联与只读跳转；MVP-009 已交付本地双门户服务端
-角色访问边界；MVP-010 已交付控制中心本地单节点 sandbox start/stop。M3 已完成；
-MVP-011/012 已完成确定性闭环和 11-case 单节点故障矩阵；MVP-013 / PR #1236 已完成
-双门户浏览器、性能、发布/回滚说明和最终冻结，M4 文档治理已由 PR #1238 收口。
-M0-M4 当前均已交付或冻结。详细状态以
-[`docs/product/roadmap.md`](docs/product/roadmap.md) 为准。
+## 当前目标
 
-多节点生产编排、多账户/多 Venue 扩展、真实订单提交、订单变更和产品级实盘终端
-均不属于本 MVP，必须在 MVP-013 合并冻结后独立立项。机器可校验的冻结范围见
-[`docs/product/mvp_freeze_manifest.json`](docs/product/mvp_freeze_manifest.json)，本地发布与
-人工回滚步骤见
-[`docs/product/mvp_release_and_rollback.md`](docs/product/mvp_release_and_rollback.md)。
+`NTPRO Usable Product v1` 先完成一条可重复交付的用户流程：
 
-面向交易员、运维和首次接触项目人员的中文运行说明见
-[`NTPRO 系统运行与运营操作说明书`](docs/product/ntpro_system_operations_manual.md)。
+1. 查看当前内置策略和不可变版本；
+2. 无需命令行创建并查看 Backtest；
+3. 启动、观察和停止同一版本的 Demo；
+4. 比较 Backtest 与 Demo 的交易、收益、回撤和风险；
+5. 重启服务后仍能读取历史结果，并能在页面理解失败原因。
+
+当前 Backtest 使用内置确定性数据，适合验证产品流程和确定性，不代表真实市场研究或
+收益证明。下一阶段将接入本地历史数据目录和用户可选择的数据范围。Live 已有独立准入
+与受控技术路径，但真实资金端到端验收仍需 owner 单独授权，不是 Usable Product v1 的
+完成前提。
+
+多机构、多账户、多节点、集中运维平台、策略市场和远程多用户部署全部后置。已冻结的
+M0-M4 单节点技术基线继续作为底层资产，历史合同和证据保留在
+[`docs/rust-cutover/`](docs/rust-cutover/)；机器可校验范围见
+[`docs/product/mvp_freeze_manifest.json`](docs/product/mvp_freeze_manifest.json)。
 
 ## 正式版本
 

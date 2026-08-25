@@ -2,59 +2,108 @@
 
 Canonical repository path: `docs/product/roadmap.md`.
 
-Date: 2026-08-12
+Date: 2026-08-25
 Executor: Codex
 
-## 当前正确北极星
+## 当前产品北极星
 
-NTPRO 当前只建设一个策略工作台：同一个不可变 `StrategyVersion` 可以分别运行
-Backtest、Demo（代码中的 Sandbox）和真实 Live，并在一个入口中完成配置、运行、观察、
-比较和复盘。
-
-Live 是必须交付的产品能力，不是可选远期设想。v0.32.0 后端冻结基线保持有效。
-当前 v0.33.0 维护版本仍禁止真实 Venue、真实订单和交易控件，因此“必达目标”和
-“当前未开放”必须同时成立。
+NTPRO 当前先交付一个本地可部署、普通量化人员能够独立使用的策略工作台。完成标准不是
+继续增加底层模块，而是让用户不依赖命令行完成一次真实的产品流程：查看策略版本、创建
+Backtest、启动 Demo、比较结果并复盘失败。
 
 ```text
-Strategy
-  └─ StrategyVersion（不可变）
-       ├─ Backtest Run：历史数据 + BacktestEngine + 模拟执行
-       ├─ Demo Run：实时/沙盒数据 + LiveNode + 模拟执行
-       └─ Live Run：实时数据 + LiveNode + 真实适配器、账户与 Venue
+一个用户 + 一个策略 + 一个交易品种 + 一个账户 + 一台机器
+  -> 一个 Supervisor + 一个 ntpro-node
+  -> 同一个不可变 StrategyVersion
+  -> Backtest + Demo 当前可用闭环
+  -> Live 后续独立准入
 ```
 
-三种模式共享策略逻辑、参数结构、订单语义、风险指标和证据格式。每个 Run 独立记录
-`run_id`、`environment`、数据、配置、适配器、账户、Venue、权限、订单、成交、持仓、
-风险和结果。Backtest 或 Demo 通过不能自动产生 Live 权限。
+同一个 `StrategyVersion` 最终仍服务 Backtest、Demo（代码中的 Sandbox）和 Live，但
+Usable Product v1 不以真实资金验收为前置条件。先把 Backtest + Demo 做成可以安装、启动、
+操作、恢复和解释的产品，再继续 Live 与机构化扩展。
 
-## 当前用户与产品入口
+## 当前用户与边界
 
-当前默认用户是策略研发和运行人员，而不是平台运维团队。用户只需要进入策略工作台：
+默认用户是单个策略研发和运行人员。用户只需要进入策略工作台：
 
-- 管理策略与不可变版本；
-- 创建和复现 Backtest；
-- 启动并观察 Demo；
-- 在明确准入后启动和观察真实 Live；
-- 比较三种模式的收益、回撤、滑点、成交质量、风险事件和稳定性；
-- 从任何结果追溯策略、版本、Run、数据、配置、账户和 Venue。
+- 查看当前内置策略和不可变版本；
+- 创建、查看、比较和复现 Backtest；
+- 启动、观察和停止同一版本的 Demo；
+- 查看交易、持仓、收益、回撤、风险、日志和来源；
+- 从结果回到策略版本，形成下一次迭代。
 
-Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系统状态可以作为辅助诊断
-入口，但不主导产品导航。多机构、多节点和集中运维平台在策略三模式闭环完成后再独立
-规划。
+Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系统状态是辅助诊断入口。
+多机构、多账户、多节点、集中运维平台、策略市场和远程多用户部署全部后置。
 
-## 当前代码与能力边界
+## 当前真实状态
 
-- `Environment` 已定义 Backtest、Sandbox、Live；
-- `BacktestEngine` 已提供历史事件回放和模拟执行；
-- `LiveNodeBuilder` 接受 Sandbox 与 Live，两种实时模式复用同一运行语义；
-- 当前 `nautilus mvp serve` 只启动单 Supervisor + 单 Sandbox node；
-- M0-M4 单节点 Demo MVP 已完成并冻结；
-- 当前真实订单、外部 Venue、产品级 Live 终端和 Live 操作权限仍为 false。
+- Rust、Axum、React/TypeScript/Vite 产品技术栈已经建立；
+- Strategy、StrategyVersion、Run、Backtest、Demo 和 Live 产品合同已经存在；
+- Backtest 结果、明细、分析、比较和复现能力已经接入工作台；
+- Demo 创建、start/stop、模拟成交、持仓和权益结果已经接入工作台；
+- 当前 Backtest 使用内置确定性 `synthetic-quotes`，不是真实市场历史数据目录；
+- `nautilus mvp serve` 仍是本地开发/运行入口，尚未形成普通用户的一键交付包；
+- S3 Live 的受控代码路径存在，但真实资金端到端验收仍由 #1312 等待 owner 授权。
 
-代码存在不等于产品完成。Backtest 引擎、Sandbox 节点和 `Environment::Live` 枚举都
-不能代替策略工作台、稳定产品合同、真实适配器或端到端 Live 验收。
+代码存在不等于产品可用。Usable Product v1 必须重新按首次启动、首次 Backtest、Demo、
+持久化、错误解释和浏览器总验收检查现有能力。
 
-## 前端产品交付线
+## Usable Product v1 Roadmap
+
+### UPV1-001：产品定位与首次 Backtest
+
+- 统一 README、`project.html` 和本 Roadmap；
+- 在 Run 历史已验证且为空时，允许从当前 StrategyVersion 创建首次内置确定性 Backtest；
+- stale、pending、invalid 继续 fail closed；
+- 明确内置数据只用于产品流程和确定性验证，不是收益证明。
+
+退出条件：新用户不需要预先存在一个 Backtest Run 也能进入创建流程；文档和页面对当前
+能力没有冲突声明。
+
+### UPV1-002：真实本地历史数据目录
+
+- 复用 Rust `ParquetDataCatalog` 和 `BacktestNode`，不新建数据引擎；
+- 在 Product API 提供经过验证的数据集、品种、时间范围和数据指纹；
+- 工作台允许选择一个本地历史数据集，并把选择冻结到 Run；
+- 内置确定性数据继续作为测试来源，但不再是唯一产品来源。
+
+退出条件：用户可以选择本地真实历史数据完成一次 Backtest，结果包含数据范围和 SHA-256
+来源证据。
+
+### UPV1-003：Backtest 产品验收
+
+- 从空工作区完成创建、运行、结果、明细、分析、比较和复现；
+- 统一加载、空状态、失败、取消和恢复语言；
+- 验证刷新页面和重启服务后历史 Run 仍可读取。
+
+退出条件：一名不了解 Cargo 和内部目录的用户可以只通过页面完成 Backtest 闭环。
+
+### UPV1-004：Demo 产品验收
+
+- 用同一 StrategyVersion 创建 Demo；
+- 完成 start、实时观察、stop、冻结结果和 Backtest/Demo 比较；
+- 验证进程退出、状态陈旧和重启后的明确恢复或安全收口。
+
+退出条件：Demo 可以重复操作和解释，真实订单继续保持独立关闭。
+
+### UPV1-005：本地交付与操作说明
+
+- 提供一个明确启动入口，启动 Supervisor、node、Product API 和前端；
+- 完成工作目录初始化、端口冲突、停止、重启和数据保留说明；
+- 用户不需要手动编排多个进程。
+
+退出条件：全新本地环境按中文说明可以启动、使用和停止 NTPRO。
+
+### UPV1-006：浏览器总验收与 v1 冻结
+
+- 使用真实 production bundle 完成首次 Backtest 与 Demo 浏览器验收；
+- 检查桌面/移动布局、性能、错误、刷新、深链和持久化；
+- 固定产品声明、当前边界、操作手册和回滚方式。
+
+退出条件：Backtest + Demo 可重复演示、审计和交付；Live 是否完成不影响 v1 收口。
+
+## 已交付技术能力（不是当前产品 Roadmap）
 
 SWB-001 页面框架、FEF-001 React/TypeScript/Vite 工程、FEI-001 Axum 静态资源接入和
 S0-API-001 只读产品合同均已交付。生产前端由 Rust/Axum 提供，并同时消费技术状态 API
@@ -124,7 +173,10 @@ FEA-001 前端架构文档
 只能用于组件和浏览器测试，生产页面必须绑定真实产品 API。Node.js 只用于前端开发与构建，
 生产运行时继续由 Rust/Axum 承担。
 
-## 策略三模式 Roadmap
+## 后续三模式能力轨道
+
+以下 S0-S4 记录既有技术能力和 Live 长期方向，不再作为当前开发顺序。当前开发只按
+UPV1-001 至 UPV1-006 推进；S3-LV-011 保持独立 owner 授权，不阻塞 Usable Product v1。
 
 ### S0：策略、版本与运行资源
 

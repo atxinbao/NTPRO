@@ -2,7 +2,11 @@ import { useNavigate } from "@tanstack/react-router";
 import { FlaskConical, Play, ShieldCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import type { CreateBacktestRunRequest } from "../api/generated/productApi";
+import type {
+  CreateBacktestRunRequest,
+  Run,
+  StrategyVersion,
+} from "../api/generated/productApi";
 import {
   useCreateBacktestRun,
   useOverviewProductContext,
@@ -29,14 +33,22 @@ export function BacktestPage() {
   if (!product.strategy || !product.version) {
     return <ProductErrorState error={new Error("当前没有可用策略版本")} />;
   }
+  if (!product.runs) {
+    return <ProductErrorState error={new Error("Backtest 运行列表尚未验证")} />;
+  }
 
   const baseline = product.runs?.data.find(
     (run) => run.environment === "backtest",
   );
-  if (!baseline) {
+  const source = resolveBacktestSource(
+    product.strategy.strategy_id,
+    product.version,
+    baseline,
+  );
+  if (!source) {
     return (
       <ProductErrorState
-        error={new Error("当前版本没有已登记 Backtest 数据集")}
+        error={new Error("当前策略版本没有唯一的内置回测来源")}
       />
     );
   }
@@ -62,8 +74,8 @@ export function BacktestPage() {
       strategy_id: product.strategy!.strategy_id,
       strategy_version_id: product.version!.strategy_version_id,
       environment: "backtest",
-      data_ref: baseline.data_ref,
-      venue_ref: baseline.venue_ref,
+      data_ref: source.dataRef,
+      venue_ref: source.venueRef,
       starting_balance: String(form.get("starting_balance")),
       quotes: Number(form.get("quotes")),
       trade_size: String(form.get("trade_size")),
@@ -87,7 +99,7 @@ export function BacktestPage() {
         <div>
           <span className="eyebrow">Backtest</span>
           <h1>创建策略回测</h1>
-          <p>使用当前不可变策略版本与已登记数据集运行真实 BacktestEngine。</p>
+          <p>使用当前不可变策略版本与确定性数据运行真实 BacktestEngine。</p>
         </div>
         <span className={styles.readOnlyBadge}>
           <ShieldCheck aria-hidden="true" /> 仅模拟成交
@@ -104,11 +116,23 @@ export function BacktestPage() {
             <FlaskConical aria-hidden="true" />
           </header>
 
+          {source.isBuiltinFallback ? (
+            <div className={styles.connectionBanner} role="status">
+              <div>
+                <strong>当前没有历史 Backtest</strong>
+                <span>
+                  本次使用策略版本登记的内置确定性数据，只验证产品流程和可复现性，不代表真实市场研究或收益证明。
+                </span>
+              </div>
+              <em>内置数据</em>
+            </div>
+          ) : null}
+
           <div className={styles.formGrid}>
             <ReadOnlyField label="策略" value={product.strategy.strategy_id} />
             <ReadOnlyField label="版本" value={product.version.version} />
-            <ReadOnlyField label="数据集" value={baseline.data_ref} wide />
-            <ReadOnlyField label="模拟 Venue" value={baseline.venue_ref} wide />
+            <ReadOnlyField label="回测数据" value={source.dataRef} wide />
+            <ReadOnlyField label="模拟 Venue" value={source.venueRef} wide />
             <label>
               <span>初始资金</span>
               <input
@@ -178,6 +202,35 @@ export function BacktestPage() {
       </section>
     </>
   );
+}
+
+function resolveBacktestSource(
+  strategyId: string,
+  version: StrategyVersion,
+  baseline?: Run,
+) {
+  if (baseline) {
+    return {
+      dataRef: baseline.data_ref,
+      venueRef: baseline.venue_ref,
+      isBuiltinFallback: false,
+    };
+  }
+
+  const requirements = version.data_requirements;
+  if (
+    requirements.deterministic_replay_required !== true ||
+    requirements.venues.length !== 1 ||
+    requirements.symbols.length !== 1
+  ) {
+    return undefined;
+  }
+
+  return {
+    dataRef: `dataset://fixtures/${strategyId.replaceAll("_", "-")}`,
+    venueRef: `venue://simulated/${requirements.venues[0]}`,
+    isBuiltinFallback: true,
+  };
 }
 
 function parameterConst(schema: Record<string, unknown>, name: string) {
