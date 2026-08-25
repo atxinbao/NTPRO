@@ -5802,6 +5802,7 @@ dependencies = [
  "dotenvy",
  "ed25519-dalek",
  "jsonschema",
+ "libc",
  "log",
  "nautilus-backtest",
  "nautilus-binance",

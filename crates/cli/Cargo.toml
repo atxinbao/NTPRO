@@ -52,6 +52,7 @@ clap = { workspace = true }
 dotenvy = { workspace = true }
 ed25519-dalek = { workspace = true }
 jsonschema = { workspace = true }
+libc = { workspace = true }
 log = { workspace = true }
 reqwest = { workspace = true, features = ["blocking"] }
 rust_decimal = { workspace = true }

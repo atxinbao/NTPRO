@@ -351,12 +351,25 @@ fn copy_catalog_tree_nofollow(source_root: &Dir, destination_root: &Dir) -> anyh
         for name in names {
             let relative = relative_directory.join(&name);
             validate_relative_file_path(&relative)?;
-            match source_directory.open_dir_nofollow(&name) {
-                Ok(_) => {
-                    open_relative_directory_nofollow(destination_root, &relative, true)?;
-                    pending.push(relative);
-                }
-                Err(_) => copy_file_nofollow(source_root, destination_root, &relative)?,
+            let file_type = source_directory
+                .symlink_metadata(&name)
+                .with_context(|| {
+                    format!("failed to classify catalog path '{}'", relative.display())
+                })?
+                .file_type();
+            if file_type.is_dir() {
+                source_directory.open_dir_nofollow(&name).with_context(|| {
+                    format!("failed to fix catalog directory '{}'", relative.display())
+                })?;
+                open_relative_directory_nofollow(destination_root, &relative, true)?;
+                pending.push(relative);
+            } else if file_type.is_file() {
+                copy_file_nofollow(source_root, destination_root, &relative)?;
+            } else {
+                anyhow::bail!(
+                    "catalog path '{}' must be a normal file or directory",
+                    relative.display()
+                );
             }
         }
     }
@@ -472,6 +485,12 @@ fn copy_file_nofollow(
 
     let mut source_options = OpenOptions::new();
     source_options.read(true).follow(FollowSymlinks::No);
+    #[cfg(unix)]
+    {
+        use cap_std::fs::OpenOptionsExt;
+
+        source_options.custom_flags(libc::O_NONBLOCK);
+    }
     let mut source = source_parent
         .open_with(file_name, &source_options)
         .with_context(|| format!("failed to open catalog source '{}'", path.display()))?;
@@ -576,12 +595,17 @@ fn lowercase_hex(bytes: &[u8]) -> String {
 #[cfg(test)]
 #[cfg(unix)]
 mod tests {
-    use std::{fs, os::unix::fs::symlink};
+    use std::{
+        fs,
+        os::unix::fs::symlink,
+        process::Command,
+        time::{Duration, Instant},
+    };
 
     use cap_fs_ext::DirExt;
     use cap_std::fs::Dir;
 
-    use super::freeze_open_catalog_tree;
+    use super::{freeze_open_catalog_tree, inspect_local_quote_datasets};
 
     #[test]
     fn fixed_catalog_capability_does_not_follow_replaced_workspace_root() {
@@ -615,6 +639,31 @@ mod tests {
         assert!(
             !snapshot.path.join("escaped.parquet").exists(),
             "the replacement symlink target must not enter the private snapshot"
+        );
+    }
+
+    #[test]
+    fn catalog_fifo_is_rejected_without_blocking() {
+        let workspace = tempfile::tempdir().expect("workspace fixture should be created");
+        let catalog_path = workspace.path().join("catalog");
+        fs::create_dir(&catalog_path).expect("catalog fixture should be created");
+        let fifo_path = catalog_path.join("blocking-input.parquet");
+        let status = Command::new("mkfifo")
+            .arg(&fifo_path)
+            .status()
+            .expect("mkfifo should be available on Unix test hosts");
+        assert!(status.success(), "FIFO fixture should be created");
+
+        let started = Instant::now();
+        let error = inspect_local_quote_datasets(&catalog_path)
+            .expect_err("a catalog FIFO must fail closed");
+        assert!(
+            started.elapsed() < Duration::from_secs(2),
+            "FIFO rejection must not wait for a writer"
+        );
+        assert!(
+            format!("{error:#}").contains("must be a normal file or directory"),
+            "unexpected FIFO rejection: {error:#}"
         );
     }
 }
