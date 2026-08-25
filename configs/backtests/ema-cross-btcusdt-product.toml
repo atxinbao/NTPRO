@@ -16,7 +16,7 @@ slow_period = 5
 [product]
 strategy_id = "ema_cross_btcusdt_v1"
 strategy_version_id = "ema_cross_btcusdt_v1@v1"
-strategy_version_content_hash = "sha256:2f58f5cf2bd2680773a10fb136db0c3214af9ae23b1d757c7be2b26cadc1148d"
+strategy_version_content_hash = "sha256:06bd95c4371eea8400e78c6d4d67f45267fa8f2a2ac5fd0498c6643e7e22f418"
 data_ref = "dataset://fixtures/ema-cross-btcusdt-v1"
 config_ref = "node-config:btc-ema-shadow.toml#product_runs"
 result_ref = "artifact://backtests/ema-cross-btcusdt-baseline-v1/summary.json"

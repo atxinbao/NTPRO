@@ -6,6 +6,7 @@ import type { DemoRunSnapshotResponse, Run } from "../api/generated/productApi";
 import { validStatusPayload } from "./fixtures";
 import liveAccountRefreshFixture from "./product-api-fixtures/live-account-refresh-connected.json";
 import liveAdmissionFixture from "./product-api-fixtures/live-admission.json";
+import datasetListFixture from "./product-api-fixtures/dataset-list.json";
 import liveRunCandidateFixture from "./product-api-fixtures/live-run-candidate.json";
 import runDetailFixture from "./product-api-fixtures/run-detail.json";
 import runAnalysisFixture from "./product-api-fixtures/run-analysis.json";
@@ -534,6 +535,10 @@ export const server = setupServer(
   ),
   http.get("/api/product/v1/strategies/:strategyId/versions", () =>
     HttpResponse.json(strategyVersionListFixture),
+  ),
+  http.get(
+    "/api/product/v1/strategies/:strategyId/versions/:versionId/datasets",
+    () => HttpResponse.json(datasetListFixture),
   ),
   http.get(
     "/api/product/v1/strategies/:strategyId/versions/:versionId/live-admission",

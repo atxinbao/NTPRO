@@ -305,6 +305,64 @@
         }
       }
     },
+    "/strategies/{strategy_id}/versions/{version_id}/datasets": {
+      "get": {
+        "operationId": "listCompatibleDatasets",
+        "summary": "读取策略版本兼容的本地历史数据集",
+        "security": [
+          { "InstitutionCookie": [] },
+          { "OperatorCookie": [] }
+        ],
+        "parameters": [
+          {
+            "name": "strategy_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyId"
+            }
+          },
+          {
+            "name": "version_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/StrategyVersionId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "已验证且与策略版本兼容的本地历史数据集",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "403": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "405": {
+            "$ref": "#/components/responses/ProductMethodNotAllowed"
+          },
+          "500": {
+            "$ref": "#/components/responses/ProductError"
+          },
+          "503": {
+            "$ref": "#/components/responses/ProductError"
+          }
+        }
+      }
+    },
     "/strategies/{strategy_id}/versions/{version_id}/live-admission": {
       "get": {
         "operationId": "getLiveAdmission",
@@ -1632,13 +1690,14 @@
           "strategy_version_id": { "$ref": "#/components/schemas/StrategyVersionId" },
           "environment": { "type": "string", "const": "backtest" },
           "data_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
+          "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
           "venue_ref": { "type": "string", "minLength": 1, "maxLength": 512 },
           "starting_balance": {
             "type": "string",
             "pattern": "^[0-9][0-9_]*(\\.[0-9]+)? USDT$",
             "maxLength": 64
           },
-          "quotes": { "type": "integer", "minimum": 30, "maximum": 10000 },
+          "quotes": { "type": "integer", "minimum": 30, "maximum": 1000000 },
           "trade_size": {
             "type": "string",
             "pattern": "^[0-9]+\\.[0-9]{6}$",
@@ -2865,6 +2924,71 @@
           "boundaries": {
             "$ref": "#/components/schemas/ReadOnlyBoundaries"
           }
+        }
+      },
+      "DatasetSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_type", "freshness_status", "source_refs"],
+        "properties": {
+          "source_type": { "const": "local_parquet_catalog" },
+          "freshness_status": { "const": "verified" },
+          "source_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+          }
+        }
+      },
+      "ProductDataset": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dataset_id",
+          "data_ref",
+          "data_type",
+          "storage_format",
+          "instrument_id",
+          "venue",
+          "venue_ref",
+          "record_count",
+          "start_time_ns",
+          "end_time_ns",
+          "file_count",
+          "size_bytes",
+          "data_sha256",
+          "source"
+        ],
+        "properties": {
+          "dataset_id": { "type": "string", "pattern": "^local-quotes-[0-9a-f]{12}$" },
+          "data_ref": { "type": "string", "pattern": "^dataset://local/quotes/[A-Za-z0-9_./:-]+$" },
+          "data_type": { "const": "quote_tick" },
+          "storage_format": { "const": "parquet" },
+          "instrument_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "venue": { "type": "string", "minLength": 1, "maxLength": 64 },
+          "venue_ref": { "type": "string", "pattern": "^venue://simulated/[A-Za-z0-9_.:-]+$" },
+          "record_count": { "type": "integer", "minimum": 1, "maximum": 1000000 },
+          "start_time_ns": { "type": "string", "pattern": "^[0-9]+$" },
+          "end_time_ns": { "type": "string", "pattern": "^[0-9]+$" },
+          "file_count": { "type": "integer", "minimum": 2 },
+          "size_bytes": { "type": "integer", "minimum": 1 },
+          "data_sha256": { "$ref": "#/components/schemas/ContentHash" },
+          "source": { "$ref": "#/components/schemas/DatasetSource" }
+        }
+      },
+      "DatasetListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schema_version", "contract_version", "request_id", "data", "boundaries"],
+        "properties": {
+          "schema_version": { "const": "ntpro.product_api.dataset_list.response.v1" },
+          "contract_version": { "const": "ntpro.product_api.v1" },
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProductDataset" }
+          },
+          "boundaries": { "$ref": "#/components/schemas/ReadOnlyBoundaries" }
         }
       },
       "CreateLiveRunCandidateRequest": {

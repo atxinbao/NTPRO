@@ -13,6 +13,12 @@ use axum::{
     http::{HeaderMap, Method, Request, StatusCode, header::ALLOW},
 };
 use nautilus_live::status::{LifecycleStatus, SnapshotValue};
+use nautilus_model::{
+    data::QuoteTick,
+    instruments::{Instrument, InstrumentAny, stubs::currency_pair_btcusdt},
+    types::{Price, Quantity},
+};
+use nautilus_persistence::backend::catalog::ParquetDataCatalog;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
@@ -208,6 +214,35 @@ impl Fixture {
             None,
             TEST_FRESHNESS_MAX_AGE_MS,
         ));
+    }
+
+    fn write_quote_catalog(root: &Path) {
+        let catalog_root = root.join("catalog");
+        fs::create_dir_all(&catalog_root).expect("catalog root should be created");
+        let instrument = InstrumentAny::CurrencyPair(currency_pair_btcusdt());
+        let instrument_id = instrument.id();
+        let quotes = (0_u64..120)
+            .map(|tick| {
+                let mid =
+                    50_000.0 + ((tick as f64 / 12.0).sin() * 400.0) + ((tick % 40) as f64 * 8.0);
+                QuoteTick::new(
+                    instrument_id,
+                    Price::from(format!("{mid:.2}").as_str()),
+                    Price::from(format!("{:.2}", mid + 1.0).as_str()),
+                    Quantity::from("1.000000"),
+                    Quantity::from("1.000000"),
+                    (1_735_689_600_000_000_000 + tick * 1_000_000_000).into(),
+                    (1_735_689_600_000_000_000 + tick * 1_000_000_000).into(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let catalog = ParquetDataCatalog::new(&catalog_root, None, None, None, None);
+        catalog
+            .write_instruments(vec![instrument])
+            .expect("instrument catalog should be written");
+        catalog
+            .write_to_parquet(quotes, None, None, None)
+            .expect("quote catalog should be written");
     }
 
     fn activate_strategy_version(&self, version: &str) {
@@ -671,7 +706,7 @@ fn tracked_strategy_version_and_run_manifest_match_authoritative_identity() {
     );
     assert_eq!(
         backtest_run["backtest_result_sha256"].as_str(),
-        Some("sha256:4b9bc548f226e55b136eb4c08f2ef5e0274bed104b8626d5431b39fb0a3b8760")
+        Some("sha256:51ca83710448e0433153415411a30b1480a8d1518ce7f4af1d47ed5b17317f29")
     );
     assert_eq!(
         backtest_run["backtest_trade_size"].as_str(),
@@ -2512,6 +2547,232 @@ fn live_account_refresh_rejects_incoherent_connected_observations() {
         );
         validate_openapi_instance("LiveAccountRefreshResponse", &value);
     }
+}
+
+#[tokio::test]
+async fn local_quote_catalog_is_listed_and_frozen_into_a_real_backtest_run() {
+    let fixture = Fixture::new("local-quote-catalog-run");
+    let catalog_root = fixture.root.clone();
+    tokio::task::spawn_blocking(move || Fixture::write_quote_catalog(&catalog_root))
+        .await
+        .expect("catalog writer should join");
+    let router = fixture.router();
+    let (status, catalog) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{catalog}");
+    assert_eq!(
+        catalog["schema_version"],
+        "ntpro.product_api.dataset_list.response.v1"
+    );
+    assert_eq!(catalog["data"].as_array().map(Vec::len), Some(1));
+    let dataset = &catalog["data"][0];
+    assert_eq!(
+        dataset["data_ref"],
+        "dataset://local/quotes/BTCUSDT.BINANCE"
+    );
+    assert_eq!(dataset["data_type"], "quote_tick");
+    assert_eq!(dataset["storage_format"], "parquet");
+    assert_eq!(dataset["record_count"], 120);
+    assert_eq!(dataset["venue_ref"], "venue://simulated/BINANCE");
+    assert_eq!(dataset["source"]["freshness_status"], "verified");
+    let catalog_raw = serde_json::to_string(&catalog).expect("catalog response should serialize");
+    assert!(
+        !catalog_raw.contains(fixture.root.to_string_lossy().as_ref()),
+        "Product API must not expose the host catalog path"
+    );
+
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": dataset["data_ref"],
+        "data_sha256": dataset["data_sha256"],
+        "venue_ref": dataset["venue_ref"],
+        "starting_balance": "1000000 USDT",
+        "quotes": dataset["record_count"],
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+    let (status, created) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::CREATED, "{created}");
+    let run_id = created["data"]["run_id"]
+        .as_str()
+        .expect("created Run ID should exist");
+    let run_root = fixture.root.join("artifacts/backtests").join(run_id);
+    let stored_request =
+        fs::read_to_string(run_root.join("request.toml")).expect("request should be frozen");
+    assert!(stored_request.contains("source = \"local-parquet-catalog\""));
+    assert!(
+        stored_request.contains(
+            dataset["data_sha256"]
+                .as_str()
+                .expect("dataset fingerprint should exist")
+        )
+    );
+    let summary: Value = serde_json::from_slice(
+        &fs::read(run_root.join("summary.json")).expect("summary should be readable"),
+    )
+    .expect("summary should parse");
+    assert_eq!(summary["data_sha256"], dataset["data_sha256"]);
+    assert_eq!(summary["metrics"]["quotes"], 120);
+
+    let invalid_range = stored_request.replace(
+        &format!(
+            "end_time_ns = \"{}\"",
+            dataset["end_time_ns"]
+                .as_str()
+                .expect("dataset end timestamp should exist")
+        ),
+        "end_time_ns = \"0\"",
+    );
+    let error = tokio::task::spawn_blocking(move || {
+        crate::backtest::execute_product_backtest(invalid_range.as_bytes())
+    })
+    .await
+    .expect("range validation worker should join")
+    .expect_err("tampered local range must fail closed");
+    let error_chain = format!("{error:#}");
+    assert!(
+        error_chain.contains("data.start_time_ns must not exceed data.end_time_ns"),
+        "unexpected range failure: {error:#}"
+    );
+
+    let mismatched_instrument = stored_request.replace(
+        "instrument_id = \"BTCUSDT.BINANCE\"",
+        "instrument_id = \"AUDUSD.SIM\"",
+    );
+    let error = tokio::task::spawn_blocking(move || {
+        crate::backtest::execute_product_backtest(mismatched_instrument.as_bytes())
+    })
+    .await
+    .expect("instrument validation worker should join")
+    .expect_err("mismatched local instrument must fail closed");
+    let error_chain = format!("{error:#}");
+    assert!(
+        error_chain.contains("local parquet catalog validation failed"),
+        "unexpected instrument failure: {error:#}"
+    );
+
+    let restarted_router = fixture.router();
+    let (status, detail) = router_json(
+        &restarted_router,
+        Method::GET,
+        &format!("/api/product/v1/runs/{run_id}"),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{detail}");
+    assert_eq!(detail["data"]["data_ref"], dataset["data_ref"]);
+}
+
+#[tokio::test]
+async fn local_quote_catalog_rejects_missing_and_mismatched_sources() {
+    let missing = Fixture::new("missing-local-quote-catalog");
+    let (status, body) = router_json(
+        &missing.router(),
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets",
+    )
+    .await;
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE, "{body}");
+    assert_eq!(body["error"]["field"], "local_data_catalog");
+
+    let fixture = Fixture::new("mismatched-local-quote-catalog");
+    let catalog_root = fixture.root.clone();
+    tokio::task::spawn_blocking(move || Fixture::write_quote_catalog(&catalog_root))
+        .await
+        .expect("catalog writer should join");
+    let router = fixture.router();
+    let (status, catalog) = router_json(
+        &router,
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets",
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{catalog}");
+    let request = json!({
+        "strategy_id": "ema-cross",
+        "strategy_version_id": "ema-cross@v1",
+        "environment": "backtest",
+        "data_ref": catalog["data"][0]["data_ref"],
+        "data_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "venue_ref": catalog["data"][0]["venue_ref"],
+        "starting_balance": "1000000 USDT",
+        "quotes": 120,
+        "trade_size": "0.001000",
+        "fast_period": 3,
+        "slow_period": 5
+    });
+    let (status, body) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &request).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "data_sha256");
+
+    let mut missing_sha = request.clone();
+    missing_sha
+        .as_object_mut()
+        .expect("request should be an object")
+        .remove("data_sha256");
+    let (status, body) =
+        router_json_body(&router, Method::POST, "/api/product/v1/runs", &missing_sha).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["error"]["field"], "data_sha256");
+
+    let mut unknown_dataset = request.clone();
+    unknown_dataset["data_ref"] = json!("dataset://local/quotes/ETHUSDT.BINANCE");
+    unknown_dataset["data_sha256"] = catalog["data"][0]["data_sha256"].clone();
+    let (status, body) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/runs",
+        &unknown_dataset,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["error"]["field"], "data_ref");
+
+    let mut changed_count = request.clone();
+    changed_count["data_sha256"] = catalog["data"][0]["data_sha256"].clone();
+    changed_count["quotes"] = json!(119);
+    let (status, body) = router_json_body(
+        &router,
+        Method::POST,
+        "/api/product/v1/runs",
+        &changed_count,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert_eq!(body["error"]["code"], "product_query_invalid");
+    assert_eq!(body["error"]["field"], "quotes");
+
+    let corrupted = Fixture::new("corrupted-local-quote-catalog");
+    let catalog_root = corrupted.root.clone();
+    tokio::task::spawn_blocking(move || Fixture::write_quote_catalog(&catalog_root))
+        .await
+        .expect("catalog writer should join");
+    let quote_directory = corrupted.root.join("catalog/data/quotes/BTCUSDT.BINANCE");
+    let quote_file = fs::read_dir(&quote_directory)
+        .expect("quote directory should be readable")
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|path| path.extension() == Some(std::ffi::OsStr::new("parquet")))
+        .expect("quote parquet file should exist");
+    fs::write(quote_file, b"corrupted parquet").expect("quote parquet should be corrupted");
+    let (status, body) = router_json(
+        &corrupted.router(),
+        Method::GET,
+        "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets",
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{body}");
+    assert_eq!(body["error"]["code"], "product_source_invalid");
+    assert_eq!(body["error"]["field"], "local_data_catalog");
 }
 
 #[tokio::test]
@@ -5834,6 +6095,10 @@ async fn run_metrics_reject_symlinked_artifact_root_escape() {
 #[tokio::test]
 async fn tracked_frontend_fixtures_match_real_rust_routes() {
     let fixture = Fixture::new("frontend-fixtures");
+    let catalog_root = fixture.root.clone();
+    tokio::task::spawn_blocking(move || Fixture::write_quote_catalog(&catalog_root))
+        .await
+        .expect("catalog writer should join");
     let router = fixture.router();
     let cases = [
         (
@@ -5859,6 +6124,12 @@ async fn tracked_frontend_fixtures_match_real_rust_routes() {
             StatusCode::OK,
             "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1",
             "StrategyVersionDetailResponse",
+        ),
+        (
+            "dataset-list.json",
+            StatusCode::OK,
+            "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets",
+            "DatasetListResponse",
         ),
         (
             "live-admission.json",
@@ -6033,6 +6304,7 @@ fn openapi_is_authoritative_and_declares_exact_product_routes() {
             "/strategies/{strategy_id}",
             "/strategies/{strategy_id}/versions",
             "/strategies/{strategy_id}/versions/{version_id}",
+            "/strategies/{strategy_id}/versions/{version_id}/datasets",
             "/strategies/{strategy_id}/versions/{version_id}/live-account/actions/refresh",
             "/strategies/{strategy_id}/versions/{version_id}/live-admission"
         ]
@@ -6224,8 +6496,8 @@ const = 5
 [strategy_version.data_requirements]
 venues = ["BINANCE"]
 symbols = ["BTCUSDT.BINANCE"]
-data_types = ["bar"]
-timeframes = ["fixture_sequence"]
+data_types = ["quote_tick"]
+timeframes = ["tick"]
 deterministic_replay_required = true
 
 [strategy_version.risk_config]

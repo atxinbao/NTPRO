@@ -1158,9 +1158,14 @@ try {
   });
   await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
   await page.getByText(/当前没有历史 Backtest/).waitFor();
-  await page
-    .locator('input[value="dataset://fixtures/ema-cross-btcusdt-v1"]')
-    .waitFor();
+  const backtestDataSelect = page.getByLabel("回测数据");
+  await backtestDataSelect.waitFor();
+  if (
+    (await backtestDataSelect.inputValue()) !==
+    "dataset://fixtures/ema-cross-btcusdt-v1"
+  ) {
+    throw new Error("empty catalog did not retain the deterministic Backtest source");
+  }
   await page.setViewportSize({ width: 1280, height: 720 });
   const createBacktestButton = page.getByRole("button", {
     name: "创建并运行",

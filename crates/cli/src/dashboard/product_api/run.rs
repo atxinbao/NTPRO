@@ -237,6 +237,8 @@ pub(in crate::dashboard) struct CreateBacktestRunRequest {
     strategy_version_id: String,
     environment: RunEnvironment,
     data_ref: String,
+    #[serde(default)]
+    data_sha256: Option<String>,
     venue_ref: String,
     starting_balance: String,
     quotes: usize,
@@ -1278,6 +1280,12 @@ struct ReproductionExpectation {
     strategy_version: strategy_version::ProductStrategyVersion,
 }
 
+#[derive(Clone, Debug)]
+enum BacktestDataSelection {
+    Synthetic,
+    Local(dataset::ValidatedProductDataset),
+}
+
 struct VerifiedBacktestBundle {
     run: ProductRun,
     config: ProductRunConfig,
@@ -1349,6 +1357,14 @@ struct StoredBacktestDataConfig {
     source: String,
     instrument_id: String,
     quotes: usize,
+    #[serde(default)]
+    catalog_path: Option<PathBuf>,
+    #[serde(default)]
+    data_sha256: Option<String>,
+    #[serde(default)]
+    start_time_ns: Option<String>,
+    #[serde(default)]
+    end_time_ns: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3780,7 +3796,8 @@ fn create_backtest_run(
         .map_or(current_strategy_version, |expectation| {
             expectation.strategy_version.clone()
         });
-    validate_backtest_creation_request(&request, &source, &strategy_version)?;
+    let data_selection =
+        validate_backtest_creation_request(state, &request, &source, &strategy_version)?;
     if load_run_configs(state, &source)?.len() >= MAX_PAGE_LIMIT {
         return Err(product_error(ProductErrorKind::Conflict, "run_capacity"));
     }
@@ -3790,22 +3807,13 @@ fn create_backtest_run(
     let config_ref = format!("artifact://backtests/{run_id}/request.toml");
     let result_ref = format!("artifact://backtests/{run_id}/summary.json");
     let risk_ref = format!("artifact://backtests/{run_id}/run-manifest.json#risk");
-    let instrument_id = strategy_version
-        .data_symbols()
-        .first()
-        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "strategy_data_symbol"))?;
-    let engine_venue = instrument_id
-        .rsplit_once('.')
-        .map(|(_, venue)| venue)
-        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "strategy_data_symbol"))?;
     let config_raw = build_backtest_config(
         &run_id,
-        instrument_id,
-        engine_venue,
         &request,
-        strategy_version.content_hash(),
+        &strategy_version,
         &config_ref,
         &result_ref,
+        &data_selection,
     )?;
     let request_sha256 = sha256_ref(&config_raw);
     let strategy_version_raw =
@@ -3836,7 +3844,14 @@ fn create_backtest_run(
                 })?;
             let result_sha256 = sha256_ref(&artifacts.summary);
             let details_sha256 = sha256_ref(&artifacts.details);
-            if details.run_id != run_id
+            let expected_data_sha256 = match &data_selection {
+                BacktestDataSelection::Synthetic => None,
+                BacktestDataSelection::Local(dataset) => {
+                    Some(dataset.inspection.data_sha256.as_str())
+                }
+            };
+            if expected_data_sha256.is_some_and(|value| artifact.data_sha256 != value)
+                || details.run_id != run_id
                 || details.strategy_id != request.strategy_id
                 || details.strategy_version_id != request.strategy_version_id
                 || details.data_sha256 != artifact.data_sha256
@@ -4114,22 +4129,44 @@ fn validate_created_backtest_artifacts(
 
 fn build_backtest_config(
     run_id: &str,
-    instrument_id: &str,
-    engine_venue: &str,
     request: &CreateBacktestRunRequest,
-    content_hash: &str,
+    strategy_version: &strategy_version::ProductStrategyVersion,
     config_ref: &str,
     result_ref: &str,
+    data_selection: &BacktestDataSelection,
 ) -> Result<Vec<u8>, ProductError> {
     let quoted = |value: &str| {
         serde_json::to_string(value)
             .map_err(|_| product_error(ProductErrorKind::ExecutionFailed, "backtest_config"))
     };
+    let instrument_id = strategy_version
+        .data_symbols()
+        .first()
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "strategy_data_symbol"))?;
+    let engine_venue = instrument_id
+        .rsplit_once('.')
+        .map(|(_, venue)| venue)
+        .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "strategy_data_symbol"))?;
+    let data = match data_selection {
+        BacktestDataSelection::Synthetic => format!(
+            "source = \"synthetic-quotes\"\ninstrument_id = {}\nquotes = {}",
+            quoted(instrument_id)?,
+            request.quotes,
+        ),
+        BacktestDataSelection::Local(dataset) => format!(
+            "source = \"local-parquet-catalog\"\ninstrument_id = {}\nquotes = {}\ncatalog_path = {}\ndata_sha256 = {}\nstart_time_ns = {}\nend_time_ns = {}",
+            quoted(instrument_id)?,
+            request.quotes,
+            quoted(dataset.inspection.catalog_path.to_string_lossy().as_ref())?,
+            quoted(&dataset.inspection.data_sha256)?,
+            quoted(&dataset.inspection.start_time_ns.to_string())?,
+            quoted(&dataset.inspection.end_time_ns.to_string())?,
+        ),
+    };
     let raw = format!(
-        "[run]\nid = {}\nmode = \"engine-smoke\"\n\n[data]\nsource = \"synthetic-quotes\"\ninstrument_id = {}\nquotes = {}\n\n[strategy]\nname = \"ema-cross\"\ntrade_size = {}\nfast_period = {}\nslow_period = {}\n\n[venue]\nname = {}\nstarting_balance = {}\n\n[product]\nstrategy_id = {}\nstrategy_version_id = {}\nstrategy_version_content_hash = {}\ndata_ref = {}\nconfig_ref = {}\nresult_ref = {}\n",
+        "[run]\nid = {}\nmode = \"engine-smoke\"\n\n[data]\n{}\n\n[strategy]\nname = \"ema-cross\"\ntrade_size = {}\nfast_period = {}\nslow_period = {}\n\n[venue]\nname = {}\nstarting_balance = {}\n\n[product]\nstrategy_id = {}\nstrategy_version_id = {}\nstrategy_version_content_hash = {}\ndata_ref = {}\nconfig_ref = {}\nresult_ref = {}\n",
         quoted(run_id)?,
-        quoted(instrument_id)?,
-        request.quotes,
+        data,
         quoted(&request.trade_size)?,
         request.fast_period,
         request.slow_period,
@@ -4137,7 +4174,7 @@ fn build_backtest_config(
         quoted(&request.starting_balance)?,
         quoted(&request.strategy_id)?,
         quoted(&request.strategy_version_id)?,
-        quoted(content_hash)?,
+        quoted(strategy_version.content_hash())?,
         quoted(&request.data_ref)?,
         quoted(config_ref)?,
         quoted(result_ref)?,
@@ -4146,10 +4183,11 @@ fn build_backtest_config(
 }
 
 fn validate_backtest_creation_request(
+    state: &DashboardServerState,
     request: &CreateBacktestRunRequest,
     source: &ValidatedProductSource,
     strategy_version: &strategy_version::ProductStrategyVersion,
-) -> Result<(), ProductError> {
+) -> Result<BacktestDataSelection, ProductError> {
     if request.environment != RunEnvironment::Backtest {
         return Err(product_error(ProductErrorKind::BadRequest, "environment"));
     }
@@ -4167,17 +4205,38 @@ fn validate_backtest_creation_request(
         "dataset://fixtures/{}",
         source.strategy.strategy_id.replace('_', "-")
     );
-    if request.data_ref != expected_data_ref {
-        return Err(product_error(ProductErrorKind::BadRequest, "data_ref"));
-    }
-    if !strategy_version
-        .data_venues()
-        .iter()
-        .any(|venue| request.venue_ref == format!("venue://simulated/{venue}"))
-    {
-        return Err(product_error(ProductErrorKind::BadRequest, "venue_ref"));
-    }
-    if !(30..=10_000).contains(&request.quotes) {
+    let data_selection = if request.data_ref == expected_data_ref {
+        if request.data_sha256.is_some() {
+            return Err(product_error(ProductErrorKind::BadRequest, "data_sha256"));
+        }
+        if !strategy_version
+            .data_venues()
+            .iter()
+            .any(|venue| request.venue_ref == format!("venue://simulated/{venue}"))
+        {
+            return Err(product_error(ProductErrorKind::BadRequest, "venue_ref"));
+        }
+        BacktestDataSelection::Synthetic
+    } else {
+        let data_sha256 = request
+            .data_sha256
+            .as_deref()
+            .ok_or_else(|| product_error(ProductErrorKind::BadRequest, "data_sha256"))?;
+        let dataset = dataset::resolve_product_dataset(
+            state,
+            strategy_version,
+            &request.data_ref,
+            data_sha256,
+        )?;
+        if request.venue_ref != dataset.venue_ref {
+            return Err(product_error(ProductErrorKind::BadRequest, "venue_ref"));
+        }
+        if request.quotes != dataset.inspection.record_count {
+            return Err(product_error(ProductErrorKind::BadRequest, "quotes"));
+        }
+        BacktestDataSelection::Local(dataset)
+    };
+    if !(30..=1_000_000).contains(&request.quotes) {
         return Err(product_error(ProductErrorKind::BadRequest, "quotes"));
     }
     if request.fast_period == 0
@@ -4209,7 +4268,7 @@ fn validate_backtest_creation_request(
             "starting_balance",
         ));
     }
-    Ok(())
+    Ok(data_selection)
 }
 
 fn create_dynamic_run_directory(
@@ -4892,7 +4951,7 @@ fn reproduce_backtest_run(
     let source = load_product_source(state, unix_time_ms())?;
     let source_bundle = load_verified_backtest_bundle(state, &source, source_run_id)?;
     let request = load_stored_backtest_request(state, &source_bundle)?;
-    validate_backtest_creation_request(&request, &source, &source_bundle.strategy_version)?;
+    validate_backtest_creation_request(state, &request, &source, &source_bundle.strategy_version)?;
     let source_input_sha256 = backtest_reproduction_input_sha256(
         &request,
         source_bundle.strategy_version.content_hash(),
@@ -5048,9 +5107,23 @@ fn load_stored_backtest_request(
         .rsplit_once('.')
         .map(|(_, venue)| venue)
         .ok_or_else(|| product_error(ProductErrorKind::SourceInvalid, "reproduction_source"))?;
+    let valid_synthetic_source = stored.data.source == "synthetic-quotes"
+        && stored.data.catalog_path.is_none()
+        && stored.data.data_sha256.is_none()
+        && stored.data.start_time_ns.is_none()
+        && stored.data.end_time_ns.is_none();
+    let valid_local_source = stored.data.source == "local-parquet-catalog"
+        && stored
+            .data
+            .catalog_path
+            .as_ref()
+            .is_some_and(|path| path.is_absolute())
+        && stored.data.data_sha256.as_deref() == Some(bundle.summary.data_sha256.as_str())
+        && stored.data.start_time_ns.as_deref() == Some(bundle.summary.backtest_start.as_str())
+        && stored.data.end_time_ns.as_deref() == Some(bundle.summary.backtest_end.as_str());
     if stored.run.id != bundle.run.run_id
         || stored.run.mode != "engine-smoke"
-        || stored.data.source != "synthetic-quotes"
+        || (!valid_synthetic_source && !valid_local_source)
         || stored.data.instrument_id != bundle.summary.instrument_id
         || stored.data.quotes != bundle.summary.metrics.quotes
         || stored.strategy.name != bundle.summary.strategy
@@ -5076,6 +5149,7 @@ fn load_stored_backtest_request(
         strategy_version_id: stored.product.strategy_version_id,
         environment: RunEnvironment::Backtest,
         data_ref: stored.product.data_ref,
+        data_sha256: stored.data.data_sha256,
         venue_ref: bundle.run.venue_ref.clone(),
         starting_balance: stored.venue.starting_balance,
         quotes: stored.data.quotes,
@@ -7254,6 +7328,15 @@ fn validate_run_references(
         format!("artifact://backtests/{}/summary.json", config.run_id);
     let valid = match config.environment {
         RunEnvironment::Backtest => {
+            let local_instrument = config.data_ref.strip_prefix("dataset://local/quotes/");
+            let data_reference_valid = config.data_ref == expected_backtest_data_ref
+                || (is_dynamic_backtest
+                    && local_instrument.is_some_and(|instrument_id| {
+                        strategy_version
+                            .data_symbols()
+                            .iter()
+                            .any(|symbol| symbol == instrument_id)
+                    }));
             let result_reference_valid = if is_dynamic_backtest {
                 match config.lifecycle {
                     RunLifecycle::Completed => {
@@ -7268,7 +7351,7 @@ fn validate_run_references(
                         == Some(source.identity.identities.backtest_result_ref.as_str())
             };
             result_reference_valid
-                && config.data_ref == expected_backtest_data_ref
+                && data_reference_valid
                 && config.adapter_ref == "adapter://backtest/simulated"
                 && config.account_ref == format!("account://simulated/{}", config.run_id)
                 && strategy_version

@@ -1,6 +1,6 @@
 # NTPRO 系统运行与运营操作说明书
 
-Date: 2026-08-05
+Date: 2026-08-26
 Executor: Codex
 Status: 当前单节点 MVP 使用手册
 
@@ -183,6 +183,26 @@ mkdir -p "$HOME/.local/share/ntpro/mvp-workspace"
 
 同一个 workspace 只能包含当前配置的一个节点。不要同时启动两个 Supervisor 争用同一
 个 workspace。
+
+### 7.2.1 放置本地历史数据
+
+策略工作台只读取 workspace 下的标准 Rust Parquet 目录：
+
+```text
+<workspace>/catalog/
+  data/instruments/<instrument_id>/*.parquet
+  data/quotes/<instrument_id>/*.parquet
+```
+
+该目录必须由仓库现有 `ParquetDataCatalog` 生成，并同时包含唯一的品种定义和非空
+QuoteTick 数据。启动后，Product API 会验证文件类型、目录边界、品种、Venue、时间顺序、
+记录数量和内容 SHA-256；页面只显示与当前 `StrategyVersion` 兼容且已验证的数据集。不要
+手工改名、拼接或编辑 Parquet 文件，也不要把 CSV 文件直接复制到该目录冒充产品数据。
+
+创建 Backtest 时必须选择页面返回的数据集。系统会把 `data_ref`、品种、完整起止时间、
+记录数量和 SHA-256 写入不可变 Run；数据缺失、损坏、品种不匹配或指纹变化时直接阻断，
+不会退回到另一个数据源继续运行。内置确定性数据仍可用于流程验证，但应与本地真实历史
+数据明确区分。
 
 ### 7.3 启动
 

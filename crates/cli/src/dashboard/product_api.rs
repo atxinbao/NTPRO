@@ -51,6 +51,7 @@ use crate::{
 
 use super::{ApiResult, DashboardServerState};
 
+mod dataset;
 mod live_admission;
 mod live_run;
 pub(crate) mod live_run_anchor;
@@ -59,6 +60,7 @@ mod strategy_version;
 #[cfg(test)]
 mod tests;
 
+pub(super) use dataset::compatible_dataset_list_api;
 pub(super) use live_admission::{live_account_refresh_api, live_admission_api};
 pub(super) use live_run::{
     live_execution_cancel_operator_approval_api, live_execution_cancel_owner_approval_api,

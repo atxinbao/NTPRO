@@ -26,6 +26,15 @@ export const productQueryKeys = {
     ["product", "strategies", strategyId, "versions"] as const,
   version: (strategyId: string, versionId: string) =>
     ["product", "strategies", strategyId, "versions", versionId] as const,
+  datasets: (strategyId: string, versionId: string) =>
+    [
+      "product",
+      "strategies",
+      strategyId,
+      "versions",
+      versionId,
+      "datasets",
+    ] as const,
   runs: (strategyId: string, versionId: string) =>
     ["product", "runs", { strategyId, versionId }] as const,
   run: (runId: string) => ["product", "runs", runId] as const,
@@ -272,6 +281,20 @@ export function useStrategyVersion(strategyId?: string, versionId?: string) {
         signal,
       ),
     enabled: Boolean(strategyId && versionId),
+  });
+}
+
+export function useCompatibleDatasets(strategyId?: string, versionId?: string) {
+  return useQuery({
+    ...productQueryPolicy,
+    queryKey: productQueryKeys.datasets(strategyId ?? "", versionId ?? ""),
+    queryFn: ({ signal }) =>
+      productApi.listCompatibleDatasets(
+        { strategy_id: strategyId!, version_id: versionId! },
+        signal,
+      ),
+    enabled: Boolean(strategyId && versionId),
+    retry: false,
   });
 }
 

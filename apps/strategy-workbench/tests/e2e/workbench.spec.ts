@@ -16,6 +16,7 @@ function readProductFixture(name: string): Record<string, unknown> {
 }
 
 const errorFixture = readProductFixture("error");
+const datasetListFixture = readProductFixture("dataset-list");
 const liveAccountRefreshFixture = readProductFixture(
   "live-account-refresh-connected",
 );
@@ -32,12 +33,16 @@ const strategyVersionDetailFixture = readProductFixture(
   "strategy-version-detail",
 );
 const strategyVersionListFixture = readProductFixture("strategy-version-list");
+const localDataset = (
+  datasetListFixture.data as Array<Record<string, unknown>>
+)[0];
 const baselineBacktest = (
   runListFixture.data as Array<Record<string, unknown>>
 ).find((run) => run.environment === "backtest")!;
 const createdBacktest = {
   ...baselineBacktest,
   run_id: "backtest-browser-001",
+  data_ref: localDataset.data_ref,
   config_ref: "artifact://backtests/backtest-browser-001/request.toml",
   account_ref: "account://simulated/backtest-browser-001",
   result: {
@@ -569,6 +574,12 @@ function productFixtureForPath(path: string): Record<string, unknown> {
   }
   if (
     path ===
+    "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/datasets"
+  ) {
+    return datasetListFixture;
+  }
+  if (
+    path ===
     "/api/product/v1/strategies/ema-cross/versions/ema-cross@v1/live-admission"
   ) {
     return liveAdmissionFixture;
@@ -874,6 +885,10 @@ test.beforeEach(async ({ page }) => {
       route.request().method() === "POST" &&
       path === "/api/product/v1/runs"
     ) {
+      expect(route.request().postDataJSON()).toMatchObject({
+        data_ref: localDataset.data_ref,
+        data_sha256: localDataset.data_sha256,
+      });
       await route.fulfill({
         status: 201,
         contentType: "application/json",
@@ -1347,6 +1362,7 @@ test("Backtest page creates a Run and stays inside the workbench shell", async (
   ).toBeVisible();
   await expect(page.getByLabel("初始资金")).toHaveValue("1000000 USDT");
   await expect(page.getByLabel("每次交易数量")).toHaveValue("0.001000");
+  await expect(page.getByText("已验证本地历史数据")).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath("strategy-workbench-backtest-create-1440.png"),
     fullPage: true,

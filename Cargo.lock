@@ -5811,6 +5811,7 @@ dependencies = [
  "nautilus-infrastructure",
  "nautilus-live",
  "nautilus-model",
+ "nautilus-persistence",
  "nautilus-risk",
  "nautilus-sandbox",
  "nautilus-trading",

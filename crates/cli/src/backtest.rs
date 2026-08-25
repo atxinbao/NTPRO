@@ -24,11 +24,16 @@ use std::{
 use anyhow::Context;
 use aws_lc_rs::digest::{SHA256, digest};
 use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
-use nautilus_backtest::result::BacktestResult;
 use nautilus_backtest::{
-    config::{BacktestEngineConfig, SimulatedVenueConfig},
+    config::{
+        BacktestDataConfig, BacktestEngineConfig, BacktestRunConfig, BacktestVenueConfig,
+        NautilusDataType, SimulatedVenueConfig,
+    },
     engine::BacktestEngine,
+    node::BacktestNode,
+    result::BacktestResult,
 };
+use nautilus_core::UnixNanos;
 use nautilus_model::{
     data::{Data, QuoteTick},
     enums::{AccountType, BookType, OmsType},
@@ -45,17 +50,20 @@ use nautilus_trading::examples::strategies::EmaCross;
 use rust_decimal::Decimal;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use ustr::Ustr;
 
 #[cfg(test)]
 use crate::artifacts::atomic_write_json;
 use crate::{
     artifacts::atomic_write_text,
+    catalog_dataset::{LocalQuoteDatasetInspection, inspect_local_quote_dataset},
     opt::{BacktestCommand, BacktestOpt, BacktestRunOpt, BacktestValidateOpt},
 };
 
 const DRY_RUN_MODE: &str = "dry-run";
 const ENGINE_SMOKE_MODE: &str = "engine-smoke";
 const SYNTHETIC_QUOTES_SOURCE: &str = "synthetic-quotes";
+const LOCAL_PARQUET_CATALOG_SOURCE: &str = "local-parquet-catalog";
 const NO_OP_STRATEGY: &str = "no-op";
 const EMA_CROSS_STRATEGY: &str = "ema-cross";
 const AUDUSD_SIM_INSTRUMENT_ID: &str = "AUD/USD.SIM";
@@ -89,6 +97,10 @@ struct MinimalDataConfig {
     source: String,
     instrument_id: String,
     quotes: usize,
+    catalog_path: Option<PathBuf>,
+    data_sha256: Option<String>,
+    start_time_ns: Option<String>,
+    end_time_ns: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -684,40 +696,21 @@ fn run_ema_cross_engine(
     config: &MinimalBacktestConfig,
     strategy: &EmaCrossStrategySettings,
 ) -> anyhow::Result<EmaCrossEngineRun> {
+    match config.data.source.as_str() {
+        SYNTHETIC_QUOTES_SOURCE => run_synthetic_ema_cross_engine(config, strategy),
+        LOCAL_PARQUET_CATALOG_SOURCE => run_catalog_ema_cross_engine(config, strategy),
+        source => anyhow::bail!("unsupported data.source '{source}'"),
+    }
+}
+
+fn run_synthetic_ema_cross_engine(
+    config: &MinimalBacktestConfig,
+    strategy: &EmaCrossStrategySettings,
+) -> anyhow::Result<EmaCrossEngineRun> {
     let mut engine = BacktestEngine::new(BacktestEngineConfig::default())?;
 
-    let (venue, default_starting_balance, instrument) = match config.data.instrument_id.as_str() {
-        AUDUSD_SIM_INSTRUMENT_ID => (
-            Venue::from("SIM"),
-            Money::from("1_000_000 USD"),
-            InstrumentAny::CurrencyPair(audusd_sim()),
-        ),
-        BTCUSDT_BINANCE_INSTRUMENT_ID => (
-            Venue::from("BINANCE"),
-            Money::from("1_000_000 USDT"),
-            InstrumentAny::CurrencyPair(currency_pair_btcusdt()),
-        ),
-        value => anyhow::bail!("unsupported data.instrument_id '{value}'"),
-    };
-    let starting_balance = if let Some(configured) = &config.venue {
-        validate_exact("venue.name", &configured.name, venue.as_str())?;
-        let balance = configured
-            .starting_balance
-            .parse::<Money>()
-            .map_err(|error| anyhow::anyhow!("venue.starting_balance is invalid: {error}"))?;
-        if balance.raw <= 0 {
-            anyhow::bail!("venue.starting_balance must be greater than zero");
-        }
-        if balance.currency != default_starting_balance.currency {
-            anyhow::bail!(
-                "venue.starting_balance currency must be {}",
-                default_starting_balance.currency
-            );
-        }
-        balance
-    } else {
-        default_starting_balance
-    };
+    let (venue, default_starting_balance, instrument) = resolve_backtest_instrument(config)?;
+    let starting_balance = resolve_starting_balance(config, venue, default_starting_balance)?;
 
     engine.add_venue(
         SimulatedVenueConfig::builder()
@@ -756,6 +749,173 @@ fn run_ema_cross_engine(
         result,
         details,
     })
+}
+
+fn run_catalog_ema_cross_engine(
+    config: &MinimalBacktestConfig,
+    strategy: &EmaCrossStrategySettings,
+) -> anyhow::Result<EmaCrossEngineRun> {
+    let catalog_path = config
+        .data
+        .catalog_path
+        .as_deref()
+        .context("data.catalog_path is required for local parquet data")?;
+    let expected_sha256 = config
+        .data
+        .data_sha256
+        .as_deref()
+        .context("data.data_sha256 is required for local parquet data")?;
+    let expected_start =
+        parse_unix_nanos("data.start_time_ns", config.data.start_time_ns.as_deref())?;
+    let expected_end = parse_unix_nanos("data.end_time_ns", config.data.end_time_ns.as_deref())?;
+    let before = inspect_local_quote_dataset(catalog_path, &config.data.instrument_id)
+        .context("local parquet catalog validation failed before backtest")?;
+    validate_catalog_inspection(
+        &before,
+        config.data.quotes,
+        expected_sha256,
+        expected_start,
+        expected_end,
+    )?;
+
+    let (venue, default_starting_balance, _) = resolve_backtest_instrument(config)?;
+    anyhow::ensure!(
+        before.venue == venue.as_str(),
+        "local dataset venue '{}' does not match configured venue '{}'",
+        before.venue,
+        venue
+    );
+    let starting_balance = resolve_starting_balance(config, venue, default_starting_balance)?;
+    let instrument_id = InstrumentId::from(config.data.instrument_id.as_str());
+    let venue_config = BacktestVenueConfig::builder()
+        .name(Ustr::from(venue.as_str()))
+        .oms_type(OmsType::Hedging)
+        .account_type(AccountType::Margin)
+        .book_type(BookType::L1_MBP)
+        .starting_balances(vec![starting_balance.to_string()])
+        .build();
+    let data_config = BacktestDataConfig::builder()
+        .data_type(NautilusDataType::QuoteTick)
+        .catalog_path(before.catalog_path.to_string_lossy().into_owned())
+        .instrument_id(instrument_id)
+        .start_time(UnixNanos::from(expected_start))
+        .end_time(UnixNanos::from(expected_end))
+        .build();
+    let run_config = BacktestRunConfig::builder()
+        .id(config.run.id.clone())
+        .venues(vec![venue_config])
+        .data(vec![data_config])
+        .dispose_on_completion(false)
+        .build();
+    let mut node = BacktestNode::new(vec![run_config])?;
+    node.build()?;
+    let engine = node
+        .get_engine_mut(&config.run.id)
+        .context("catalog backtest engine was not built")?;
+    engine.add_strategy(EmaCross::new(
+        instrument_id,
+        strategy.trade_size,
+        strategy.fast_period,
+        strategy.slow_period,
+    ))?;
+    let mut results = node.run()?;
+    anyhow::ensure!(
+        results.len() == 1,
+        "catalog backtest returned no unique result"
+    );
+    let result = results.remove(0);
+    let engine = node
+        .get_engine(&config.run.id)
+        .context("catalog backtest engine is unavailable after execution")?;
+    let details = collect_engine_details(engine, venue)?;
+
+    let after = inspect_local_quote_dataset(catalog_path, &config.data.instrument_id)
+        .context("local parquet catalog validation failed after backtest")?;
+    anyhow::ensure!(
+        before == after,
+        "local parquet dataset changed while the backtest was running"
+    );
+
+    Ok(EmaCrossEngineRun {
+        quotes_loaded: before.record_count,
+        data_sha256: before.data_sha256,
+        result,
+        details,
+    })
+}
+
+fn resolve_backtest_instrument(
+    config: &MinimalBacktestConfig,
+) -> anyhow::Result<(Venue, Money, InstrumentAny)> {
+    Ok(match config.data.instrument_id.as_str() {
+        AUDUSD_SIM_INSTRUMENT_ID => (
+            Venue::from("SIM"),
+            Money::from("1_000_000 USD"),
+            InstrumentAny::CurrencyPair(audusd_sim()),
+        ),
+        BTCUSDT_BINANCE_INSTRUMENT_ID => (
+            Venue::from("BINANCE"),
+            Money::from("1_000_000 USDT"),
+            InstrumentAny::CurrencyPair(currency_pair_btcusdt()),
+        ),
+        value => anyhow::bail!("unsupported data.instrument_id '{value}'"),
+    })
+}
+
+fn resolve_starting_balance(
+    config: &MinimalBacktestConfig,
+    venue: Venue,
+    default_starting_balance: Money,
+) -> anyhow::Result<Money> {
+    if let Some(configured) = &config.venue {
+        validate_exact("venue.name", &configured.name, venue.as_str())?;
+        let balance = configured
+            .starting_balance
+            .parse::<Money>()
+            .map_err(|error| anyhow::anyhow!("venue.starting_balance is invalid: {error}"))?;
+        if balance.raw <= 0 {
+            anyhow::bail!("venue.starting_balance must be greater than zero");
+        }
+        if balance.currency != default_starting_balance.currency {
+            anyhow::bail!(
+                "venue.starting_balance currency must be {}",
+                default_starting_balance.currency
+            );
+        }
+        Ok(balance)
+    } else {
+        Ok(default_starting_balance)
+    }
+}
+
+fn parse_unix_nanos(field: &str, value: Option<&str>) -> anyhow::Result<u64> {
+    let value = value.with_context(|| format!("{field} is required for local parquet data"))?;
+    value
+        .parse::<u64>()
+        .with_context(|| format!("{field} must be an unsigned nanosecond timestamp"))
+}
+
+fn validate_catalog_inspection(
+    inspection: &LocalQuoteDatasetInspection,
+    expected_quotes: usize,
+    expected_sha256: &str,
+    expected_start: u64,
+    expected_end: u64,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        inspection.record_count == expected_quotes,
+        "local parquet quote count changed: expected {expected_quotes}, found {}",
+        inspection.record_count
+    );
+    anyhow::ensure!(
+        inspection.data_sha256 == expected_sha256,
+        "local parquet data fingerprint changed"
+    );
+    anyhow::ensure!(
+        inspection.start_time_ns == expected_start && inspection.end_time_ns == expected_end,
+        "local parquet data time range changed"
+    );
+    Ok(())
 }
 
 pub(crate) fn execute_product_demo_simulation(
@@ -1601,13 +1761,57 @@ fn validate_minimal_backtest_config(config: &MinimalBacktestConfig) -> anyhow::R
         &config.run.mode,
         &[DRY_RUN_MODE, ENGINE_SMOKE_MODE],
     )?;
-    validate_exact("data.source", &config.data.source, SYNTHETIC_QUOTES_SOURCE)?;
+    validate_one_of(
+        "data.source",
+        &config.data.source,
+        &[SYNTHETIC_QUOTES_SOURCE, LOCAL_PARQUET_CATALOG_SOURCE],
+    )?;
     validate_non_empty("data.instrument_id", &config.data.instrument_id)?;
     if config.data.quotes == 0 {
         anyhow::bail!("data.quotes must be greater than zero");
     }
     if config.run.mode == ENGINE_SMOKE_MODE && config.data.quotes < 30 {
         anyhow::bail!("data.quotes must be at least 30 for engine-smoke mode");
+    }
+    match config.data.source.as_str() {
+        SYNTHETIC_QUOTES_SOURCE => {
+            if config.data.catalog_path.is_some()
+                || config.data.data_sha256.is_some()
+                || config.data.start_time_ns.is_some()
+                || config.data.end_time_ns.is_some()
+            {
+                anyhow::bail!("synthetic data must not declare local catalog fields");
+            }
+        }
+        LOCAL_PARQUET_CATALOG_SOURCE => {
+            if config.run.mode != ENGINE_SMOKE_MODE {
+                anyhow::bail!("local parquet data requires engine-smoke mode");
+            }
+            let catalog_path = config
+                .data
+                .catalog_path
+                .as_deref()
+                .context("data.catalog_path is required for local parquet data")?;
+            if !catalog_path.is_absolute() {
+                anyhow::bail!("data.catalog_path must be absolute");
+            }
+            let data_sha256 = config
+                .data
+                .data_sha256
+                .as_deref()
+                .context("data.data_sha256 is required for local parquet data")?;
+            if !data_sha256.starts_with("sha256:") || data_sha256.len() != 71 {
+                anyhow::bail!("data.data_sha256 must be a sha256 reference");
+            }
+            let start_time_ns =
+                parse_unix_nanos("data.start_time_ns", config.data.start_time_ns.as_deref())?;
+            let end_time_ns =
+                parse_unix_nanos("data.end_time_ns", config.data.end_time_ns.as_deref())?;
+            if start_time_ns > end_time_ns {
+                anyhow::bail!("data.start_time_ns must not exceed data.end_time_ns");
+            }
+        }
+        value => anyhow::bail!("unsupported data.source '{value}'"),
     }
     validate_one_of(
         "strategy.name",
@@ -1948,7 +2152,7 @@ dir = "{}"
         assert_eq!(artifact.instrument_id, BTCUSDT_BINANCE_INSTRUMENT_ID);
         assert_eq!(
             artifact.config_sha256,
-            "sha256:fb6cbc40cf8e82dc295620243d5cfdc2cf82c89b45fb9097cae2961bbc6d2838"
+            "sha256:5c066d811a86248899d9d3c896b37925db03bea5243ca7ae3a58a8ca889356cb"
         );
         assert_eq!(
             artifact.data_sha256,
@@ -1956,7 +2160,7 @@ dir = "{}"
         );
         assert_eq!(
             sha256_ref(&first),
-            "sha256:4b9bc548f226e55b136eb4c08f2ef5e0274bed104b8626d5431b39fb0a3b8760"
+            "sha256:51ca83710448e0433153415411a30b1480a8d1518ce7f4af1d47ed5b17317f29"
         );
         assert_eq!(artifact.metrics.quotes, 120);
         assert_eq!(artifact.metrics.iterations, 120);

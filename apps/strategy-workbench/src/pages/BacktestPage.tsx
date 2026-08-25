@@ -4,21 +4,39 @@ import { useState, type FormEvent } from "react";
 
 import type {
   CreateBacktestRunRequest,
+  ProductDataset,
   Run,
   StrategyVersion,
 } from "../api/generated/productApi";
 import {
+  useCompatibleDatasets,
   useCreateBacktestRun,
   useOverviewProductContext,
 } from "../features/product/useProductResources";
 import { ProductErrorState, ProductLoading } from "./ProductState";
 import styles from "./Pages.module.css";
 
+interface BacktestSource {
+  dataRef: string;
+  dataSha256?: string;
+  venueRef: string;
+  label: string;
+  description: string;
+  quotes: number;
+  isLocal: boolean;
+  isBuiltinFallback: boolean;
+}
+
 export function BacktestPage() {
   const product = useOverviewProductContext();
   const createRun = useCreateBacktestRun();
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string>();
+  const [selectedDataRef, setSelectedDataRef] = useState<string>();
+  const datasets = useCompatibleDatasets(
+    product.strategy?.strategy_id,
+    product.version?.strategy_version_id,
+  );
 
   if (product.error) return <ProductErrorState error={product.error} />;
   if (product.isVerifying || !product.isReady) {
@@ -36,15 +54,26 @@ export function BacktestPage() {
   if (!product.runs) {
     return <ProductErrorState error={new Error("Backtest 运行列表尚未验证")} />;
   }
+  if (datasets.isPending) {
+    return <ProductLoading label="正在验证本地历史数据目录" />;
+  }
+  if (datasets.error) return <ProductErrorState error={datasets.error} />;
 
   const baseline = product.runs?.data.find(
     (run) => run.environment === "backtest",
   );
-  const source = resolveBacktestSource(
+  const builtinSource = resolveBacktestSource(
     product.strategy.strategy_id,
     product.version,
     baseline,
   );
+  const sources = [
+    ...(datasets.data?.data.map(toLocalBacktestSource) ?? []),
+    ...(builtinSource ? [builtinSource] : []),
+  ];
+  const source =
+    sources.find((candidate) => candidate.dataRef === selectedDataRef) ??
+    sources[0];
   if (!source) {
     return (
       <ProductErrorState
@@ -75,6 +104,7 @@ export function BacktestPage() {
       strategy_version_id: product.version!.strategy_version_id,
       environment: "backtest",
       data_ref: source.dataRef,
+      ...(source.dataSha256 ? { data_sha256: source.dataSha256 } : {}),
       venue_ref: source.venueRef,
       starting_balance: String(form.get("starting_balance")),
       quotes: Number(form.get("quotes")),
@@ -116,22 +146,39 @@ export function BacktestPage() {
             <FlaskConical aria-hidden="true" />
           </header>
 
-          {source.isBuiltinFallback ? (
-            <div className={styles.connectionBanner} role="status">
-              <div>
-                <strong>当前没有历史 Backtest</strong>
-                <span>
-                  本次使用策略版本登记的内置确定性数据，只验证产品流程和可复现性，不代表真实市场研究或收益证明。
-                </span>
-              </div>
-              <em>内置数据</em>
+          <div
+            className={`${styles.connectionBanner} ${source.isLocal ? styles.connectionReady : ""}`}
+            role="status"
+          >
+            <div>
+              <strong>
+                {source.isLocal
+                  ? "已验证本地历史数据"
+                  : source.isBuiltinFallback
+                    ? "当前没有历史 Backtest"
+                    : "使用已登记的确定性基线"}
+              </strong>
+              <span>{source.description}</span>
             </div>
-          ) : null}
+            <em>{source.isLocal ? "真实数据" : "内置数据"}</em>
+          </div>
 
           <div className={styles.formGrid}>
             <ReadOnlyField label="策略" value={product.strategy.strategy_id} />
             <ReadOnlyField label="版本" value={product.version.version} />
-            <ReadOnlyField label="回测数据" value={source.dataRef} wide />
+            <label className={styles.formFieldWide}>
+              <span>回测数据</span>
+              <select
+                value={source.dataRef}
+                onChange={(event) => setSelectedDataRef(event.target.value)}
+              >
+                {sources.map((candidate) => (
+                  <option key={candidate.dataRef} value={candidate.dataRef}>
+                    {candidate.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <ReadOnlyField label="模拟 Venue" value={source.venueRef} wide />
             <label>
               <span>初始资金</span>
@@ -145,12 +192,14 @@ export function BacktestPage() {
             <label>
               <span>行情条数</span>
               <input
+                key={source.dataRef}
                 name="quotes"
                 type="number"
-                defaultValue="120"
+                defaultValue={source.quotes}
                 min="30"
-                max="10000"
+                max="1000000"
                 step="1"
+                readOnly={source.isLocal}
                 required
               />
             </label>
@@ -208,11 +257,15 @@ function resolveBacktestSource(
   strategyId: string,
   version: StrategyVersion,
   baseline?: Run,
-) {
+): BacktestSource | undefined {
   if (baseline) {
     return {
       dataRef: baseline.data_ref,
       venueRef: baseline.venue_ref,
+      label: `内置基线 · ${baseline.data_ref}`,
+      description: "使用已登记且可复现的内置确定性数据。",
+      quotes: 120,
+      isLocal: false,
       isBuiltinFallback: false,
     };
   }
@@ -229,8 +282,35 @@ function resolveBacktestSource(
   return {
     dataRef: `dataset://fixtures/${strategyId.replaceAll("_", "-")}`,
     venueRef: `venue://simulated/${requirements.venues[0]}`,
+    label: "内置确定性测试数据 · 120 条",
+    description: "只验证产品流程和可复现性，不代表真实市场研究或收益证明。",
+    quotes: 120,
+    isLocal: false,
     isBuiltinFallback: true,
   };
+}
+
+function toLocalBacktestSource(dataset: ProductDataset): BacktestSource {
+  return {
+    dataRef: dataset.data_ref,
+    dataSha256: dataset.data_sha256,
+    venueRef: dataset.venue_ref,
+    label: `${dataset.instrument_id} · ${dataset.record_count.toLocaleString("zh-CN")} 条 · 本地 Parquet`,
+    description: `${formatDatasetTime(dataset.start_time_ns)} 至 ${formatDatasetTime(dataset.end_time_ns)} · ${dataset.data_sha256.slice(0, 23)}…`,
+    quotes: dataset.record_count,
+    isLocal: true,
+    isBuiltinFallback: false,
+  };
+}
+
+function formatDatasetTime(timestampNs: string) {
+  const milliseconds = Number(BigInt(timestampNs) / 1_000_000n);
+  return new Intl.DateTimeFormat("zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    hour12: false,
+    timeZone: "UTC",
+  }).format(new Date(milliseconds));
 }
 
 function parameterConst(schema: Record<string, unknown>, name: string) {

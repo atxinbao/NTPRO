@@ -42,7 +42,8 @@ Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系�
 - Strategy、StrategyVersion、Run、Backtest、Demo 和 Live 产品合同已经存在；
 - Backtest 结果、明细、分析、比较和复现能力已经接入工作台；
 - Demo 创建、start/stop、模拟成交、持仓和权益结果已经接入工作台；
-- 当前 Backtest 使用内置确定性 `synthetic-quotes`，不是真实市场历史数据目录；
+- Backtest 已接入 `<workspace>/catalog` 中经验证的本地 Parquet QuoteTick 数据，内置
+  `synthetic-quotes` 继续作为确定性验证来源；
 - `nautilus mvp serve` 仍是本地开发/运行入口，尚未形成普通用户的一键交付包；
 - S3 Live 的受控代码路径存在，但真实资金端到端验收仍由 #1312 等待 owner 授权。
 
@@ -70,6 +71,9 @@ Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系�
 
 退出条件：用户可以选择本地真实历史数据完成一次 Backtest，结果包含数据范围和 SHA-256
 来源证据。
+
+当前状态：实现和本地验收已完成，等待 high-risk 独立审查、hosted checks 与手动合并。
+合并后进入 UPV1-003，不从本任务开放任何 Live 或订单权限。
 
 ### UPV1-003：Backtest 产品验收
 

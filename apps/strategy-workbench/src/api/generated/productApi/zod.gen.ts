@@ -207,12 +207,13 @@ export const zCreateBacktestRunRequest = z.object({
   strategy_version_id: zStrategyVersionId,
   environment: z.literal("backtest"),
   data_ref: z.string().min(1).max(512),
+  data_sha256: zContentHash.optional(),
   venue_ref: z.string().min(1).max(512),
   starting_balance: z
     .string()
     .max(64)
     .regex(/^[0-9][0-9_]*(\.[0-9]+)? USDT$/),
-  quotes: z.int().gte(30).lte(10000),
+  quotes: z.int().gte(30).lte(1000000),
   trade_size: z
     .string()
     .min(8)
@@ -866,6 +867,37 @@ export const zStrategyVersionDetailResponse = z.object({
   contract_version: z.literal("ntpro.product_api.v1"),
   request_id: zRequestId,
   data: zStrategyVersion,
+  boundaries: zReadOnlyBoundaries,
+});
+
+export const zDatasetSource = z.object({
+  source_type: z.literal("local_parquet_catalog"),
+  freshness_status: z.literal("verified"),
+  source_refs: z.array(z.string().min(1).max(512)).min(1),
+});
+
+export const zProductDataset = z.object({
+  dataset_id: z.string().regex(/^local-quotes-[0-9a-f]{12}$/),
+  data_ref: z.string().regex(/^dataset:\/\/local\/quotes\/[A-Za-z0-9_.\/:-]+$/),
+  data_type: z.literal("quote_tick"),
+  storage_format: z.literal("parquet"),
+  instrument_id: z.string().min(1).max(128),
+  venue: z.string().min(1).max(64),
+  venue_ref: z.string().regex(/^venue:\/\/simulated\/[A-Za-z0-9_.:-]+$/),
+  record_count: z.int().gte(1).lte(1000000),
+  start_time_ns: z.string().regex(/^[0-9]+$/),
+  end_time_ns: z.string().regex(/^[0-9]+$/),
+  file_count: z.int().gte(2),
+  size_bytes: z.int().gte(1),
+  data_sha256: zContentHash,
+  source: zDatasetSource,
+});
+
+export const zDatasetListResponse = z.object({
+  schema_version: z.literal("ntpro.product_api.dataset_list.response.v1"),
+  contract_version: z.literal("ntpro.product_api.v1"),
+  request_id: zRequestId,
+  data: z.array(zProductDataset),
   boundaries: zReadOnlyBoundaries,
 });
 
@@ -1784,6 +1816,16 @@ export const zGetStrategyVersionPath = z.object({
  * 不可变策略版本详情
  */
 export const zGetStrategyVersionResponse = zStrategyVersionDetailResponse;
+
+export const zListCompatibleDatasetsPath = z.object({
+  strategy_id: zStrategyId,
+  version_id: zStrategyVersionId,
+});
+
+/**
+ * 已验证且与策略版本兼容的本地历史数据集
+ */
+export const zListCompatibleDatasetsResponse = zDatasetListResponse;
 
 export const zGetLiveAdmissionPath = z.object({
   strategy_id: zStrategyId,

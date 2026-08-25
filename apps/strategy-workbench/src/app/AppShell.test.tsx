@@ -6,6 +6,7 @@ import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
 import errorFixture from "../test/product-api-fixtures/error.json";
+import datasetListFixture from "../test/product-api-fixtures/dataset-list.json";
 import liveRunCandidateFixture from "../test/product-api-fixtures/live-run-candidate.json";
 import runAnalysisFixture from "../test/product-api-fixtures/run-analysis.json";
 import runDetailFixture from "../test/product-api-fixtures/run-detail.json";
@@ -204,6 +205,54 @@ describe("strategy workbench product slice", () => {
     expect(createPosts).toBe(1);
   });
 
+  it("selects a verified local dataset and freezes its fingerprint into Backtest", async () => {
+    let submittedBody: unknown;
+    const localDataset = datasetListFixture.data[0];
+    const localResponse = structuredClone(createdBacktestResponse);
+    localResponse.data.data_ref = localDataset.data_ref;
+    localResponse.data.venue_ref = localDataset.venue_ref;
+    server.use(
+      http.post("/api/product/v1/runs", async ({ request }) => {
+        submittedBody = await request.json();
+        return HttpResponse.json(localResponse, { status: 201 });
+      }),
+    );
+
+    renderWorkbench("/backtests");
+
+    expect(
+      await screen.findByRole("heading", { name: "创建策略回测" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("已验证本地历史数据");
+    expect(screen.getByRole("combobox", { name: "回测数据" })).toHaveValue(
+      localDataset.data_ref,
+    );
+    expect(screen.getByRole("spinbutton", { name: "行情条数" })).toHaveValue(
+      localDataset.record_count,
+    );
+    expect(
+      screen.getByRole("spinbutton", { name: "行情条数" }),
+    ).toHaveAttribute("readonly");
+
+    await userEvent.click(screen.getByRole("button", { name: "创建并运行" }));
+    expect(
+      await screen.findByRole("heading", { name: "backtest-created-001" }),
+    ).toBeInTheDocument();
+    expect(submittedBody).toEqual({
+      strategy_id: "ema-cross",
+      strategy_version_id: "ema-cross@v1",
+      environment: "backtest",
+      data_ref: localDataset.data_ref,
+      data_sha256: localDataset.data_sha256,
+      venue_ref: localDataset.venue_ref,
+      starting_balance: "1000000 USDT",
+      quotes: localDataset.record_count,
+      trade_size: "0.001000",
+      fast_period: 3,
+      slow_period: 5,
+    });
+  });
+
   it("creates a Backtest Run from the product page and opens its detail", async () => {
     let submittedBody: unknown;
     const registeredRuns = structuredClone(runListFixture);
@@ -218,6 +267,14 @@ describe("strategy workbench product slice", () => {
     registeredResponse.data.data_ref = registeredBaseline.data_ref;
     registeredResponse.data.venue_ref = registeredBaseline.venue_ref;
     server.use(
+      http.get(
+        "/api/product/v1/strategies/:strategyId/versions/:versionId/datasets",
+        () =>
+          HttpResponse.json({
+            ...structuredClone(datasetListFixture),
+            data: [],
+          }),
+      ),
       http.get("/api/product/v1/runs", () => HttpResponse.json(registeredRuns)),
       http.get(
         "/api/product/v1/strategies/:strategyId/versions/:versionId",
@@ -261,6 +318,14 @@ describe("strategy workbench product slice", () => {
     emptyRuns.data = [];
     emptyRuns.page.returned_count = 0;
     server.use(
+      http.get(
+        "/api/product/v1/strategies/:strategyId/versions/:versionId/datasets",
+        () =>
+          HttpResponse.json({
+            ...structuredClone(datasetListFixture),
+            data: [],
+          }),
+      ),
       http.get("/api/product/v1/runs", () => HttpResponse.json(emptyRuns)),
       http.post("/api/product/v1/runs", async ({ request }) => {
         submittedBody = await request.json();
@@ -273,10 +338,11 @@ describe("strategy workbench product slice", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "当前没有历史 Backtest",
     );
-    expect(screen.getByRole("status")).toHaveTextContent("内置确定性数据");
-    expect(
-      screen.getByDisplayValue("dataset://fixtures/ema-cross"),
-    ).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent("内置数据");
+    expect(screen.getByRole("combobox", { name: "回测数据" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "回测数据" })).toHaveValue(
+      "dataset://fixtures/ema-cross",
+    );
     await userEvent.click(screen.getByRole("button", { name: "创建并运行" }));
 
     expect(
@@ -305,6 +371,14 @@ describe("strategy workbench product slice", () => {
     ) as Record<string, any>;
     ambiguousVersion.data.data_requirements.venues = ["BINANCE", "SIM"];
     server.use(
+      http.get(
+        "/api/product/v1/strategies/:strategyId/versions/:versionId/datasets",
+        () =>
+          HttpResponse.json({
+            ...structuredClone(datasetListFixture),
+            data: [],
+          }),
+      ),
       http.get("/api/product/v1/runs", () => HttpResponse.json(emptyRuns)),
       http.get(
         "/api/product/v1/strategies/:strategyId/versions/:versionId",

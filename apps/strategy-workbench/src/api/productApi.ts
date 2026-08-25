@@ -19,6 +19,7 @@ import {
   getRunReport,
   getStrategy,
   getStrategyVersion,
+  listCompatibleDatasets,
   listRuns,
   listStrategies,
   listStrategyVersions,
@@ -41,10 +42,12 @@ import {
   type GetRunReproductionProofData,
   type GetStrategyData,
   type GetStrategyVersionData,
+  type ListCompatibleDatasetsData,
   type ListRunsData,
   type ListStrategiesData,
   type ListStrategyVersionsData,
   type LiveAdmissionResponse,
+  type DatasetListResponse,
   type LiveAccountRefreshResponse,
   type LiveExecutionAdmissionRequest,
   type LiveExecutionCancelRequest,
@@ -77,6 +80,7 @@ import {
   zDemoRunCreateResponse,
   zDemoRunSnapshotResponse,
   zLiveAdmissionResponse,
+  zDatasetListResponse,
   zLiveAccountRefreshResponse,
   zLiveRunCandidateActionResponse,
   zLiveRunCandidateCreateResponse,
@@ -105,6 +109,7 @@ type ListStrategiesQuery = NonNullable<ListStrategiesData["query"]>;
 type StrategyPath = GetStrategyData["path"];
 type ListStrategyVersionsQuery = NonNullable<ListStrategyVersionsData["query"]>;
 type StrategyVersionPath = GetStrategyVersionData["path"];
+type CompatibleDatasetPath = ListCompatibleDatasetsData["path"];
 type ListRunsQuery = NonNullable<ListRunsData["query"]>;
 type RunPath = GetRunData["path"];
 type DemoRunSnapshotPath = GetDemoRunSnapshotData["path"];
@@ -1415,6 +1420,33 @@ export function createProductApiClient(options: ProductApiClientOptions = {}) {
         payload.data.strategy_version_id === path.version_id,
         "strategy_version_detail.path.version_id",
       );
+      return payload;
+    },
+
+    async listCompatibleDatasets(
+      path: CompatibleDatasetPath,
+      signal?: AbortSignal,
+    ): Promise<DatasetListResponse> {
+      const payload = await resolveResponse(
+        listCompatibleDatasets({ client, path, signal }),
+        zDatasetListResponse,
+        "dataset_list",
+      );
+      const seen = new Set<string>();
+      for (const dataset of payload.data) {
+        assertIdentity(
+          !seen.has(dataset.dataset_id) &&
+            dataset.data_ref.endsWith(`/${dataset.instrument_id}`) &&
+            dataset.venue_ref.endsWith(`/${dataset.venue}`) &&
+            BigInt(dataset.start_time_ns) <= BigInt(dataset.end_time_ns) &&
+            dataset.record_count > 0 &&
+            dataset.file_count >= 2 &&
+            dataset.size_bytes > 0,
+          "dataset_list.data.identity",
+        );
+        seen.add(dataset.dataset_id);
+      }
+      assertReadOnlyBoundaries(payload.boundaries, "dataset_list.boundaries");
       return payload;
     },
 

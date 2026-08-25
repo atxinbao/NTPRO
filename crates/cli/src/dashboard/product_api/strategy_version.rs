@@ -56,6 +56,10 @@ impl ProductStrategyVersion {
         &self.data_requirements.symbols
     }
 
+    pub(super) fn data_types(&self) -> &[String] {
+        &self.data_requirements.data_types
+    }
+
     pub(super) fn content_hash(&self) -> &str {
         &self.content_hash
     }
