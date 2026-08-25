@@ -1153,7 +1153,9 @@ try {
     fullPage: true,
   });
   runScenario = "empty";
-  await page.getByRole("link", { name: "Backtest", exact: true }).click();
+  await page.goto(`${baseUrl}/strategy-workbench/backtests`, {
+    waitUntil: "domcontentloaded",
+  });
   await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
   await page.getByText(/当前没有历史 Backtest/).waitFor();
   await page

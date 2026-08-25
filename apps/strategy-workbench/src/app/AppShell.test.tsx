@@ -206,10 +206,26 @@ describe("strategy workbench product slice", () => {
 
   it("creates a Backtest Run from the product page and opens its detail", async () => {
     let submittedBody: unknown;
+    const registeredRuns = structuredClone(runListFixture);
+    const registeredBaseline = registeredRuns.data.find(
+      (run) => run.environment === "backtest",
+    )!;
+    registeredBaseline.data_ref = "dataset://fixtures/registered-baseline";
+    registeredBaseline.venue_ref = "venue://simulated/KRAKEN";
+    const multiVenueVersion = structuredClone(strategyVersionDetailFixture);
+    multiVenueVersion.data.data_requirements.venues = ["BINANCE", "KRAKEN"];
+    const registeredResponse = structuredClone(createdBacktestResponse);
+    registeredResponse.data.data_ref = registeredBaseline.data_ref;
+    registeredResponse.data.venue_ref = registeredBaseline.venue_ref;
     server.use(
+      http.get("/api/product/v1/runs", () => HttpResponse.json(registeredRuns)),
+      http.get(
+        "/api/product/v1/strategies/:strategyId/versions/:versionId",
+        () => HttpResponse.json(multiVenueVersion),
+      ),
       http.post("/api/product/v1/runs", async ({ request }) => {
         submittedBody = await request.json();
-        return HttpResponse.json(createdBacktestResponse, { status: 201 });
+        return HttpResponse.json(registeredResponse, { status: 201 });
       }),
     );
     renderWorkbench("/backtests");
@@ -229,8 +245,8 @@ describe("strategy workbench product slice", () => {
       strategy_id: "ema-cross",
       strategy_version_id: "ema-cross@v1",
       environment: "backtest",
-      data_ref: "dataset://fixtures/ema-cross",
-      venue_ref: "venue://simulated/BINANCE",
+      data_ref: "dataset://fixtures/registered-baseline",
+      venue_ref: "venue://simulated/KRAKEN",
       starting_balance: "1000000 USDT",
       quotes: 120,
       trade_size: "0.001000",
