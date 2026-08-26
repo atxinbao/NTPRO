@@ -28,7 +28,7 @@ assert_output() {
 }
 
 docs_output="$(classify docs-only project.html README.md docs/product/roadmap.md)"
-for key in heavy_rust institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance security_workflow security_dependencies frontend_app; do
+for key in heavy_rust institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance local_delivery security_workflow security_dependencies frontend_app; do
   assert_output "$docs_output" "$key=false"
 done
 
@@ -69,6 +69,13 @@ assert_output "$frontend_output" "frontend_app=true"
 assert_output "$frontend_output" "heavy_rust=false"
 assert_output "$frontend_output" "strategy_workbench=true"
 assert_output "$frontend_output" "mvp_acceptance=false"
+assert_output "$frontend_output" "local_delivery=false"
+
+local_delivery_output="$(classify local-delivery scripts/ai/test_ntpro_local_delivery.mjs docs/product/ntpro_local_delivery.md)"
+assert_output "$local_delivery_output" "local_delivery=true"
+assert_output "$local_delivery_output" "strategy_workbench=true"
+assert_output "$local_delivery_output" "frontend_app=true"
+assert_output "$local_delivery_output" "heavy_rust=false"
 
 cargo_output="$(classify cargo Cargo.lock)"
 assert_output "$cargo_output" "heavy_rust=true"
@@ -254,4 +261,4 @@ assert_aggregate_fail true success success skipped success
 assert_aggregate_fail false success success success skipped
 assert_aggregate_fail unknown success success skipped skipped
 
-echo "ci_change_classifier_selftest=pass cases=36"
+echo "ci_change_classifier_selftest=pass cases=37"

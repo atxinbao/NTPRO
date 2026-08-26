@@ -99,6 +99,15 @@ No backend patch is scheduled.
 
 ## 快速开始
 
+普通用户拿到本地交付目录后，只运行：
+
+```bash
+./start-ntpro
+```
+
+启动、停止、重启、数据位置和常见错误见
+[`NTPRO 本地产品操作说明`](docs/product/ntpro_local_delivery.md)。以下命令只面向源码开发者。
+
 项目要求 Rust `1.95.0`：
 
 ```bash
@@ -159,7 +168,7 @@ gate、GitHub Release 和 source-controlled evidence 为准。
 
 - [`AGENTS.md`](AGENTS.md)：代理执行规则和仓库边界；
 - [`README.md`](README.md)：项目定位、正式版本、能力边界和使用入口；
-- [`project.html`](project.html)：系统定义、目标用户和双门户信息架构；
+- [`project.html`](project.html)：面向用户的产品说明和简约技术说明；
 - [`changelog.html`](changelog.html)：版本、治理和文档结构变更。
 
 权威文档目录：

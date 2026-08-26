@@ -29,6 +29,7 @@ control_center=false
 mvp_acceptance=false
 mvp_fault_matrix=false
 mvp_final_acceptance=false
+local_delivery=false
 security_workflow=false
 security_dependencies=false
 frontend_app=false
@@ -71,6 +72,10 @@ if matches '^(scripts/ai/test_mvp_fault_matrix\.mjs|configs/nodes/btc-ema-shadow
   mvp_fault_matrix=true
 fi
 
+if matches '^(scripts/ai/(build_ntpro_local_delivery\.sh|ntpro_local_delivery_launcher\.sh|test_ntpro_local_delivery\.mjs)|docs/product/ntpro_local_delivery\.md)$'; then
+  local_delivery=true
+fi
+
 freeze_source_match=false
 if [[ -f docs/product/mvp_freeze_manifest.json ]]; then
   freeze_sources="$(mktemp)"
@@ -96,6 +101,12 @@ if [[ "$strategy_workbench" == "true" ]]; then
   frontend_app=true
 fi
 
+# 本地交付验收必须使用真实 production bundle，并同时执行完整策略工作台浏览器闭环。
+if [[ "$local_delivery" == "true" ]]; then
+  strategy_workbench=true
+  frontend_app=true
+fi
+
 if matches '^(\.github/|\.zizmor\.yml$|scripts/ci/(aggregate-pr-smoke|classify-ci-changes|security-audit-gate|test-ci-change-classifier)\.sh$)'; then
   security_workflow=true
 fi
@@ -118,6 +129,7 @@ for name in \
   mvp_acceptance \
   mvp_fault_matrix \
   mvp_final_acceptance \
+  local_delivery \
   security_workflow \
   security_dependencies \
   frontend_app; do
@@ -140,6 +152,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
       mvp_acceptance \
       mvp_fault_matrix \
       mvp_final_acceptance \
+      local_delivery \
       security_workflow \
       security_dependencies \
       frontend_app; do
