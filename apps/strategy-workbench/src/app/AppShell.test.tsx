@@ -328,9 +328,22 @@ describe("strategy workbench product slice", () => {
     ).toBeInTheDocument();
   });
 
-  it("blocks a stationary stopped status with an extra stale reason", async () => {
+  it.each([
+    [
+      "额外原因",
+      [
+        "supervisor_process_not_running",
+        "node_status_timestamp_marked_stale",
+        "unexpected_runtime_reason",
+      ],
+    ],
+    [
+      "重复原因",
+      ["supervisor_process_not_running", "supervisor_process_not_running"],
+    ],
+  ])("blocks a stationary stopped status with %s", async (_name, reasons) => {
     const payload = stationaryStoppedMvpStatusPayload();
-    payload.status.runtime.reasons.push("unexpected_runtime_reason");
+    payload.status.runtime.reasons = reasons;
     const runs = structuredClone(runListFixture);
     runs.data = runs.data.map((run) =>
       run.environment === "sandbox"
@@ -354,6 +367,10 @@ describe("strategy workbench product slice", () => {
   it("closes Demo creation while the Sandbox status is refetching", async () => {
     let statusRequests = 0;
     let releaseRefresh: (() => void) | undefined;
+    let markRefreshStarted: (() => void) | undefined;
+    const refreshStarted = new Promise<void>((resolve) => {
+      markRefreshStarted = resolve;
+    });
     const runs = structuredClone(runListFixture);
     runs.data = runs.data.map((run) =>
       run.environment === "sandbox"
@@ -366,6 +383,7 @@ describe("strategy workbench product slice", () => {
         if (statusRequests > 1) {
           await new Promise<void>((resolve) => {
             releaseRefresh = resolve;
+            markRefreshStarted?.();
           });
         }
         return HttpResponse.json(stoppedMvpStatusPayload());
@@ -378,6 +396,7 @@ describe("strategy workbench product slice", () => {
       await screen.findByRole("button", { name: "创建 Demo Run" }),
     ).toBeInTheDocument();
     const refresh = queryClient.refetchQueries({ queryKey: ["mvp", "status"] });
+    await refreshStarted;
     expect(
       await screen.findByText("正在验证 Sandbox 节点"),
     ).toBeInTheDocument();

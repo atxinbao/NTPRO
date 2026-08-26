@@ -12,10 +12,10 @@ import { useMvpStatus } from "../features/status/useMvpStatus";
 import { ProductErrorState, ProductLoading } from "./ProductState";
 import styles from "./Pages.module.css";
 
-const STATIONARY_STOPPED_RUNTIME_REASONS = new Set([
+const STATIONARY_STOPPED_RUNTIME_REASONS = [
   "supervisor_process_not_running",
   "node_status_timestamp_marked_stale",
-]);
+] as const;
 
 function isDemoNodeReady(runtime: {
   status: string;
@@ -26,9 +26,9 @@ function isDemoNodeReady(runtime: {
 }) {
   const stationaryStoppedState =
     runtime.freshness === "stale" &&
-    runtime.reasons.length === STATIONARY_STOPPED_RUNTIME_REASONS.size &&
-    runtime.reasons.every((reason) =>
-      STATIONARY_STOPPED_RUNTIME_REASONS.has(reason),
+    runtime.reasons.length === STATIONARY_STOPPED_RUNTIME_REASONS.length &&
+    STATIONARY_STOPPED_RUNTIME_REASONS.every((reason) =>
+      runtime.reasons.includes(reason),
     );
 
   return (
