@@ -135,8 +135,17 @@ async fn run_launcher() -> Result<(), LauncherError> {
     let startup_timeout_ms = positive_env_u64("NTPRO_STARTUP_TIMEOUT_MS", 10_000)?;
     let node_max_runtime_ms = positive_env_u64("NTPRO_NODE_MAX_RUNTIME_MS", 86_400_000)?;
     let node_shutdown_timeout_ms = positive_env_u64("NTPRO_NODE_SHUTDOWN_TIMEOUT_MS", 10_000)?;
-    let service_stop_timeout =
-        Duration::from_millis(node_shutdown_timeout_ms.saturating_add(SERVICE_STOP_MARGIN_MS));
+    let service_stop_timeout_ms = positive_env_u64(
+        "NTPRO_SERVICE_STOP_TIMEOUT_MS",
+        node_shutdown_timeout_ms.saturating_add(SERVICE_STOP_MARGIN_MS),
+    )?;
+    if service_stop_timeout_ms < node_shutdown_timeout_ms {
+        return Err(LauncherError::new(
+            64,
+            "NTPRO_SERVICE_STOP_TIMEOUT_MS 不能小于 NTPRO_NODE_SHUTDOWN_TIMEOUT_MS。",
+        ));
+    }
+    let service_stop_timeout = Duration::from_millis(service_stop_timeout_ms);
 
     fs::create_dir_all(&workspace).map_err(|error| {
         LauncherError::new(

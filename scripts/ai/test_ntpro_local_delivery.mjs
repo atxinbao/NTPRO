@@ -105,7 +105,7 @@ const freePort = () =>
       );
     });
   });
-const launcherEnv = (workspacePath, port) => ({
+const launcherEnv = (workspacePath, port, overrides = {}) => ({
   ...process.env,
   HOME: path.join(root, "home"),
   XDG_DATA_HOME: path.join(root, "xdg-data"),
@@ -115,12 +115,13 @@ const launcherEnv = (workspacePath, port) => ({
   NTPRO_STARTUP_TIMEOUT_MS: "10000",
   NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: "10000",
   NO_COLOR: "1",
+  ...overrides,
 });
-const startLauncher = (workspacePath, port, label) => {
+const startLauncher = (workspacePath, port, label, options = {}) => {
   const chunks = [];
-  const child = spawn(launcher, [], {
-    cwd: packageDir,
-    env: launcherEnv(workspacePath, port),
+  const child = spawn(options.launcher ?? launcher, [], {
+    cwd: options.cwd ?? packageDir,
+    env: launcherEnv(workspacePath, port, options.env),
     detached: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -213,6 +214,87 @@ const stopWithSignal = async (launch, signal, processGroup = false) => {
   assert(log.includes("mvp.serve status=stopped"), `${signal} omitted MVP stopped evidence`);
   assert(log.includes("NTPRO 已安全停止"), `${signal} omitted launcher safe-stop evidence`);
   return servicePid;
+};
+const verifyForcedStopFailsClosed = async () => {
+  const forcedPackage = path.join(root, "forced-stop-delivery");
+  const forcedLauncher = path.join(forcedPackage, "start-ntpro");
+  const fakeService = path.join(forcedPackage, "bin", "nautilus");
+  const forcedWorkspace = path.join(root, "forced-stop-workspace");
+  const fakeReady = path.join(root, "forced-stop-ready");
+  const fakeSignalled = path.join(root, "forced-stop-signalled");
+  for (const directory of [
+    path.join(forcedPackage, "bin"),
+    path.join(forcedPackage, "configs", "nodes"),
+    path.join(forcedPackage, "configs", "backtests"),
+    path.join(forcedPackage, "apps", "strategy-workbench", "dist"),
+  ]) {
+    fs.mkdirSync(directory, { recursive: true });
+  }
+  fs.copyFileSync(launcher, forcedLauncher);
+  fs.chmodSync(forcedLauncher, 0o755);
+  fs.symlinkSync(
+    path.join(packageDir, "bin", "ntpro-node"),
+    path.join(forcedPackage, "bin", "ntpro-node"),
+  );
+  for (const [source, destination] of [
+    ["configs/nodes/btc-ema-shadow.toml", "configs/nodes/btc-ema-shadow.toml"],
+    [
+      "configs/backtests/ema-cross-btcusdt-product.toml",
+      "configs/backtests/ema-cross-btcusdt-product.toml",
+    ],
+    ["apps/strategy-workbench/dist/index.html", "apps/strategy-workbench/dist/index.html"],
+  ]) {
+    fs.copyFileSync(path.join(packageDir, source), path.join(forcedPackage, destination));
+  }
+  fs.writeFileSync(
+    fakeService,
+    `#!/usr/bin/env node
+const fs = require("node:fs");
+process.on("SIGINT", () => {
+  fs.writeFileSync(process.env.NTPRO_FORCED_STOP_SIGNALLED, "signalled\\n");
+});
+fs.writeFileSync(process.env.NTPRO_FORCED_STOP_READY, "ready\\n");
+setInterval(() => {}, 1000);
+`,
+    { mode: 0o755 },
+  );
+
+  const launch = startLauncher(forcedWorkspace, await freePort(), "forced-stop", {
+    launcher: forcedLauncher,
+    cwd: forcedPackage,
+    env: {
+      NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: "1",
+      NTPRO_SERVICE_STOP_TIMEOUT_MS: "1500",
+      NTPRO_FORCED_STOP_READY: fakeReady,
+      NTPRO_FORCED_STOP_SIGNALLED: fakeSignalled,
+    },
+  });
+  const guardianPid = await waitFor("forced-stop guardian", 5_000, () =>
+    guardianPidFor(forcedWorkspace)
+  );
+  const servicePid = await waitFor("forced-stop service", 5_000, () => {
+    const pid = servicePidFor(forcedWorkspace);
+    return pid && processAlive(pid) && fs.existsSync(fakeReady) ? pid : undefined;
+  });
+  launch.child.kill("SIGTERM");
+  await waitFor("forced-stop SIGINT delivery", 1_000, () => fs.existsSync(fakeSignalled));
+  assert(processAlive(servicePid), "forced-stop fixture did not ignore SIGINT");
+  assert(
+    readPid(lockPath(forcedWorkspace)) === guardianPid,
+    "forced-stop path released guardian lock before service exit",
+  );
+  assert(await waitForExit(launch.child, 5_000), "forced-stop launcher did not exit");
+  assert(
+    launch.child.exitCode !== 0 && launch.child.signalCode === null,
+    `forced-stop launcher reported success: code=${launch.child.exitCode} signal=${launch.child.signalCode}`,
+  );
+  await waitFor("forced-stop service exit", 3_000, () => !processAlive(servicePid));
+  await waitFor("forced-stop lock cleanup", 3_000, () =>
+    !fs.existsSync(lockPath(forcedWorkspace))
+  );
+  const log = combinedLog(launch);
+  assert(log.includes("已强制终止"), "forced-stop path omitted forced termination error");
+  assert(!log.includes("NTPRO 已安全停止"), "forced-stop path masqueraded as safe stop");
 };
 const killLauncherDuringStartup = async (workspacePath, port) => {
   const launch = startLauncher(workspacePath, port, "startup-launcher-kill");
@@ -517,6 +599,8 @@ try {
   currentLaunch = winners[0].launch;
   await stopWithSignal(currentLaunch, "SIGINT", true);
 
+  await verifyForcedStopFailsClosed();
+
   const occupiedPort = await freePort();
   const listener = net.createServer();
   await new Promise((resolve, reject) => {
@@ -575,6 +659,7 @@ try {
         same_workspace_restart: true,
         backtest_persisted: true,
         abnormal_exit_recovered: true,
+        forced_stop_fail_closed: true,
         occupied_port_rejected: true,
         missing_dependency_rejected: true,
         external_venue_connection: false,
