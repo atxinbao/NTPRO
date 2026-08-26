@@ -65,6 +65,7 @@ export function useCreateBacktestRun() {
   return useMutation({
     mutationFn: (request: CreateBacktestRunRequest) =>
       productApi.createBacktestRun(request),
+    retry: false,
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: productQueryKeys.allRuns,
@@ -448,6 +449,12 @@ export function useOverviewProductContext() {
     Boolean(strategies.data) &&
     (!strategyId ||
       Boolean(strategy.data && versions.data && versionId && version.data));
+  const retryProduct = () => {
+    if (strategies.error || !strategies.data) return strategies.refetch();
+    if (strategy.error || !strategy.data) return strategy.refetch();
+    if (versions.error || !versions.data) return versions.refetch();
+    return version.refetch();
+  };
 
   return {
     error,
@@ -461,6 +468,8 @@ export function useOverviewProductContext() {
     version: isReady ? version.data?.data : undefined,
     runs:
       isReady && !runtimeError && !isRuntimeVerifying ? runs.data : undefined,
+    retryProduct,
+    retryRuns: runs.refetch,
   };
 }
 
@@ -516,6 +525,12 @@ export function useRunProductContext(runId?: string) {
     version.data &&
     (!expectsDemoSnapshot || demoSnapshot.data),
   );
+  const retryIdentity = () => {
+    if (run.error || !run.data) return run.refetch();
+    if (strategy.error || !strategy.data) return strategy.refetch();
+    if (version.error || !version.data) return version.refetch();
+    return demoSnapshot.refetch();
+  };
 
   return {
     error,
@@ -554,6 +569,7 @@ export function useRunProductContext(runId?: string) {
       (reproduction.isPending || reproduction.isFetching),
     ),
     retryReproduction: reproduction.refetch,
+    retryIdentity,
     requestId: isReady ? run.data?.request_id : undefined,
   };
 }

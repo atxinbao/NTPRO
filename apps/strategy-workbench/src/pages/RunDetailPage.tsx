@@ -28,7 +28,16 @@ export function RunDetailPage() {
   const demoAction = useDemoRunAction();
   const [actionError, setActionError] = useState<string>();
 
-  if (product.error) return <ProductErrorState error={product.error} />;
+  if (product.error) {
+    return (
+      <ProductErrorState
+        error={product.error}
+        onRetry={product.retryIdentity}
+        retrying={product.isVerifying}
+        retryLabel="重新加载 Run"
+      />
+    );
+  }
   if (product.isVerifying || !product.isReady || !product.run) {
     return <ProductLoading label="正在验证 Run 详情" />;
   }

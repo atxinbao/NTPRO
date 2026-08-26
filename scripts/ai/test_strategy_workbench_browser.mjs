@@ -36,30 +36,93 @@ const port = await new Promise((resolve, reject) => {
   });
 });
 const baseUrl = `http://127.0.0.1:${port}`;
-const server = spawn(
-  "target/debug/nautilus",
-  [
-    "mvp",
-    "serve",
-    "--config",
-    config,
-    "--workspace",
-    workspace,
-    "--bind",
-    `127.0.0.1:${port}`,
-    "--strategy-workbench-dist",
-    dist,
-    "--ntpro-node-bin",
-    "target/debug/ntpro-node",
-    "--startup-timeout-ms",
-    "10000",
-    "--node-max-runtime-ms",
-    "120000",
-  ],
-  { stdio: ["ignore", "pipe", "pipe"] },
-);
-server.stdout.on("data", (chunk) => serverLog.push(chunk.toString()));
-server.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
+const spawnMvpServer = () => {
+  const logStart = serverLog.length;
+  serverLog.push(`\n--- mvp serve ${logStart === 0 ? "initial" : "restart"} ---\n`);
+  const child = spawn(
+    "target/debug/nautilus",
+    [
+      "mvp",
+      "serve",
+      "--config",
+      config,
+      "--workspace",
+      workspace,
+      "--bind",
+      `127.0.0.1:${port}`,
+      "--strategy-workbench-dist",
+      dist,
+      "--ntpro-node-bin",
+      "target/debug/ntpro-node",
+      "--startup-timeout-ms",
+      "10000",
+      "--node-max-runtime-ms",
+      "120000",
+    ],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  child.stdout.on("data", (chunk) => serverLog.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => serverLog.push(chunk.toString()));
+  return { child, logStart };
+};
+const serverExited = (child) =>
+  child.exitCode !== null || child.signalCode !== null;
+const waitForServerExit = (child, timeoutMs) => {
+  if (serverExited(child)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      child.off("exit", onExit);
+      resolve(false);
+    }, timeoutMs);
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    child.once("exit", onExit);
+  });
+};
+const stopMvpServer = async (child) => {
+  if (serverExited(child)) return;
+  child.kill("SIGINT");
+  if (await waitForServerExit(child, 10_000)) return;
+  child.kill("SIGKILL");
+  await waitForServerExit(child, 5_000);
+  throw new Error("MVP server did not stop within 10 seconds");
+};
+const waitForStrategyAccess = async (logStart) => {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const segment = serverLog.slice(logStart).join("");
+    const matches = [...segment.matchAll(/strategy_workbench_url=(\S+)/g)];
+    const match = matches.at(-1);
+    if (match) {
+      const strategyAccessUrl = new URL(match[1]);
+      const token = strategyAccessUrl.searchParams.get("access_token");
+      if (!token) throw new Error("strategy bootstrap URL omitted access_token");
+      const institutionCookie = `ntpro_mvp_institution_access=${token}`;
+      try {
+        const response = await fetch(`${baseUrl}/api/mvp/v1/status`, {
+          headers: { cookie: institutionCookie },
+        });
+        if (response.ok) {
+          return {
+            strategyAccessUrl,
+            institutionCookie,
+            payload: await response.json(),
+          };
+        }
+      } catch {
+        // The URL can be logged just before Axum starts accepting requests.
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(
+    `strategy workbench did not become ready:\n${redact(serverLog.slice(logStart).join(""))}`,
+  );
+};
+let serverLaunch = spawnMvpServer();
+let server = serverLaunch.child;
 
 let browser;
 let page;
@@ -79,33 +142,8 @@ const writeEvidence = (result) => {
 };
 
 try {
-  let strategyAccessUrl;
-  let payload;
-  let institutionCookie;
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    const match = serverLog.join("").match(/strategy_workbench_url=(\S+)/);
-    if (match) {
-      strategyAccessUrl = new URL(match[1]);
-      const token = strategyAccessUrl.searchParams.get("access_token");
-      if (!token)
-        throw new Error("strategy bootstrap URL omitted access_token");
-      institutionCookie = `ntpro_mvp_institution_access=${token}`;
-      const response = await fetch(`${baseUrl}/api/mvp/v1/status`, {
-        headers: { cookie: institutionCookie },
-      });
-      if (response.ok) {
-        payload = await response.json();
-        break;
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  if (!strategyAccessUrl || !payload || !institutionCookie) {
-    throw new Error(
-      `strategy workbench did not become ready:\n${redact(serverLog.join(""))}`,
-    );
-  }
+  let { strategyAccessUrl, payload, institutionCookie } =
+    await waitForStrategyAccess(serverLaunch.logStart);
 
   const unauthorized = await fetch(`${baseUrl}/strategy-workbench/overview`, {
     redirect: "manual",
@@ -1152,12 +1190,10 @@ try {
     path: path.join(evidenceDir, "strategy-workbench-demo-comparison-1440.png"),
     fullPage: true,
   });
-  runScenario = "empty";
   await page.goto(`${baseUrl}/strategy-workbench/backtests`, {
     waitUntil: "domcontentloaded",
   });
   await page.getByRole("heading", { name: "创建策略回测" }).waitFor();
-  await page.getByText(/当前没有历史 Backtest/).waitFor();
   const backtestDataSelect = page.getByLabel("回测数据");
   await backtestDataSelect.waitFor();
   if (
@@ -1214,6 +1250,74 @@ try {
       evidenceDir,
       "strategy-workbench-backtest-created-1440.png",
     ),
+    fullPage: true,
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: browserCreatedRunId }).waitFor();
+  await page.getByRole("region", { name: "Backtest 指标" }).waitFor();
+
+  await page.goto(`${baseUrl}/strategy-workbench/backtests/compare`, {
+    waitUntil: "networkidle",
+  });
+  await page
+    .getByRole("heading", { name: "Backtest 与 Demo 行为对比" })
+    .waitFor();
+  const acceptanceRunIds = [browserCreatedRunId, createdRun.run_id];
+  for (const runId of acceptanceRunIds) {
+    const checkbox = page.getByRole("checkbox", { name: new RegExp(runId) });
+    await checkbox.waitFor();
+    if (!(await checkbox.isChecked())) await checkbox.check();
+  }
+  await page
+    .getByRole("region", { name: "Run 比较结果" })
+    .getByText(browserCreatedRunId, { exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: new RegExp(browserCreatedRunId) })
+    .click();
+  await page
+    .getByRole("checkbox", {
+      name: /我确认这是一次用户主动的确定性复现/,
+    })
+    .check();
+  await page.getByRole("button", { name: "创建复现 Run" }).click();
+  await page.waitForURL(/\/strategy-workbench\/runs\/backtest-/);
+  const reproducedRunId = page.url().split("/").at(-1);
+  if (!reproducedRunId || reproducedRunId === browserCreatedRunId) {
+    throw new Error(`browser reproduction Run ID drifted: ${page.url()}`);
+  }
+  await page
+    .getByRole("region", { name: "Backtest 确定性复现证明" })
+    .getByText("输入与输出均等价")
+    .waitFor();
+
+  await page.goto("about:blank");
+  await stopMvpServer(server);
+  serverLaunch = spawnMvpServer();
+  server = serverLaunch.child;
+  const restarted = await waitForStrategyAccess(serverLaunch.logStart);
+  strategyAccessUrl = restarted.strategyAccessUrl;
+  institutionCookie = restarted.institutionCookie;
+  payload = restarted.payload;
+  await page.goto(strategyAccessUrl.toString(), {
+    waitUntil: "domcontentloaded",
+  });
+  await page.goto(
+    `${baseUrl}/strategy-workbench/runs/${encodeURIComponent(reproducedRunId)}`,
+    { waitUntil: "networkidle" },
+  );
+  await page.getByRole("heading", { name: reproducedRunId }).waitFor();
+  await page
+    .getByRole("region", { name: "Backtest 确定性复现证明" })
+    .waitFor();
+  await page.goto(
+    `${baseUrl}/strategy-workbench/runs/${encodeURIComponent(browserCreatedRunId)}`,
+    { waitUntil: "networkidle" },
+  );
+  await page.getByRole("heading", { name: browserCreatedRunId }).waitFor();
+  await page.getByRole("region", { name: "Backtest 指标" }).waitFor();
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-backtest-restart-1440.png"),
     fullPage: true,
   });
   runScenario = "valid";
@@ -1485,18 +1589,7 @@ try {
   }
 } finally {
   if (browser) await browser.close().catch(() => {});
-  if (server.exitCode === null) server.kill("SIGINT");
-  await new Promise((resolve) => {
-    if (server.exitCode !== null) return resolve();
-    const timer = setTimeout(() => {
-      if (server.exitCode === null) server.kill("SIGKILL");
-      resolve();
-    }, 10_000);
-    server.once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-  });
+  await stopMvpServer(server).catch(() => {});
 }
 
 if (failure) {
@@ -1529,7 +1622,11 @@ writeEvidence({
   product_run_metrics_mobile: 1,
   product_run_create_api: 1,
   product_run_create_browser: 1,
-  product_run_first_backtest_without_history: 1,
+  product_run_fresh_workspace_backtest: 1,
+  product_run_refresh_readback: 1,
+  product_run_comparison_browser: 1,
+  product_run_reproduction_browser: 1,
+  product_run_restart_readback: 1,
   product_run_create_readback: 1,
   product_run_create_access_control: 1,
   product_run_metrics_non_backtest_closed: 1,

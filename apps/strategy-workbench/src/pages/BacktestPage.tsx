@@ -8,6 +8,7 @@ import type {
   Run,
   StrategyVersion,
 } from "../api/generated/productApi";
+import { productErrorMessage } from "../features/product/presentation";
 import {
   useCompatibleDatasets,
   useCreateBacktestRun,
@@ -38,12 +39,28 @@ export function BacktestPage() {
     product.version?.strategy_version_id,
   );
 
-  if (product.error) return <ProductErrorState error={product.error} />;
+  if (product.error) {
+    return (
+      <ProductErrorState
+        error={product.error}
+        onRetry={product.retryProduct}
+        retrying={product.isVerifying}
+        retryLabel="重新验证策略"
+      />
+    );
+  }
   if (product.isVerifying || !product.isReady) {
     return <ProductLoading label="正在验证 Backtest 创建上下文" />;
   }
   if (product.runtimeError) {
-    return <ProductErrorState error={product.runtimeError} />;
+    return (
+      <ProductErrorState
+        error={product.runtimeError}
+        onRetry={product.retryRuns}
+        retrying={product.isRuntimeVerifying}
+        retryLabel="重新加载 Run"
+      />
+    );
   }
   if (product.isRuntimeVerifying) {
     return <ProductLoading label="正在验证 Backtest 运行数据" />;
@@ -57,7 +74,16 @@ export function BacktestPage() {
   if (datasets.isPending) {
     return <ProductLoading label="正在验证本地历史数据目录" />;
   }
-  if (datasets.error) return <ProductErrorState error={datasets.error} />;
+  if (datasets.error) {
+    return (
+      <ProductErrorState
+        error={datasets.error}
+        onRetry={datasets.refetch}
+        retrying={datasets.isFetching}
+        retryLabel="重新验证数据"
+      />
+    );
+  }
 
   const baseline = product.runs?.data.find(
     (run) =>
@@ -121,7 +147,12 @@ export function BacktestPage() {
           params: { runId: response.data.run_id },
         });
       },
-      onError: (error) => setFormError(error.message),
+      onError: (error) => {
+        const message = productErrorMessage(error);
+        setFormError(
+          `${message.title}：${message.detail}。本次不会自动重试，请确认后再次提交。`,
+        );
+      },
     });
   };
 
@@ -231,7 +262,9 @@ export function BacktestPage() {
           <footer>
             <div>
               <strong>创建后不可覆盖</strong>
-              <span>配置、输入摘要与结果均绑定 SHA-256。</span>
+              <span>
+                配置、输入摘要与结果均绑定 SHA-256；提交后不支持中途取消。
+              </span>
             </div>
             <button type="submit" disabled={!canCreate || createRun.isPending}>
               <Play aria-hidden="true" />
