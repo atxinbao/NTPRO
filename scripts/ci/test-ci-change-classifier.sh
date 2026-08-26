@@ -85,6 +85,12 @@ assert_output "$local_delivery_inputs_output" "strategy_workbench=true"
 assert_output "$local_delivery_inputs_output" "frontend_app=true"
 assert_output "$local_delivery_inputs_output" "heavy_rust=true"
 
+for input in crates/common/src/lib.rs crates/live/src/lib.rs crates/backtest/src/lib.rs LICENSE; do
+  safe_name="$(printf '%s' "$input" | tr '/.' '--')"
+  dependency_output="$(classify "local-delivery-dependency-$safe_name" "$input")"
+  assert_output "$dependency_output" "local_delivery=true"
+done
+
 cargo_output="$(classify cargo Cargo.lock)"
 assert_output "$cargo_output" "heavy_rust=true"
 assert_output "$cargo_output" "mvp_acceptance=false"
@@ -270,4 +276,4 @@ assert_aggregate_fail true success success skipped success
 assert_aggregate_fail false success success success skipped
 assert_aggregate_fail unknown success success skipped skipped
 
-echo "ci_change_classifier_selftest=pass cases=38"
+echo "ci_change_classifier_selftest=pass cases=42"

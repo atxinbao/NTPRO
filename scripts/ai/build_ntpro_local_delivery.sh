@@ -18,12 +18,37 @@ sha256_file() {
   fi
 }
 
+sha256_stream() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum | awk '{print $1}'
+  else
+    shasum -a 256 | awk '{print $1}'
+  fi
+}
+
+sha256_tree() {
+  local root="$1"
+  local excluded="${2:-}"
+  (
+    cd "$root"
+    find . -type f -print | LC_ALL=C sort | while IFS= read -r relative; do
+      relative="${relative#./}"
+      if [[ -n "$excluded" && "$relative" == "$excluded" ]]; then
+        continue
+      fi
+      printf '%s  %s\n' "$(sha256_file "$root/$relative")" "$relative"
+    done
+  ) | sha256_stream
+}
+
 if [[ "$allow_dirty" != "0" && "$allow_dirty" != "1" ]]; then
   fail "NTPRO_LOCAL_DELIVERY_ALLOW_DIRTY must be 0 or 1"
 fi
 
+source_sha_before="$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || printf 'unknown')"
+source_state_before="$(git -C "$repo_root" status --porcelain --untracked-files=normal)"
 source_dirty=false
-if [[ -n "$(git -C "$repo_root" status --porcelain --untracked-files=normal)" ]]; then
+if [[ -n "$source_state_before" ]]; then
   source_dirty=true
 fi
 if [[ "$source_dirty" == "true" && "$allow_dirty" != "1" ]]; then
@@ -31,14 +56,23 @@ if [[ "$source_dirty" == "true" && "$allow_dirty" != "1" ]]; then
 fi
 
 source "$repo_root/scripts/ai/toolchain_env.sh"
-"$NTPRO_CARGO" build -p nautilus-cli --bin nautilus --bin ntpro-node
+"$NTPRO_CARGO" build --locked -p nautilus-cli \
+  --bin nautilus \
+  --bin ntpro-node \
+  --bin ntpro-local-delivery
 npm --prefix "$repo_root/apps/strategy-workbench" ci
 npm --prefix "$repo_root/apps/strategy-workbench" run build
+
+source_sha_after="$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || printf 'unknown')"
+source_state_after="$(git -C "$repo_root" status --porcelain --untracked-files=normal)"
+if [[ "$source_sha_after" != "$source_sha_before" || "$source_state_after" != "$source_state_before" ]]; then
+  fail "build changed the source revision or working tree; refusing to publish an ambiguous package"
+fi
 
 nautilus_bin="$repo_root/target/debug/nautilus"
 node_bin="$repo_root/target/debug/ntpro-node"
 frontend_dist="$repo_root/apps/strategy-workbench/dist"
-launcher="$repo_root/scripts/ai/ntpro_local_delivery_launcher.sh"
+launcher="$repo_root/target/debug/ntpro-local-delivery"
 operations="$repo_root/docs/product/ntpro_local_delivery.md"
 node_config="$repo_root/configs/nodes/btc-ema-shadow.toml"
 backtest_config="$repo_root/configs/backtests/ema-cross-btcusdt-product.toml"
@@ -79,7 +113,7 @@ install -m 0644 "$license" "$staging/LICENSE"
 cp -R "$frontend_dist/." "$staging/apps/strategy-workbench/dist/"
 printf '%s\n' 'ntpro.local_delivery.v1' >"$staging/.ntpro-local-delivery-root"
 
-source_sha="$(git -C "$repo_root" rev-parse HEAD 2>/dev/null || printf 'unknown')"
+source_sha="$source_sha_after"
 built_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 platform_os="$(uname -s)"
 platform_arch="$(uname -m)"
@@ -92,9 +126,11 @@ fi
 nautilus_sha="$(sha256_file "$staging/bin/nautilus")"
 node_sha="$(sha256_file "$staging/bin/ntpro-node")"
 frontend_sha="$(sha256_file "$staging/apps/strategy-workbench/dist/index.html")"
+frontend_tree_sha="$(sha256_tree "$staging/apps/strategy-workbench/dist")"
 launcher_sha="$(sha256_file "$staging/start-ntpro")"
 node_config_sha="$(sha256_file "$staging/configs/nodes/btc-ema-shadow.toml")"
 backtest_config_sha="$(sha256_file "$staging/configs/backtests/ema-cross-btcusdt-product.toml")"
+payload_tree_sha="$(sha256_tree "$staging" 'delivery-manifest.json')"
 cat >"$staging/delivery-manifest.json" <<EOF
 {
   "schema_version": "ntpro.local_delivery_manifest.v1",
@@ -113,9 +149,11 @@ cat >"$staging/delivery-manifest.json" <<EOF
     "nautilus_sha256": "$nautilus_sha",
     "ntpro_node_sha256": "$node_sha",
     "strategy_workbench_index_sha256": "$frontend_sha",
+    "strategy_workbench_tree_sha256": "$frontend_tree_sha",
     "launcher_sha256": "$launcher_sha",
     "node_config_sha256": "$node_config_sha",
-    "backtest_config_sha256": "$backtest_config_sha"
+    "backtest_config_sha256": "$backtest_config_sha",
+    "delivery_payload_tree_sha256": "$payload_tree_sha"
   }
 }
 EOF

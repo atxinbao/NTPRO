@@ -3,6 +3,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 
 const playwrightPath = process.env.NTPRO_PLAYWRIGHT_CORE_PATH;
@@ -35,6 +36,25 @@ const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 const sleep = (millis) => new Promise((resolve) => setTimeout(resolve, millis));
+const sha256File = (filePath) =>
+  createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+const sha256Tree = (treeRoot, excluded = undefined) => {
+  const files = [];
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(absolute);
+      else if (entry.isFile()) files.push(path.relative(treeRoot, absolute));
+    }
+  };
+  visit(treeRoot);
+  const canonical = files
+    .filter((relative) => relative !== excluded)
+    .sort()
+    .map((relative) => `${sha256File(path.join(treeRoot, relative))}  ${relative}\n`)
+    .join("");
+  return createHash("sha256").update(canonical).digest("hex");
+};
 const processAlive = (pid) => {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
@@ -148,8 +168,16 @@ const stopGracefully = async (launch) => {
   }
   assert(await waitForExit(launch.child, 5_000), "local delivery did not stop");
 };
+const lockPath = (workspacePath = workspace) =>
+  path.join(workspacePath, ".local-delivery.lock");
+const servicePidFor = (workspacePath = workspace) => {
+  const ownerPid = readPid(lockPath(workspacePath));
+  return ownerPid
+    ? readPid(path.join(workspacePath, `.local-delivery.child.${ownerPid}`))
+    : undefined;
+};
 const killAbnormally = async (launch) => {
-  const servicePid = readPid(path.join(workspace, ".local-delivery.lock", "child.pid"));
+  const servicePid = servicePidFor();
   assert(servicePid && processAlive(servicePid), "group kill omitted live service PID");
   if (!exited(launch.child)) process.kill(-launch.child.pid, "SIGKILL");
   assert(await waitForExit(launch.child, 5_000), "abnormal process group did not exit");
@@ -162,24 +190,31 @@ const readPid = (filePath) => {
   return Number.isInteger(pid) && pid > 0 ? pid : undefined;
 };
 const stopWithSignal = async (launch, signal) => {
-  const servicePid = readPid(path.join(workspace, ".local-delivery.lock", "child.pid"));
+  const servicePid = servicePidFor();
   assert(servicePid && processAlive(servicePid), `${signal} test omitted live service PID`);
   launch.child.kill(signal);
-  assert(await waitForExit(launch.child, 20_000), `${signal} did not stop launcher`);
+  assert(await waitForExit(launch.child, 60_000), `${signal} did not stop launcher`);
+  assert(
+    launch.child.exitCode === 0 && launch.child.signalCode === null,
+    `${signal} launcher exit was not clean: code=${launch.child.exitCode} signal=${launch.child.signalCode}`,
+  );
   await waitFor(`${signal} service exit`, 5_000, () => !processAlive(servicePid));
   await waitFor(`${signal} lock cleanup`, 5_000, () =>
-    !fs.existsSync(path.join(workspace, ".local-delivery.lock"))
+    !fs.existsSync(lockPath())
   );
+  const log = combinedLog(launch);
+  assert(log.includes("mvp.serve status=stopped"), `${signal} omitted MVP stopped evidence`);
+  assert(log.includes("NTPRO 已安全停止"), `${signal} omitted launcher safe-stop evidence`);
   return servicePid;
 };
 const killLauncherOnly = async (launch) => {
-  const servicePid = readPid(path.join(workspace, ".local-delivery.lock", "child.pid"));
+  const servicePid = servicePidFor();
   assert(servicePid && processAlive(servicePid), "launcher-only kill omitted live service PID");
   launch.child.kill("SIGKILL");
   assert(await waitForExit(launch.child, 5_000), "launcher-only SIGKILL did not exit launcher");
   await waitFor("guardian service cleanup", 20_000, () => !processAlive(servicePid));
   await waitFor("guardian lock cleanup", 5_000, () =>
-    !fs.existsSync(path.join(workspace, ".local-delivery.lock"))
+    !fs.existsSync(lockPath())
   );
   return servicePid;
 };
@@ -304,6 +339,56 @@ try {
   );
   assert(manifest.platform?.os && manifest.platform?.arch, "manifest platform is missing");
   assert(manifest.platform?.rust_target, "manifest Rust target is missing");
+  const sourceSha = spawnSync("git", ["rev-parse", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  }).stdout.trim();
+  const sourceDirty = Boolean(
+    spawnSync("git", ["status", "--porcelain", "--untracked-files=normal"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    }).stdout.trim(),
+  );
+  assert(manifest.source_sha === sourceSha, "manifest source SHA does not match checkout");
+  assert(manifest.source_tree_dirty === sourceDirty, "manifest dirty state does not match checkout");
+  assert(
+    manifest.source_binding ===
+      (sourceDirty ? "git_head_dirty_workspace_build" : "git_head_clean_workspace_build"),
+    "manifest source binding contradicts checkout state",
+  );
+  const components = manifest.components ?? {};
+  const componentPaths = {
+    nautilus_sha256: path.join(packageDir, "bin", "nautilus"),
+    ntpro_node_sha256: path.join(packageDir, "bin", "ntpro-node"),
+    strategy_workbench_index_sha256: path.join(
+      packageDir,
+      "apps",
+      "strategy-workbench",
+      "dist",
+      "index.html",
+    ),
+    launcher_sha256: launcher,
+    node_config_sha256: path.join(packageDir, "configs", "nodes", "btc-ema-shadow.toml"),
+    backtest_config_sha256: path.join(
+      packageDir,
+      "configs",
+      "backtests",
+      "ema-cross-btcusdt-product.toml",
+    ),
+  };
+  for (const [field, filePath] of Object.entries(componentPaths)) {
+    assert(components[field] === sha256File(filePath), `manifest hash mismatch: ${field}`);
+  }
+  const frontendRoot = path.join(packageDir, "apps", "strategy-workbench", "dist");
+  assert(
+    components.strategy_workbench_tree_sha256 === sha256Tree(frontendRoot),
+    "manifest frontend tree hash mismatch",
+  );
+  assert(
+    components.delivery_payload_tree_sha256 ===
+      sha256Tree(packageDir, "delivery-manifest.json"),
+    "manifest delivery payload tree hash mismatch",
+  );
 
   const port = await freePort();
   currentLaunch = startLauncher(workspace, port, "initial");
@@ -360,14 +445,26 @@ try {
   await stopWithSignal(currentLaunch, "SIGHUP");
 
   currentLaunch = startLauncher(workspace, port, "hup-restart");
-  await waitForReady(currentLaunch);
+  const guardianSession = await waitForReady(currentLaunch);
+  const guardianDemoRunId = await createDemo(port, guardianSession.cookie);
+  await actOnDemo(port, guardianSession.cookie, guardianDemoRunId, "start");
+  await waitForRunLifecycle(port, guardianSession.cookie, guardianDemoRunId, "running");
+  const guardianDemoNodePid = await waitFor("guardian Demo node PID", 10_000, () => {
+    const pidPath = path.join(workspace, "nodes", "mvp-node-001", "pid.json");
+    if (!fs.existsSync(pidPath)) return undefined;
+    const artifact = JSON.parse(fs.readFileSync(pidPath, "utf8"));
+    return processAlive(artifact.pid) ? artifact.pid : undefined;
+  });
   await killLauncherOnly(currentLaunch);
+  assert(!processAlive(guardianDemoNodePid), "guardian left active Demo node running");
 
   currentLaunch = startLauncher(workspace, port, "guardian-restart");
-  await waitForReady(currentLaunch);
+  const guardianRestarted = await waitForReady(currentLaunch);
+  await waitForRunLifecycle(port, guardianRestarted.cookie, guardianDemoRunId, "stopped");
   await killAbnormally(currentLaunch);
   await sleep(250);
-  assert(fs.existsSync(path.join(workspace, ".local-delivery.lock")), "abnormal exit did not exercise stale lock");
+  assert(fs.existsSync(lockPath()), "abnormal exit did not exercise stale lock");
+  assert(fs.statSync(lockPath()).isFile(), "runtime lock is not an atomic owner file");
 
   const competingPort = await freePort();
   const recoveryA = startLauncher(workspace, port, "abnormal-recovery-a");
@@ -406,7 +503,7 @@ try {
     "occupied port omitted actionable error",
   );
   assert(
-    !fs.existsSync(path.join(occupiedWorkspace, ".local-delivery.lock")),
+    !fs.existsSync(lockPath(occupiedWorkspace)),
     "occupied port retained a misleading lock",
   );
 
@@ -432,6 +529,8 @@ try {
         schema_version: "ntpro.local_delivery_acceptance.v1",
         status: "pass",
         package_manifest: "ntpro.local_delivery_manifest.v1",
+        package_hashes_recomputed: true,
+        source_binding_verified: true,
         single_entrypoint: true,
         production_browser: true,
         duplicate_launch_rejected: true,

@@ -169,10 +169,11 @@ HTTP 端口可访问只说明网页服务能够响应，不代表 node、策略�
 scripts/ai/build_ntpro_local_delivery.sh
 ```
 
-默认输出到 `target/ntpro-local-delivery`。构建器会编译两个 Rust 二进制、构建 Vite production
-bundle、复制必要配置、许可证和说明，并生成 `delivery-manifest.json`。manifest 会记录 Git
-SHA、工作区是否干净、操作系统、CPU 架构、Rust target 和关键文件 SHA-256；构建器不接受任意
-外部二进制替换。
+默认输出到 `target/ntpro-local-delivery`。构建器会编译 NTPRO 主程序、node 和原生启动器三个
+Rust 二进制，构建 Vite production bundle，复制必要配置、许可证和说明，并生成
+`delivery-manifest.json`。manifest 会记录 Git SHA、工作区是否干净、操作系统、CPU 架构、Rust
+target、关键文件 SHA-256、完整前端目录哈希和完整交付 payload 哈希；构建器不接受任意外部
+二进制替换。
 
 正式交付要求源码工作区干净。只在提交前开发验证时，才可显式生成标记为 dirty 的测试包：
 
