@@ -1164,6 +1164,23 @@ try {
   if (!frozenResultHash || !/^sha256:[a-f0-9]{64}$/.test(frozenResultHash)) {
     throw new Error(`Demo frozen result hash drifted: ${frozenResultHash}`);
   }
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: browserDemoRunId }).waitFor();
+  await page
+    .getByRole("region", { name: "Demo 运行结果" })
+    .getByRole("heading", { name: "终态冻结快照" })
+    .waitFor();
+  const refreshedDemoResultHash = await page
+    .getByRole("region", { name: "Demo 运行结果" })
+    .getByText("结果哈希")
+    .locator("..")
+    .locator("strong")
+    .textContent();
+  if (refreshedDemoResultHash !== frozenResultHash) {
+    throw new Error(
+      `Demo refresh changed frozen result hash: ${refreshedDemoResultHash}`,
+    );
+  }
   await page.screenshot({
     path: path.join(evidenceDir, "strategy-workbench-demo-stopped-1440.png"),
     fullPage: true,
@@ -1329,6 +1346,49 @@ try {
   if (new URL(page.url()).searchParams.has("access_token")) {
     throw new Error("restarted bootstrap token remained in browser URL");
   }
+  await page.goto(
+    `${baseUrl}/strategy-workbench/runs/${encodeURIComponent(browserDemoRunId)}`,
+    { waitUntil: "networkidle" },
+  );
+  await page.getByRole("heading", { name: browserDemoRunId }).waitFor();
+  const restartedDemoLifecycle = page.getByRole("region", {
+    name: "Demo 生命周期",
+  });
+  await restartedDemoLifecycle
+    .getByText("运行状态", { exact: true })
+    .locator("..")
+    .getByText("stopped", { exact: true })
+    .waitFor();
+  if (
+    !(await page
+      .getByRole("button", { name: "启动", exact: true })
+      .isDisabled()) ||
+    !(await page
+      .getByRole("button", { name: "停止", exact: true })
+      .isDisabled())
+  ) {
+    throw new Error("restarted terminal Demo unexpectedly exposed an action");
+  }
+  const restartedDemoResult = page.getByRole("region", {
+    name: "Demo 运行结果",
+  });
+  await restartedDemoResult
+    .getByRole("heading", { name: "终态冻结快照" })
+    .waitFor();
+  const restartedDemoResultHash = await restartedDemoResult
+    .getByText("结果哈希")
+    .locator("..")
+    .locator("strong")
+    .textContent();
+  if (restartedDemoResultHash !== frozenResultHash) {
+    throw new Error(
+      `Demo restart changed frozen result hash: ${restartedDemoResultHash}`,
+    );
+  }
+  await page.screenshot({
+    path: path.join(evidenceDir, "strategy-workbench-demo-restart-1440.png"),
+    fullPage: true,
+  });
   await page.goto(
     `${baseUrl}/strategy-workbench/runs/${encodeURIComponent(reproducedRunId)}`,
     { waitUntil: "networkidle" },
@@ -1676,6 +1736,9 @@ writeEvidence({
   demo_snapshot_frozen: 1,
   demo_simulation_results: 1,
   demo_backtest_comparison: 1,
+  demo_refresh_readback: 1,
+  demo_restart_readback: 1,
+  demo_restart_no_auto_start: 1,
   asset_404: 1,
   method_405: 1,
   valid: 1,

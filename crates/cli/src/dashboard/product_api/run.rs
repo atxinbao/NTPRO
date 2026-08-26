@@ -1554,6 +1554,13 @@ fn create_demo_run(
     finalize_demo_run_ownerships(state, unix_time_ms())?;
     let now = unix_time_ms();
     let source = load_product_source(state, now)?;
+    let validated_record_baseline_unix_ms = snapshot_timestamp(&source.runtime_record.updated_at)
+        .ok_or_else(|| {
+        product_error(
+            ProductErrorKind::SourceInvalid,
+            "supervisor_record_timestamps",
+        )
+    })?;
     let version = strategy_version::load_product_strategy_version(&source, now)?;
     validate_demo_creation_request(&request, &source, &version)?;
     let existing_runs = load_product_runs_unlocked(state, now)?;
@@ -1583,6 +1590,18 @@ fn create_demo_run(
             "supervisor_node_state",
         ));
     }
+    let supervisor_record_baseline_unix_ms =
+        snapshot_timestamp(&record.updated_at).ok_or_else(|| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "supervisor_record_baseline",
+            )
+        })?;
+    let claimed_at_unix_ms = validate_demo_claim_clock(
+        validated_record_baseline_unix_ms,
+        supervisor_record_baseline_unix_ms,
+        unix_time_ms(),
+    )?;
 
     let run_id = request_id.replacen("product-", "demo-", 1);
     validate_identifier("run_id", &run_id)?;
@@ -1627,10 +1646,10 @@ fn create_demo_run(
         risk_ref: format!("artifact://demo-runs/{run_id}/run-manifest.json#risk"),
         error_code: None,
         error_summary: None,
-        created_at_unix_ms: now,
+        created_at_unix_ms: claimed_at_unix_ms,
         started_at_unix_ms: None,
         completed_at_unix_ms: None,
-        updated_at_unix_ms: now,
+        updated_at_unix_ms: claimed_at_unix_ms,
         external_venue_connection: false,
         order_submission_allowed: false,
         order_mutation_allowed: false,
@@ -1641,14 +1660,7 @@ fn create_demo_run(
         demo_supervisor_node_id: Some(request.supervisor_node_id),
         demo_strategy_instance_id: Some(source.identity.identities.strategy_instance_id.clone()),
         demo_identity_contract_id: Some(source.identity.contract_id.clone()),
-        demo_supervisor_record_baseline_unix_ms: Some(
-            snapshot_timestamp(&record.updated_at).ok_or_else(|| {
-                product_error(
-                    ProductErrorKind::SourceInvalid,
-                    "supervisor_record_baseline",
-                )
-            })?,
-        ),
+        demo_supervisor_record_baseline_unix_ms: Some(supervisor_record_baseline_unix_ms),
         demo_supervisor_process_generation_baseline: Some(record.process_generation),
         demo_process_state: Some(record.process.state),
         demo_lifecycle_state: Some(record.last_known_status.lifecycle_state),
@@ -1669,7 +1681,7 @@ fn create_demo_run(
         &source,
         &version,
         version.strategy_version_id(),
-        now,
+        claimed_at_unix_ms,
         Some(format!("artifact://demo-runs/{run_id}/run-manifest.json")),
     )?;
     write_new_run_file(&directory, "run-manifest.json", &manifest_raw)?;
@@ -1684,7 +1696,7 @@ fn create_demo_run(
             SupervisorRunOwnership {
                 run_id: run_id.clone(),
                 manifest_sha256,
-                claimed_at_unix_ms: now,
+                claimed_at_unix_ms,
                 process_generation_at_claim: record.process_generation,
                 terminal: None,
             },
@@ -1701,6 +1713,23 @@ fn create_demo_run(
         ));
     }
     Ok(projected)
+}
+
+pub(super) fn validate_demo_claim_clock(
+    validated_record_baseline_unix_ms: u64,
+    current_record_baseline_unix_ms: u64,
+    observed_now_unix_ms: u64,
+) -> Result<u64, ProductError> {
+    if validated_record_baseline_unix_ms == 0
+        || current_record_baseline_unix_ms < validated_record_baseline_unix_ms
+        || current_record_baseline_unix_ms > observed_now_unix_ms
+    {
+        return Err(product_error(
+            ProductErrorKind::SourceInvalid,
+            "supervisor_record_timestamps",
+        ));
+    }
+    Ok(observed_now_unix_ms)
 }
 
 const fn is_terminal_demo_lifecycle(lifecycle: RunLifecycle) -> bool {

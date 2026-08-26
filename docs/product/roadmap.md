@@ -83,8 +83,8 @@ UPV1-002 已交付；未开放任何 Live 或订单权限。
 
 退出条件：一名不了解 Cargo 和内部目录的用户可以只通过页面完成 Backtest 闭环。
 
-当前状态：实现和本地 production bundle 验收已完成，等待 high-risk 独立审查、hosted
-checks 与手动合并。合并后进入 UPV1-004。
+当前状态：已由 Issue #1324 / PR #1329 完成独立审查、hosted checks 与手动合并，
+UPV1-003 已交付；Backtest mutation 继续保持显式提交且不自动重试。
 
 ### UPV1-004：Demo 产品验收
 
@@ -93,6 +93,10 @@ checks 与手动合并。合并后进入 UPV1-004。
 - 验证进程退出、状态陈旧和重启后的明确恢复或安全收口。
 
 退出条件：Demo 可以重复操作和解释，真实订单继续保持独立关闭。
+
+当前状态：实现和本地 production bundle 验收已完成，包含真实 Supervisor/Sandbox node
+生命周期、停止后刷新、同 workspace 服务重启读取、终态不自动启动和冻结结果哈希一致性；
+等待 high-risk 独立审查、hosted checks 与手动合并。合并后进入 UPV1-005。
 
 ### UPV1-005：本地交付与操作说明
 

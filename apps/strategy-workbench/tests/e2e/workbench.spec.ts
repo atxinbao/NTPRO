@@ -1232,6 +1232,17 @@ test("Demo page creates a Run and explicitly controls Supervisor lifecycle", asy
   page,
 }, testInfo) => {
   let demoSnapshotRequests = 0;
+  await page.unroute("**/api/mvp/v1/status");
+  await page.route("**/api/mvp/v1/status", async (route) => {
+    const payload = structuredClone(validStatusPayload);
+    payload.status.runtime.status = "stopped";
+    payload.status.technical_health.status = "not_running";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(payload),
+    });
+  });
   page.on("request", (request) => {
     if (
       request.method() === "GET" &&

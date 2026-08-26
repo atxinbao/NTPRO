@@ -12,6 +12,7 @@ import {
   environmentLabels,
   formatTimestamp,
   lifecycleLabels,
+  productErrorMessage,
   resultLabels,
   riskLabels,
 } from "../features/product/presentation";
@@ -27,6 +28,12 @@ export function RunDetailPage() {
   const product = useRunProductContext(runId);
   const demoAction = useDemoRunAction();
   const [actionError, setActionError] = useState<string>();
+  const reportActionError = (error: unknown) => {
+    const message = productErrorMessage(error);
+    setActionError(
+      `${message.title}：${message.detail}。本次不会自动重试，请确认状态后再次显式操作。`,
+    );
+  };
 
   if (product.error) {
     return (
@@ -134,7 +141,7 @@ export function RunDetailPage() {
                 setActionError(undefined);
                 demoAction.mutate(
                   { runId: detail.run_id, action: "start" },
-                  { onError: (error) => setActionError(error.message) },
+                  { onError: reportActionError },
                 );
               }}
             >
@@ -150,7 +157,7 @@ export function RunDetailPage() {
                 setActionError(undefined);
                 demoAction.mutate(
                   { runId: detail.run_id, action: "stop" },
-                  { onError: (error) => setActionError(error.message) },
+                  { onError: reportActionError },
                 );
               }}
             >
