@@ -295,6 +295,60 @@ setInterval(() => {}, 1000);
   const log = combinedLog(launch);
   assert(log.includes("已强制终止"), "forced-stop path omitted forced termination error");
   assert(!log.includes("NTPRO 已安全停止"), "forced-stop path masqueraded as safe stop");
+
+  const guardianWorkspace = path.join(root, "guardian-timeout-workspace");
+  const guardianReady = path.join(root, "guardian-timeout-ready");
+  const guardianSignalled = path.join(root, "guardian-timeout-signalled");
+  const guardianLaunch = startLauncher(
+    guardianWorkspace,
+    await freePort(),
+    "guardian-configured-timeout",
+    {
+      launcher: forcedLauncher,
+      cwd: forcedPackage,
+      env: {
+        NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: "1",
+        NTPRO_SERVICE_STOP_TIMEOUT_MS: "1500",
+        NTPRO_FORCED_STOP_READY: guardianReady,
+        NTPRO_FORCED_STOP_SIGNALLED: guardianSignalled,
+      },
+    },
+  );
+  const configuredGuardianPid = await waitFor("configured-timeout guardian", 5_000, () =>
+    guardianPidFor(guardianWorkspace)
+  );
+  const configuredServicePid = await waitFor("configured-timeout service", 5_000, () => {
+    const pid = servicePidFor(guardianWorkspace);
+    return pid && processAlive(pid) && fs.existsSync(guardianReady) ? pid : undefined;
+  });
+  const launcherKilledAt = Date.now();
+  guardianLaunch.child.kill("SIGKILL");
+  assert(
+    await waitForExit(guardianLaunch.child, 5_000),
+    "configured-timeout launcher did not exit",
+  );
+  await waitFor("configured-timeout SIGINT delivery", 1_000, () =>
+    fs.existsSync(guardianSignalled)
+  );
+  assert(processAlive(configuredServicePid), "configured-timeout fixture did not ignore SIGINT");
+  assert(
+    readPid(lockPath(guardianWorkspace)) === configuredGuardianPid,
+    "configured-timeout guardian released lock before service exit",
+  );
+  await waitFor("configured-timeout service exit", 5_000, () =>
+    !processAlive(configuredServicePid)
+  );
+  const configuredElapsed = Date.now() - launcherKilledAt;
+  assert(
+    configuredElapsed >= 1_000 && configuredElapsed < 5_000,
+    `guardian did not honor configured 1500ms stop timeout: ${configuredElapsed}ms`,
+  );
+  await waitFor("configured-timeout guardian exit", 3_000, () =>
+    !processAlive(configuredGuardianPid)
+  );
+  await waitFor("configured-timeout lock cleanup", 3_000, () =>
+    !fs.existsSync(lockPath(guardianWorkspace))
+  );
 };
 const killLauncherDuringStartup = async (workspacePath, port) => {
   const launch = startLauncher(workspacePath, port, "startup-launcher-kill");
@@ -323,6 +377,33 @@ const killLauncherOnly = async (launch) => {
   await waitFor("guardian service cleanup", 20_000, () => !processAlive(servicePid));
   await waitFor("guardian lock cleanup", 5_000, () =>
     !fs.existsSync(lockPath())
+  );
+  return servicePid;
+};
+const killGuardianOnly = async (launch) => {
+  const guardianPid = guardianPidFor();
+  const servicePid = servicePidFor();
+  assert(guardianPid && processAlive(guardianPid), "guardian-only kill omitted guardian PID");
+  assert(servicePid && processAlive(servicePid), "guardian-only kill omitted service PID");
+  process.kill(guardianPid, "SIGKILL");
+  await waitFor("guardian-only guardian exit", 5_000, () => !processAlive(guardianPid));
+  assert(
+    await waitForExit(launch.child, signalStopWaitMs),
+    "launcher did not recover guardian-only failure",
+  );
+  assert(
+    launch.child.exitCode !== 0 && launch.child.signalCode === null,
+    `guardian-only failure reported success: code=${launch.child.exitCode} signal=${launch.child.signalCode}`,
+  );
+  await waitFor("guardian-only service cleanup", 5_000, () => !processAlive(servicePid));
+  await waitFor("guardian-only lock cleanup", 5_000, () =>
+    !fs.existsSync(lockPath())
+  );
+  const log = combinedLog(launch);
+  assert(log.includes("guardian 异常退出"), "guardian-only failure omitted actionable error");
+  assert(
+    !log.includes("NTPRO 已安全停止"),
+    "guardian-only failure masqueraded as normal safe stop",
   );
   return servicePid;
 };
@@ -573,6 +654,26 @@ try {
   currentLaunch = startLauncher(workspace, port, "guardian-restart");
   const guardianRestarted = await waitForReady(currentLaunch);
   await waitForRunLifecycle(port, guardianRestarted.cookie, guardianDemoRunId, "stopped");
+  const guardianFailureRunId = await createDemo(port, guardianRestarted.cookie);
+  await actOnDemo(port, guardianRestarted.cookie, guardianFailureRunId, "start");
+  await waitForRunLifecycle(port, guardianRestarted.cookie, guardianFailureRunId, "running");
+  const guardianFailureNodePid = await waitFor("guardian-only Demo node PID", 10_000, () => {
+    const pidPath = path.join(workspace, "nodes", "mvp-node-001", "pid.json");
+    if (!fs.existsSync(pidPath)) return undefined;
+    const artifact = JSON.parse(fs.readFileSync(pidPath, "utf8"));
+    return processAlive(artifact.pid) ? artifact.pid : undefined;
+  });
+  await killGuardianOnly(currentLaunch);
+  assert(!processAlive(guardianFailureNodePid), "guardian-only failure left Demo node running");
+
+  currentLaunch = startLauncher(workspace, port, "guardian-failure-restart");
+  const guardianFailureRestarted = await waitForReady(currentLaunch);
+  await waitForRunLifecycle(
+    port,
+    guardianFailureRestarted.cookie,
+    guardianFailureRunId,
+    "stopped",
+  );
   await killAbnormally(currentLaunch);
   await sleep(250);
   assert(fs.existsSync(lockPath()), "abnormal exit did not exercise stale lock");
@@ -654,6 +755,8 @@ try {
         term_and_hup_mapped_to_ctrl_c: true,
         active_demo_stopped_on_term: true,
         launcher_only_kill_guarded: true,
+        guardian_only_failure_recovered: true,
+        guardian_uses_configured_stop_timeout: true,
         process_tree_exit_verified: true,
         concurrent_stale_lock_single_winner: true,
         same_workspace_restart: true,

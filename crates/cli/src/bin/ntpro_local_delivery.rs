@@ -204,6 +204,7 @@ async fn run_launcher() -> Result<(), LauncherError> {
         &current_exe,
         &workspace,
         std::process::id(),
+        service_stop_timeout_ms,
         &nautilus_bin,
         &service_args,
     )?;
@@ -220,7 +221,23 @@ async fn run_launcher() -> Result<(), LauncherError> {
     .await?;
 
     let exit_status = tokio::select! {
-        result = guardian.wait() => result.map_err(|error| LauncherError::new(70, format!("等待 NTPRO guardian 失败：{error}")))?,
+        result = guardian.wait() => {
+            let status = result.map_err(|error| LauncherError::new(70, format!("等待 NTPRO guardian 失败：{error}")))?;
+            if !status.success() {
+                let forced = stop_service_after_guardian_exit(child_pid, service_stop_timeout).await?;
+                runtime_lock.cleanup_confirmed();
+                return Err(LauncherError::new(
+                    status.code().unwrap_or(70),
+                    format!(
+                        "NTPRO guardian 异常退出（{status}）；服务已{}并确认退出。节点日志位于 {}/nodes/{}/logs/。",
+                        if forced { "强制终止" } else { "安全收口" },
+                        workspace.display(),
+                        node_id
+                    ),
+                ));
+            }
+            status
+        },
         _ = interrupt.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
         _ = terminate.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
         _ = hangup.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
@@ -240,6 +257,37 @@ async fn run_launcher() -> Result<(), LauncherError> {
 
     println!("NTPRO 已安全停止。运行数据保留在：{}", workspace.display());
     Ok(())
+}
+
+async fn stop_service_after_guardian_exit(
+    child_pid: u32,
+    stop_timeout: Duration,
+) -> Result<bool, LauncherError> {
+    if !process_alive(child_pid) {
+        return Ok(false);
+    }
+    let _ = send_signal(child_pid, Signal::Interrupt).map_err(|error| {
+        LauncherError::new(
+            70,
+            format!("guardian 异常退出后无法向 NTPRO 主程序发送 Ctrl-C：{error}"),
+        )
+    })?;
+    if wait_for_process_exit_async(child_pid, stop_timeout).await {
+        return Ok(false);
+    }
+    let forced = send_signal(child_pid, Signal::Kill).map_err(|error| {
+        LauncherError::new(
+            70,
+            format!("guardian 异常退出后强制终止 NTPRO 失败：{error}"),
+        )
+    })?;
+    if wait_for_process_exit_async(child_pid, FORCED_STOP_CONFIRM_TIMEOUT).await {
+        return Ok(forced);
+    }
+    Err(LauncherError::new(
+        70,
+        "guardian 异常退出后仍未确认 NTPRO 服务退出；运行锁已保留，拒绝启动新实例",
+    ))
 }
 
 async fn stop_guarded_service(
@@ -353,6 +401,7 @@ fn spawn_guardian(
     current_exe: &Path,
     workspace: &Path,
     parent_pid: u32,
+    service_stop_timeout_ms: u64,
     nautilus_bin: &Path,
     service_args: &[OsString],
 ) -> Result<Child, LauncherError> {
@@ -363,6 +412,7 @@ fn spawn_guardian(
         .arg(GUARDIAN_MODE)
         .arg(parent_pid.to_string())
         .arg(workspace)
+        .arg(service_stop_timeout_ms.to_string())
         .arg(nautilus_bin)
         .args(service_args);
     // Guardian 与服务使用独立进程组，终端 Ctrl-C 只到 launcher，再由 launcher 映射一次。
@@ -383,10 +433,19 @@ async fn run_guardian(args: &[OsString]) -> Result<i32, LauncherError> {
     let Some(workspace) = args.get(1).map(PathBuf::from) else {
         return Err(LauncherError::new(64, "guardian 缺少工作区"));
     };
-    let Some(nautilus_bin) = args.get(2).map(PathBuf::from) else {
+    let Some(service_stop_timeout_ms) = args
+        .get(2)
+        .and_then(|value| value.to_str())
+        .and_then(|value| value.parse::<u64>().ok())
+        .filter(|value| *value > 0)
+    else {
+        return Err(LauncherError::new(64, "guardian 缺少有效的服务停止超时"));
+    };
+    let service_stop_timeout = Duration::from_millis(service_stop_timeout_ms);
+    let Some(nautilus_bin) = args.get(3).map(PathBuf::from) else {
         return Err(LauncherError::new(64, "guardian 缺少 NTPRO 主程序"));
     };
-    let service_args = &args[3..];
+    let service_args = &args[4..];
     let guardian_pid = std::process::id();
     let lock_path = workspace.join(LOCK_NAME);
     let child_path = child_path(&workspace, guardian_pid);
@@ -422,6 +481,7 @@ async fn run_guardian(args: &[OsString]) -> Result<i32, LauncherError> {
             &lock_path,
             &child_path,
             guardian_pid,
+            service_stop_timeout,
             error,
         )
         .await;
@@ -434,7 +494,7 @@ async fn run_guardian(args: &[OsString]) -> Result<i32, LauncherError> {
             result = child.wait() => break result.map_err(|error| LauncherError::new(70, format!("guardian 等待 NTPRO 主程序失败：{error}")))?,
             _ = parent_watch.tick() => {
                 if !process_alive(parent_pid) {
-                    match stop_owned_child(&mut child, child_pid, Duration::from_secs(45)).await {
+                    match stop_owned_child(&mut child, child_pid, service_stop_timeout).await {
                         Ok(status) => break 'watch status,
                         Err(_) => {
                             // 服务未确认退出时 guardian 继续持有进程与运行锁，禁止错误接管。
@@ -460,9 +520,10 @@ async fn guardian_publish_failure(
     lock_path: &Path,
     child_path: &Path,
     guardian_pid: u32,
+    stop_timeout: Duration,
     publish_error: io::Error,
 ) -> Result<i32, LauncherError> {
-    if stop_owned_child(child, child_pid, Duration::from_secs(45))
+    if stop_owned_child(child, child_pid, stop_timeout)
         .await
         .is_err()
     {
@@ -727,6 +788,17 @@ fn wait_for_process_exit(pid: u32, wait: Duration) -> bool {
             return false;
         }
         thread::sleep(Duration::from_millis(100));
+    }
+    true
+}
+
+async fn wait_for_process_exit_async(pid: u32, wait: Duration) -> bool {
+    let started = Instant::now();
+    while process_alive(pid) {
+        if started.elapsed() >= wait {
+            return false;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
     true
 }
