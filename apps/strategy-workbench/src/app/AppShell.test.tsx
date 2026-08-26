@@ -15,6 +15,7 @@ import runMetricsFixture from "../test/product-api-fixtures/run-metrics.json";
 import runReportFixture from "../test/product-api-fixtures/run-report.json";
 import strategyListFixture from "../test/product-api-fixtures/strategy-list.json";
 import strategyVersionDetailFixture from "../test/product-api-fixtures/strategy-version-detail.json";
+import { validStatusPayload } from "../test/fixtures";
 import {
   backtestComparisonResponse,
   createdBacktestResponse,
@@ -26,6 +27,23 @@ import {
 } from "../test/server";
 import { createAppRouter } from "./router";
 import type { Run, RunComparisonResponse } from "../api/generated/productApi";
+
+function stoppedMvpStatusPayload() {
+  const payload = structuredClone(validStatusPayload) as Record<string, any>;
+  payload.status.runtime.status = "stopped";
+  payload.status.technical_health.status = "not_running";
+  return payload;
+}
+
+function stationaryStoppedMvpStatusPayload() {
+  const payload = stoppedMvpStatusPayload();
+  payload.status.runtime.freshness = "stale";
+  payload.status.runtime.reasons = [
+    "supervisor_process_not_running",
+    "node_status_timestamp_marked_stale",
+  ];
+  return payload;
+}
 
 function renderWorkbench(path: string) {
   window.history.replaceState({}, "", `/strategy-workbench${path}`);
@@ -92,6 +110,9 @@ describe("strategy workbench product slice", () => {
       };
     };
     server.use(
+      http.get("/api/mvp/v1/status", () =>
+        HttpResponse.json(stoppedMvpStatusPayload()),
+      ),
       http.get("/api/product/v1/runs", () => HttpResponse.json(demoList())),
       http.post("/api/product/v1/demo-runs", async ({ request }) => {
         createBody = await request.json();
@@ -176,6 +197,9 @@ describe("strategy workbench product slice", () => {
         : run,
     );
     server.use(
+      http.get("/api/mvp/v1/status", () =>
+        HttpResponse.json(stoppedMvpStatusPayload()),
+      ),
       http.get("/api/product/v1/runs", () =>
         HttpResponse.json({
           ...structuredClone(runListFixture),
@@ -220,6 +244,9 @@ describe("strategy workbench product slice", () => {
     let runListRequests = 0;
     let recoveryAllowed = false;
     server.use(
+      http.get("/api/mvp/v1/status", () =>
+        HttpResponse.json(stoppedMvpStatusPayload()),
+      ),
       http.get("/api/product/v1/runs", () => {
         runListRequests += 1;
         return recoveryAllowed
@@ -246,6 +273,122 @@ describe("strategy workbench product slice", () => {
       await screen.findByRole("button", { name: "创建 Demo Run" }),
     ).toBeInTheDocument();
     expect(runListRequests).toBeGreaterThan(requestsBeforeRecovery);
+  });
+
+  it.each([
+    ["运行中", "running", "available", "fresh"],
+    ["来源陈旧", "stopped", "available", "stale"],
+    ["来源错误", "stopped", "error", "fresh"],
+    ["状态未知", "unknown", "unknown", "unknown"],
+  ])(
+    "blocks Demo creation when the Sandbox node is %s",
+    async (_name, runtimeStatus, availability, freshness) => {
+      const payload = stoppedMvpStatusPayload();
+      payload.status.runtime.status = runtimeStatus;
+      payload.status.runtime.availability = availability;
+      payload.status.runtime.freshness = freshness;
+      const runs = structuredClone(runListFixture);
+      runs.data = runs.data.map((run) =>
+        run.environment === "sandbox"
+          ? { ...run, lifecycle: "stopped" as const }
+          : run,
+      );
+      server.use(
+        http.get("/api/mvp/v1/status", () => HttpResponse.json(payload)),
+        http.get("/api/product/v1/runs", () => HttpResponse.json(runs)),
+      );
+
+      renderWorkbench("/demo");
+      expect(
+        await screen.findByText(/Sandbox 节点尚未处于可创建状态/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "创建 Demo Run" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("allows Demo creation for the exact stationary stopped node status", async () => {
+    const runs = structuredClone(runListFixture);
+    runs.data = runs.data.map((run) =>
+      run.environment === "sandbox"
+        ? { ...run, lifecycle: "stopped" as const }
+        : run,
+    );
+    server.use(
+      http.get("/api/mvp/v1/status", () =>
+        HttpResponse.json(stationaryStoppedMvpStatusPayload()),
+      ),
+      http.get("/api/product/v1/runs", () => HttpResponse.json(runs)),
+    );
+
+    renderWorkbench("/demo");
+    expect(
+      await screen.findByRole("button", { name: "创建 Demo Run" }),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks a stationary stopped status with an extra stale reason", async () => {
+    const payload = stationaryStoppedMvpStatusPayload();
+    payload.status.runtime.reasons.push("unexpected_runtime_reason");
+    const runs = structuredClone(runListFixture);
+    runs.data = runs.data.map((run) =>
+      run.environment === "sandbox"
+        ? { ...run, lifecycle: "stopped" as const }
+        : run,
+    );
+    server.use(
+      http.get("/api/mvp/v1/status", () => HttpResponse.json(payload)),
+      http.get("/api/product/v1/runs", () => HttpResponse.json(runs)),
+    );
+
+    renderWorkbench("/demo");
+    expect(
+      await screen.findByText(/Sandbox 节点尚未处于可创建状态/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "创建 Demo Run" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes Demo creation while the Sandbox status is refetching", async () => {
+    let statusRequests = 0;
+    let releaseRefresh: (() => void) | undefined;
+    const runs = structuredClone(runListFixture);
+    runs.data = runs.data.map((run) =>
+      run.environment === "sandbox"
+        ? { ...run, lifecycle: "stopped" as const }
+        : run,
+    );
+    server.use(
+      http.get("/api/mvp/v1/status", async () => {
+        statusRequests += 1;
+        if (statusRequests > 1) {
+          await new Promise<void>((resolve) => {
+            releaseRefresh = resolve;
+          });
+        }
+        return HttpResponse.json(stoppedMvpStatusPayload());
+      }),
+      http.get("/api/product/v1/runs", () => HttpResponse.json(runs)),
+    );
+
+    const { queryClient } = renderWorkbench("/demo");
+    expect(
+      await screen.findByRole("button", { name: "创建 Demo Run" }),
+    ).toBeInTheDocument();
+    const refresh = queryClient.refetchQueries({ queryKey: ["mvp", "status"] });
+    expect(
+      await screen.findByText("正在验证 Sandbox 节点"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "创建 Demo Run" }),
+    ).not.toBeInTheDocument();
+    releaseRefresh?.();
+    await refresh;
+    expect(
+      await screen.findByRole("button", { name: "创建 Demo Run" }),
+    ).toBeInTheDocument();
   });
 
   it("does not automatically retry a failed Demo lifecycle action", async () => {

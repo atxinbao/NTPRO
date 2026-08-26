@@ -3401,10 +3401,53 @@ async fn institution_creates_one_immutable_demo_run_bound_to_supervisor() {
 }
 
 #[test]
-fn demo_claim_timestamp_never_precedes_the_supervisor_baseline() {
-    assert_eq!(demo_claimed_at_unix_ms(100, 120, 110), 120);
-    assert_eq!(demo_claimed_at_unix_ms(120, 100, 130), 130);
-    assert_eq!(demo_claimed_at_unix_ms(120, 120, 120), 120);
+fn demo_claim_clock_rejects_future_and_rollback_registry_records() {
+    assert_eq!(
+        validate_demo_claim_clock(100, 120, 130).expect("monotonic record should be accepted"),
+        130
+    );
+    for (validated, current, observed) in [(120, 110, 130), (100, 140, 130), (0, 100, 130)] {
+        let error = validate_demo_claim_clock(validated, current, observed)
+            .expect_err("rollback, future, and missing baselines must fail closed");
+        assert_eq!(error.kind, ProductErrorKind::SourceInvalid);
+        assert_eq!(error.field, "supervisor_record_timestamps");
+    }
+}
+
+#[tokio::test]
+async fn future_supervisor_record_rejects_demo_without_artifacts_or_ownership() {
+    let fixture = Fixture::new("future-supervisor-record-blocks-demo");
+    let store = SupervisorRegistryStore::new(&fixture.registry_path);
+    let mut registry = store.load().expect("fixture registry should load");
+    registry
+        .nodes
+        .get_mut("mvp-node-001")
+        .expect("fixture node should exist")
+        .updated_at = SnapshotValue::available(
+        unix_time_ms()
+            .saturating_add(MAX_CLOCK_SKEW_MS)
+            .saturating_add(1)
+            .to_string(),
+    );
+    store
+        .save(&registry)
+        .expect("future registry fixture should be saved");
+
+    let (status, error) = router_json_body(
+        &fixture.router(),
+        Method::POST,
+        "/api/product/v1/demo-runs",
+        &valid_demo_request(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR, "{error}");
+    assert_eq!(error["error"]["code"], "product_source_invalid");
+    assert_eq!(error["error"]["field"], "supervisor_record_timestamps");
+    assert!(!fixture.root.join("artifacts/demo-runs").exists());
+    let registry = store
+        .load()
+        .expect("rejected registry should remain readable");
+    assert!(registry.nodes["mvp-node-001"].run_ownership.is_empty());
 }
 
 #[tokio::test]
@@ -4605,10 +4648,13 @@ async fn demo_runtime_exit_is_anchored_failed_and_missing_registry_time_fails_cl
     .await;
     assert_eq!(status, StatusCode::CREATED);
     let run_id = created["data"]["run_id"].as_str().unwrap().to_string();
+    let created_at = created["data"]["created_at_unix_ms"]
+        .as_u64()
+        .expect("Demo created_at should be an integer");
     let store = SupervisorRegistryStore::new(&fixture.registry_path);
     let mut registry = store.load().unwrap();
     let record = registry.nodes.get_mut("mvp-node-001").unwrap();
-    let failed_at = unix_time_ms().saturating_add(1_000);
+    let failed_at = unix_time_ms().max(created_at);
     record.process_generation = record.process_generation.saturating_add(1);
     record.process.state = SupervisorProcessState::Stale;
     record.process.pid = SnapshotValue::not_configured();
@@ -4637,7 +4683,7 @@ async fn demo_runtime_exit_is_anchored_failed_and_missing_registry_time_fails_cl
     record.process.state = SupervisorProcessState::Stopped;
     record.last_known_status.lifecycle_state = LifecycleStatus::Stopped;
     record.last_known_status.stopped_at = SnapshotValue::available(failed_at.to_string());
-    record.updated_at = SnapshotValue::available(failed_at.saturating_add(1).to_string());
+    record.updated_at = SnapshotValue::available(unix_time_ms().max(failed_at).to_string());
     store.save(&registry).unwrap();
     let (status, failed) = router_json(
         &router,

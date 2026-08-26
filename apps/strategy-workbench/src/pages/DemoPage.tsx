@@ -12,6 +12,33 @@ import { useMvpStatus } from "../features/status/useMvpStatus";
 import { ProductErrorState, ProductLoading } from "./ProductState";
 import styles from "./Pages.module.css";
 
+const STATIONARY_STOPPED_RUNTIME_REASONS = new Set([
+  "supervisor_process_not_running",
+  "node_status_timestamp_marked_stale",
+]);
+
+function isDemoNodeReady(runtime: {
+  status: string;
+  availability: string;
+  freshness: string;
+  reasons: string[];
+  error?: string;
+}) {
+  const stationaryStoppedState =
+    runtime.freshness === "stale" &&
+    runtime.reasons.length === STATIONARY_STOPPED_RUNTIME_REASONS.size &&
+    runtime.reasons.every((reason) =>
+      STATIONARY_STOPPED_RUNTIME_REASONS.has(reason),
+    );
+
+  return (
+    runtime.status === "stopped" &&
+    runtime.availability === "available" &&
+    !runtime.error &&
+    (runtime.freshness === "fresh" || stationaryStoppedState)
+  );
+}
+
 export function DemoPage() {
   const product = useOverviewProductContext();
   const status = useMvpStatus();
@@ -44,6 +71,9 @@ export function DemoPage() {
     );
   }
   if (status.isPending || !status.data) {
+    return <ProductLoading label="正在验证 Sandbox 节点" />;
+  }
+  if (status.isFetching) {
     return <ProductLoading label="正在验证 Sandbox 节点" />;
   }
   if (!product.strategy || !product.version) {
@@ -80,11 +110,33 @@ export function DemoPage() {
   const identityMatches =
     status.data.strategyId === product.strategy.strategy_id &&
     status.data.strategyVersion === product.version.version;
+  const runtime = status.data.axes.runtime;
+  const nodeReadyForDemo = isDemoNodeReady(runtime);
+
+  if (!existing && !nodeReadyForDemo) {
+    return (
+      <ProductErrorState
+        error={
+          new Error(
+            "Sandbox 节点尚未处于可创建状态，需要状态可用、运行状态为 stopped，并且来源新鲜或明确为已停止的静态节点。",
+          )
+        }
+        onRetry={status.refetch}
+        retrying={status.isFetching}
+        retryLabel="重新验证节点状态"
+      />
+    );
+  }
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(undefined);
-    if (!identityMatches || !confirmed) {
+    if (
+      !identityMatches ||
+      !nodeReadyForDemo ||
+      status.isFetching ||
+      !confirmed
+    ) {
       setFormError("请先确认策略版本与 Sandbox 节点绑定。 ");
       return;
     }
@@ -195,6 +247,7 @@ export function DemoPage() {
               <input
                 type="checkbox"
                 checked={confirmed}
+                disabled={!nodeReadyForDemo || status.isFetching}
                 onChange={(event) => setConfirmed(event.target.checked)}
               />
               <span>
@@ -217,7 +270,13 @@ export function DemoPage() {
               </div>
               <button
                 type="submit"
-                disabled={!identityMatches || !confirmed || createRun.isPending}
+                disabled={
+                  !identityMatches ||
+                  !nodeReadyForDemo ||
+                  status.isFetching ||
+                  !confirmed ||
+                  createRun.isPending
+                }
               >
                 <Play aria-hidden="true" />
                 {createRun.isPending ? "正在创建" : "创建 Demo Run"}
