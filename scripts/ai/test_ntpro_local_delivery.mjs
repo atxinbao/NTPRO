@@ -349,6 +349,55 @@ setInterval(() => {}, 1000);
   await waitFor("configured-timeout lock cleanup", 3_000, () =>
     !fs.existsSync(lockPath(guardianWorkspace))
   );
+
+  const raceWorkspace = path.join(root, "guardian-stop-race-workspace");
+  const raceReady = path.join(root, "guardian-stop-race-ready");
+  const raceSignalled = path.join(root, "guardian-stop-race-signalled");
+  const raceLaunch = startLauncher(raceWorkspace, await freePort(), "guardian-stop-race", {
+    launcher: forcedLauncher,
+    cwd: forcedPackage,
+    env: {
+      NTPRO_NODE_SHUTDOWN_TIMEOUT_MS: "1",
+      NTPRO_SERVICE_STOP_TIMEOUT_MS: "1500",
+      NTPRO_FORCED_STOP_READY: raceReady,
+      NTPRO_FORCED_STOP_SIGNALLED: raceSignalled,
+    },
+  });
+  const raceGuardianPid = await waitFor("guardian-stop-race guardian", 5_000, () =>
+    guardianPidFor(raceWorkspace)
+  );
+  const raceServicePid = await waitFor("guardian-stop-race service", 5_000, () => {
+    const pid = servicePidFor(raceWorkspace);
+    return pid && processAlive(pid) && fs.existsSync(raceReady) ? pid : undefined;
+  });
+  raceLaunch.child.kill("SIGTERM");
+  await waitFor("guardian-stop-race SIGINT delivery", 1_000, () =>
+    fs.existsSync(raceSignalled)
+  );
+  process.kill(raceGuardianPid, "SIGKILL");
+  assert(
+    await waitForExit(raceLaunch.child, 5_000),
+    "guardian-stop-race launcher did not exit",
+  );
+  assert(
+    raceLaunch.child.exitCode !== 0 && raceLaunch.child.signalCode === null,
+    `guardian-stop-race reported success: code=${raceLaunch.child.exitCode} signal=${raceLaunch.child.signalCode}`,
+  );
+  await waitFor("guardian-stop-race service cleanup", 3_000, () =>
+    !processAlive(raceServicePid)
+  );
+  await waitFor("guardian-stop-race lock cleanup", 3_000, () =>
+    !fs.existsSync(lockPath(raceWorkspace))
+  );
+  const raceLog = combinedLog(raceLaunch);
+  assert(
+    raceLog.includes("guardian 或服务异常退出"),
+    "guardian-stop-race omitted actionable abnormal-exit error",
+  );
+  assert(
+    !raceLog.includes("NTPRO 已安全停止"),
+    "guardian-stop-race masqueraded as normal safe stop",
+  );
 };
 const killLauncherDuringStartup = async (workspacePath, port) => {
   const launch = startLauncher(workspacePath, port, "startup-launcher-kill");
@@ -400,7 +449,10 @@ const killGuardianOnly = async (launch) => {
     !fs.existsSync(lockPath())
   );
   const log = combinedLog(launch);
-  assert(log.includes("guardian 异常退出"), "guardian-only failure omitted actionable error");
+  assert(
+    log.includes("guardian 或服务异常退出"),
+    "guardian-only failure omitted actionable error",
+  );
   assert(
     !log.includes("NTPRO 已安全停止"),
     "guardian-only failure masqueraded as normal safe stop",
@@ -757,6 +809,7 @@ try {
         launcher_only_kill_guarded: true,
         guardian_only_failure_recovered: true,
         guardian_uses_configured_stop_timeout: true,
+        guardian_stop_race_recovered: true,
         process_tree_exit_verified: true,
         concurrent_stale_lock_single_winner: true,
         same_workspace_restart: true,

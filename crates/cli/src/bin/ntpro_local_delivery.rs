@@ -221,34 +221,24 @@ async fn run_launcher() -> Result<(), LauncherError> {
     .await?;
 
     let exit_status = tokio::select! {
-        result = guardian.wait() => {
-            let status = result.map_err(|error| LauncherError::new(70, format!("等待 NTPRO guardian 失败：{error}")))?;
-            if !status.success() {
-                let forced = stop_service_after_guardian_exit(child_pid, service_stop_timeout).await?;
-                runtime_lock.cleanup_confirmed();
-                return Err(LauncherError::new(
-                    status.code().unwrap_or(70),
-                    format!(
-                        "NTPRO guardian 异常退出（{status}）；服务已{}并确认退出。节点日志位于 {}/nodes/{}/logs/。",
-                        if forced { "强制终止" } else { "安全收口" },
-                        workspace.display(),
-                        node_id
-                    ),
-                ));
-            }
-            status
-        },
+        result = guardian.wait() => result.map_err(|error| LauncherError::new(70, format!("等待 NTPRO guardian 失败：{error}")))?,
         _ = interrupt.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
         _ = terminate.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
         _ = hangup.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
     };
 
     if !exit_status.success() {
+        let forced = stop_service_after_guardian_exit(child_pid, service_stop_timeout).await?;
+        runtime_lock.cleanup_confirmed();
         return Err(LauncherError::new(
             exit_status.code().unwrap_or(70),
             format!(
-                "NTPRO 已停止，但启动或运行过程返回错误（状态 {:?}）。节点日志位于 {}/nodes/{}/logs/。",
-                exit_status.code(),
+                "NTPRO guardian 或服务异常退出（{exit_status}）；服务已{}并确认退出。节点日志位于 {}/nodes/{}/logs/。",
+                if forced {
+                    "强制终止"
+                } else {
+                    "安全收口"
+                },
                 workspace.display(),
                 node_id
             ),
