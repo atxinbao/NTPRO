@@ -2,7 +2,7 @@
 
 Canonical repository path: `docs/product/roadmap.md`.
 
-Date: 2026-08-25
+Date: 2026-08-26
 Executor: Codex
 
 ## 当前产品北极星
@@ -72,8 +72,8 @@ Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系�
 退出条件：用户可以选择本地真实历史数据完成一次 Backtest，结果包含数据范围和 SHA-256
 来源证据。
 
-当前状态：实现和本地验收已完成，等待 high-risk 独立审查、hosted checks 与手动合并。
-合并后进入 UPV1-003，不从本任务开放任何 Live 或订单权限。
+当前状态：已由 Issue #1323 / PR #1328 完成独立审查、hosted checks 与手动合并，
+UPV1-002 已交付；未开放任何 Live 或订单权限。
 
 ### UPV1-003：Backtest 产品验收
 
@@ -82,6 +82,9 @@ Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系�
 - 验证刷新页面和重启服务后历史 Run 仍可读取。
 
 退出条件：一名不了解 Cargo 和内部目录的用户可以只通过页面完成 Backtest 闭环。
+
+当前状态：实现和本地 production bundle 验收已完成，等待 high-risk 独立审查、hosted
+checks 与手动合并。合并后进入 UPV1-004。
 
 ### UPV1-004：Demo 产品验收
 

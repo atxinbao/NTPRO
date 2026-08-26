@@ -3,6 +3,7 @@ import { GitCompareArrows, RefreshCw, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Run, RunComparisonItem } from "../api/generated/productApi";
+import { productErrorMessage } from "../features/product/presentation";
 import {
   useOverviewProductContext,
   useReproduceBacktestRun,
@@ -37,10 +38,44 @@ export function BacktestComparePage() {
   }, [availableRuns]);
 
   const comparison = useRunComparison(selectedRunIds);
+  const reproductionError = reproducible.error
+    ? productErrorMessage(reproducible.error)
+    : undefined;
 
-  if (product.error) return <ProductErrorState error={product.error} />;
+  if (product.error) {
+    return (
+      <ProductErrorState
+        error={product.error}
+        onRetry={product.retryProduct}
+        retrying={product.isVerifying}
+        retryLabel="重新验证策略"
+      />
+    );
+  }
   if (product.isVerifying || !product.isReady) {
     return <ProductLoading label="正在验证 Run 列表" />;
+  }
+  if (product.runtimeError) {
+    return (
+      <ProductErrorState
+        error={product.runtimeError}
+        onRetry={product.retryRuns}
+        retrying={product.isRuntimeVerifying}
+        retryLabel="重新加载 Run"
+      />
+    );
+  }
+  if (product.isRuntimeVerifying) {
+    return <ProductLoading label="正在验证可比较 Run" />;
+  }
+  if (!product.runs) {
+    return (
+      <ProductErrorState
+        error={new Error("Run 列表尚未验证")}
+        onRetry={product.retryRuns}
+        retryLabel="重新加载 Run"
+      />
+    );
   }
 
   const toggleRun = (runId: string) => {
@@ -162,7 +197,11 @@ export function BacktestComparePage() {
             </div>
             <button
               type="button"
-              onClick={() => setReproductionSource(undefined)}
+              onClick={() => {
+                reproducible.reset();
+                setReproductionSource(undefined);
+                setReproductionConfirmed(false);
+              }}
             >
               取消
             </button>
@@ -181,9 +220,9 @@ export function BacktestComparePage() {
             />
             我确认这是一次用户主动的确定性复现，不是自动重试。
           </label>
-          {reproducible.error ? (
-            <span className={styles.formError}>
-              {reproducible.error.message}
+          {reproductionError ? (
+            <span className={styles.formError} role="alert">
+              {`${reproductionError.title}：${reproductionError.detail}。本次不会自动重试，请确认后再次显式提交。`}
             </span>
           ) : null}
           <button
@@ -216,6 +255,7 @@ export function BacktestComparePage() {
                     : "历史 Run 没有不可变请求文件"
                 }
                 onClick={() => {
+                  reproducible.reset();
                   setReproductionSource(item.run_id);
                   setReproductionConfirmed(false);
                 }}

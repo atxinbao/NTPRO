@@ -393,6 +393,29 @@ describe("strategy workbench product slice", () => {
     });
   });
 
+  it("does not automatically retry a failed Backtest submission", async () => {
+    let createPosts = 0;
+    server.use(
+      http.post("/api/product/v1/runs", () => {
+        createPosts += 1;
+        return HttpResponse.json(errorFixture, { status: 500 });
+      }),
+    );
+
+    renderWorkbench("/backtests");
+    await screen.findByRole("heading", { name: "创建策略回测" });
+    await userEvent.click(screen.getByRole("button", { name: "创建并运行" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "本次不会自动重试，请确认后再次提交",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(createPosts).toBe(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "创建并运行" }));
+    await waitFor(() => expect(createPosts).toBe(2));
+  });
+
   it("fails closed when an empty Run list has no unique Backtest source", async () => {
     const emptyRuns = structuredClone(runListFixture);
     emptyRuns.data = [];
@@ -499,6 +522,56 @@ describe("strategy workbench product slice", () => {
     expect(
       await screen.findByRole("region", { name: "Backtest 确定性复现证明" }),
     ).toHaveTextContent("输入与输出均等价");
+  });
+
+  it("fails closed and explicitly recovers when the comparison Run list is stale", async () => {
+    const list = {
+      ...structuredClone(runListFixture),
+      data: [
+        structuredClone(
+          runListFixture.data.find((run) => run.run_id === "backtest-001")!,
+        ),
+        structuredClone(createdBacktestResponse.data),
+      ],
+      page: {
+        ...structuredClone(runListFixture.page),
+        returned_count: 2,
+      },
+    };
+    const stale = structuredClone(errorFixture);
+    stale.error.code = "product_source_stale";
+    stale.error.field = "node_status";
+    stale.error.summary = "Run 数据源已过期，需要显式重新加载";
+    stale.error.retryable = true;
+    let runListRequests = 0;
+    let recoveryAllowed = false;
+    server.use(
+      http.get("/api/product/v1/runs", () => {
+        runListRequests += 1;
+        return recoveryAllowed
+          ? HttpResponse.json(list)
+          : HttpResponse.json(stale, { status: 503 });
+      }),
+    );
+
+    renderWorkbench("/backtests/compare");
+    expect(await screen.findByText("产品服务返回错误")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Backtest 与 Demo 行为对比" }),
+    ).not.toBeInTheDocument();
+    const requestsBeforeRecovery = runListRequests;
+
+    recoveryAllowed = true;
+    await userEvent.click(screen.getByRole("button", { name: "重新加载 Run" }));
+    expect(
+      await screen.findByRole("heading", {
+        name: "Backtest 与 Demo 行为对比",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("region", { name: "比较兼容性" }),
+    ).toHaveTextContent("结果可直接比较");
+    expect(runListRequests).toBeGreaterThan(requestsBeforeRecovery);
   });
 
   it("compares a verified Backtest with a stopped Demo without enabling reproduction", async () => {
@@ -1124,6 +1197,40 @@ describe("strategy workbench product slice", () => {
     ).toHaveTextContent("artifact://backtests/backtest-001/summary.json");
   });
 
+  it("keeps a failed Run deep link recoverable without automatic retry", async () => {
+    const unavailable = structuredClone(errorFixture);
+    unavailable.error.code = "product_source_unavailable";
+    unavailable.error.field = "run_id";
+    unavailable.error.summary = "Run 历史暂时不可读取";
+    unavailable.error.retryable = true;
+    const backtestDetail = {
+      ...structuredClone(runDetailFixture),
+      data: structuredClone(
+        runListFixture.data.find((run) => run.run_id === "backtest-001")!,
+      ),
+    };
+    let detailRequests = 0;
+    server.use(
+      http.get("/api/product/v1/runs/:runId", () => {
+        detailRequests += 1;
+        return detailRequests === 1
+          ? HttpResponse.json(unavailable, { status: 503 })
+          : HttpResponse.json(backtestDetail);
+      }),
+    );
+
+    renderWorkbench("/runs/backtest-001");
+    expect(await screen.findByText("产品服务返回错误")).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(detailRequests).toBe(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "重新加载 Run" }));
+    expect(
+      await screen.findByRole("heading", { name: "backtest-001" }),
+    ).toBeInTheDocument();
+    expect(detailRequests).toBe(2);
+  });
+
   it("keeps Run identity visible when Backtest metrics are unavailable", async () => {
     let releaseRetry: (() => void) | undefined;
     const retryGate = new Promise<void>((resolve) => {
@@ -1338,6 +1445,28 @@ describe("strategy workbench product slice", () => {
 
     renderWorkbench("/overview");
     expect(await screen.findByText("当前没有已注册策略")).toBeInTheDocument();
+  });
+
+  it("does not expose or request unscoped Runs when comparison has no strategy", async () => {
+    const empty = structuredClone(strategyListFixture);
+    empty.data = [];
+    empty.page.returned_count = 0;
+    let runListRequests = 0;
+    server.use(
+      http.get("/api/product/v1/strategies", () => HttpResponse.json(empty)),
+      http.get("/api/product/v1/runs", () => {
+        runListRequests += 1;
+        return HttpResponse.json(runListFixture);
+      }),
+    );
+
+    renderWorkbench("/backtests/compare");
+    expect(await screen.findByText("Run 列表尚未验证")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "重新加载 Run" }),
+    ).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(runListRequests).toBe(0);
   });
 
   it("opens the independent strategy page from the left navigation", async () => {
