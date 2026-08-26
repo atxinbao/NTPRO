@@ -18,6 +18,7 @@
 use std::{
     collections::BTreeMap,
     fs::{self, OpenOptions},
+    future::Future,
     io::{ErrorKind, Read, Write},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
@@ -903,21 +904,16 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
     tokio::pin!(dashboard);
     let mut status_refresh = tokio::time::interval(status_refresh_interval);
     status_refresh.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let shutdown_signal = tokio::signal::ctrl_c();
+    tokio::pin!(shutdown_signal);
 
-    let serve_result = loop {
-        tokio::select! {
-            result = &mut dashboard => break result.context("MVP Dashboard 服务已退出"),
-            result = tokio::signal::ctrl_c() => {
-                result.context("等待 MVP Ctrl-C 终止信号失败")?;
-                break Ok(());
-            }
-            _ = status_refresh.tick() => {
-                if let Err(error) = runtime.write_status_contract() {
-                    break Err(error.context("刷新 MVP 四轴状态合同失败"));
-                }
-            }
-        }
-    };
+    let serve_result = wait_for_mvp_serve_exit(
+        &mut dashboard,
+        &mut shutdown_signal,
+        &mut status_refresh,
+        || runtime.write_status_contract().map(|_| ()),
+    )
+    .await;
     let stop_result = runtime.stop(stop_timeout).context("MVP 退出时停止节点失败");
 
     match (serve_result, stop_result) {
@@ -931,6 +927,33 @@ async fn run_mvp_serve(opt: MvpServeOpt) -> anyhow::Result<()> {
                 opt.node_id
             );
             Ok(())
+        }
+    }
+}
+
+async fn wait_for_mvp_serve_exit<Dashboard, Shutdown, Refresh>(
+    dashboard: &mut Dashboard,
+    shutdown_signal: &mut Shutdown,
+    status_refresh: &mut tokio::time::Interval,
+    mut refresh_status: Refresh,
+) -> anyhow::Result<()>
+where
+    Dashboard: Future<Output = anyhow::Result<()>> + Unpin,
+    Shutdown: Future<Output = std::io::Result<()>> + Unpin,
+    Refresh: FnMut() -> anyhow::Result<()>,
+{
+    loop {
+        tokio::select! {
+            result = &mut *dashboard => break result.context("MVP Dashboard 服务已退出"),
+            result = &mut *shutdown_signal => {
+                result.context("等待 MVP Ctrl-C 终止信号失败")?;
+                break Ok(());
+            }
+            _ = status_refresh.tick() => {
+                if let Err(error) = refresh_status() {
+                    break Err(error.context("刷新 MVP 四轴状态合同失败"));
+                }
+            }
         }
     }
 }
@@ -960,7 +983,10 @@ mod tests {
         fs,
         net::{IpAddr, Ipv4Addr, SocketAddr},
         path::Path,
-        sync::{Arc, Barrier, Mutex, MutexGuard},
+        sync::{
+            Arc, Barrier, Mutex, MutexGuard,
+            atomic::{AtomicUsize, Ordering as AtomicOrdering},
+        },
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -1098,6 +1124,48 @@ environment = "sandbox"
             .expect("system clock must follow Unix epoch")
             .as_millis();
         u64::try_from(millis).unwrap_or(u64::MAX)
+    }
+
+    #[tokio::test]
+    async fn mvp_serve_exit_keeps_shutdown_listener_across_status_refreshes() {
+        let dashboard = std::future::pending::<anyhow::Result<()>>();
+        tokio::pin!(dashboard);
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+        let shutdown_signal = async move {
+            shutdown_rx
+                .await
+                .map_err(|_| std::io::Error::other("test shutdown sender dropped"))
+        };
+        tokio::pin!(shutdown_signal);
+        let mut status_refresh = tokio::time::interval(Duration::from_millis(1));
+        status_refresh.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let refresh_count = Arc::new(AtomicUsize::new(0));
+        let observed_refresh_count = Arc::clone(&refresh_count);
+
+        let serve = wait_for_mvp_serve_exit(
+            &mut dashboard,
+            &mut shutdown_signal,
+            &mut status_refresh,
+            || {
+                refresh_count.fetch_add(1, AtomicOrdering::SeqCst);
+                Ok(())
+            },
+        );
+        let send_shutdown = async move {
+            while observed_refresh_count.load(AtomicOrdering::SeqCst) < 3 {
+                tokio::task::yield_now().await;
+            }
+            shutdown_tx
+                .send(())
+                .expect("test shutdown receiver should remain registered");
+        };
+
+        let (serve_result, ()) = tokio::time::timeout(Duration::from_secs(1), async {
+            tokio::join!(serve, send_shutdown)
+        })
+        .await
+        .expect("MVP serve loop should consume shutdown after repeated refreshes");
+        serve_result.expect("test shutdown signal should stop the MVP serve loop");
     }
 
     #[cfg(unix)]
