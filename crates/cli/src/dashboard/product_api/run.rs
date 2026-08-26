@@ -1583,6 +1583,15 @@ fn create_demo_run(
             "supervisor_node_state",
         ));
     }
+    let supervisor_record_baseline_unix_ms =
+        snapshot_timestamp(&record.updated_at).ok_or_else(|| {
+            product_error(
+                ProductErrorKind::SourceInvalid,
+                "supervisor_record_baseline",
+            )
+        })?;
+    let claimed_at_unix_ms =
+        demo_claimed_at_unix_ms(now, supervisor_record_baseline_unix_ms, unix_time_ms());
 
     let run_id = request_id.replacen("product-", "demo-", 1);
     validate_identifier("run_id", &run_id)?;
@@ -1627,10 +1636,10 @@ fn create_demo_run(
         risk_ref: format!("artifact://demo-runs/{run_id}/run-manifest.json#risk"),
         error_code: None,
         error_summary: None,
-        created_at_unix_ms: now,
+        created_at_unix_ms: claimed_at_unix_ms,
         started_at_unix_ms: None,
         completed_at_unix_ms: None,
-        updated_at_unix_ms: now,
+        updated_at_unix_ms: claimed_at_unix_ms,
         external_venue_connection: false,
         order_submission_allowed: false,
         order_mutation_allowed: false,
@@ -1641,14 +1650,7 @@ fn create_demo_run(
         demo_supervisor_node_id: Some(request.supervisor_node_id),
         demo_strategy_instance_id: Some(source.identity.identities.strategy_instance_id.clone()),
         demo_identity_contract_id: Some(source.identity.contract_id.clone()),
-        demo_supervisor_record_baseline_unix_ms: Some(
-            snapshot_timestamp(&record.updated_at).ok_or_else(|| {
-                product_error(
-                    ProductErrorKind::SourceInvalid,
-                    "supervisor_record_baseline",
-                )
-            })?,
-        ),
+        demo_supervisor_record_baseline_unix_ms: Some(supervisor_record_baseline_unix_ms),
         demo_supervisor_process_generation_baseline: Some(record.process_generation),
         demo_process_state: Some(record.process.state),
         demo_lifecycle_state: Some(record.last_known_status.lifecycle_state),
@@ -1669,7 +1671,7 @@ fn create_demo_run(
         &source,
         &version,
         version.strategy_version_id(),
-        now,
+        claimed_at_unix_ms,
         Some(format!("artifact://demo-runs/{run_id}/run-manifest.json")),
     )?;
     write_new_run_file(&directory, "run-manifest.json", &manifest_raw)?;
@@ -1684,7 +1686,7 @@ fn create_demo_run(
             SupervisorRunOwnership {
                 run_id: run_id.clone(),
                 manifest_sha256,
-                claimed_at_unix_ms: now,
+                claimed_at_unix_ms,
                 process_generation_at_claim: record.process_generation,
                 terminal: None,
             },
@@ -1701,6 +1703,16 @@ fn create_demo_run(
         ));
     }
     Ok(projected)
+}
+
+pub(super) fn demo_claimed_at_unix_ms(
+    initial_now_unix_ms: u64,
+    supervisor_record_baseline_unix_ms: u64,
+    observed_now_unix_ms: u64,
+) -> u64 {
+    initial_now_unix_ms
+        .max(supervisor_record_baseline_unix_ms)
+        .max(observed_now_unix_ms)
 }
 
 const fn is_terminal_demo_lifecycle(lifecycle: RunLifecycle) -> bool {

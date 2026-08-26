@@ -2591,7 +2591,7 @@
 
             <article class="phase">
               <div class="phase-dot">U3</div>
-              <div class="phase-time">Backtest · 当前验收</div>
+              <div class="phase-time">Backtest · 已完成</div>
               <div class="phase-body">
                 <h3>从空工作区完成回测闭环</h3>
                 <p>重新按普通用户流程验证已有 Backtest 创建、结果、分析、比较和复现能力。</p>
@@ -2606,7 +2606,7 @@
 
             <article class="phase">
               <div class="phase-dot">U4</div>
-              <div class="phase-time">Demo · 产品验收</div>
+              <div class="phase-time">Demo · 当前验收</div>
               <div class="phase-body">
                 <h3>实时沙盒闭环</h3>
                 <p>用同一 StrategyVersion 创建 Demo，完成 start、观察、stop、冻结结果和跨模式比较。</p>
@@ -2651,7 +2651,7 @@
           </div>
 
           <div class="decision-grid">
-            <div class="decision"><h3>当前推进 U3</h3><p>本地历史数据目录已由 PR #1328 交付；Backtest 创建、结果、比较、复现、刷新与服务重启读取已完成本地 production 验收，等待独立审查和远端检查。</p></div>
+            <div class="decision"><h3>当前推进 U4</h3><p>Backtest 已由 PR #1329 交付；Demo 创建、真实 Supervisor/Sandbox node 生命周期、停止后刷新、服务重启读取和终态不自动启动已完成本地 production 验收，等待独立审查和远端检查。</p></div>
             <div class="decision"><h3>现有能力不重写</h3><p>BacktestEngine、Supervisor、node、Product API 和 React 工作台继续复用，只修复真实用户流程断点。</p></div>
             <div class="decision"><h3>Live 与平台化后置</h3><p>真实资金验收、多机构、多节点和复杂运维不阻塞 Usable Product v1。</p></div>
           </div>
@@ -2787,7 +2787,8 @@
             <span class="status ok">M0-M4 技术基线已冻结</span>
             <span class="status info">UPV1-001 已交付</span>
             <span class="status info">UPV1-002 已交付</span>
-            <span class="status info">当前推进 UPV1-003</span>
+            <span class="status info">UPV1-003 已交付</span>
+            <span class="status info">当前推进 UPV1-004</span>
             <span class="status info">Backtest 支持本地 Parquet 数据</span>
             <span class="status info">Demo 使用单节点 Sandbox</span>
             <span class="status info">数据范围与 SHA-256 随 Run 冻结</span>

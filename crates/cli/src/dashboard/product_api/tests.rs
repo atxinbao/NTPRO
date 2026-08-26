@@ -3366,6 +3366,21 @@ async fn institution_creates_one_immutable_demo_run_bound_to_supervisor() {
     let manifest: Value =
         serde_json::from_slice(&manifest_raw).expect("Demo manifest should be valid JSON");
     assert_eq!(manifest["request_sha256"], sha256_bytes_ref(&request_raw));
+    let supervisor_baseline = manifest["config"]["demo_supervisor_record_baseline_unix_ms"]
+        .as_u64()
+        .expect("Demo Supervisor baseline should be a u64");
+    let created_at = manifest["config"]["created_at_unix_ms"]
+        .as_u64()
+        .expect("Demo created timestamp should be a u64");
+    assert!(created_at >= supervisor_baseline);
+    let registry = SupervisorRegistryStore::new(&fixture.registry_path)
+        .load()
+        .expect("fixture registry should load");
+    let ownership = registry.nodes["mvp-node-001"]
+        .run_ownership
+        .get(run_id)
+        .expect("created Demo ownership should exist");
+    assert_eq!(ownership.claimed_at_unix_ms, created_at);
     assert!(directory.join("strategy-version.json").is_file());
 
     let (status, list) = router_json(&router, Method::GET, "/api/product/v1/runs").await;
@@ -3383,6 +3398,13 @@ async fn institution_creates_one_immutable_demo_run_bound_to_supervisor() {
     assert_eq!(status, StatusCode::CONFLICT, "{conflict}");
     assert_eq!(conflict["error"]["field"], "active_demo_run");
     validate_openapi_instance("ProductErrorResponse", &conflict);
+}
+
+#[test]
+fn demo_claim_timestamp_never_precedes_the_supervisor_baseline() {
+    assert_eq!(demo_claimed_at_unix_ms(100, 120, 110), 120);
+    assert_eq!(demo_claimed_at_unix_ms(120, 100, 130), 130);
+    assert_eq!(demo_claimed_at_unix_ms(120, 120, 120), 120);
 }
 
 #[tokio::test]

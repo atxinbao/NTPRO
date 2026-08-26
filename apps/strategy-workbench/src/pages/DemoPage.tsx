@@ -3,6 +3,7 @@ import { Play, Radio, ShieldCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 import type { CreateDemoRunRequest } from "../api/generated/productApi";
+import { productErrorMessage } from "../features/product/presentation";
 import {
   useCreateDemoRun,
   useOverviewProductContext,
@@ -19,18 +20,56 @@ export function DemoPage() {
   const [confirmed, setConfirmed] = useState(false);
   const [formError, setFormError] = useState<string>();
 
-  const error = product.error ?? status.error;
-  if (error) return <ProductErrorState error={error} />;
-  if (
-    product.isVerifying ||
-    status.isPending ||
-    !product.isReady ||
-    !status.data
-  ) {
+  if (product.error) {
+    return (
+      <ProductErrorState
+        error={product.error}
+        onRetry={product.retryProduct}
+        retrying={product.isVerifying}
+        retryLabel="重新验证策略"
+      />
+    );
+  }
+  if (product.isVerifying || !product.isReady) {
     return <ProductLoading label="正在验证 Demo 创建上下文" />;
+  }
+  if (status.error) {
+    return (
+      <ProductErrorState
+        error={status.error}
+        onRetry={status.refetch}
+        retrying={status.isFetching}
+        retryLabel="重新验证节点状态"
+      />
+    );
+  }
+  if (status.isPending || !status.data) {
+    return <ProductLoading label="正在验证 Sandbox 节点" />;
   }
   if (!product.strategy || !product.version) {
     return <ProductErrorState error={new Error("当前没有可用策略版本")} />;
+  }
+  if (product.runtimeError) {
+    return (
+      <ProductErrorState
+        error={product.runtimeError}
+        onRetry={product.retryRuns}
+        retrying={product.isRuntimeVerifying}
+        retryLabel="重新加载 Demo Run"
+      />
+    );
+  }
+  if (product.isRuntimeVerifying) {
+    return <ProductLoading label="正在验证现有 Demo Run" />;
+  }
+  if (!product.runs) {
+    return (
+      <ProductErrorState
+        error={new Error("Demo Run 列表尚未验证")}
+        onRetry={product.retryRuns}
+        retryLabel="重新加载 Demo Run"
+      />
+    );
   }
 
   const existing = product.runs?.data.find(
@@ -65,7 +104,12 @@ export function DemoPage() {
           params: { runId: response.data.run_id },
         });
       },
-      onError: (requestError) => setFormError(requestError.message),
+      onError: (requestError) => {
+        const message = productErrorMessage(requestError);
+        setFormError(
+          `${message.title}：${message.detail}。本次不会自动重试，请确认后再次提交。`,
+        );
+      },
     });
   };
 

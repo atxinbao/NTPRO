@@ -205,6 +205,81 @@ describe("strategy workbench product slice", () => {
     expect(createPosts).toBe(1);
   });
 
+  it("fails closed and explicitly recovers when the Demo Run list is stale", async () => {
+    const available = structuredClone(runListFixture);
+    available.data = available.data.map((run) =>
+      run.environment === "sandbox"
+        ? { ...run, lifecycle: "stopped" as const }
+        : run,
+    );
+    const stale = structuredClone(errorFixture);
+    stale.error.code = "product_source_stale";
+    stale.error.field = "demo_run_ownership";
+    stale.error.summary = "Demo Run 来源已过期，需要显式重新加载";
+    stale.error.retryable = true;
+    let runListRequests = 0;
+    let recoveryAllowed = false;
+    server.use(
+      http.get("/api/product/v1/runs", () => {
+        runListRequests += 1;
+        return recoveryAllowed
+          ? HttpResponse.json(available)
+          : HttpResponse.json(stale, { status: 503 });
+      }),
+    );
+
+    renderWorkbench("/demo");
+    expect(await screen.findByText("产品服务返回错误")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "创建 Demo Run" }),
+    ).not.toBeInTheDocument();
+    const requestsBeforeRecovery = runListRequests;
+
+    recoveryAllowed = true;
+    await userEvent.click(
+      screen.getByRole("button", { name: "重新加载 Demo Run" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Sandbox 策略运行" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "创建 Demo Run" }),
+    ).toBeInTheDocument();
+    expect(runListRequests).toBeGreaterThan(requestsBeforeRecovery);
+  });
+
+  it("does not automatically retry a failed Demo lifecycle action", async () => {
+    const createdDemo = structuredClone(createdDemoResponse.data);
+    let actionPosts = 0;
+    server.use(
+      http.get("/api/product/v1/runs/:runId", () =>
+        HttpResponse.json({
+          ...runDetailFixture,
+          data: createdDemo,
+        }),
+      ),
+      http.get("/api/product/v1/runs/:runId/demo-snapshot", () =>
+        HttpResponse.json(demoSnapshotResponse(createdDemo)),
+      ),
+      http.post("/api/product/v1/demo-runs/:runId/actions", () => {
+        actionPosts += 1;
+        return HttpResponse.json(errorFixture, { status: 500 });
+      }),
+    );
+
+    renderWorkbench("/runs/demo-created-001");
+    await screen.findByRole("heading", { name: "demo-created-001" });
+    await userEvent.click(screen.getByRole("button", { name: "启动" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "本次不会自动重试，请确认状态后再次显式操作",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(actionPosts).toBe(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "启动" }));
+    await waitFor(() => expect(actionPosts).toBe(2));
+  });
+
   it("selects a verified local dataset and freezes its fingerprint into Backtest", async () => {
     let submittedBody: unknown;
     const localDataset = datasetListFixture.data[0];
