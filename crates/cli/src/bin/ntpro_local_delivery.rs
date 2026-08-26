@@ -11,12 +11,12 @@
 
 use std::{
     env,
-    ffi::OsStr,
+    ffi::OsString,
     fs::{self, OpenOptions},
     io::{self, Write},
     net::{SocketAddr, TcpStream},
     path::{Path, PathBuf},
-    process::{ExitStatus, Stdio},
+    process::ExitStatus,
     thread,
     time::{Duration, Instant},
 };
@@ -30,6 +30,9 @@ use tokio::{
 
 const LOCK_NAME: &str = ".local-delivery.lock";
 const GUARDIAN_MODE: &str = "--ntpro-local-delivery-guardian";
+// MVP 停止可能先耗尽 node 的关闭预算，再等待运行时中的阻塞任务退场。
+const SERVICE_STOP_MARGIN_MS: u64 = 50_000;
+const FORCED_STOP_CONFIRM_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Debug)]
 struct LauncherError {
@@ -50,26 +53,40 @@ struct RuntimeLock {
     path: PathBuf,
     child_path: PathBuf,
     owner_pid: u32,
+    cleanup_on_drop: bool,
 }
 
 impl RuntimeLock {
-    fn publish_child(&self, child_pid: u32) -> Result<(), LauncherError> {
-        atomic_write_pid(&self.child_path, child_pid).map_err(|error| {
-            LauncherError::new(74, format!("无法记录 NTPRO 服务进程 {child_pid}：{error}"))
-        })
+    fn transfer_owner(&mut self, owner_pid: u32, workspace: &Path) -> Result<(), LauncherError> {
+        atomic_write_pid(&self.path, owner_pid).map_err(|error| {
+            LauncherError::new(
+                74,
+                format!("无法把运行锁移交给 guardian {owner_pid}：{error}"),
+            )
+        })?;
+        self.owner_pid = owner_pid;
+        self.child_path = child_path(workspace, owner_pid);
+        Ok(())
     }
 
-    fn cleanup(&self) {
+    fn preserve(&mut self) {
+        self.cleanup_on_drop = false;
+    }
+
+    fn cleanup_confirmed(&mut self) {
         if read_pid(&self.path) == Some(self.owner_pid) {
             let _ = fs::remove_file(&self.path);
         }
         let _ = fs::remove_file(&self.child_path);
+        self.cleanup_on_drop = false;
     }
 }
 
 impl Drop for RuntimeLock {
     fn drop(&mut self) {
-        self.cleanup();
+        if self.cleanup_on_drop {
+            self.cleanup_confirmed();
+        }
     }
 }
 
@@ -77,8 +94,13 @@ impl Drop for RuntimeLock {
 async fn main() {
     let args = env::args_os().collect::<Vec<_>>();
     if args.get(1).is_some_and(|arg| arg == GUARDIAN_MODE) {
-        let code = run_guardian(&args[2..]);
-        std::process::exit(code);
+        match run_guardian(&args[2..]).await {
+            Ok(code) => std::process::exit(code),
+            Err(error) => {
+                eprintln!("NTPRO guardian 失败：{}", error.message);
+                std::process::exit(error.code);
+            }
+        }
     }
 
     if let Err(error) = run_launcher().await {
@@ -114,7 +136,7 @@ async fn run_launcher() -> Result<(), LauncherError> {
     let node_max_runtime_ms = positive_env_u64("NTPRO_NODE_MAX_RUNTIME_MS", 86_400_000)?;
     let node_shutdown_timeout_ms = positive_env_u64("NTPRO_NODE_SHUTDOWN_TIMEOUT_MS", 10_000)?;
     let service_stop_timeout =
-        Duration::from_millis(node_shutdown_timeout_ms.saturating_add(30_000));
+        Duration::from_millis(node_shutdown_timeout_ms.saturating_add(SERVICE_STOP_MARGIN_MS));
 
     fs::create_dir_all(&workspace).map_err(|error| {
         LauncherError::new(
@@ -122,7 +144,7 @@ async fn run_launcher() -> Result<(), LauncherError> {
             format!("无法创建工作区 {}：{error}", workspace.display()),
         )
     })?;
-    let runtime_lock = acquire_lock(&workspace)?;
+    let mut runtime_lock = acquire_lock(&workspace)?;
 
     if TcpStream::connect_timeout(&bind_addr, Duration::from_millis(250)).is_ok() {
         return Err(LauncherError::new(
@@ -142,56 +164,58 @@ async fn run_launcher() -> Result<(), LauncherError> {
     let mut hangup = signal(SignalKind::hangup())
         .map_err(|error| LauncherError::new(70, format!("无法监听 HUP：{error}")))?;
 
-    let mut guardian = spawn_guardian(&current_exe, &workspace, std::process::id())?;
-
     println!("NTPRO 正在启动...");
     println!("工作区：{}", workspace.display());
     println!("页面入口：服务就绪后，请打开下方 strategy_workbench_url 的完整地址。");
     println!("停止方式：回到本终端按 Ctrl-C。");
 
-    let mut child = Command::new(&nautilus_bin)
-        .arg("mvp")
-        .arg("serve")
-        .arg("--config")
-        .arg(&node_config)
-        .arg("--workspace")
-        .arg(&workspace)
-        .arg("--node-id")
-        .arg(&node_id)
-        .arg("--bind")
-        .arg(&bind)
-        .arg("--strategy-workbench-dist")
-        .arg(&frontend_dist)
-        .arg("--ntpro-node-bin")
-        .arg(&node_bin)
-        .arg("--startup-timeout-ms")
-        .arg(startup_timeout_ms.to_string())
-        .arg("--node-max-runtime-ms")
-        .arg(node_max_runtime_ms.to_string())
-        .arg("--node-shutdown-timeout-ms")
-        .arg(node_shutdown_timeout_ms.to_string())
-        .spawn()
-        .map_err(|error| LauncherError::new(70, format!("无法启动 NTPRO 主程序：{error}")))?;
-    let child_pid = child
+    let service_args = vec![
+        OsString::from("mvp"),
+        OsString::from("serve"),
+        OsString::from("--config"),
+        node_config.into_os_string(),
+        OsString::from("--workspace"),
+        workspace.clone().into_os_string(),
+        OsString::from("--node-id"),
+        OsString::from(&node_id),
+        OsString::from("--bind"),
+        OsString::from(&bind),
+        OsString::from("--strategy-workbench-dist"),
+        frontend_dist.into_os_string(),
+        OsString::from("--ntpro-node-bin"),
+        node_bin.into_os_string(),
+        OsString::from("--startup-timeout-ms"),
+        OsString::from(startup_timeout_ms.to_string()),
+        OsString::from("--node-max-runtime-ms"),
+        OsString::from(node_max_runtime_ms.to_string()),
+        OsString::from("--node-shutdown-timeout-ms"),
+        OsString::from(node_shutdown_timeout_ms.to_string()),
+    ];
+    let mut guardian = spawn_guardian(
+        &current_exe,
+        &workspace,
+        std::process::id(),
+        &nautilus_bin,
+        &service_args,
+    )?;
+    let guardian_pid = guardian
         .id()
-        .ok_or_else(|| LauncherError::new(70, "NTPRO 主程序没有可用 PID"))?;
-    if let Err(error) = runtime_lock.publish_child(child_pid) {
-        let _ = stop_child(&mut child, child_pid, service_stop_timeout).await;
-        let _ = guardian.kill().await;
-        let _ = guardian.wait().await;
-        return Err(error);
-    }
+        .ok_or_else(|| LauncherError::new(70, "NTPRO guardian 没有可用 PID"))?;
+    runtime_lock.transfer_owner(guardian_pid, &workspace)?;
+    runtime_lock.preserve();
+    let child_pid = wait_for_guardian_child(
+        &mut guardian,
+        &runtime_lock.child_path,
+        Duration::from_millis(startup_timeout_ms),
+    )
+    .await?;
 
     let exit_status = tokio::select! {
-        result = child.wait() => result.map_err(|error| LauncherError::new(70, format!("等待 NTPRO 主程序失败：{error}")))?,
-        _ = interrupt.recv() => stop_child(&mut child, child_pid, service_stop_timeout).await?,
-        _ = terminate.recv() => stop_child(&mut child, child_pid, service_stop_timeout).await?,
-        _ = hangup.recv() => stop_child(&mut child, child_pid, service_stop_timeout).await?,
+        result = guardian.wait() => result.map_err(|error| LauncherError::new(70, format!("等待 NTPRO guardian 失败：{error}")))?,
+        _ = interrupt.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
+        _ = terminate.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
+        _ = hangup.recv() => stop_guarded_service(&mut guardian, child_pid, service_stop_timeout).await?,
     };
-
-    let _ = guardian.kill().await;
-    let _ = guardian.wait().await;
-    runtime_lock.cleanup();
 
     if !exit_status.success() {
         return Err(LauncherError::new(
@@ -209,27 +233,109 @@ async fn run_launcher() -> Result<(), LauncherError> {
     Ok(())
 }
 
-async fn stop_child(
+async fn stop_guarded_service(
+    guardian: &mut Child,
+    child_pid: u32,
+    stop_timeout: Duration,
+) -> Result<ExitStatus, LauncherError> {
+    let _ = send_signal(child_pid, Signal::Interrupt).map_err(|error| {
+        LauncherError::new(70, format!("无法向 NTPRO 主程序发送 Ctrl-C：{error}"))
+    })?;
+    match timeout(stop_timeout, guardian.wait()).await {
+        Ok(result) => result
+            .map_err(|error| LauncherError::new(70, format!("等待 NTPRO 安全停止失败：{error}"))),
+        Err(_) => {
+            if let Some(status) = guardian.try_wait().map_err(|error| {
+                LauncherError::new(70, format!("检查 NTPRO 安全停止状态失败：{error}"))
+            })? {
+                return Ok(status);
+            }
+            let forced = send_signal(child_pid, Signal::Kill).map_err(|error| {
+                LauncherError::new(70, format!("NTPRO 安全停止超时后强制终止失败：{error}"))
+            })?;
+            match timeout(FORCED_STOP_CONFIRM_TIMEOUT, guardian.wait()).await {
+                Ok(result) => {
+                    let status = result.map_err(|error| {
+                        LauncherError::new(70, format!("等待 NTPRO 强制终止失败：{error}"))
+                    })?;
+                    if forced {
+                        Err(LauncherError::new(
+                            70,
+                            format!(
+                                "NTPRO 在 {} 秒内未完成安全停止，已强制终止",
+                                stop_timeout.as_secs()
+                            ),
+                        ))
+                    } else {
+                        Ok(status)
+                    }
+                }
+                Err(_) => Err(LauncherError::new(
+                    70,
+                    "NTPRO 强制终止后仍未确认退出；运行锁已保留，拒绝启动新实例",
+                )),
+            }
+        }
+    }
+}
+
+async fn wait_for_guardian_child(
+    guardian: &mut Child,
+    child_path: &Path,
+    wait: Duration,
+) -> Result<u32, LauncherError> {
+    let started = Instant::now();
+    loop {
+        if let Some(child_pid) = read_pid(child_path).filter(|pid| process_alive(*pid)) {
+            return Ok(child_pid);
+        }
+        if let Some(status) = guardian.try_wait().map_err(|error| {
+            LauncherError::new(70, format!("检查 NTPRO guardian 启动状态失败：{error}"))
+        })? {
+            return Err(LauncherError::new(
+                status.code().unwrap_or(70),
+                format!("NTPRO guardian 在服务 PID 发布前退出：{status}"),
+            ));
+        }
+        if started.elapsed() >= wait {
+            return Err(LauncherError::new(
+                70,
+                "NTPRO guardian 未在启动时限内发布服务 PID；运行锁已保留",
+            ));
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+}
+
+async fn stop_owned_child(
     child: &mut Child,
     child_pid: u32,
     stop_timeout: Duration,
 ) -> Result<ExitStatus, LauncherError> {
-    send_signal(child_pid, Signal::Interrupt).map_err(|error| {
-        LauncherError::new(70, format!("无法向 NTPRO 主程序发送 Ctrl-C：{error}"))
-    })?;
+    let _ = send_signal(child_pid, Signal::Interrupt)
+        .map_err(|error| LauncherError::new(70, format!("guardian 无法发送 Ctrl-C：{error}")))?;
     match timeout(stop_timeout, child.wait()).await {
-        Ok(result) => result
-            .map_err(|error| LauncherError::new(70, format!("等待 NTPRO 安全停止失败：{error}"))),
+        Ok(result) => result.map_err(|error| {
+            LauncherError::new(70, format!("guardian 等待 NTPRO 安全停止失败：{error}"))
+        }),
         Err(_) => {
-            let _ = send_signal(child_pid, Signal::Kill);
-            let _ = child.wait().await;
-            Err(LauncherError::new(
-                70,
-                format!(
-                    "NTPRO 在 {} 秒内未完成安全停止，已强制终止",
-                    stop_timeout.as_secs()
-                ),
-            ))
+            if let Some(status) = child.try_wait().map_err(|error| {
+                LauncherError::new(70, format!("guardian 检查 NTPRO 停止状态失败：{error}"))
+            })? {
+                return Ok(status);
+            }
+            let _ = send_signal(child_pid, Signal::Kill).map_err(|error| {
+                LauncherError::new(70, format!("guardian 强制终止 NTPRO 失败：{error}"))
+            })?;
+            match timeout(FORCED_STOP_CONFIRM_TIMEOUT, child.wait()).await {
+                Ok(result) => result.map_err(|error| {
+                    LauncherError::new(70, format!("guardian 等待强制终止失败：{error}"))
+                }),
+                Err(_) => Err(LauncherError::new(
+                    70,
+                    "guardian 强制终止后仍未确认 NTPRO 退出",
+                )),
+            }
         }
     }
 }
@@ -238,53 +344,140 @@ fn spawn_guardian(
     current_exe: &Path,
     workspace: &Path,
     parent_pid: u32,
+    nautilus_bin: &Path,
+    service_args: &[OsString],
 ) -> Result<Child, LauncherError> {
-    Command::new(current_exe)
+    use std::os::unix::process::CommandExt;
+
+    let mut command = Command::new(current_exe);
+    command
         .arg(GUARDIAN_MODE)
         .arg(parent_pid.to_string())
         .arg(workspace)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .arg(nautilus_bin)
+        .args(service_args);
+    // Guardian 与服务使用独立进程组，终端 Ctrl-C 只到 launcher，再由 launcher 映射一次。
+    command.as_std_mut().process_group(0);
+    command
         .spawn()
         .map_err(|error| LauncherError::new(70, format!("无法启动 NTPRO 守护进程：{error}")))
 }
 
-fn run_guardian(args: &[std::ffi::OsString]) -> i32 {
+async fn run_guardian(args: &[OsString]) -> Result<i32, LauncherError> {
     let Some(parent_pid) = args
         .first()
         .and_then(|value| value.to_str())
         .and_then(|value| value.parse::<u32>().ok())
     else {
-        return 64;
+        return Err(LauncherError::new(64, "guardian 缺少 launcher PID"));
     };
     let Some(workspace) = args.get(1).map(PathBuf::from) else {
-        return 64;
+        return Err(LauncherError::new(64, "guardian 缺少工作区"));
     };
+    let Some(nautilus_bin) = args.get(2).map(PathBuf::from) else {
+        return Err(LauncherError::new(64, "guardian 缺少 NTPRO 主程序"));
+    };
+    let service_args = &args[3..];
+    let guardian_pid = std::process::id();
     let lock_path = workspace.join(LOCK_NAME);
-    let child_path = child_path(&workspace, parent_pid);
+    let child_path = child_path(&workspace, guardian_pid);
 
-    let mut observed_child = None;
-    while process_alive(parent_pid) {
-        observed_child = read_pid(&child_path)
-            .or_else(|| find_nautilus_child(parent_pid))
-            .or(observed_child);
-        thread::sleep(Duration::from_millis(200));
+    loop {
+        if read_pid(&lock_path) == Some(guardian_pid) {
+            break;
+        }
+        if !process_alive(parent_pid) {
+            cleanup_lock_owner(&lock_path, &child_path, parent_pid);
+            return Ok(0);
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
 
-    let child_pid = read_pid(&child_path).or(observed_child);
-    if let Some(child_pid) = child_pid.filter(|pid| process_alive(*pid)) {
-        let _ = send_signal(child_pid, Signal::Interrupt);
-        if !wait_for_process_exit(child_pid, Duration::from_secs(45)) {
-            let _ = send_signal(child_pid, Signal::Kill);
-            let _ = wait_for_process_exit(child_pid, Duration::from_secs(2));
+    let mut child = match Command::new(&nautilus_bin).args(service_args).spawn() {
+        Ok(child) => child,
+        Err(error) => {
+            cleanup_lock_owner(&lock_path, &child_path, guardian_pid);
+            return Err(LauncherError::new(
+                70,
+                format!("guardian 无法启动 NTPRO 主程序：{error}"),
+            ));
+        }
+    };
+    let child_pid = child
+        .id()
+        .ok_or_else(|| LauncherError::new(70, "NTPRO 主程序没有可用 PID"))?;
+    if let Err(error) = atomic_write_pid(&child_path, child_pid) {
+        return guardian_publish_failure(
+            &mut child,
+            child_pid,
+            &lock_path,
+            &child_path,
+            guardian_pid,
+            error,
+        )
+        .await;
+    }
+
+    let mut parent_watch = tokio::time::interval(Duration::from_millis(100));
+    parent_watch.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+    let status = 'watch: loop {
+        tokio::select! {
+            result = child.wait() => break result.map_err(|error| LauncherError::new(70, format!("guardian 等待 NTPRO 主程序失败：{error}")))?,
+            _ = parent_watch.tick() => {
+                if !process_alive(parent_pid) {
+                    match stop_owned_child(&mut child, child_pid, Duration::from_secs(45)).await {
+                        Ok(status) => break 'watch status,
+                        Err(_) => {
+                            // 服务未确认退出时 guardian 继续持有进程与运行锁，禁止错误接管。
+                            loop {
+                                if let Some(status) = child.try_wait().map_err(|error| LauncherError::new(70, format!("guardian 检查 NTPRO 主程序失败：{error}")))? {
+                                    break 'watch status;
+                                }
+                                tokio::time::sleep(Duration::from_secs(1)).await;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+    cleanup_lock_owner(&lock_path, &child_path, guardian_pid);
+    Ok(status.code().unwrap_or(70))
+}
+
+async fn guardian_publish_failure(
+    child: &mut Child,
+    child_pid: u32,
+    lock_path: &Path,
+    child_path: &Path,
+    guardian_pid: u32,
+    publish_error: io::Error,
+) -> Result<i32, LauncherError> {
+    if stop_owned_child(child, child_pid, Duration::from_secs(45))
+        .await
+        .is_err()
+    {
+        loop {
+            if child
+                .try_wait()
+                .map_err(|error| {
+                    LauncherError::new(
+                        70,
+                        format!("guardian 检查 PID 发布失败后的服务状态失败：{error}"),
+                    )
+                })?
+                .is_some()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }
-    if read_pid(&lock_path) == Some(parent_pid) {
-        let _ = fs::remove_file(lock_path);
-    }
-    let _ = fs::remove_file(child_path);
-    0
+    cleanup_lock_owner(lock_path, child_path, guardian_pid);
+    Err(LauncherError::new(
+        74,
+        format!("guardian 无法发布 NTPRO 服务 PID：{publish_error}"),
+    ))
 }
 
 fn workspace_path() -> Result<PathBuf, LauncherError> {
@@ -378,6 +571,7 @@ fn acquire_lock(workspace: &Path) -> Result<RuntimeLock, LauncherError> {
                     path: lock_path,
                     child_path: child_path(workspace, owner_pid),
                     owner_pid,
+                    cleanup_on_drop: true,
                 });
             }
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
@@ -462,6 +656,13 @@ fn child_path(workspace: &Path, owner_pid: u32) -> PathBuf {
     workspace.join(format!(".local-delivery.child.{owner_pid}"))
 }
 
+fn cleanup_lock_owner(lock_path: &Path, child_path: &Path, owner_pid: u32) {
+    if read_pid(lock_path) == Some(owner_pid) {
+        let _ = fs::remove_file(lock_path);
+    }
+    let _ = fs::remove_file(child_path);
+}
+
 fn write_pid_create_new(path: &Path, pid: u32) -> io::Result<()> {
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
     writeln!(file, "{pid}")?;
@@ -491,15 +692,15 @@ fn process_alive(pid: u32) -> bool {
     })
 }
 
-fn send_signal(pid: u32, signal: Signal) -> io::Result<()> {
+fn send_signal(pid: u32, signal: Signal) -> io::Result<bool> {
     let sys_pid = Pid::from_u32(pid);
     let mut system = System::new();
     system.refresh_processes(ProcessesToUpdate::Some(&[sys_pid]), true);
     let Some(process) = system.process(sys_pid) else {
-        return Ok(());
+        return Ok(false);
     };
     match process.kill_with(signal) {
-        Some(true) => Ok(()),
+        Some(true) => Ok(true),
         Some(false) => Err(io::Error::other(format!(
             "操作系统拒绝向 PID {pid} 发送 {signal:?}"
         ))),
@@ -519,14 +720,4 @@ fn wait_for_process_exit(pid: u32, wait: Duration) -> bool {
         thread::sleep(Duration::from_millis(100));
     }
     true
-}
-
-fn find_nautilus_child(parent_pid: u32) -> Option<u32> {
-    let mut system = System::new();
-    system.refresh_processes(ProcessesToUpdate::All, true);
-    system.processes().values().find_map(|process| {
-        (process.parent().map(Pid::as_u32) == Some(parent_pid)
-            && process.name() == OsStr::new("nautilus"))
-        .then(|| process.pid().as_u32())
-    })
 }

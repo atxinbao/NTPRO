@@ -72,7 +72,7 @@ if matches '^(scripts/ai/test_mvp_fault_matrix\.mjs|configs/nodes/btc-ema-shadow
   mvp_fault_matrix=true
 fi
 
-if matches '^(Cargo\.(toml|lock)|LICENSE|apps/strategy-workbench/.*|crates/.*|configs/(nodes/btc-ema-shadow\.toml|backtests/ema-cross-btcusdt-product\.toml)|scripts/ai/(build_ntpro_local_delivery\.sh|test_ntpro_local_delivery\.mjs|toolchain_env\.sh)|scripts/rust-toolchain\.sh|rust-toolchain\.toml|docs/product/ntpro_local_delivery\.md)$'; then
+if matches '^(Cargo\.(toml|lock)|LICENSE|\.cargo/config\.toml|apps/strategy-workbench/.*|crates/.*|configs/(nodes/btc-ema-shadow\.toml|backtests/ema-cross-btcusdt-product\.toml)|scripts/ai/(build_ntpro_local_delivery\.sh|test_ntpro_local_delivery\.mjs|toolchain_env\.sh)|scripts/rust-toolchain\.sh|rust-toolchain\.toml|docs/product/ntpro_local_delivery\.md)$'; then
   local_delivery=true
 fi
 

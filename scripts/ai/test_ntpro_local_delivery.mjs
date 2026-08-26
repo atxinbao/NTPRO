@@ -29,6 +29,7 @@ const workspace = path.join(root, "user-data", "usable-product-v1");
 const launcher = path.join(packageDir, "start-ntpro");
 const evidenceLog = [];
 const activeChildren = new Set();
+const signalStopWaitMs = 75_000;
 
 fs.mkdirSync(evidenceDir, { recursive: true });
 
@@ -170,17 +171,22 @@ const stopGracefully = async (launch) => {
 };
 const lockPath = (workspacePath = workspace) =>
   path.join(workspacePath, ".local-delivery.lock");
+const guardianPidFor = (workspacePath = workspace) => readPid(lockPath(workspacePath));
 const servicePidFor = (workspacePath = workspace) => {
-  const ownerPid = readPid(lockPath(workspacePath));
+  const ownerPid = guardianPidFor(workspacePath);
   return ownerPid
     ? readPid(path.join(workspacePath, `.local-delivery.child.${ownerPid}`))
     : undefined;
 };
 const killAbnormally = async (launch) => {
+  const guardianPid = guardianPidFor();
   const servicePid = servicePidFor();
+  assert(guardianPid && processAlive(guardianPid), "group kill omitted live guardian PID");
   assert(servicePid && processAlive(servicePid), "group kill omitted live service PID");
   if (!exited(launch.child)) process.kill(-launch.child.pid, "SIGKILL");
+  if (processAlive(guardianPid)) process.kill(-guardianPid, "SIGKILL");
   assert(await waitForExit(launch.child, 5_000), "abnormal process group did not exit");
+  await waitFor("abnormal guardian exit", 5_000, () => !processAlive(guardianPid));
   await waitFor("abnormal service exit", 5_000, () => !processAlive(servicePid));
   return servicePid;
 };
@@ -189,11 +195,12 @@ const readPid = (filePath) => {
   const pid = Number(fs.readFileSync(filePath, "utf8").trim());
   return Number.isInteger(pid) && pid > 0 ? pid : undefined;
 };
-const stopWithSignal = async (launch, signal) => {
+const stopWithSignal = async (launch, signal, processGroup = false) => {
   const servicePid = servicePidFor();
   assert(servicePid && processAlive(servicePid), `${signal} test omitted live service PID`);
-  launch.child.kill(signal);
-  assert(await waitForExit(launch.child, 60_000), `${signal} did not stop launcher`);
+  if (processGroup) process.kill(-launch.child.pid, signal);
+  else launch.child.kill(signal);
+  assert(await waitForExit(launch.child, signalStopWaitMs), `${signal} did not stop launcher`);
   assert(
     launch.child.exitCode === 0 && launch.child.signalCode === null,
     `${signal} launcher exit was not clean: code=${launch.child.exitCode} signal=${launch.child.signalCode}`,
@@ -206,6 +213,25 @@ const stopWithSignal = async (launch, signal) => {
   assert(log.includes("mvp.serve status=stopped"), `${signal} omitted MVP stopped evidence`);
   assert(log.includes("NTPRO 已安全停止"), `${signal} omitted launcher safe-stop evidence`);
   return servicePid;
+};
+const killLauncherDuringStartup = async (workspacePath, port) => {
+  const launch = startLauncher(workspacePath, port, "startup-launcher-kill");
+  const guardianPid = await waitFor("startup guardian ownership", 10_000, () => {
+    const ownerPid = guardianPidFor(workspacePath);
+    return ownerPid && ownerPid !== launch.child.pid && processAlive(ownerPid)
+      ? ownerPid
+      : undefined;
+  });
+  let observedServicePid = servicePidFor(workspacePath);
+  launch.child.kill("SIGKILL");
+  assert(await waitForExit(launch.child, 5_000), "startup launcher SIGKILL did not exit");
+  await waitFor("startup guardian cleanup", 60_000, () => {
+    observedServicePid ||= servicePidFor(workspacePath);
+    return !processAlive(guardianPid) && !fs.existsSync(lockPath(workspacePath));
+  });
+  if (observedServicePid) {
+    assert(!processAlive(observedServicePid), "startup launcher kill orphaned service");
+  }
 };
 const killLauncherOnly = async (launch) => {
   const servicePid = servicePidFor();
@@ -390,6 +416,10 @@ try {
     "manifest delivery payload tree hash mismatch",
   );
 
+  const startupKillPort = await freePort();
+  const startupKillWorkspace = path.join(root, "startup-kill-workspace");
+  await killLauncherDuringStartup(startupKillWorkspace, startupKillPort);
+
   const port = await freePort();
   currentLaunch = startLauncher(workspace, port, "initial");
   const initial = await waitForReady(currentLaunch);
@@ -485,7 +515,7 @@ try {
     `stale-lock loser exited ${losers[0].launch.child.exitCode}`,
   );
   currentLaunch = winners[0].launch;
-  await stopWithSignal(currentLaunch, "SIGINT");
+  await stopWithSignal(currentLaunch, "SIGINT", true);
 
   const occupiedPort = await freePort();
   const listener = net.createServer();
@@ -531,6 +561,8 @@ try {
         package_manifest: "ntpro.local_delivery_manifest.v1",
         package_hashes_recomputed: true,
         source_binding_verified: true,
+        startup_launcher_kill_guarded: true,
+        terminal_process_group_ctrl_c: true,
         single_entrypoint: true,
         production_browser: true,
         duplicate_launch_rejected: true,
