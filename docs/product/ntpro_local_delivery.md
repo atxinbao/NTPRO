@@ -30,6 +30,7 @@ ntpro-local-delivery/
 ├── start-ntpro                 # 唯一用户启动入口
 ├── 操作说明.md                 # 本说明
 ├── delivery-manifest.json      # 交付来源和关键文件摘要
+├── LICENSE                     # 软件许可证
 ├── bin/                        # NTPRO 主程序和 node
 ├── configs/                    # 已验证的单策略配置
 └── apps/strategy-workbench/    # 已构建的 production 网页
@@ -138,8 +139,9 @@ NTPRO_BIND=127.0.0.1:5180 ./start-ntpro
 
 ### 上次异常退出后无法启动
 
-直接再次运行 `./start-ntpro`。如果旧进程已不存在，启动器会识别并清理失效运行锁。若仍提示实例
-在运行，先确认原终端或原进程是否仍然存在，不要手工删除运行中的工作区。
+直接再次运行 `./start-ntpro`。启动器守护进程会在主启动器异常退出后向 NTPRO 映射 `Ctrl-C`
+收口，并清理所属运行锁；如果整个进程组同时被强制终止，下一次启动会原子接管死 PID 对应的
+失效锁。若仍提示实例正在运行或正在安全收口，请等待几秒后重试，不要手工删除运行中的工作区。
 
 ### 提示缺少主程序、node、配置或策略工作台
 
@@ -168,11 +170,15 @@ scripts/ai/build_ntpro_local_delivery.sh
 ```
 
 默认输出到 `target/ntpro-local-delivery`。构建器会编译两个 Rust 二进制、构建 Vite production
-bundle、复制必要配置和说明，并生成 `delivery-manifest.json`。已经准备好二进制和前端产物时，
-自动验收可使用：
+bundle、复制必要配置、许可证和说明，并生成 `delivery-manifest.json`。manifest 会记录 Git
+SHA、工作区是否干净、操作系统、CPU 架构、Rust target 和关键文件 SHA-256；构建器不接受任意
+外部二进制替换。
+
+正式交付要求源码工作区干净。只在提交前开发验证时，才可显式生成标记为 dirty 的测试包：
 
 ```bash
-NTPRO_LOCAL_DELIVERY_SKIP_BUILD=1 scripts/ai/build_ntpro_local_delivery.sh
+NTPRO_LOCAL_DELIVERY_ALLOW_DIRTY=1 scripts/ai/build_ntpro_local_delivery.sh
 ```
 
-生成目录是可重建交付物；用户工作区是持久数据，两者必须分开备份和升级。
+dirty 测试包的 manifest 会明确写入 `git_head_dirty_workspace_build`，不得作为正式交付。生成目录
+是可重建交付物；用户工作区是持久数据，两者必须分开备份和升级。

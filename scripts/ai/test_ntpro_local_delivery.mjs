@@ -35,6 +35,24 @@ const assert = (condition, message) => {
   if (!condition) throw new Error(message);
 };
 const sleep = (millis) => new Promise((resolve) => setTimeout(resolve, millis));
+const processAlive = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+const waitFor = async (description, timeoutMs, check) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = await check();
+    if (value) return value;
+    await sleep(100);
+  }
+  throw new Error(`timed out waiting for ${description}`);
+};
 const redact = (value) =>
   String(value)
     .replace(/(access_token=)[^\s&]+/g, "$1[REDACTED]")
@@ -131,8 +149,39 @@ const stopGracefully = async (launch) => {
   assert(await waitForExit(launch.child, 5_000), "local delivery did not stop");
 };
 const killAbnormally = async (launch) => {
+  const servicePid = readPid(path.join(workspace, ".local-delivery.lock", "child.pid"));
+  assert(servicePid && processAlive(servicePid), "group kill omitted live service PID");
   if (!exited(launch.child)) process.kill(-launch.child.pid, "SIGKILL");
   assert(await waitForExit(launch.child, 5_000), "abnormal process group did not exit");
+  await waitFor("abnormal service exit", 5_000, () => !processAlive(servicePid));
+  return servicePid;
+};
+const readPid = (filePath) => {
+  if (!fs.existsSync(filePath)) return undefined;
+  const pid = Number(fs.readFileSync(filePath, "utf8").trim());
+  return Number.isInteger(pid) && pid > 0 ? pid : undefined;
+};
+const stopWithSignal = async (launch, signal) => {
+  const servicePid = readPid(path.join(workspace, ".local-delivery.lock", "child.pid"));
+  assert(servicePid && processAlive(servicePid), `${signal} test omitted live service PID`);
+  launch.child.kill(signal);
+  assert(await waitForExit(launch.child, 20_000), `${signal} did not stop launcher`);
+  await waitFor(`${signal} service exit`, 5_000, () => !processAlive(servicePid));
+  await waitFor(`${signal} lock cleanup`, 5_000, () =>
+    !fs.existsSync(path.join(workspace, ".local-delivery.lock"))
+  );
+  return servicePid;
+};
+const killLauncherOnly = async (launch) => {
+  const servicePid = readPid(path.join(workspace, ".local-delivery.lock", "child.pid"));
+  assert(servicePid && processAlive(servicePid), "launcher-only kill omitted live service PID");
+  launch.child.kill("SIGKILL");
+  assert(await waitForExit(launch.child, 5_000), "launcher-only SIGKILL did not exit launcher");
+  await waitFor("guardian service cleanup", 20_000, () => !processAlive(servicePid));
+  await waitFor("guardian lock cleanup", 5_000, () =>
+    !fs.existsSync(path.join(workspace, ".local-delivery.lock"))
+  );
+  return servicePid;
 };
 const runSyncLauncher = (workspacePath, port, timeout = 20_000) =>
   spawnSync(launcher, [], {
@@ -164,6 +213,39 @@ const createBacktest = async (port, cookie) => {
   assert(body.data?.run_id?.startsWith("backtest-"), "package Backtest run ID drifted");
   return body.data.run_id;
 };
+const createDemo = async (port, cookie) => {
+  const response = await fetch(`http://127.0.0.1:${port}/api/product/v1/demo-runs`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      strategy_id: "ema_cross_btcusdt_v1",
+      strategy_version_id: "ema_cross_btcusdt_v1@v1",
+      environment: "sandbox",
+      supervisor_node_id: "mvp-node-001",
+      account_ref: "account://sandbox/SANDBOX-001",
+      venue_ref: "venue://sandbox/BINANCE_TESTNET",
+      user_confirmed: true,
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const body = await response.json();
+  assert(response.status === 201, `package Demo creation failed: ${JSON.stringify(body)}`);
+  assert(body.data?.run_id?.startsWith("demo-"), "package Demo run ID drifted");
+  return body.data.run_id;
+};
+const actOnDemo = async (port, cookie, runId, action) => {
+  const response = await fetch(
+    `http://127.0.0.1:${port}/api/product/v1/demo-runs/${runId}/actions`,
+    {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ run_id: runId, action, user_confirmed: true }),
+      signal: AbortSignal.timeout(15_000),
+    },
+  );
+  const body = await response.json();
+  assert(response.status === 200, `Demo ${action} failed: ${JSON.stringify(body)}`);
+};
 const readRun = async (port, cookie, runId) => {
   const response = await fetch(
     `http://127.0.0.1:${port}/api/product/v1/runs/${runId}`,
@@ -172,7 +254,13 @@ const readRun = async (port, cookie, runId) => {
   const body = await response.json();
   assert(response.status === 200, `persisted Run readback failed: ${JSON.stringify(body)}`);
   assert(body.data?.run_id === runId, "persisted Run identity drifted");
+  return body.data;
 };
+const waitForRunLifecycle = async (port, cookie, runId, lifecycle) =>
+  waitFor(`Run ${runId} lifecycle ${lifecycle}`, 15_000, async () => {
+    const run = await readRun(port, cookie, runId);
+    return run.lifecycle === lifecycle ? run : undefined;
+  });
 
 let browser;
 let page;
@@ -185,11 +273,10 @@ try {
       cwd: repoRoot,
       env: {
         ...process.env,
-        NTPRO_LOCAL_DELIVERY_SKIP_BUILD: "1",
         NTPRO_LOCAL_DELIVERY_OUTPUT: packageDir,
       },
       encoding: "utf8",
-      timeout: 120_000,
+      timeout: 600_000,
     });
     assert(!build.error, `delivery builder failed to start: ${build.error?.message}`);
     assert(build.status === 0, `delivery builder failed: ${build.stderr || build.stdout}`);
@@ -201,9 +288,22 @@ try {
     path.join(packageDir, "apps", "strategy-workbench", "dist", "index.html"),
     path.join(packageDir, "delivery-manifest.json"),
     path.join(packageDir, "操作说明.md"),
+    path.join(packageDir, "LICENSE"),
   ]) {
     assert(fs.existsSync(required), `delivery package omitted ${required}`);
   }
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(packageDir, "delivery-manifest.json"), "utf8"),
+  );
+  assert(/^([a-f0-9]{40})$/.test(manifest.source_sha), "manifest source SHA is invalid");
+  assert(
+    ["git_head_clean_workspace_build", "git_head_dirty_workspace_build"].includes(
+      manifest.source_binding,
+    ),
+    "manifest source binding is missing",
+  );
+  assert(manifest.platform?.os && manifest.platform?.arch, "manifest platform is missing");
+  assert(manifest.platform?.rust_target, "manifest Rust target is missing");
 
   const port = await freePort();
   currentLaunch = startLauncher(workspace, port, "initial");
@@ -238,26 +338,57 @@ try {
   assert(browserErrors.length === 0, `browser errors: ${browserErrors.join("; ")}`);
 
   const createdRunId = await createBacktest(port, initial.cookie);
+  const demoRunId = await createDemo(port, initial.cookie);
+  await actOnDemo(port, initial.cookie, demoRunId, "start");
+  await waitForRunLifecycle(port, initial.cookie, demoRunId, "running");
+  const demoNodePid = await waitFor("active Demo node PID", 10_000, () => {
+    const pidPath = path.join(workspace, "nodes", "mvp-node-001", "pid.json");
+    if (!fs.existsSync(pidPath)) return undefined;
+    const artifact = JSON.parse(fs.readFileSync(pidPath, "utf8"));
+    return processAlive(artifact.pid) ? artifact.pid : undefined;
+  });
   const retentionProbe = path.join(workspace, "local-delivery-retention-probe.txt");
   fs.writeFileSync(retentionProbe, `${createdRunId}\n`);
-  await stopGracefully(currentLaunch);
-  assert(!fs.existsSync(path.join(workspace, ".local-delivery.lock")), "normal stop retained lock");
+  await stopWithSignal(currentLaunch, "SIGTERM");
+  assert(!processAlive(demoNodePid), "SIGTERM left the active Demo node running");
 
-  currentLaunch = startLauncher(workspace, port, "restart");
+  currentLaunch = startLauncher(workspace, port, "term-restart");
   const restarted = await waitForReady(currentLaunch);
   assert(fs.readFileSync(retentionProbe, "utf8").trim() === createdRunId, "workspace data was lost");
   await readRun(port, restarted.cookie, createdRunId);
+  await waitForRunLifecycle(port, restarted.cookie, demoRunId, "stopped");
+  await stopWithSignal(currentLaunch, "SIGHUP");
+
+  currentLaunch = startLauncher(workspace, port, "hup-restart");
+  await waitForReady(currentLaunch);
+  await killLauncherOnly(currentLaunch);
+
+  currentLaunch = startLauncher(workspace, port, "guardian-restart");
+  await waitForReady(currentLaunch);
   await killAbnormally(currentLaunch);
   await sleep(250);
   assert(fs.existsSync(path.join(workspace, ".local-delivery.lock")), "abnormal exit did not exercise stale lock");
 
-  currentLaunch = startLauncher(workspace, port, "abnormal-recovery");
-  await waitForReady(currentLaunch);
+  const competingPort = await freePort();
+  const recoveryA = startLauncher(workspace, port, "abnormal-recovery-a");
+  const recoveryB = startLauncher(workspace, competingPort, "abnormal-recovery-b");
+  const recoveries = await Promise.allSettled([
+    waitForReady(recoveryA),
+    waitForReady(recoveryB),
+  ]);
+  const winners = recoveries
+    .map((result, index) => ({ result, launch: index === 0 ? recoveryA : recoveryB }))
+    .filter(({ result }) => result.status === "fulfilled");
+  const losers = recoveries
+    .map((result, index) => ({ result, launch: index === 0 ? recoveryA : recoveryB }))
+    .filter(({ result }) => result.status === "rejected");
+  assert(winners.length === 1 && losers.length === 1, "stale-lock race did not produce one winner");
   assert(
-    combinedLog(currentLaunch).includes("已清理失效运行锁"),
-    "restart did not report stale-lock recovery",
+    [73, 75].includes(losers[0].launch.child.exitCode),
+    `stale-lock loser exited ${losers[0].launch.child.exitCode}`,
   );
-  await stopGracefully(currentLaunch);
+  currentLaunch = winners[0].launch;
+  await stopWithSignal(currentLaunch, "SIGINT");
 
   const occupiedPort = await freePort();
   const listener = net.createServer();
@@ -305,6 +436,11 @@ try {
         production_browser: true,
         duplicate_launch_rejected: true,
         normal_stop_clean: true,
+        term_and_hup_mapped_to_ctrl_c: true,
+        active_demo_stopped_on_term: true,
+        launcher_only_kill_guarded: true,
+        process_tree_exit_verified: true,
+        concurrent_stale_lock_single_winner: true,
         same_workspace_restart: true,
         backtest_persisted: true,
         abnormal_exit_recovered: true,

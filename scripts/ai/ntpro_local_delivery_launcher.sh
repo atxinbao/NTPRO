@@ -63,25 +63,76 @@ done
 mkdir -p "$workspace"
 lock_dir="$workspace/.local-delivery.lock"
 lock_owner="$lock_dir/owner.pid"
+lock_child="$lock_dir/child.pid"
+
+read_pid_file() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    tr -dc '0-9' <"$file"
+  fi
+}
+
+process_alive() {
+  [[ -n "$1" ]] && kill -0 "$1" 2>/dev/null
+}
+
+wait_for_process_exit() {
+  local pid="$1"
+  local attempts="${2:-50}"
+  local attempt=0
+  while process_alive "$pid" && (( attempt < attempts )); do
+    sleep 0.1
+    attempt=$((attempt + 1))
+  done
+  ! process_alive "$pid"
+}
 
 acquire_lock() {
-  local existing_pid=""
-  if mkdir "$lock_dir" 2>/dev/null; then
-    printf '%s\n' "$$" >"$lock_owner"
-    return
-  fi
+  local attempt=0
+  local existing_owner=""
+  local existing_child=""
+  local quarantine=""
 
-  if [[ -f "$lock_owner" ]]; then
-    existing_pid="$(tr -dc '0-9' <"$lock_owner")"
-  fi
-  if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
-    fail "该工作区已经有一个 NTPRO 实例在运行（PID ${existing_pid}）。请使用现有页面，或先在原终端按 Ctrl-C 停止。" 73
-  fi
+  while (( attempt < 3 )); do
+    if mkdir "$lock_dir" 2>/dev/null; then
+      printf '%s\n' "$$" >"$lock_owner"
+      return
+    fi
+    if [[ -L "$lock_dir" || ! -d "$lock_dir" ]]; then
+      fail "运行锁路径不是可信目录：${lock_dir}。请保留现场并联系维护人员。" 73
+    fi
 
-  rm -rf "$lock_dir"
-  mkdir "$lock_dir" || fail "无法创建运行锁：${lock_dir}。" 73
-  printf '%s\n' "$$" >"$lock_owner"
-  printf 'NTPRO 检测到上次异常退出，已清理失效运行锁。\n'
+    existing_owner="$(read_pid_file "$lock_owner")"
+    existing_child="$(read_pid_file "$lock_child")"
+    if process_alive "$existing_owner"; then
+      fail "该工作区已经有一个 NTPRO 实例在运行（PID ${existing_owner}）。请使用现有页面，或先在原终端按 Ctrl-C 停止。" 73
+    fi
+    if process_alive "$existing_child" && ! wait_for_process_exit "$existing_child" 50; then
+      fail "上次启动器已退出，但 NTPRO 正在安全收口（PID ${existing_child}）。请稍等几秒后重试。" 75
+    fi
+
+    # 原子移动确保多个并发启动器中只有一个能接管同一失效锁。
+    quarantine="${lock_dir}.stale.$$.$RANDOM"
+    if mv "$lock_dir" "$quarantine" 2>/dev/null; then
+      existing_owner="$(read_pid_file "$quarantine/owner.pid")"
+      existing_child="$(read_pid_file "$quarantine/child.pid")"
+      if process_alive "$existing_owner" || process_alive "$existing_child"; then
+        mv "$quarantine" "$lock_dir" 2>/dev/null || true
+        fail "检测到仍存活的 NTPRO 进程，拒绝接管工作区。请稍等后重试。" 75
+      fi
+      if mkdir "$lock_dir" 2>/dev/null; then
+        printf '%s\n' "$$" >"$lock_owner"
+        rm -rf "$quarantine"
+        printf 'NTPRO 检测到上次异常退出，已原子接管失效运行锁。\n'
+        return
+      fi
+      rm -rf "$quarantine"
+    fi
+    attempt=$((attempt + 1))
+    sleep 0.1
+  done
+
+  fail "另一个启动器正在接管该工作区，请稍等几秒后重试。" 75
 }
 
 cleanup_lock() {
@@ -95,7 +146,33 @@ cleanup_lock() {
 }
 
 acquire_lock
-trap cleanup_lock EXIT
+
+child_pid=""
+guardian_pid=""
+
+request_graceful_shutdown() {
+  if process_alive "$child_pid"; then
+    kill -INT "$child_pid" 2>/dev/null || true
+  fi
+}
+
+stop_guardian() {
+  if process_alive "$guardian_pid"; then
+    kill -KILL "$guardian_pid" 2>/dev/null || true
+    wait "$guardian_pid" 2>/dev/null || true
+  fi
+  guardian_pid=""
+}
+
+cleanup_launcher() {
+  if process_alive "$child_pid"; then
+    kill -INT "$child_pid" 2>/dev/null || true
+    wait_for_process_exit "$child_pid" 100 || kill -KILL "$child_pid" 2>/dev/null || true
+  fi
+  stop_guardian
+  cleanup_lock
+}
+trap cleanup_launcher EXIT
 
 # Bash 的本机 TCP 探测只用于给出更直接的端口占用说明；真正的监听仍由 Axum 完成。
 if (exec 3<>"/dev/tcp/${bind_host}/${bind_port}") 2>/dev/null; then
@@ -103,20 +180,13 @@ if (exec 3<>"/dev/tcp/${bind_host}/${bind_port}") 2>/dev/null; then
   fail "端口 ${bind_port} 已被占用。请关闭占用程序，或设置 NTPRO_BIND=127.0.0.1:其他端口。" 69
 fi
 
-child_pid=""
-forward_signal() {
-  local signal="$1"
-  if [[ -n "$child_pid" ]] && kill -0 "$child_pid" 2>/dev/null; then
-    kill -s "$signal" "$child_pid" 2>/dev/null || true
-  fi
-}
-trap 'forward_signal INT' INT
-trap 'forward_signal TERM' TERM
-trap 'forward_signal HUP' HUP
+trap request_graceful_shutdown INT
+trap request_graceful_shutdown TERM
+trap request_graceful_shutdown HUP
 
 printf 'NTPRO 正在启动...\n'
 printf '工作区：%s\n' "$workspace"
-printf '访问地址：http://%s/strategy-workbench/overview\n' "$bind"
+printf '页面入口：服务就绪后，请打开下方 strategy_workbench_url 的完整地址。\n'
 printf '停止方式：回到本终端按 Ctrl-C。\n'
 
 "$nautilus_bin" mvp serve \
@@ -130,17 +200,41 @@ printf '停止方式：回到本终端按 Ctrl-C。\n'
   --node-max-runtime-ms "$node_max_runtime_ms" \
   --node-shutdown-timeout-ms "$node_shutdown_timeout_ms" &
 child_pid="$!"
-printf '%s\n' "$child_pid" >"$lock_dir/child.pid"
+printf '%s\n' "$child_pid" >"$lock_child"
+
+guardian_parent_pid="$$"
+guardian_child_pid="$child_pid"
+(
+  trap - EXIT INT TERM HUP
+  while process_alive "$guardian_parent_pid"; do
+    sleep 0.2
+  done
+  if process_alive "$guardian_child_pid"; then
+    kill -INT "$guardian_child_pid" 2>/dev/null || true
+    wait_for_process_exit "$guardian_child_pid" 150 \
+      || kill -KILL "$guardian_child_pid" 2>/dev/null \
+      || true
+  fi
+  recorded_owner="$(read_pid_file "$lock_owner")"
+  recorded_child="$(read_pid_file "$lock_child")"
+  if [[ "$recorded_owner" == "$guardian_parent_pid" && "$recorded_child" == "$guardian_child_pid" ]]; then
+    rm -rf "$lock_dir"
+  fi
+) &
+guardian_pid="$!"
 
 set +e
 wait "$child_pid"
 status="$?"
-if kill -0 "$child_pid" 2>/dev/null; then
+if process_alive "$child_pid"; then
   wait "$child_pid"
   status="$?"
 fi
 set -e
 child_pid=""
+stop_guardian
+cleanup_lock
+trap - EXIT
 
 if (( status != 0 )); then
   printf 'NTPRO 已停止，但启动或运行过程返回错误（状态码 %s）。请查看上方错误；节点日志位于 %s/nodes/%s/logs/。\n' \

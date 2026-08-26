@@ -39,6 +39,7 @@ assert_output "$runtime_output" "strategy_workbench=true"
 assert_output "$runtime_output" "control_center=true"
 assert_output "$runtime_output" "mvp_acceptance=true"
 assert_output "$runtime_output" "mvp_fault_matrix=true"
+assert_output "$runtime_output" "local_delivery=true"
 
 freeze_output="$(classify freeze docs/product/mvp_freeze_manifest.json)"
 for key in institution_workbench strategy_workbench control_center mvp_acceptance mvp_fault_matrix mvp_final_acceptance frontend_app; do
@@ -58,6 +59,7 @@ assert_output "$product_api_output" "strategy_workbench=true"
 assert_output "$product_api_output" "frontend_app=true"
 assert_output "$product_api_output" "mvp_acceptance=false"
 assert_output "$product_api_output" "mvp_fault_matrix=false"
+assert_output "$product_api_output" "local_delivery=true"
 
 product_contract_output="$(classify product-contract docs/product/api/ntpro_product_v1.openapi.json)"
 assert_output "$product_contract_output" "heavy_rust=true"
@@ -69,7 +71,7 @@ assert_output "$frontend_output" "frontend_app=true"
 assert_output "$frontend_output" "heavy_rust=false"
 assert_output "$frontend_output" "strategy_workbench=true"
 assert_output "$frontend_output" "mvp_acceptance=false"
-assert_output "$frontend_output" "local_delivery=false"
+assert_output "$frontend_output" "local_delivery=true"
 
 local_delivery_output="$(classify local-delivery scripts/ai/test_ntpro_local_delivery.mjs docs/product/ntpro_local_delivery.md)"
 assert_output "$local_delivery_output" "local_delivery=true"
@@ -77,12 +79,19 @@ assert_output "$local_delivery_output" "strategy_workbench=true"
 assert_output "$local_delivery_output" "frontend_app=true"
 assert_output "$local_delivery_output" "heavy_rust=false"
 
+local_delivery_inputs_output="$(classify local-delivery-inputs configs/nodes/btc-ema-shadow.toml configs/backtests/ema-cross-btcusdt-product.toml rust-toolchain.toml)"
+assert_output "$local_delivery_inputs_output" "local_delivery=true"
+assert_output "$local_delivery_inputs_output" "strategy_workbench=true"
+assert_output "$local_delivery_inputs_output" "frontend_app=true"
+assert_output "$local_delivery_inputs_output" "heavy_rust=true"
+
 cargo_output="$(classify cargo Cargo.lock)"
 assert_output "$cargo_output" "heavy_rust=true"
 assert_output "$cargo_output" "mvp_acceptance=false"
 assert_output "$cargo_output" "mvp_fault_matrix=false"
 assert_output "$cargo_output" "security_dependencies=true"
 assert_output "$cargo_output" "security_workflow=false"
+assert_output "$cargo_output" "local_delivery=true"
 
 workflow_output="$(classify workflow .github/workflows/rust-cutover-smoke.yml)"
 assert_output "$workflow_output" "release_verify=true"
@@ -261,4 +270,4 @@ assert_aggregate_fail true success success skipped success
 assert_aggregate_fail false success success success skipped
 assert_aggregate_fail unknown success success skipped skipped
 
-echo "ci_change_classifier_selftest=pass cases=37"
+echo "ci_change_classifier_selftest=pass cases=38"
