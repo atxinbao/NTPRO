@@ -1447,6 +1447,28 @@ describe("strategy workbench product slice", () => {
     expect(await screen.findByText("当前没有已注册策略")).toBeInTheDocument();
   });
 
+  it("does not expose or request unscoped Runs when comparison has no strategy", async () => {
+    const empty = structuredClone(strategyListFixture);
+    empty.data = [];
+    empty.page.returned_count = 0;
+    let runListRequests = 0;
+    server.use(
+      http.get("/api/product/v1/strategies", () => HttpResponse.json(empty)),
+      http.get("/api/product/v1/runs", () => {
+        runListRequests += 1;
+        return HttpResponse.json(runListFixture);
+      }),
+    );
+
+    renderWorkbench("/backtests/compare");
+    expect(await screen.findByText("Run 列表尚未验证")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "重新加载 Run" }),
+    ).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(runListRequests).toBe(0);
+  });
+
   it("opens the independent strategy page from the left navigation", async () => {
     renderWorkbench("/overview");
     expect(

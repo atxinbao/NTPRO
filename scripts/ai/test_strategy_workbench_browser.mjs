@@ -38,7 +38,9 @@ const port = await new Promise((resolve, reject) => {
 const baseUrl = `http://127.0.0.1:${port}`;
 const spawnMvpServer = () => {
   const logStart = serverLog.length;
-  serverLog.push(`\n--- mvp serve ${logStart === 0 ? "initial" : "restart"} ---\n`);
+  serverLog.push(
+    `\n--- mvp serve ${logStart === 0 ? "initial" : "restart"} ---\n`,
+  );
   const child = spawn(
     "target/debug/nautilus",
     [
@@ -86,8 +88,8 @@ const stopMvpServer = async (child) => {
   child.kill("SIGINT");
   if (await waitForServerExit(child, 10_000)) return;
   child.kill("SIGKILL");
-  await waitForServerExit(child, 5_000);
-  throw new Error("MVP server did not stop within 10 seconds");
+  if (await waitForServerExit(child, 5_000)) return;
+  throw new Error("MVP server did not stop after SIGINT and SIGKILL");
 };
 const waitForStrategyAccess = async (logStart) => {
   const deadline = Date.now() + 30_000;
@@ -98,7 +100,8 @@ const waitForStrategyAccess = async (logStart) => {
     if (match) {
       const strategyAccessUrl = new URL(match[1]);
       const token = strategyAccessUrl.searchParams.get("access_token");
-      if (!token) throw new Error("strategy bootstrap URL omitted access_token");
+      if (!token)
+        throw new Error("strategy bootstrap URL omitted access_token");
       const institutionCookie = `ntpro_mvp_institution_access=${token}`;
       try {
         const response = await fetch(`${baseUrl}/api/mvp/v1/status`, {
@@ -1200,7 +1203,9 @@ try {
     (await backtestDataSelect.inputValue()) !==
     "dataset://fixtures/ema-cross-btcusdt-v1"
   ) {
-    throw new Error("empty catalog did not retain the deterministic Backtest source");
+    throw new Error(
+      "empty catalog did not retain the deterministic Backtest source",
+    );
   }
   await page.setViewportSize({ width: 1280, height: 720 });
   const createBacktestButton = page.getByRole("button", {
@@ -1292,24 +1297,44 @@ try {
     .waitFor();
 
   await page.goto("about:blank");
+  const previousStrategyToken =
+    strategyAccessUrl.searchParams.get("access_token");
+  const previousInstitutionCookie = institutionCookie;
   await stopMvpServer(server);
   serverLaunch = spawnMvpServer();
   server = serverLaunch.child;
   const restarted = await waitForStrategyAccess(serverLaunch.logStart);
+  const restartedStrategyToken =
+    restarted.strategyAccessUrl.searchParams.get("access_token");
+  if (
+    !previousStrategyToken ||
+    restartedStrategyToken === previousStrategyToken
+  ) {
+    throw new Error("MVP restart did not rotate the strategy access token");
+  }
+  const staleCredentialResponse = await fetch(`${baseUrl}/api/mvp/v1/status`, {
+    headers: { cookie: previousInstitutionCookie },
+  });
+  if (staleCredentialResponse.status !== 403) {
+    throw new Error(
+      `pre-restart credential expected 403, got ${staleCredentialResponse.status}`,
+    );
+  }
   strategyAccessUrl = restarted.strategyAccessUrl;
   institutionCookie = restarted.institutionCookie;
   payload = restarted.payload;
   await page.goto(strategyAccessUrl.toString(), {
     waitUntil: "domcontentloaded",
   });
+  if (new URL(page.url()).searchParams.has("access_token")) {
+    throw new Error("restarted bootstrap token remained in browser URL");
+  }
   await page.goto(
     `${baseUrl}/strategy-workbench/runs/${encodeURIComponent(reproducedRunId)}`,
     { waitUntil: "networkidle" },
   );
   await page.getByRole("heading", { name: reproducedRunId }).waitFor();
-  await page
-    .getByRole("region", { name: "Backtest 确定性复现证明" })
-    .waitFor();
+  await page.getByRole("region", { name: "Backtest 确定性复现证明" }).waitFor();
   await page.goto(
     `${baseUrl}/strategy-workbench/runs/${encodeURIComponent(browserCreatedRunId)}`,
     { waitUntil: "networkidle" },
@@ -1317,7 +1342,10 @@ try {
   await page.getByRole("heading", { name: browserCreatedRunId }).waitFor();
   await page.getByRole("region", { name: "Backtest 指标" }).waitFor();
   await page.screenshot({
-    path: path.join(evidenceDir, "strategy-workbench-backtest-restart-1440.png"),
+    path: path.join(
+      evidenceDir,
+      "strategy-workbench-backtest-restart-1440.png",
+    ),
     fullPage: true,
   });
   runScenario = "valid";
@@ -1589,14 +1617,22 @@ try {
   }
 } finally {
   if (browser) await browser.close().catch(() => {});
-  await stopMvpServer(server).catch(() => {});
+  try {
+    await stopMvpServer(server);
+  } catch (error) {
+    const cleanupError =
+      error instanceof Error ? error : new Error(String(error));
+    failure = failure
+      ? new Error(`${failure.message}; cleanup failed: ${cleanupError.message}`)
+      : cleanupError;
+  }
 }
 
 if (failure) {
   writeEvidence({
     status: "fail",
     error: redact(failure.message),
-    page_url: failurePageUrl,
+    page_url: failurePageUrl ? redact(failurePageUrl) : undefined,
     page_text: failurePageText ? redact(failurePageText) : undefined,
     product_response_errors: productResponseErrors,
   });
@@ -1627,6 +1663,7 @@ writeEvidence({
   product_run_comparison_browser: 1,
   product_run_reproduction_browser: 1,
   product_run_restart_readback: 1,
+  product_access_token_rotation: 1,
   product_run_create_readback: 1,
   product_run_create_access_control: 1,
   product_run_metrics_non_backtest_closed: 1,

@@ -469,7 +469,7 @@ export function useOverviewProductContext() {
     runs:
       isReady && !runtimeError && !isRuntimeVerifying ? runs.data : undefined,
     retryProduct,
-    retryRuns: runs.refetch,
+    retryRuns: strategyId && versionId ? runs.refetch : undefined,
   };
 }
 
