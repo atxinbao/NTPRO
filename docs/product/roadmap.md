@@ -44,7 +44,8 @@ Supervisor、node、Axum、日志目录和进程控制属于技术支撑。系�
 - Demo 创建、start/stop、模拟成交、持仓和权益结果已经接入工作台；
 - Backtest 已接入 `<workspace>/catalog` 中经验证的本地 Parquet QuoteTick 数据，内置
   `synthetic-quotes` 继续作为确定性验证来源；
-- `nautilus mvp serve` 仍是本地开发/运行入口，尚未形成普通用户的一键交付包；
+- `nautilus mvp serve` 是冻结的本地编排合同；UPV1-005 在其外提供自包含交付目录和单一
+  `start-ntpro` 用户入口；
 - S3 Live 的受控代码路径存在，但真实资金端到端验收仍由 #1312 等待 owner 授权。
 
 代码存在不等于产品可用。Usable Product v1 必须重新按首次启动、首次 Backtest、Demo、
@@ -94,9 +95,8 @@ UPV1-003 已交付；Backtest mutation 继续保持显式提交且不自动重�
 
 退出条件：Demo 可以重复操作和解释，真实订单继续保持独立关闭。
 
-当前状态：实现和本地 production bundle 验收已完成，包含真实 Supervisor/Sandbox node
-生命周期、停止后刷新、同 workspace 服务重启读取、终态不自动启动和冻结结果哈希一致性；
-等待 high-risk 独立审查、hosted checks 与手动合并。合并后进入 UPV1-005。
+当前状态：已由 Issue #1325 / PR #1330 完成独立审查、hosted checks 与手动合并，
+UPV1-004 已交付；真实订单继续保持独立关闭。
 
 ### UPV1-005：本地交付与操作说明
 
@@ -105,6 +105,10 @@ UPV1-003 已交付；Backtest mutation 继续保持显式提交且不自动重�
 - 用户不需要手动编排多个进程。
 
 退出条件：全新本地环境按中文说明可以启动、使用和停止 NTPRO。
+
+当前状态：Issue #1326 实现已完成，包含自包含交付目录、单一用户入口、首次工作区初始化、
+重复启动拒绝、正常停止、同工作区重启、异常退出恢复、端口/依赖错误说明和 production 浏览器
+验收；等待 high-risk 独立审查、hosted checks 与手动合并。合并后进入 UPV1-006。
 
 ### UPV1-006：浏览器总验收与 v1 冻结
 

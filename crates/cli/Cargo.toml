@@ -60,7 +60,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["process"] }
 tokio-util = { workspace = true }
 tower-http = { workspace = true }
 toml = { workspace = true }
@@ -80,5 +80,11 @@ test = false
 [[bin]]
 name = "ntpro-node"
 path = "src/bin/ntpro_node.rs"
+doc = false
+test = false
+
+[[bin]]
+name = "ntpro-local-delivery"
+path = "src/bin/ntpro_local_delivery.rs"
 doc = false
 test = false

@@ -26,6 +26,7 @@ jobs:
       mvp_acceptance: ${{ steps.changes.outputs.mvp_acceptance }}
       mvp_fault_matrix: ${{ steps.changes.outputs.mvp_fault_matrix }}
       mvp_final_acceptance: ${{ steps.changes.outputs.mvp_final_acceptance }}
+      local_delivery: ${{ steps.changes.outputs.local_delivery }}
       frontend_app: ${{ steps.changes.outputs.frontend_app }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -181,11 +182,11 @@ jobs:
           path: ${{ runner.temp }}/ntpro-mvp-fault-matrix-evidence
           if-no-files-found: error
       - name: Build product portal browser binaries
-        if: needs.changes.outputs.institution_workbench == 'true' || needs.changes.outputs.strategy_workbench == 'true' || needs.changes.outputs.control_center == 'true'
+        if: needs.changes.outputs.institution_workbench == 'true' || needs.changes.outputs.strategy_workbench == 'true' || needs.changes.outputs.control_center == 'true' || needs.changes.outputs.local_delivery == 'true'
         run: cargo build -p nautilus-cli --bin nautilus --bin ntpro-node
       - name: Product portal browser smoke
         id: portal_browser
-        if: needs.changes.outputs.institution_workbench == 'true' || needs.changes.outputs.strategy_workbench == 'true' || needs.changes.outputs.control_center == 'true'
+        if: needs.changes.outputs.institution_workbench == 'true' || needs.changes.outputs.strategy_workbench == 'true' || needs.changes.outputs.control_center == 'true' || needs.changes.outputs.local_delivery == 'true'
         run: |
           set -euo pipefail
           sudo apt-get update
@@ -211,6 +212,10 @@ jobs:
             export NTPRO_BROWSER_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-control-center-browser-evidence"
             node scripts/ai/test_control_center_browser.mjs || portal_status=$?
           fi
+          if [[ "${{ needs.changes.outputs.local_delivery }}" == "true" ]]; then
+            export NTPRO_LOCAL_DELIVERY_EVIDENCE_DIR="$RUNNER_TEMP/ntpro-local-delivery-evidence"
+            node scripts/ai/test_ntpro_local_delivery.mjs || portal_status=$?
+          fi
           exit "$portal_status"
       - name: Upload institution workbench browser evidence
         if: always() && needs.changes.outputs.institution_workbench == 'true' && steps.portal_browser.outcome != 'skipped'
@@ -232,6 +237,13 @@ jobs:
         with:
           name: strategy-workbench-browser-${{ github.event.pull_request.number }}
           path: ${{ runner.temp }}/ntpro-strategy-workbench-browser-evidence
+          if-no-files-found: error
+      - name: Upload local delivery evidence
+        if: always() && needs.changes.outputs.local_delivery == 'true' && steps.portal_browser.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ntpro-local-delivery-${{ github.event.pull_request.number }}
+          path: ${{ runner.temp }}/ntpro-local-delivery-evidence
           if-no-files-found: error
 
       - name: Build MVP final acceptance summary
